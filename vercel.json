@@ -1,0 +1,10 @@
+{
+  "buildCommand": "cd frontend && npm install -g pnpm@10.30.3 && pnpm install --frozen-lockfile && pnpm build",
+  "installCommand": "echo skip",
+  "outputDirectory": "frontend/.vercel/output",
+  "framework": null,
+  "env": {
+    "NUXT_PUBLIC_USE_MOCK_DATA": "true",
+    "NUXT_PUBLIC_API_BASE": "http://localhost:8000"
+  }
+}
