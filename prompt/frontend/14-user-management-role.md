@@ -2,17 +2,12 @@
 
 ## Copy/paste prompt
 
-Implement `/user-management/roles` in the existing Nuxt UI application. Follow the shared foundation and permissions specification.
+Implement `/user-management/roles` using the shared table and Nuxt UI document-page system.
 
-### Implement now
+Use a server table with search, status, scope, protected-role, permission-count, and user-count filters. No Kanban. Add navigates to `/user-management/roles/new`; rows navigate to `/user-management/roles/:id`. The document page contains role identity and a scalable permission editor grouped by module and action, with search, indeterminate group selection, navigation visibility, affected-user summary, metadata rail, and Security Activity.
 
-Add only a localized Role page header, User Management breadcrumb, administrative permission metadata, and placeholder card. Do not create permission matrices or role forms.
-
-### Future UI contract
-
-The finished page will manage roles and explicit permission codes. Use server-paginated role search, status and scope filters, role details, permission assignment grouped by module/action, and audit history. The permission editor must handle large permission sets with search and partial/group selection without rendering an unbounded DOM. Prevent unsafe edits to protected roles and clearly warn about affected user counts.
+Include immutable security Activity for role creation, permission changes, assignments, status, and protected-role actions. Do not include casual comments. Confirm high-impact changes and prevent unsafe edits to protected roles.
 
 ### Acceptance
 
-The route is visible only through the intended navigation configuration, renders blank, and issues no request.
-
+Large permission sets remain performant and accessible, permission changes are auditable, and checks pass.

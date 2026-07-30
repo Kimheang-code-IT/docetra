@@ -2,17 +2,12 @@
 
 ## Copy/paste prompt
 
-Implement `/configuration/document-types` in the existing Nuxt 4, TypeScript, and Nuxt UI 4 frontend. Follow the shared foundation, administrative configuration module, and document requirements.
+Implement `/configuration/document-types` as a reference and behavior configuration table.
 
-### Implement now
+Use server search/pagination and filters for direction applicability, enabled state, workflow mapping, and usage. Columns: stable code, localized name, direction, workflow/stage template, usage count, status, order, and updated time. No Kanban.
 
-Create only the localized Document Type header, Configuration breadcrumb, route/permission metadata, and shared blank placeholder. Do not build a table, create/edit form, mock data, or API calls.
-
-### Future UI contract
-
-The complete page will manage document classifications using stable code, localized name, description, direction applicability, status, ordering, usage count, and audit history. Use server-side pagination, sorting, search, and status/direction filters. Referenced document types must be disabled rather than hard-deleted, and backend validation must prevent duplicate or invalid codes.
+Add navigates to `/configuration/document-types/new`; rows navigate to `/configuration/document-types/:id`. The Nuxt UI document page supports direction rules, default workflow, allowed attributes, ordering, usage references, metadata, and immutable Configuration Activity. Referenced types must be disabled rather than hard-deleted; duplicate or invalid codes must map to field errors.
 
 ### Acceptance
 
-The route appears under Configuration > Document Type, renders without business data or API work, and passes the production build.
-
+Document type settings drive document forms and views, referenced values remain safe, activity is complete, and checks pass.

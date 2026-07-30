@@ -1,0 +1,198 @@
+<script setup lang="ts">
+import type { EntityConfig } from '~/config/entities'
+import { useEntityWorkspace } from '~/composables/workspace/useEntityWorkspace'
+
+const props = defineProps<{
+  config: EntityConfig
+}>()
+
+const {
+  view,
+  q,
+  page,
+  limit,
+  sort,
+  filters,
+  setFilter,
+  clearFilters,
+  items,
+  total,
+  pending,
+  error,
+  kanbanColumns,
+  refresh,
+  loadMoreStage,
+  moveToStage,
+  debouncedSearch,
+  cellValue,
+  openCreate,
+  openRow,
+  deleteSelected,
+} = useEntityWorkspace(props.config)
+
+const toast = useToast()
+const { t } = useI18n()
+
+const searchInput = ref(q.value)
+const selectedIds = ref<string[]>([])
+const deleting = ref(false)
+
+watch(q, (v) => { searchInput.value = v })
+watch(searchInput, (v) => debouncedSearch(v))
+
+const canDelete = computed(() =>
+  props.config.canDelete !== false && !props.config.readOnly,
+)
+
+async function onMove(id: string, stage: string) {
+  try {
+    await moveToStage(id, stage)
+  }
+  catch {
+    toast.add({ title: t('docetra.document.moveFailed'), color: 'error' })
+  }
+}
+
+async function onDeleteSelected(ids = selectedIds.value) {
+  if (!ids.length || !canDelete.value) return
+  const confirmed = window.confirm(
+    t('docetra.actions.deleteConfirm', { n: ids.length }),
+  )
+  if (!confirmed) return
+
+  deleting.value = true
+  try {
+    await deleteSelected(ids)
+    selectedIds.value = []
+    toast.add({
+      title: t('docetra.actions.deletedItems', { n: ids.length }),
+      color: 'success',
+    })
+  }
+  catch (e: any) {
+    toast.add({
+      title: e?.message || t('docetra.actions.deleteFailed'),
+      color: 'error',
+    })
+  }
+  finally {
+    deleting.value = false
+  }
+}
+</script>
+
+<template>
+  <WorkspaceAppWorkspacePage
+    :title-key="config.titleKey"
+    :description-key="config.descriptionKey"
+    :icon="config.icon"
+    :can-create="config.canCreate !== false && !config.readOnly"
+    @create="openCreate"
+    @refresh="refresh"
+  >
+    <div
+      v-if="view === 'kanban' && config.stages"
+      class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-sm border border-default bg-default"
+    >
+      <WorkspaceAppWorkspaceToolbar
+        :search="searchInput"
+        :filters="config.filters"
+        :filter-values="filters"
+        :view="view"
+        :views="config.views"
+        :sort="sort"
+        @update:search="searchInput = $event"
+        @update:view="view = $event as any"
+        @update:sort="sort = $event"
+        @set-filter="setFilter"
+        @clear-filters="clearFilters"
+      />
+      <WorkspaceAppKanbanBoard
+        class="min-h-0 flex-1 overflow-auto p-3"
+        :stages="config.stages"
+        :columns="kanbanColumns"
+        :pending="pending"
+        :title-field="config.titleField"
+        @card-click="openRow"
+        @load-more="loadMoreStage"
+        @move="onMove"
+      />
+    </div>
+
+    <div
+      v-else-if="view === 'hierarchy'"
+      class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-sm border border-default bg-default"
+    >
+      <WorkspaceAppWorkspaceToolbar
+        :search="searchInput"
+        :filters="config.filters"
+        :filter-values="filters"
+        :view="view"
+        :views="config.views"
+        :sort="sort"
+        @update:search="searchInput = $event"
+        @update:view="view = $event as any"
+        @update:sort="sort = $event"
+        @set-filter="setFilter"
+        @clear-filters="clearFilters"
+      />
+      <div class="min-h-0 flex-1 overflow-auto p-4">
+        <p class="mb-3 text-sm text-muted">{{ $t('docetra.views.hierarchyHint') }}</p>
+        <div v-if="pending" class="flex justify-center py-10">
+          <UIcon name="i-lucide-loader-circle" class="size-6 animate-spin text-primary" />
+        </div>
+        <ul v-else class="space-y-2">
+          <li
+            v-for="row in items"
+            :key="String(row.id)"
+            class="cursor-pointer rounded-md border border-default px-3 py-2 hover:bg-elevated/50"
+            :style="{ marginInlineStart: `${row.parentId ? 1.25 : 0}rem` }"
+            @click="openRow(row)"
+          >
+            <span class="font-medium">{{ row.code }} · {{ row.name }}</span>
+            <span class="ms-2 text-xs text-muted">{{ row.parentName || $t('docetra.fields.root') }}</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <div
+      v-else
+      class="flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden rounded-sm border border-default bg-default shadow-xs"
+    >
+      <WorkspaceAppServerTable
+        :columns="config.columns"
+        :rows="items"
+        :total="total"
+        :page="page"
+        :limit="limit"
+        :pending="pending"
+        :error="error"
+        :cell-value="cellValue"
+        :can-delete="canDelete"
+        @update:page="page = $event"
+        @update:limit="limit = $event"
+        @update:selection="selectedIds = $event"
+        @row-click="openRow"
+        @delete-selected="onDeleteSelected"
+        @retry="refresh"
+      >
+        <template #toolbar>
+          <WorkspaceAppWorkspaceToolbar
+            :search="searchInput"
+            :filters="config.filters"
+            :filter-values="filters"
+            :view="view"
+            :views="config.views"
+            :sort="sort"
+            @update:search="searchInput = $event"
+            @update:view="view = $event as any"
+            @update:sort="sort = $event"
+            @set-filter="setFilter"
+            @clear-filters="clearFilters"
+          />
+        </template>
+      </WorkspaceAppServerTable>
+    </div>
+  </WorkspaceAppWorkspacePage>
+</template>

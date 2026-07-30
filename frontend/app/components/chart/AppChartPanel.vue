@@ -81,7 +81,12 @@ defineExpose({
     :class="fillParent ? 'flex-1 h-full' : ''"
     :style="fillParent ? undefined : { height, minHeight: height }"
   >
-    <ChartAppChartSkeleton v-if="loading" :height="fillParent ? '100%' : height" />
+    <div
+      v-if="loading"
+      class="absolute inset-0 z-10 flex items-center justify-center bg-default/50"
+    >
+      <UIcon name="i-lucide-loader-circle" class="size-6 animate-spin text-primary" />
+    </div>
     <div
       v-else-if="isEmpty"
       class="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground px-4 text-center bg-default dark:bg-[#18191a]"

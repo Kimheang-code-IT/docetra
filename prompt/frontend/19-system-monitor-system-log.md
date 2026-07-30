@@ -2,17 +2,12 @@
 
 ## Copy/paste prompt
 
-Implement `/system-monitor/system-logs` in the existing Nuxt UI frontend. Follow the shared foundation, administrative logging requirements, and strict access-control rules.
+Implement `/system-monitor/system-logs` as a high-privilege operational log explorer.
 
-### Implement now
+Use a cursor-paginated server table with bounded date windows and filters for severity, environment, service/module, correlation/request ID, actor, and text search. Provide optional controlled live-tail that caps retained rows and pauses when the page is hidden.
 
-Add only a localized System Log header, System Monitor breadcrumb, high-privilege route/permission metadata, and placeholder card. Do not connect to runtime logs or fabricate events.
-
-### Future UI contract
-
-Build this later as a read-only operational log explorer using cursor pagination, bounded date windows, debounced search, and filters for severity, service/module, environment, correlation/request ID, and time. Support optional controlled live-tail behavior that pauses when the page is hidden and caps retained rows. Escape untrusted messages and redact credentials, tokens, personal data, stack internals, and request bodies according to policy. Export must be asynchronous and access-aware for large result sets.
+Clicking an event navigates to `/system-monitor/system-logs/:id`, a read-only Nuxt UI event page with formatted message, timestamp, service, correlation chain, safe stack summary, metadata rail, and related events. No Kanban, comments, create, edit, or delete. Escape messages and redact credentials, tokens, personal data, request bodies, and private internals. Large export runs asynchronously.
 
 ### Acceptance
 
-The protected route is represented in navigation, renders only the scaffold, starts no polling/request, and passes project checks.
-
+Access is restricted, live-tail is bounded, event details are safe, and checks pass.

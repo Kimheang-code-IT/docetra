@@ -1,0 +1,312 @@
+<script setup lang="ts">
+import { h, resolveComponent } from 'vue'
+import type { TableColumn } from '@nuxt/ui'
+import type { Row, RowSelectionState } from '@tanstack/vue-table'
+import type { TableColumnDef } from '~/types/docetra/common'
+
+type DataRow = Record<string, unknown>
+
+const ALL_LIMIT = 9999
+
+const props = defineProps<{
+  columns: TableColumnDef[]
+  rows: DataRow[]
+  total: number
+  page: number
+  limit: number
+  pending?: boolean
+  error?: string | null
+  cellValue: (row: DataRow, key: string) => string
+  canDelete?: boolean
+}>()
+
+const emit = defineEmits<{
+  'update:page': [number]
+  'update:limit': [number]
+  'update:selection': [string[]]
+  rowClick: [DataRow]
+  deleteSelected: [string[]]
+  retry: []
+}>()
+
+const { t } = useI18n()
+
+const UBadge = resolveComponent('UBadge')
+const UButton = resolveComponent('UButton')
+const UCheckbox = resolveComponent('UCheckbox')
+const UIcon = resolveComponent('UIcon')
+const AppTableRowMeta = resolveComponent('WorkspaceAppTableRowMeta')
+
+const rowSelection = ref<RowSelectionState>({})
+
+const pageSizeItems = computed(() => [
+  { label: '10', value: '10' },
+  { label: '20', value: '20' },
+  { label: '50', value: '50' },
+  { label: '100', value: '100' },
+  { label: t('docetra.actions.all'), value: 'all' },
+])
+
+const pageSizeModel = computed(() => {
+  if (props.limit >= ALL_LIMIT || (props.total > 0 && props.limit >= props.total && props.limit > 100)) {
+    return 'all'
+  }
+  return String(props.limit)
+})
+
+const effectiveItemsPerPage = computed(() =>
+  pageSizeModel.value === 'all' ? Math.max(props.total, 1) : props.limit,
+)
+
+const metaHeaderLabel = computed(() => {
+  const assigned = props.rows.filter(row => asPerson(row.assignee) || asPerson(row.owner)).length
+  const total = props.rows.length || 0
+  return `${assigned} of ${total}`
+})
+
+const selectedIds = computed(() =>
+  Object.entries(rowSelection.value)
+    .filter(([, selected]) => selected)
+    .map(([id]) => id),
+)
+
+const selectedCount = computed(() => selectedIds.value.length)
+
+watch(selectedIds, (ids) => {
+  emit('update:selection', ids)
+}, { deep: true })
+
+watch(() => [props.page, props.limit, props.rows], () => {
+  rowSelection.value = {}
+})
+
+function onLimitChange(value: string) {
+  emit('update:limit', value === 'all' ? ALL_LIMIT : Number(value))
+  emit('update:page', 1)
+}
+
+function isNumericCol(key: string) {
+  return /amount|rate|total|count|size|bytes|qty|quantity|number/i.test(key)
+}
+
+function isBadgeCol(key: string) {
+  return key === 'status' || key === 'stage' || key === 'level'
+}
+
+function asPerson(value: unknown) {
+  if (value && typeof value === 'object' && 'name' in (value as object)) {
+    return value as { id?: string, name: string, email?: string, avatarUrl?: string }
+  }
+  return null
+}
+
+function clearSelection() {
+  rowSelection.value = {}
+}
+
+function requestDelete() {
+  if (!selectedIds.value.length) return
+  emit('deleteSelected', [...selectedIds.value])
+}
+
+const tableColumns = computed<TableColumn<DataRow>[]>(() => [
+  {
+    id: 'select',
+    header: ({ table: tableApi }) => h(UCheckbox, {
+      'modelValue': tableApi.getIsSomePageRowsSelected()
+        ? 'indeterminate'
+        : tableApi.getIsAllPageRowsSelected(),
+      'onUpdate:modelValue': (value: boolean | 'indeterminate') =>
+        tableApi.toggleAllPageRowsSelected(!!value),
+      'aria-label': t('docetra.actions.selectAll'),
+      'onClick': (e: Event) => e.stopPropagation(),
+    }),
+    size: 44,
+    meta: {
+      class: {
+        th: 'w-11 min-w-11 text-center border-e border-default',
+        td: 'w-11 min-w-11 text-center border-e border-default',
+      },
+    },
+    cell: ({ row }) => h(UCheckbox, {
+      'modelValue': row.getIsSelected(),
+      'disabled': !row.getCanSelect(),
+      'onUpdate:modelValue': (value: boolean | 'indeterminate') =>
+        row.toggleSelected(!!value),
+      'aria-label': t('docetra.actions.selectRow'),
+      'onClick': (e: Event) => e.stopPropagation(),
+    }),
+  },
+  ...props.columns.map((col): TableColumn<DataRow> => ({
+    id: col.key,
+    accessorKey: col.key,
+    header: t(col.labelKey),
+    meta: {
+      class: {
+        th: [
+          'border-e border-default whitespace-nowrap text-center',
+          col.priority === 'low' ? 'hidden md:table-cell' : '',
+          col.priority === 'medium' ? 'hidden sm:table-cell' : '',
+        ].filter(Boolean).join(' '),
+        td: [
+          'border-e border-default whitespace-nowrap',
+          isNumericCol(col.key) ? 'text-end tabular-nums' : 'text-start',
+          col.priority === 'low' ? 'hidden md:table-cell' : '',
+          col.priority === 'medium' ? 'hidden sm:table-cell' : '',
+        ].filter(Boolean).join(' '),
+      },
+    },
+    cell: ({ row }) => {
+      const value = props.cellValue(row.original, col.key)
+      if (isBadgeCol(col.key)) {
+        return h(UBadge, { color: 'neutral', variant: 'subtle', size: 'sm' }, () => value)
+      }
+      return value || '—'
+    },
+  })),
+  {
+    id: 'meta',
+    header: () => h('div', {
+      class: 'flex w-full items-center justify-end gap-1.5 text-xs font-medium text-toned',
+    }, [
+      h('span', { class: 'tabular-nums' }, metaHeaderLabel.value),
+      h(UIcon, { name: 'i-lucide-heart', class: 'size-3.5 text-muted' }),
+    ]),
+    size: 140,
+    meta: {
+      class: {
+        th: 'w-36 min-w-36',
+        td: 'w-36 min-w-36',
+      },
+    },
+    cell: ({ row }) => {
+      const owner = asPerson(row.original.owner) || asPerson(row.original.assignee) || asPerson(row.original.updatedBy)
+      return h(AppTableRowMeta, {
+        owner,
+        updatedAt: row.original.updatedAt ? String(row.original.updatedAt) : undefined,
+        commentCount: Number(row.original.commentCount || 0),
+        liked: Boolean(row.original.liked),
+      })
+    },
+  },
+])
+
+function onSelect(e: Event, row: Row<DataRow>) {
+  const target = e.target as HTMLElement | null
+  if (target?.closest('[role="checkbox"], button, a, input')) return
+  emit('rowClick', row.original)
+}
+
+defineExpose({
+  clearSelection,
+  selectedIds,
+})
+</script>
+
+<template>
+  <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
+    <slot name="toolbar" />
+
+    <div
+      v-if="selectedCount"
+      class="flex shrink-0 items-center justify-between gap-3 border-b border-default bg-muted/50 px-3 py-2"
+    >
+      <div class="flex items-center gap-2 text-sm text-toned">
+        <UIcon name="i-lucide-check-square" class="size-4 text-highlighted" />
+        <span>{{ $t('docetra.actions.itemsSelected', { n: selectedCount }) }}</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <UButton
+          v-if="canDelete !== false"
+          color="error"
+          variant="soft"
+          size="xs"
+          icon="i-lucide-trash-2"
+          :label="$t('actions.delete')"
+          @click="requestDelete"
+        />
+        <UButton
+          color="neutral"
+          variant="ghost"
+          size="xs"
+          :label="$t('actions.cancel')"
+          @click="clearSelection"
+        />
+      </div>
+    </div>
+
+    <div v-if="error" class="flex shrink-0 items-center justify-between gap-3 border-b border-default p-3">
+      <p class="text-sm text-error">{{ error }}</p>
+      <UButton size="sm" @click="emit('retry')">{{ $t('docetra.actions.retry') }}</UButton>
+    </div>
+
+    <UTable
+      v-else
+      v-model:row-selection="rowSelection"
+      sticky="header"
+      :virtualize="{ estimateSize: 44, overscan: 20 }"
+      :data="rows"
+      :columns="tableColumns"
+      :loading="pending"
+      loading-color="primary"
+      :empty="$t('docetra.states.empty')"
+      :get-row-id="(row) => String(row.id)"
+      class="min-h-0 flex-1"
+      :ui="{
+        root: 'relative overflow-auto',
+        base: 'min-w-max w-full border-separate border-spacing-0',
+        thead: '[&_tr]:border-b-0',
+        tbody: 'divide-y-0',
+        tr: 'cursor-pointer hover:bg-muted/40 data-[selected=true]:bg-elevated/60',
+        th: 'sticky top-0 z-10 bg-muted px-2.5 py-2.5 text-xs font-bold text-highlighted border-b border-default',
+        td: 'px-2.5 py-2 text-sm text-highlighted border-b border-default',
+        empty: 'py-12 text-center text-muted',
+      }"
+      @select="onSelect"
+    />
+
+    <div
+      v-if="!error"
+      class="flex shrink-0 flex-col gap-3 border-t border-default bg-default px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
+    >
+      <div class="flex items-center gap-2 text-sm text-toned">
+        <span>{{ $t('common.rowsPerPage') }}</span>
+        <USelect
+          :model-value="pageSizeModel"
+          :items="pageSizeItems"
+          value-key="value"
+          size="sm"
+          class="w-[4.75rem]"
+          :ui="{ base: 'rounded-md bg-default ring-1 ring-default' }"
+          @update:model-value="onLimitChange"
+        />
+      </div>
+
+      <UPagination
+        :page="page"
+        :total="total"
+        :items-per-page="effectiveItemsPerPage"
+        :sibling-count="0"
+        show-edges
+        size="sm"
+        color="neutral"
+        variant="outline"
+        active-color="primary"
+        active-variant="solid"
+        first-icon="i-lucide-chevrons-left"
+        prev-icon="i-lucide-chevron-left"
+        next-icon="i-lucide-chevron-right"
+        last-icon="i-lucide-chevrons-right"
+        :ui="{
+          list: 'gap-1',
+          item: 'min-w-8 h-8 justify-center rounded-md',
+          first: 'rounded-md',
+          prev: 'rounded-md',
+          next: 'rounded-md',
+          last: 'rounded-md',
+        }"
+        @update:page="(v: number) => emit('update:page', v)"
+      />
+    </div>
+  </div>
+</template>

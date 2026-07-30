@@ -1,43 +1,50 @@
 <script setup lang="ts">
 import { useUserMenu } from '~/composables/layout/useUserMenu'
+
 defineProps<{ collapsed?: boolean }>()
-const { user, items } = useUserMenu()
+const { user, items, aboutOpen } = useUserMenu()
 </script>
 
 <template>
-  <UDropdownMenu
-    :items="items"
-    :content="{ align: 'center', collisionPadding: 12 }"
-    :ui="{
-      content: collapsed ? 'w-48' : 'w-(--reka-dropdown-menu-trigger-width)',
-    }"
-  >
-    <UButton
-      v-bind="{
-        ...user,
-        label: collapsed ? undefined : user?.name,
-        trailingIcon: collapsed ? undefined : 'i-lucide-chevrons-up-down',
-      }"
-      color="neutral"
-      variant="ghost"
-      block
-      :square="collapsed"
-      class="data-[state=open]:bg-elevated"
+  <div :class="collapsed ? 'flex justify-center' : 'w-full'">
+    <UDropdownMenu
+      :items="items"
+      :content="{ align: collapsed ? 'end' : 'center', collisionPadding: 12, side: collapsed ? 'right' : 'top' }"
       :ui="{
-        trailingIcon: 'text-dimmed',
+        content: collapsed ? 'w-52' : 'w-(--reka-dropdown-menu-trigger-width)',
       }"
-    />
-
-    <template #chip-leading="{ item }">
-      <div class="inline-flex items-center justify-center shrink-0 size-5">
-        <span
-          class="rounded-full ring ring-bg bg-(--chip-light) dark:bg-(--chip-dark) size-2"
-          :style="{
-            '--chip-light': `var(--color-${(item as any).chip}-500)`,
-            '--chip-dark': `var(--color-${(item as any).chip}-400)`,
-          }"
+    >
+      <UButton
+        v-if="collapsed"
+        color="neutral"
+        variant="ghost"
+        square
+        class="rounded-full p-0.5 data-[state=open]:bg-elevated"
+        :aria-label="user.name"
+      >
+        <UAvatar
+          :src="user.avatar.src"
+          :alt="user.avatar.alt"
+          size="md"
+          class="ring-1 ring-default"
         />
-      </div>
-    </template>
-  </UDropdownMenu>
+      </UButton>
+
+      <UButton
+        v-else
+        :avatar="user.avatar"
+        :label="user.name"
+        trailing-icon="i-lucide-chevrons-up-down"
+        color="neutral"
+        variant="ghost"
+        block
+        class="data-[state=open]:bg-elevated"
+        :ui="{
+          trailingIcon: 'text-dimmed',
+        }"
+      />
+    </UDropdownMenu>
+
+    <LayoutAppAboutDialog v-model:open="aboutOpen" />
+  </div>
 </template>

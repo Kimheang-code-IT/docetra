@@ -44,9 +44,6 @@ importers:
       nuxt:
         specifier: ^4.3.1
         version: 4.3.1(@parcel/watcher@2.5.6)(@vue/compiler-sfc@3.5.29)(cac@6.7.14)(db0@0.3.4)(eslint@10.0.3(jiti@2.6.1))(ioredis@5.10.0)(lightningcss@1.32.0)(magicast@0.5.2)(optionator@0.9.4)(rollup@4.59.0)(terser@5.46.0)(typescript@5.9.3)(vite@7.3.1(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.0)(yaml@2.8.2))(vue-tsc@3.2.5(typescript@5.9.3))(yaml@2.8.2)
-      overlayscrollbars:
-        specifier: ^2.15.1
-        version: 2.15.1
       pinia:
         specifier: ^3.0.4
         version: 3.0.4(typescript@5.9.3)(vue@3.5.29(typescript@5.9.3))
@@ -3898,9 +3895,6 @@ packages:
 
   orderedmap@2.1.1:
     resolution: {integrity: sha512-TvAWxi0nDe1j/rtMcWcIj94+Ffe6n7zhow33h40SKxmsmozs6dz/e+EajymfoFcHd7sxNn8yHM8839uixMOV6g==}
-
-  overlayscrollbars@2.15.1:
-    resolution: {integrity: sha512-glX26JwjL+Tkzv0JNOWdW4VozP5dGXO+Wx8+TPrdTEJTSYT/8eJS8yXM+fewjU0nFq/JeCa+X+BqABNjC4YZSA==}
 
   oxc-minify@0.112.0:
     resolution: {integrity: sha512-rkVSeeIRSt+RYI9uX6xonBpLUpvZyegxIg0UL87ev7YAfUqp7IIZlRjkgQN5Us1lyXD//TOo0Dcuuro/TYOWoQ==}
@@ -9257,8 +9251,6 @@ snapshots:
       word-wrap: 1.2.5
 
   orderedmap@2.1.1: {}
-
-  overlayscrollbars@2.15.1: {}
 
   oxc-minify@0.112.0:
     optionalDependencies:

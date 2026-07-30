@@ -2,17 +2,24 @@
 
 ## Copy/paste prompt
 
-Implement the Meeting Topic page at `/meetings/topics` using the existing Nuxt 4 + Nuxt UI 4 stack. Follow the shared foundation and the record module specification.
+Implement `/meetings/topics` using the shared table, Kanban, ERP-style document page, comments/activity, attachments, and record configuration components.
 
-### Implement now
+### Page design
 
-Create only a localized header, Meeting > Topic breadcrumb, route/permission metadata, and the standard placeholder card. Do not create a board, drag-and-drop, table, form, mock data, or API call.
+- Default Kanban view grouped by configured topic stage, with a table-view toggle.
+- Toolbar filters: search, stage, status, owner, organization, meeting date, and child-meeting count.
+- Topic cards show title, status, owner, date, child count, and the first ordered child meetings.
+- Support dragging an unlinked meeting into a topic. After backend confirmation, remove it from the standalone meeting collection and show it only under the topic.
+- Provide accessible “Add meeting to topic” and “Move stage” actions as non-drag alternatives.
 
-### Future UI contract
+### Create and document pages
 
-This page will manage meeting-topic records and their child meetings. It must support server-filtered topic discovery, topic status/stage, vertical ordered child meetings, and the rule that linking a meeting into a topic removes it from the standalone meeting collection. Future drag-and-drop must be keyboard accessible, optimistic only with rollback, conflict-safe, and confirmed by the backend. Large topic collections must be paginated or incrementally loaded.
+Add Topic navigates to `/meetings/topics/new`; rows and cards navigate to `/meetings/topics/:id`. Use the shared Nuxt UI document shell with header actions, Summary/Meetings/Relationships/Files tabs, a right metadata rail, and Comments & Activity below the form. Activity includes creation, edits, stage changes, child-link changes, files, and email events with an optional “New Email” action.
+
+### Large data
+
+Paginate the table server-side and incrementally load each Kanban column and child list. Make drag/link operations optimistic only with rollback and conflict handling.
 
 ### Acceptance
 
-The route is reachable from Meeting > Topic, active navigation is correct, the scaffold has no business data, and checks pass.
-
+Table and Kanban share one query state, topic linking follows the no-duplicate rule, document routes work, comments/activity are separate datasets, and checks pass.

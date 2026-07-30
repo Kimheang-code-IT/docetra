@@ -2,17 +2,14 @@
 
 ## Copy/paste prompt
 
-Implement `/organizations/departments` using the existing Nuxt UI stack and organization module rules.
+Implement `/organizations/departments` using shared master-data components.
 
-### Implement now
+### Page design
 
-Create only the localized Department header, Organization breadcrumb, route/permission metadata, and placeholder card. Do not create hierarchy widgets, tables, or forms yet.
+Provide server table plus an optional hierarchy view, not Kanban. Filters: search, parent department, status, officer count, and organization scope. Table columns show code, name, parent, status, officer count, related-record count, and updated time. Hierarchy children load lazily.
 
-### Future UI contract
-
-The completed page will manage department records and cycle-safe parent/child hierarchy. Provide server-side search/pagination for large directories, status filtering, lazy child loading for the hierarchy, create/edit forms, and history. Parent selection must prevent self-reference and cycles, with backend validation authoritative. Department identifiers used by records and access control must remain stable.
+Add navigates to `/organizations/departments/new`; rows navigate to `/organizations/departments/:id`. Use the Nuxt UI document page with code, localized name, parent, contact/metadata, status, and cycle-safe validation. Tabs include Details, Officers, Child Departments, Related Records, and Access; place Comments & Activity below the form. Comments may be enabled for internal collaboration; Activity is always immutable.
 
 ### Acceptance
 
-The route is present under Organization and contains no mock or live data.
-
+Hierarchy is cycle-safe and lazy, codes remain stable, document permissions/history work, and checks pass.

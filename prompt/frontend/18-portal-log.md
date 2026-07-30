@@ -2,17 +2,12 @@
 
 ## Copy/paste prompt
 
-Implement the Portal Log page at `/portal/logs`, following the shared foundation and storage integration module.
+Implement `/portal/logs` as a read-only upload and synchronization activity explorer.
 
-### Implement now
+Use a cursor-paginated server table with operation type, source, status, actor, file, job ID, date, and retryable filters. Rows navigate to `/portal/logs/:id`, a read-only Nuxt UI event page with safe details, related file/job, error summary, metadata rail, and activity chain. Provide Retry only for explicitly retryable failed jobs and only with permission.
 
-Create only the localized Portal > Log header/breadcrumb, permission metadata, and blank placeholder card. Do not load upload or sync events.
-
-### Future UI contract
-
-The finished page will show server-paginated upload and synchronization activity with filters for operation type, source, status, actor, file, job ID, and date range. Use cursor pagination for append-heavy logs and lazy-load detailed errors. Redact storage credentials, provider tokens, private URLs, and unsafe request payloads. Provide retry only for explicitly retryable failed jobs.
+Do not add Kanban, create/edit forms, or comments. Redact storage credentials, provider tokens, signed URLs, and unsafe request payloads.
 
 ### Acceptance
 
-The blank page loads through Portal navigation and makes no API request.
-
+Logs are immutable, retries are controlled, details are redacted, and checks pass.

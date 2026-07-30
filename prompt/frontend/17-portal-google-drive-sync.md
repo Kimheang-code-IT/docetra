@@ -2,17 +2,12 @@
 
 ## Copy/paste prompt
 
-Implement `/portal/google-drive-sync` as a scaffold route using the current Nuxt UI stack and storage integration rules.
+Implement `/portal/google-drive-sync` as a sync-source and job workspace.
 
-### Implement now
+Use source status cards plus a server-paginated job table; do not use Kanban. Show connection state, folder/source, last/next run, current job, imported/skipped/failed counts, and error summary. Filters: source, status, trigger, actor, and date.
 
-Render only the localized Google Drive Sync header, Portal breadcrumb, permission metadata, and placeholder. Do not connect OAuth, Google APIs, polling, or mock sync jobs.
-
-### Future UI contract
-
-The later UI will show configured sync sources, last and next run, current status, counts, errors, and permission-aware manual sync actions. Sync execution must be an asynchronous backend job; the browser should receive a job ID and use bounded polling or server events with cleanup. Support pagination for sync history and incremental error details. Never expose provider secrets or access tokens.
+Source Add navigates to `/portal/google-drive-sync/sources/new`; source and job rows navigate to their canonical detail routes. Use Nuxt UI document pages for permitted source configuration and read-only job details. Tabs include Configuration, Recent Files, Errors, and immutable Activity. Manual Sync creates an asynchronous backend job and uses bounded polling or server events with cleanup. Never expose provider secrets or access tokens.
 
 ### Acceptance
 
-The route works without external connections or network activity and the sidebar highlights it.
-
+Long-running jobs do not block the browser, status refresh is bounded, secrets are protected, and checks pass.

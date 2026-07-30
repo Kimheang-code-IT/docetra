@@ -2,17 +2,16 @@
 
 ## Copy/paste prompt
 
-Implement the general Document page at `/records/documents` using the existing Nuxt 4, TypeScript, and Nuxt UI 4 architecture.
+Implement the unified document explorer at `/records/documents`.
 
-### Implement now
+### Page design
 
-Create only the localized header, Record > Document breadcrumb, route/permission metadata, and standard placeholder. Do not duplicate incoming/outgoing implementations and do not request data.
+Provide a server table and optional Kanban view when the selected document type has configured workflow stages. Filters: direction, document type, organization, department, owner, status, stage, date range, attachment presence, and sharing scope. Persist view and filters in the URL.
 
-### Future UI contract
+Use shared summary rows/cards. Add navigates to `/records/documents/new`; rows/cards navigate to the canonical source document route. The Nuxt UI document page lets the user select direction/type and loads the correct schema. Tabs include Details, Workflow, Organizations, Relationships, Files, and Access, with Comments & Activity below the form. Do not duplicate incoming/outgoing source records.
 
-This will be the unified document explorer across permitted document categories. Use server-side pagination, search, sorting, and filters for direction/type, organization, department, status, stage, date, owner, and attachment presence. Support saved/shareable URL filters later. Keep incoming and outgoing distinctions visible without duplicating source-of-truth records. Detail views must show relationships, attachments, current workflow, and history.
+When mixed types have incompatible stages, disable Kanban with an explanatory message or require a single type filter.
 
 ### Acceptance
 
-The blank route loads without 404 or API calls and is active under Record.
-
+The unified view remains type-driven, links to the same source records as specialized pages, handles mixed-stage constraints, and checks pass.

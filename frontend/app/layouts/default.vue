@@ -6,7 +6,7 @@ const { links } = useMenu()
 
 const searchGroups = computed(() => {
   const items: any[] = []
-  
+
   const navLinks = links.value?.[0] || []
   navLinks.forEach((link: any) => {
     if (link.children) {
@@ -15,15 +15,16 @@ const searchGroups = computed(() => {
           id: child.to,
           label: child.label,
           icon: child.icon || link.icon,
-          to: child.to
+          to: child.to,
         })
       })
-    } else {
+    }
+    else {
       items.push({
         id: link.to,
         label: link.label,
         icon: link.icon,
-        to: link.to
+        to: link.to,
       })
     }
   })
@@ -31,20 +32,19 @@ const searchGroups = computed(() => {
   return [{
     id: 'navigation',
     label: 'Pages',
-    items
+    items,
   }]
 })
 </script>
 
 <template>
   <UDashboardGroup unit="rem" class="h-screen overflow-hidden bg-default">
-    <!-- Navigation Sidebar -->
     <LayoutAppSlidebar />
-    <!-- Global search modal -->
     <UDashboardSearch :groups="searchGroups" />
-    <!-- Main Content Area -->
-    <div data-os-root class="flex-1 min-h-0">
-      <main class="flex h-full flex-col">
+
+    <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <LayoutAppHeader />
+      <main class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-0">
         <slot />
       </main>
     </div>

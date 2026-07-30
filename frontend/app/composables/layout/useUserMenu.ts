@@ -12,8 +12,7 @@ export function useUserMenu() {
 
   preferences.hydrate()
 
-  const colors = ['red', 'orange', 'amber', 'yellow', 'lime', 'green', 'emerald', 'teal', 'cyan', 'sky', 'blue', 'indigo', 'violet', 'purple', 'fuchsia', 'pink', 'rose']
-  const neutrals = ['slate', 'gray', 'zinc', 'neutral', 'stone']
+  const aboutOpen = useState('user-menu-about-open', () => false)
 
   const user = computed(() => ({
     name: auth.user?.name || auth.user?.email || 'User',
@@ -60,53 +59,12 @@ export function useUserMenu() {
         })),
       },
       {
-        label: t('settings.theme'),
-        icon: 'i-lucide-palette',
-        children: [
-          {
-            label: t('settings.primary'),
-            slot: 'chip',
-            chip: preferences.uiColors.primary || 'blue',
-            content: {
-              align: 'center',
-              collisionPadding: 16,
-            },
-            children: colors.map((color) => ({
-              label: color,
-              chip: color,
-              slot: 'chip',
-              checked: preferences.uiColors.primary === color,
-              type: 'checkbox',
-              onSelect: (e: Event) => {
-                e.preventDefault()
-                preferences.applyThemeColor('primary', color)
-              },
-            })),
-          },
-          {
-            label: t('settings.neutral'),
-            slot: 'chip',
-            chip:
-              preferences.uiColors.neutral === 'neutral'
-                ? 'old-neutral'
-                : (preferences.uiColors.neutral || 'slate'),
-            content: {
-              align: 'end',
-              collisionPadding: 16,
-            },
-            children: neutrals.map((color) => ({
-              label: color,
-              chip: color === 'neutral' ? 'old-neutral' : color,
-              slot: 'chip',
-              type: 'checkbox',
-              checked: preferences.uiColors.neutral === color,
-              onSelect: (e: Event) => {
-                e.preventDefault()
-                preferences.applyThemeColor('neutral', color)
-              },
-            })),
-          },
-        ],
+        label: t('settings.about'),
+        icon: 'i-lucide-info',
+        onSelect(e: Event) {
+          e.preventDefault()
+          aboutOpen.value = true
+        },
       },
       {
         label: t('settings.appearance'),
@@ -153,5 +111,6 @@ export function useUserMenu() {
   return {
     user,
     items,
+    aboutOpen,
   }
 }

@@ -16,30 +16,29 @@ export const MOCK_LOGIN_ACCOUNTS: MockLoginAccount[] = [
       name: 'Moeng Kimheang',
       email: 'heang@gmail.com',
       role: 'SuperAdmin',
-      avatar: 'https://ui-avatars.com/api/?name=Moeng+Kimheang&background=008037&color=fff',
+      avatar: 'https://ui-avatars.com/api/?name=Moeng+Kimheang&background=e8472a&color=fff',
       pageAccess: ['ALL_PAGES'],
     },
   },
   {
-    email: 'admin@pdme.gov.kh',
+    email: 'admin@docetra.local',
     password: '123456',
     user: {
       id: 2,
-      name: 'PDME Admin',
-      email: 'admin@pdme.gov.kh',
+      name: 'Docetra Admin',
+      email: 'admin@docetra.local',
       role: 'Admin',
-      avatar: 'https://ui-avatars.com/api/?name=PDME+Admin&background=0f766e&color=fff',
+      avatar: 'https://ui-avatars.com/api/?name=Docetra+Admin&background=3a539f&color=fff',
       pageAccess: ['ALL_PAGES'],
     },
   },
 ]
 
-export const MOCK_AUTH_TOKEN = 'mock-pdme-frontend-token'
+export const MOCK_AUTH_TOKEN = 'mock-docetra-frontend-token'
 
 export function authenticateMock(email: string, password: string): AuthUser | null {
   const normalized = email.trim().toLowerCase()
-  const match = MOCK_LOGIN_ACCOUNTS.find(
-    (account) => account.email.toLowerCase() === normalized && account.password === password,
-  )
-  return match ? { ...match.user, email: match.user.email } : null
+  const account = MOCK_LOGIN_ACCOUNTS.find(a => a.email.toLowerCase() === normalized)
+  if (!account || account.password !== password) return null
+  return account.user
 }

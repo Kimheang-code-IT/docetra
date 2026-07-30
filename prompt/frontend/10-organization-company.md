@@ -2,17 +2,14 @@
 
 ## Copy/paste prompt
 
-Implement the Company page at `/organizations/companies` in the current Nuxt UI frontend. Follow the shared foundation, organization specification, and external-access rules.
+Implement `/organizations/companies` as a reusable organization workspace.
 
-### Implement now
+### Page design
 
-Add only the localized header, Organization > Company breadcrumb, permission metadata, and standard placeholder. No API, table, or form.
+Use a server table with optional compact card view, not Kanban. Search/filter by sector, purpose, status, parent organization, external-access state, and sharing activity. Columns/cards show identifier, company name, sector, purpose, contact, status, shared-record count, and updated time.
 
-### Future UI contract
-
-The final UI will provide server-paginated company management with search and filters for sector, purpose, status, parent organization, and external-access state. Company details may include identifiers, contact information, hierarchy, related records, sharing context, and history. External sharing indicators must not grant access by themselves; backend authorization remains authoritative.
+Add navigates to `/organizations/companies/new`; rows/cards navigate to `/organizations/companies/:id`. The Nuxt UI document page supports identifiers, localized name, hierarchy, sector, purpose, contacts, status, and external context. Tabs include Details, Relationships, Shared Records, Officers, and Access, with a metadata rail and Comments & Activity below the form. Activity tracks metadata, hierarchy, sharing, and external-access changes.
 
 ### Acceptance
 
-The route resolves, active sidebar state works, and the first pass remains blank.
-
+Company data is server-paginated, external sharing remains backend-authorized, document history is complete, and checks pass.

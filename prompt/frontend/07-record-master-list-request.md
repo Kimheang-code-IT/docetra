@@ -2,17 +2,16 @@
 
 ## Copy/paste prompt
 
-Implement `/records/master-list-requests` as a scaffold page in the existing Docetra Nuxt UI frontend.
+Implement `/records/master-list-requests` as a configuration-driven workflow workspace.
 
-### Implement now
+### Page design
 
-Add the localized Master List Request title, Record breadcrumb, permission metadata, and shared placeholder card only. Do not invent workflow fields or backend endpoints.
+Use table and Kanban views with search and filters for requester, owner organization/department, request date, status, stage, waiting state, assignee, and due date. Rows/cards show request number, title, requester, owner, date, due state, assignee, and current stage.
 
-### Future UI contract
+Add navigates to `/records/master-list-requests/new`; rows and cards navigate to `/records/master-list-requests/:id`. The Nuxt UI document page renders configured attributes, related records, generated/attached files, a metadata rail, and access controls. Place Comments & Activity below the form. Activity tracks assignment, workflow, field changes, file generation, comments, and notifications.
 
-The later UI will track master-list requests as configured record types with requester, owning organization/department, request date, status, stage, waiting state, assignee, related records, attachments, and history. Fields that vary by record type must come from typed configuration/schema metadata rather than hardcoded per-page assumptions. Large results require server-side list operations.
+Do not hardcode variable business fields; obtain them from record type/template metadata.
 
 ### Acceptance
 
-Navigation and route rendering work, while business UI and network activity remain absent.
-
+Dynamic fields render safely, both views share server state, overdue indicators are accessible, document-page collaboration works, and checks pass.

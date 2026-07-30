@@ -2,17 +2,12 @@
 
 ## Copy/paste prompt
 
-Implement the Officer page at `/organizations/officers`. Follow the shared foundation, organization module, and people/access module.
+Implement `/organizations/officers` as a secure people directory.
 
-### Implement now
+Use a server table with optional profile-card view, not Kanban. Filters: name/contact search, department, organization, role, account-link state, and status. Columns show permitted identity fields, organization, department, role, account state, status, and updated time.
 
-Create only the localized Officer title, Organization breadcrumb, permission metadata, and standard placeholder. Do not build a people directory or user-account form.
-
-### Future UI contract
-
-The full page will manage business-side officer entities, including department/organization membership, status, contact/profile fields allowed by policy, and optional linked user account. Use server-side pagination/search/filtering. Clearly distinguish “officer” from “login user”; an officer may exist without an account. Sensitive fields and actions must be access-controlled, and account linking changes must be auditable.
+Add navigates to `/organizations/officers/new`; rows/cards navigate to `/organizations/officers/:id`. The Nuxt UI document page clearly separates business-side officer data from the login user. Tabs include Details, Organization Membership, Related Records, Linked Account, Files/Profile, and Security Activity. Do not add casual comments by default. Sensitive fields and account linking require explicit permissions and audit events.
 
 ### Acceptance
 
-The route is linked under Organization and the scaffold contains no data or requests.
-
+Officers can exist without accounts, sensitive data is protected, activity is immutable, and checks pass.

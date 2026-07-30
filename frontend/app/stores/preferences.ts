@@ -59,7 +59,10 @@ export const usePreferencesStore = defineStore('preferences', () => {
     const savedLocale = localStorage.getItem(LOCALE_KEY)
     if (savedLocale === 'en' || savedLocale === 'km') {
       void i18n.setLocale(savedLocale)
+      return
     }
+    localStorage.setItem(LOCALE_KEY, 'en')
+    void i18n.setLocale('en')
   }
 
   function setLocale(code: AppLocale) {

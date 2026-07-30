@@ -21,22 +21,18 @@ Use Nuxt UI navigation components and Lucide icons already available through Ico
 
 ### Implement now
 
-This is only the route-scaffolding pass:
-
 1. Create or update the shared shell and sidebar.
-2. Create every route listed in `prompt/frontend/README.md`.
-3. Each page must render inside the shared shell.
-4. Each page must contain only:
-   - a reusable page header with title and optional breadcrumb;
-   - a subtle Nuxt UI placeholder/empty-state card saying the page is ready for UI implementation.
-5. Add typed page metadata where useful, including title/permission code.
-6. Do not call APIs, generate mock business rows, or build final tables/forms/charts.
-7. Do not place all page logic in one component. Keep each Nuxt route as a small independent page.
-8. Do not replace the whole application blindly. Reuse components and conventions that remain compatible.
+2. Keep every route listed in `prompt/frontend/README.md`.
+3. Implement `00-reusable-workspace-components.md` before duplicating page UI.
+4. Replace blank placeholders with the complete page composition defined by each page prompt.
+5. Add typed page metadata, title keys, permission codes, API adapters, columns, filters, document schemas, and workflow stages.
+6. Keep route files thin. Business pages configure reusable workspace and document-page components instead of copying tables, boards, forms, comments, or timelines.
+7. Use realistic bounded mock adapters only when the backend endpoint is unavailable, and isolate them so real API integration is a direct replacement.
+8. Do not replace the application blindly. Reuse compatible components and preserve unrelated user changes.
 
-### Architecture for the later big-data UI
+### Big-data UI architecture
 
-Prepare the structure so future list pages can use:
+All list and board pages must use:
 
 - Server-side pagination, sorting, filtering, and search.
 - Debounced search with request cancellation and stale-response protection.
@@ -48,11 +44,15 @@ Prepare the structure so future list pages can use:
 - Lazy-loaded heavy dialogs and charts.
 - Access-aware actions, with the backend remaining the authorization source of truth.
 - Accessible focus management, keyboard navigation, and responsive layouts.
+- Cursor-paginated comments and activity.
+- Bounded Kanban columns with incremental loading and optimistic transition rollback.
+- Dedicated schema-driven `/new` and `/:id` document pages for create, detail, and edit.
+- ERP-style document layout built only with Nuxt UI: sticky header/actions, section tabs, responsive form grid, right metadata rail, comments, and activity.
 
-Follow `/api/v2` REST conventions from the specifications, but do not invent or integrate endpoints during this scaffold pass.
+Follow `/api/v2` REST conventions from the specifications. Keep uncertain endpoint names behind typed adapters rather than spreading invented URLs through page components.
 
 ### Quality checks
 
-Run the available typecheck and build commands. Fix errors caused by this work. Confirm that every sidebar link resolves without a 404, active navigation works, group toggles work, English and Khmer keys exist, and no page starts an API request.
+Run the available typecheck and build commands. Fix errors caused by this work. Confirm that every sidebar link resolves, active navigation works, group toggles work, English and Khmer keys exist, table/board state survives refresh, document forms are keyboard accessible, unsaved-change protection works, and permission-hidden actions cannot be triggered from the UI.
 
 At completion, report the files changed, routes created, verification commands, and any pre-existing issue that prevented a clean check.

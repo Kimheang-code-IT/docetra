@@ -2,17 +2,12 @@
 
 ## Copy/paste prompt
 
-Implement `/organizations/company-purposes` as a blank scaffold in the existing Nuxt UI application.
+Implement `/organizations/company-purposes` as a reference-data table workspace.
 
-### Implement now
+Use `AppServerTable` with search, status, usage, and sort-order filters. Columns: stable code, localized label, description, status, usage count, order, updated by/time. Do not add Kanban.
 
-Create the localized Company Purpose header, Organization breadcrumb, permission metadata, and placeholder card only.
-
-### Future UI contract
-
-This reference-data page will manage stable purpose codes, localized labels, description, status, usage count, sort order, and history. Use a server-paginated table even if the initial dataset is small. Prevent destructive removal when referenced; prefer disable/archive behavior. Forms must enforce unique stable codes, with validation errors returned by the API mapped to fields.
+Add navigates to `/organizations/company-purposes/new`; rows navigate to `/organizations/company-purposes/:id`. Use the Nuxt UI document page for create/detail/edit, referenced companies, metadata, and read-only Configuration Activity. Omit casual comments unless product owners explicitly enable them. Prevent hard deletion when referenced; provide disable/archive with confirmation.
 
 ### Acceptance
 
-The route is reachable from Organization, makes no request, and passes type/build checks.
-
+Codes are unique/stable, referenced values cannot be destructively removed, activity is auditable, and checks pass.

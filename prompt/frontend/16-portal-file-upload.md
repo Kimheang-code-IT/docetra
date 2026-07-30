@@ -2,17 +2,16 @@
 
 ## Copy/paste prompt
 
-Implement `/portal/file-upload` in the existing Nuxt UI application. Follow the shared foundation and storage integration specification.
+Implement `/portal/file-upload` using the shared upload, table, Nuxt UI document-page, attachment, and activity patterns.
 
-### Implement now
+### Page design
 
-Create only the localized File Upload header, Portal breadcrumb, upload permission metadata, and placeholder card. Do not add a dropzone or upload mock.
+Top section: accessible drag/drop zone and file picker with allowed type/size guidance. Below: server-paginated upload table filtered by file name/type, uploader, status, linked record, storage source, and date.
 
-### Future UI contract
+Support bounded concurrent uploads, per-file progress, cancellation, retry, and partial failures. Clicking a file navigates to `/portal/file-upload/:id`, a read-only document page with metadata rail, safe preview/download, record links, storage status, and immutable file Activity. Comments are optional and disabled by default.
 
-The final page will support accessible drag/drop and file selection, allowed-type/size validation, bounded concurrent uploads, per-file progress, cancellation/retry, and clear success/failure results. Successful uploads create persistent file metadata and may link to a permitted record. Do not store binary content in Pinia or PostgreSQL-facing payloads. Use direct/object-storage upload flows when the API contract supports them.
+Do not store binary content in Pinia or database payloads. Use object-storage/direct upload contracts when available.
 
 ### Acceptance
 
-The scaffold contains no file input or request and is correctly linked under Portal.
-
+Upload progress and retry are accessible, metadata persists separately from binaries, the table handles large history, and checks pass.

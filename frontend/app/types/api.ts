@@ -6,7 +6,6 @@ export interface TableQueryParams {
   limit: number
   sort?: string
   filters?: ColumnFiltersState
-  /** Inclusive range from shared `useGlobalFilter` */
   startDate?: string
   endDate?: string
 }

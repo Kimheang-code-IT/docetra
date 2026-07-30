@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import * as z from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
+import { requestPasswordReset } from '~/adapters/auth'
 
 definePageMeta({
   layout: 'auth',
@@ -28,7 +29,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
   if (submitting.value) return
   submitting.value = true
   try {
-    await new Promise((resolve) => setTimeout(resolve, 800))
+    await requestPasswordReset(payload.data.email)
     sentEmail.value = payload.data.email
     sent.value = true
     toast.add({

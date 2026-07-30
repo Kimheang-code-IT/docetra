@@ -2,17 +2,16 @@
 
 ## Copy/paste prompt
 
-Implement the Record Log page at `/records/logs`. Use the shared foundation and Docetra auditability requirements.
+Implement `/records/logs` as a read-only record audit explorer.
 
-### Implement now
+### Page design
 
-Render only a localized page header, Record > Log breadcrumb, permission metadata, and blank placeholder. Do not load audit data.
+Use `AppServerTable` with cursor pagination. Filters include record ID/title, record type, action, actor, organization, date range, correlation ID, and severity/category. Columns show event time, record, type, action, actor, organization, and compact summary.
 
-### Future UI contract
+Navigate to `/records/logs/:id` for a read-only Nuxt UI event page containing event summary, safe before/after changes, request/correlation context, linked record, metadata rail, and related activity. Do not include Kanban, Add, Edit, Delete, or comment composition.
 
-Build this later as a read-only, server-paginated operational history for record changes. Filters should include record ID/type, action, actor, organization, date range, and request/correlation ID. Prefer cursor pagination for append-heavy logs. Event payloads should be summarized by default, expandable on demand, safely redacted, and linked to records only when the user has permission.
+Escape event content and redact private fields, tokens, storage URLs, and backend-only payloads.
 
 ### Acceptance
 
-The scaffold makes no request and the Log link is correctly highlighted in the Record group.
-
+Events are immutable, filters remain shareable, the event page is permission-aware and redacted, and checks pass.

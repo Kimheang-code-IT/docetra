@@ -3,7 +3,8 @@ import * as z from 'zod'
 import type { FormSubmitEvent, AuthFormField } from '@nuxt/ui'
 import { useAuthSession } from '~/utils/auth/session'
 import { readRememberMe, writeRememberMe } from '~/utils/auth/remember-me'
-import { authenticateMock, MOCK_AUTH_TOKEN, MOCK_LOGIN_ACCOUNTS } from '~/utils/auth/mock-login'
+import { MOCK_LOGIN_ACCOUNTS } from '~/utils/auth/mock-login'
+import { loginWithCredentials } from '~/adapters/auth'
 
 definePageMeta({
   layout: 'auth',
@@ -87,17 +88,16 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
   submitting.value = true
 
   try {
-    // Frontend-only mock auth (no API yet).
-    await new Promise((resolve) => setTimeout(resolve, 250))
-
     const formState = loginForm.value?.state || {}
     const email = String(payload.data?.email ?? formState.email ?? '').trim()
     const password = String(payload.data?.password ?? formState.password ?? '')
     const remember = Boolean(payload.data?.remember ?? formState.remember)
 
-    const user = authenticateMock(email, password)
+    const result = await loginWithCredentials(email, password)
+    const payloadData = (result as { data?: { user?: { name: string }; token?: string } }).data
+    const user = payloadData?.user
 
-    if (!user) {
+    if (!user || !payloadData?.token) {
       toast.add({
         title: t('pages.auth.loginFailed'),
         description: t('pages.auth.loginFailedDesc'),
@@ -107,7 +107,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
     }
 
     writeRememberMe(email, remember)
-    authSession.login(MOCK_AUTH_TOKEN, user)
+    authSession.login(payloadData.token, user as any)
 
     toast.add({
       title: t('pages.auth.loginSuccess'),
@@ -116,7 +116,15 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
     })
 
     await router.push('/')
-  } finally {
+  }
+  catch {
+    toast.add({
+      title: t('pages.auth.loginFailed'),
+      description: t('pages.auth.loginFailedDesc'),
+      color: 'error',
+    })
+  }
+  finally {
     submitting.value = false
   }
 }
@@ -128,7 +136,6 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
       ref="loginForm"
       :schema="schema"
       :title="t('pages.auth.loginTitle')"
-      :description="t('pages.auth.loginDesc')"
       icon="i-lucide-lock"
       :fields="fields"
       :loading="submitting"
@@ -148,9 +155,6 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
           <UButton variant="link" size="sm" to="/forget-password" class="text-muted-foreground">
             {{ t('pages.auth.forgotPassword') }}
           </UButton>
-          <p class="text-xs text-muted-foreground leading-relaxed px-2">
-            {{ demoHint }}
-          </p>
           <div>
             <span class="font-black">© <span class="font-normal text-sm">{{ $t('pages.auth.departmentLine') }}</span></span>
           </div>

@@ -2,14 +2,12 @@
 @import "tailwindcss";
 @import "@nuxt/ui";
 @import "./scrollbar.css";
-@import "./custom-scrollbar.css";
-@import "./report-table.css";
 
-@theme {
+@theme static {
   --font-sans: "Noto Sans Khmer", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
 
-  /* Logo coral-red primary palette */
-  --color-brand-50:  #fff2ef;
+  /* Logo coral-red primary palette — must be @theme static for Nuxt UI */
+  --color-brand-50: #fff2ef;
   --color-brand-100: #ffe0d8;
   --color-brand-200: #ffc0b0;
   --color-brand-300: #ff9478;
@@ -22,7 +20,7 @@
   --color-brand-950: #3e0e08;
 
   /* Logo navy accent */
-  --color-navy-50:  #eef1f8;
+  --color-navy-50: #eef1f8;
   --color-navy-100: #d5ddf0;
   --color-navy-200: #adbce2;
   --color-navy-300: #7e94ce;

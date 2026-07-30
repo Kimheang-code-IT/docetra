@@ -4,13 +4,14 @@ This folder contains implementation prompts for building the Docetra v2 frontend
 
 ## Current objective
 
-The first pass is intentionally a **blank-page scaffold**:
+Build the complete Docetra operational UI from a reusable workspace system:
 
-- Create every route shown in the reference sidebar.
-- Create the shared application shell and navigation.
-- Show only a page header and a simple placeholder on each route.
-- Do not build tables, forms, dashboards, or API integrations yet.
-- Keep each route ready for a later UI implementation pass.
+- Server-backed tables for large datasets.
+- Stage-based Kanban boards for workflow records.
+- Responsive ERP-style create, detail, and edit document pages built with Nuxt UI.
+- Reusable comments and activity timelines matching the supplied reference.
+- Shared search, filters, date range, sorting, pagination, attachments, and permissions.
+- Configuration-driven fields for record types and attributes.
 
 ## Technology baseline
 
@@ -28,10 +29,11 @@ Use the technology already installed in `frontend/`:
 
 ## How to use these prompts
 
-1. Start with [`00-shared-foundation.md`](./00-shared-foundation.md).
-2. Run the page prompts in numeric order, or select one module at a time.
-3. During the first pass, enforce the “Implement now” section and do not implement the deferred UI.
-4. Later, reuse the same prompt and replace the placeholder according to its “Future UI” section.
+1. Read [`00-product-ui-design-map.md`](./00-product-ui-design-map.md).
+2. Implement [`00-reusable-workspace-components.md`](./00-reusable-workspace-components.md).
+3. Apply [`00-shared-foundation.md`](./00-shared-foundation.md).
+4. Run the page prompts in numeric order, or select one module at a time.
+5. Reuse shared components; page files should primarily configure fields, filters, actions, and views.
 
 ## Route inventory
 

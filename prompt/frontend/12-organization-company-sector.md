@@ -2,17 +2,12 @@
 
 ## Copy/paste prompt
 
-Implement `/organizations/company-sectors` using the current Nuxt 4 + Nuxt UI 4 project.
+Implement `/organizations/company-sectors` with the shared reference-data table and Nuxt UI document page.
 
-### Implement now
+Provide search, parent sector, status, usage, and ordering filters. Columns show stable code, localized label, optional parent, description, status, usage count, order, and updated time. Support a lazy hierarchy preview if sectors are nested; do not use Kanban.
 
-Render only the localized Company Sector header, breadcrumb, typed permission metadata, and common placeholder.
-
-### Future UI contract
-
-Later provide server-paginated sector reference-data management with stable code, localized label, description, status, ordering, usage count, and audit history. Referenced sectors must be disabled instead of hard-deleted. Use backend uniqueness and reference checks and display field-level validation cleanly.
+Add navigates to `/organizations/company-sectors/new`; rows navigate to `/organizations/company-sectors/:id`. The document page handles create/detail/edit, referenced companies, hierarchy metadata, and immutable Configuration Activity. Prevent cycles and hard deletion of referenced sectors.
 
 ### Acceptance
 
-The page is blank except for scaffold elements, has correct navigation state, and performs no network call.
-
+Hierarchy and references are safe, table operations are server-backed, activity is permission-aware, and checks pass.

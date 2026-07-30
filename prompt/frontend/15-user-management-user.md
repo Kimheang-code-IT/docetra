@@ -2,17 +2,12 @@
 
 ## Copy/paste prompt
 
-Implement the User page at `/user-management/users` using the existing Nuxt UI frontend and people/access rules.
+Implement `/user-management/users` as a secure account-management table.
 
-### Implement now
+Use server search/pagination and filters for status, role, internal/external class, organization/company, linked officer, and last activity. No Kanban. Columns show name/email, linked officer, role, access class/context, status, and last sign-in without exposing credentials.
 
-Create only the localized User header, User Management breadcrumb, administrative route/permission metadata, and placeholder. Do not implement account creation, password controls, or a table.
-
-### Future UI contract
-
-The full page will manage authentication accounts, linked officer, assigned role(s), internal/external access class, organization/company context, status, and last activity where permitted. Use server-side pagination/search/filtering. Never display credential material. Account enable/disable, role changes, officer links, and external context changes require confirmation, backend enforcement, and audit history.
+Add navigates to `/user-management/users/new`; rows navigate to `/user-management/users/:id`. The Nuxt UI document page supports account create/detail/edit, officer link, role assignment, internal/external context, enable/disable, and session/security actions. Include a right security metadata rail and immutable Security Activity for sign-in status, role/context changes, account lifecycle, and administrative actions. No casual comments.
 
 ### Acceptance
 
-The page route and sidebar active state work with no business data or API activity.
-
+Credentials never appear, sensitive actions require confirmation, backend authorization is authoritative, and checks pass.
