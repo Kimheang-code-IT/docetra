@@ -1,0 +1,87 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;1,14..32,400&family=Noto+Sans+Khmer:wght@400;500;600;700&display=swap");
+@import "tailwindcss";
+@import "@nuxt/ui";
+@import "./scrollbar.css";
+@import "./custom-scrollbar.css";
+@import "./report-table.css";
+
+@theme {
+  --font-sans: "Noto Sans Khmer", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+
+  /* Logo coral-red primary palette */
+  --color-brand-50:  #fff2ef;
+  --color-brand-100: #ffe0d8;
+  --color-brand-200: #ffc0b0;
+  --color-brand-300: #ff9478;
+  --color-brand-400: #f8613e;
+  --color-brand-500: #e8472a;
+  --color-brand-600: #c93519;
+  --color-brand-700: #a82914;
+  --color-brand-800: #8a2415;
+  --color-brand-900: #722318;
+  --color-brand-950: #3e0e08;
+
+  /* Logo navy accent */
+  --color-navy-50:  #eef1f8;
+  --color-navy-100: #d5ddf0;
+  --color-navy-200: #adbce2;
+  --color-navy-300: #7e94ce;
+  --color-navy-400: #556db8;
+  --color-navy-500: #3a539f;
+  --color-navy-600: #2e4184;
+  --color-navy-700: #26366c;
+  --color-navy-800: #1b2b5e;
+  --color-navy-900: #182450;
+  --color-navy-950: #0e1630;
+
+  --color-gray-900: #18181b;
+}
+
+@layer base {
+  html,
+  body {
+    font-family: var(--font-sans) !important;
+  }
+
+  #__nuxt {
+    font-family: var(--font-sans);
+  }
+  
+  .dark,
+  .dark body {
+    background-color: #18191a !important;
+  }
+
+  /* Khmer Font Readability Enhancements */
+  :lang(km) {
+    line-height: 1.6;
+    letter-spacing: normal;
+    font-family: var(--font-sans) !important;
+  }
+
+  [lang="km"] .tracking-tighter,
+  [lang="km"].tracking-tighter {
+    letter-spacing: normal !important;
+  }
+}
+
+@layer components {
+  .app-card-shell {
+    border: 1px solid var(--ui-border);
+    border-radius: 0.125rem;
+    background: var(--ui-bg);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  }
+
+  .app-toolbar-shell {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 0.75rem;
+    border-bottom: 1px solid var(--ui-border);
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+}
+
