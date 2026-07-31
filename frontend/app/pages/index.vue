@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { CalendarDate, parseDate } from '@internationalized/date'
 import { fetchDashboardSummary } from '~/adapters'
 import type { DashboardSummary } from '~/types/docetra/entities'
 
@@ -20,37 +19,83 @@ const pending = ref(false)
 const error = ref<string | null>(null)
 const summary = ref<DashboardSummary | null>(null)
 
-const dateRangeInput = useTemplateRef<{ inputsRef?: Array<{ $el?: HTMLElement }> } | null>('dateRangeInput')
-
-function toCalendarDate(value?: string) {
-  if (!value) return undefined
-  try {
-    return parseDate(value.slice(0, 10))
-  }
-  catch {
-    return undefined
-  }
-}
-
-const dateRange = computed({
-  get: () => {
-    const start = toCalendarDate(String(route.query.startDate || ''))
-    const end = toCalendarDate(String(route.query.endDate || ''))
-    if (!start && !end) return undefined
-    return {
-      start: start || end,
-      end: end || start,
-    }
-  },
-  set: (value: { start?: CalendarDate | null, end?: CalendarDate | null } | null | undefined) => {
+const chartYear = computed({
+  get: () => String(route.query.chartYear || 'this'),
+  set: (value: string) => {
     router.replace({
       query: {
         ...route.query,
-        startDate: value?.start?.toString() || undefined,
-        endDate: value?.end?.toString() || undefined,
+        chartYear: !value || value === 'this' ? undefined : value,
       },
     })
   },
+})
+
+const chartPeriod = computed({
+  get: () => String(route.query.chartPeriod || 'monthly'),
+  set: (value: string) => {
+    router.replace({
+      query: {
+        ...route.query,
+        chartPeriod: !value || value === 'monthly' ? undefined : value,
+      },
+    })
+  },
+})
+
+function resolveFilterYear(token: string) {
+  const now = new Date().getFullYear()
+  if (token === 'this') return now
+  if (token === 'last') return now - 1
+  const n = Number(token)
+  return Number.isFinite(n) ? n : now
+}
+
+function monthKey(dateStr: string) {
+  return dateStr.slice(0, 7)
+}
+
+function quarterKey(dateStr: string) {
+  const [y, m] = dateStr.split('-').map(Number)
+  const q = Math.ceil((m || 1) / 3)
+  return `${y}-Q${q}`
+}
+
+function weekKey(dateStr: string) {
+  const d = new Date(`${dateStr.slice(0, 10)}T12:00:00`)
+  const tmp = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()))
+  const day = tmp.getUTCDay() || 7
+  tmp.setUTCDate(tmp.getUTCDate() + 4 - day)
+  const yearStart = new Date(Date.UTC(tmp.getUTCFullYear(), 0, 1))
+  const week = Math.ceil((((tmp.getTime() - yearStart.getTime()) / 86400000) + 1) / 7)
+  return `${tmp.getUTCFullYear()}-W${String(week).padStart(2, '0')}`
+}
+
+const filteredTrendSeries = computed(() => {
+  const year = resolveFilterYear(chartYear.value)
+  const period = chartPeriod.value
+  const points = (summary.value?.recordsOverTime || [])
+    .filter(p => Number(p.date.slice(0, 4)) === year)
+
+  if (period === 'yearly') {
+    const total = points.reduce((sum, p) => sum + p.count, 0)
+    return [{ label: String(year), count: total }]
+  }
+
+  const bucketKey = period === 'quarterly'
+    ? quarterKey
+    : period === 'weekly'
+      ? weekKey
+      : monthKey
+
+  const buckets = new Map<string, number>()
+  for (const point of points) {
+    const key = bucketKey(point.date)
+    buckets.set(key, (buckets.get(key) || 0) + point.count)
+  }
+  return [...buckets.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([label, count]) => ({ label, count }))
 })
 
 async function load() {
@@ -89,23 +134,20 @@ const trendChartOption = computed(() => ({
   grid: { left: 40, right: 16, top: 24, bottom: 32 },
   xAxis: {
     type: 'category',
-    data: (summary.value?.recordsOverTime || []).map(s => s.date),
+    data: filteredTrendSeries.value.map(s => s.label),
   },
   yAxis: { type: 'value' },
   series: [{
     type: 'line',
     smooth: true,
-    data: (summary.value?.recordsOverTime || []).map(s => s.count),
+    data: filteredTrendSeries.value.map(s => s.count),
     areaStyle: { opacity: 0.12 },
   }],
 }))
 
-const quickLinks = [
-  { to: '/records/incoming-documents', labelKey: 'docetra.pages.incomingDocument', icon: 'i-lucide-inbox' },
-  { to: '/records/outgoing-documents', labelKey: 'docetra.pages.outgoingDocument', icon: 'i-lucide-send' },
-  { to: '/meetings/topics', labelKey: 'docetra.pages.meetingTopic', icon: 'i-lucide-messages-square' },
-  { to: '/portal/file-upload', labelKey: 'docetra.pages.fileUpload', icon: 'i-lucide-upload' },
-]
+const SUMMARY_CARD_LIMIT = 5
+
+const summaryCards = computed(() => (summary.value?.kpis || []).slice(0, SUMMARY_CARD_LIMIT))
 </script>
 
 <template>
@@ -114,128 +156,55 @@ const quickLinks = [
       :can-create="false"
       :refreshing="pending"
       @refresh="load"
-    >
-      <template #leading>
-        <UInputDate
-          ref="dateRangeInput"
-          v-model="dateRange"
-          range
-          color="neutral"
-          variant="soft"
-          size="sm"
-          class="w-72"
-        >
-          <template #trailing>
-            <UPopover :reference="dateRangeInput?.inputsRef?.[0]?.$el">
-              <UButton
-                color="neutral"
-                variant="link"
-                size="sm"
-                icon="i-lucide-calendar"
-                aria-label="Select a date range"
-                class="px-0"
-              />
-              <template #content>
-                <UCalendar v-model="dateRange" range :number-of-months="2" class="p-2" />
-              </template>
-            </UPopover>
-          </template>
-        </UInputDate>
-      </template>
-    </LayoutAppHeaderPageActions>
+    />
 
     <div class="relative flex w-full min-w-0 flex-1 flex-col gap-3 px-1.5 pt-1.5 pb-0">
-      <div
-        v-if="pending"
-        class="absolute inset-x-1.5 top-1.5 bottom-0 z-10 flex items-start justify-center pt-24"
-      >
-        <UIcon name="i-lucide-loader-circle" class="size-6 animate-spin text-primary" />
-      </div>
-
       <UAlert v-if="error" color="error" :title="error" :actions="[{ label: $t('docetra.actions.retry'), onClick: load }]" />
 
       <template v-if="summary">
-        <p class="text-sm text-muted">{{ $t('docetra.descriptions.dashboard') }}</p>
-
-        <div class="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7">
-          <NuxtLink
-            v-for="kpi in summary.kpis || []"
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          <CommonAppSummaryCard
+            v-for="kpi in summaryCards"
             :key="kpi.id"
-            :to="kpi.href || '/'"
-            class="rounded-lg border border-default bg-default p-4 transition hover:border-primary/40"
-          >
-            <p class="text-xs text-muted">{{ $t(kpi.labelKey) }}</p>
-            <p class="mt-2 text-2xl font-semibold text-highlighted">{{ kpi.value }}</p>
-            <p v-if="kpi.trend != null" class="mt-1 text-xs" :class="kpi.trend >= 0 ? 'text-success' : 'text-error'">
-              {{ kpi.trend >= 0 ? '+' : '' }}{{ kpi.trend }}%
-            </p>
-          </NuxtLink>
+            :title="$t(kpi.labelKey)"
+            :value="kpi.value"
+            :trend="kpi.trend"
+            :to="kpi.href"
+            :loading="pending"
+            @refresh="load"
+          />
         </div>
 
         <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
           <section class="rounded-lg border border-default bg-default p-4">
-            <h2 class="mb-3 text-sm font-semibold text-highlighted">{{ $t('docetra.dashboard.workByStage') }}</h2>
+            <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <h2 class="text-sm font-semibold text-highlighted">{{ $t('docetra.dashboard.workByStage') }}</h2>
+              <CommonAppChartPeriodToolbar
+                v-model:year="chartYear"
+                v-model:period="chartPeriod"
+                @refresh="load"
+              />
+            </div>
             <div class="h-64">
               <CommonAppEchart :option="stageChartOption" height="100%" />
             </div>
           </section>
           <section class="rounded-lg border border-default bg-default p-4">
-            <h2 class="mb-3 text-sm font-semibold text-highlighted">{{ $t('docetra.dashboard.recordsOverTime') }}</h2>
+            <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <h2 class="text-sm font-semibold text-highlighted">{{ $t('docetra.dashboard.recordsOverTime') }}</h2>
+              <CommonAppChartPeriodToolbar
+                v-model:year="chartYear"
+                v-model:period="chartPeriod"
+                @refresh="load"
+              />
+            </div>
             <div class="h-64">
               <CommonAppEchart :option="trendChartOption" height="100%" />
             </div>
           </section>
         </div>
 
-        <div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
-          <section class="rounded-lg border border-default bg-default p-4 xl:col-span-2">
-            <div class="mb-3 flex items-center justify-between">
-              <h2 class="text-sm font-semibold text-highlighted">{{ $t('docetra.dashboard.myWork') }}</h2>
-              <UButton size="xs" variant="link" to="/records/incoming-documents">{{ $t('docetra.actions.viewAll') }}</UButton>
-            </div>
-            <div class="overflow-x-auto">
-              <table class="min-w-full text-sm">
-                <thead>
-                  <tr class="border-b border-default text-left text-muted">
-                    <th class="px-2 py-2">{{ $t('docetra.fields.referenceNumber') }}</th>
-                    <th class="px-2 py-2">{{ $t('docetra.fields.title') }}</th>
-                    <th class="px-2 py-2">{{ $t('docetra.fields.stage') }}</th>
-                    <th class="px-2 py-2">{{ $t('docetra.fields.status') }}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr
-                    v-for="row in summary.myWork || []"
-                    :key="row.id"
-                    class="cursor-pointer border-b border-default/70 hover:bg-elevated/50"
-                    @click="navigateTo(`/records/incoming-documents/${row.id}`)"
-                  >
-                    <td class="px-2 py-2">{{ row.referenceNumber }}</td>
-                    <td class="px-2 py-2">{{ row.title }}</td>
-                    <td class="px-2 py-2"><UBadge color="neutral" variant="subtle">{{ row.stage }}</UBadge></td>
-                    <td class="px-2 py-2">{{ row.status }}</td>
-                  </tr>
-                  <tr v-if="!(summary.myWork || []).length">
-                    <td colspan="4" class="px-2 py-8 text-center text-muted">{{ $t('docetra.states.empty') }}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          <section class="rounded-lg border border-default bg-default p-4 space-y-3">
-            <h2 class="text-sm font-semibold text-highlighted">{{ $t('docetra.dashboard.quickLinks') }}</h2>
-            <NuxtLink
-              v-for="link in quickLinks"
-              :key="link.to"
-              :to="link.to"
-              class="flex items-center gap-3 rounded-md border border-default px-3 py-2.5 transition hover:border-primary/40"
-            >
-              <UIcon :name="link.icon" class="size-4 text-primary" />
-              <span class="text-sm text-highlighted">{{ $t(link.labelKey) }}</span>
-            </NuxtLink>
-          </section>
-        </div>
+        <CommonAppEventCalendar :events="summary.events || []" />
       </template>
     </div>
   </div>

@@ -8,7 +8,7 @@ type DataRow = Record<string, unknown>
 
 const ALL_LIMIT = 9999
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   columns: TableColumnDef[]
   rows: DataRow[]
   total: number
@@ -18,7 +18,14 @@ const props = defineProps<{
   error?: string | null
   cellValue: (row: DataRow, key: string) => string
   canDelete?: boolean
-}>()
+  /** Row checkboxes. Off for read-only audit lists. */
+  selectable?: boolean
+  /** Owner/comments meta rail. Off for log tables. */
+  showMeta?: boolean
+}>(), {
+  selectable: true,
+  showMeta: true,
+})
 
 const emit = defineEmits<{
   'update:page': [number]
@@ -89,8 +96,54 @@ function isNumericCol(key: string) {
   return /amount|rate|total|count|size|bytes|qty|quantity|number/i.test(key)
 }
 
-function isBadgeCol(key: string) {
-  return key === 'status' || key === 'stage' || key === 'level'
+function cellMode(col: TableColumnDef) {
+  if (col.cell) return col.cell
+  const key = col.key
+  if (key === 'status' || key === 'stage' || key === 'level' || key === 'action' || key === 'severity' || key === 'entityType') {
+    return 'badge'
+  }
+  if (key.endsWith('At') || key.endsWith('Date') || key === 'occurredAt') return 'datetime'
+  if (key.endsWith('.name') && (key.startsWith('actor') || key.startsWith('owner') || key.startsWith('assignee'))) {
+    return 'person'
+  }
+  return 'text'
+}
+
+function badgeColor(key: string, raw: unknown): 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'error' | 'neutral' {
+  const value = String(raw || '').toLowerCase()
+  if (key === 'action') {
+    if (value === 'created') return 'success'
+    if (value === 'updated') return 'info'
+    if (value === 'stage_changed') return 'warning'
+    if (value === 'shared') return 'secondary'
+    return 'neutral'
+  }
+  if (key === 'severity' || key === 'level') {
+    if (value === 'error') return 'error'
+    if (value === 'warn' || value === 'warning') return 'warning'
+    if (value === 'info') return 'info'
+    if (value === 'debug') return 'neutral'
+    return 'neutral'
+  }
+  if (key === 'entityType') {
+    if (value.includes('incoming')) return 'info'
+    if (value.includes('outgoing')) return 'secondary'
+    if (value.includes('master')) return 'warning'
+    return 'primary'
+  }
+  if (key === 'status') {
+    if (value === 'completed' || value === 'active') return 'success'
+    if (value === 'pending' || value === 'draft') return 'warning'
+    if (value === 'failed' || value === 'disabled') return 'error'
+    return 'neutral'
+  }
+  if (key === 'stage') {
+    if (value === 'completed') return 'success'
+    if (value === 'approval') return 'primary'
+    if (value === 'review') return 'warning'
+    return 'info'
+  }
+  return 'neutral'
 }
 
 function asPerson(value: unknown) {
@@ -98,6 +151,15 @@ function asPerson(value: unknown) {
     return value as { id?: string, name: string, email?: string, avatarUrl?: string }
   }
   return null
+}
+
+function rawCellValue(row: DataRow, key: string) {
+  return key.split('.').reduce<unknown>((acc, part) => {
+    if (acc && typeof acc === 'object' && part in (acc as object)) {
+      return (acc as Record<string, unknown>)[part]
+    }
+    return undefined
+  }, row)
 }
 
 function clearSelection() {
@@ -109,35 +171,40 @@ function requestDelete() {
   emit('deleteSelected', [...selectedIds.value])
 }
 
-const tableColumns = computed<TableColumn<DataRow>[]>(() => [
-  {
-    id: 'select',
-    header: ({ table: tableApi }) => h(UCheckbox, {
-      'modelValue': tableApi.getIsSomePageRowsSelected()
-        ? 'indeterminate'
-        : tableApi.getIsAllPageRowsSelected(),
-      'onUpdate:modelValue': (value: boolean | 'indeterminate') =>
-        tableApi.toggleAllPageRowsSelected(!!value),
-      'aria-label': t('docetra.actions.selectAll'),
-      'onClick': (e: Event) => e.stopPropagation(),
-    }),
-    size: 44,
-    meta: {
-      class: {
-        th: 'w-11 min-w-11 text-center border-e border-default',
-        td: 'w-11 min-w-11 text-center border-e border-default',
+const tableColumns = computed<TableColumn<DataRow>[]>(() => {
+  const cols: TableColumn<DataRow>[] = []
+
+  if (props.selectable) {
+    cols.push({
+      id: 'select',
+      header: ({ table: tableApi }) => h(UCheckbox, {
+        'modelValue': tableApi.getIsSomePageRowsSelected()
+          ? 'indeterminate'
+          : tableApi.getIsAllPageRowsSelected(),
+        'onUpdate:modelValue': (value: boolean | 'indeterminate') =>
+          tableApi.toggleAllPageRowsSelected(!!value),
+        'aria-label': t('docetra.actions.selectAll'),
+        'onClick': (e: Event) => e.stopPropagation(),
+      }),
+      size: 44,
+      meta: {
+        class: {
+          th: 'w-11 min-w-11 text-center border-e border-default',
+          td: 'w-11 min-w-11 text-center border-e border-default',
+        },
       },
-    },
-    cell: ({ row }) => h(UCheckbox, {
-      'modelValue': row.getIsSelected(),
-      'disabled': !row.getCanSelect(),
-      'onUpdate:modelValue': (value: boolean | 'indeterminate') =>
-        row.toggleSelected(!!value),
-      'aria-label': t('docetra.actions.selectRow'),
-      'onClick': (e: Event) => e.stopPropagation(),
-    }),
-  },
-  ...props.columns.map((col): TableColumn<DataRow> => ({
+      cell: ({ row }) => h(UCheckbox, {
+        'modelValue': row.getIsSelected(),
+        'disabled': !row.getCanSelect(),
+        'onUpdate:modelValue': (value: boolean | 'indeterminate') =>
+          row.toggleSelected(!!value),
+        'aria-label': t('docetra.actions.selectRow'),
+        'onClick': (e: Event) => e.stopPropagation(),
+      }),
+    })
+  }
+
+  cols.push(...props.columns.map((col): TableColumn<DataRow> => ({
     id: col.key,
     accessorKey: col.key,
     header: t(col.labelKey),
@@ -153,43 +220,55 @@ const tableColumns = computed<TableColumn<DataRow>[]>(() => [
           isNumericCol(col.key) ? 'text-end tabular-nums' : 'text-start',
           col.priority === 'low' ? 'hidden md:table-cell' : '',
           col.priority === 'medium' ? 'hidden sm:table-cell' : '',
+          col.key === 'summary' ? 'max-w-xs truncate' : '',
         ].filter(Boolean).join(' '),
       },
     },
     cell: ({ row }) => {
       const value = props.cellValue(row.original, col.key)
-      if (isBadgeCol(col.key)) {
-        return h(UBadge, { color: 'neutral', variant: 'subtle', size: 'sm' }, () => value)
+      const mode = cellMode(col)
+      if (mode === 'badge') {
+        const raw = rawCellValue(row.original, col.key)
+        return h(UBadge, {
+          color: badgeColor(col.key, raw),
+          variant: 'subtle',
+          size: 'sm',
+        }, () => value)
       }
       return value || '—'
     },
-  })),
-  {
-    id: 'meta',
-    header: () => h('div', {
-      class: 'flex w-full items-center justify-end gap-1.5 text-xs font-medium text-toned',
-    }, [
-      h('span', { class: 'tabular-nums' }, metaHeaderLabel.value),
-      h(UIcon, { name: 'i-lucide-heart', class: 'size-3.5 text-muted' }),
-    ]),
-    size: 140,
-    meta: {
-      class: {
-        th: 'w-36 min-w-36',
-        td: 'w-36 min-w-36',
+  })))
+
+  if (props.showMeta) {
+    cols.push({
+      id: 'meta',
+      header: () => h('div', {
+        class: 'flex w-full items-center justify-end gap-1.5 text-xs font-medium text-toned',
+      }, [
+        h('span', { class: 'tabular-nums' }, metaHeaderLabel.value),
+        h(UIcon, { name: 'i-lucide-heart', class: 'size-3.5 text-muted' }),
+      ]),
+      size: 140,
+      meta: {
+        class: {
+          th: 'w-36 min-w-36',
+          td: 'w-36 min-w-36',
+        },
       },
-    },
-    cell: ({ row }) => {
-      const owner = asPerson(row.original.owner) || asPerson(row.original.assignee) || asPerson(row.original.updatedBy)
-      return h(AppTableRowMeta, {
-        owner,
-        updatedAt: row.original.updatedAt ? String(row.original.updatedAt) : undefined,
-        commentCount: Number(row.original.commentCount || 0),
-        liked: Boolean(row.original.liked),
-      })
-    },
-  },
-])
+      cell: ({ row }) => {
+        const owner = asPerson(row.original.owner) || asPerson(row.original.assignee) || asPerson(row.original.updatedBy)
+        return h(AppTableRowMeta, {
+          owner,
+          updatedAt: row.original.updatedAt ? String(row.original.updatedAt) : undefined,
+          commentCount: Number(row.original.commentCount || 0),
+          liked: Boolean(row.original.liked),
+        })
+      },
+    })
+  }
+
+  return cols
+})
 
 function onSelect(e: Event, row: Row<DataRow>) {
   const target = e.target as HTMLElement | null

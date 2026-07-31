@@ -1,8 +1,4 @@
 <script setup lang="ts">
-import { getEntityConfig } from '~/config/entities'
-
-const config = getEntityConfig('meetingTopics')
-
 definePageMeta({
   titleKey: 'docetra.pages.meetingTopic',
   permission: 'meetings.topics.view',
@@ -10,5 +6,5 @@ definePageMeta({
 </script>
 
 <template>
-  <WorkspaceEntityWorkspaceView :config="config" />
+  <MeetingAppMeetingTopicBoard />
 </template>

@@ -62,6 +62,11 @@ export const mockMeetingHistory: MeetingHistory[] = Array.from({ length: 30 }, (
   meetingDate: dateOnly(i % 25),
   location: i % 2 === 0 ? 'Room A' : 'Online',
   attendeesCount: 4 + (i % 8),
+  sortOrder: i % 3 === 0 ? undefined : (i % 5),
+  notes: i % 4 === 0
+    ? `<h2>Agenda</h2><p>Review progress for meeting ${i + 1}.</p><ul><li>Status updates</li><li>Open actions</li></ul>`
+    : '',
+  attachmentCount: i % 4,
   owner: person(i),
   createdAt: daysAgo(40 - i),
   updatedAt: daysAgo(i % 8),
@@ -98,19 +103,35 @@ export const mockOutgoingDocuments = makeRecord('outgoing', 28, 'out')
 export const mockDocuments = makeRecord('document', 32, 'doc')
 export const mockMasterListRequests = makeRecord('master_list_request', 20, 'mlr')
 
-export const mockRecordLogs: RecordLog[] = Array.from({ length: 40 }, (_, i) => ({
-  id: `rl_${i + 1}`,
-  status: 'active',
-  action: ['created', 'updated', 'stage_changed', 'shared'][i % 4]!,
-  entityType: 'incoming_document',
-  entityId: `inc_${(i % 20) + 1}`,
-  entityTitle: `incoming record ${(i % 20) + 1}`,
-  actor: person(i),
-  occurredAt: daysAgo(i),
-  summary: `Record ${(i % 20) + 1} was updated`,
-  createdAt: daysAgo(i),
-  updatedAt: daysAgo(i),
-}))
+export const mockRecordLogs: RecordLog[] = Array.from({ length: 40 }, (_, i) => {
+  const action = (['created', 'updated', 'stage_changed', 'shared'] as const)[i % 4]!
+  const entityType = (['incoming_document', 'outgoing_document', 'document', 'master_list_request'] as const)[i % 4]!
+  const severity = (['info', 'info', 'warn', 'error'] as const)[i % 4]!
+  return {
+    id: `rl_${i + 1}`,
+    status: 'active',
+    action,
+    entityType,
+    entityId: `${entityType.slice(0, 3)}_${(i % 20) + 1}`,
+    entityTitle: `${entityType.replaceAll('_', ' ')} ${(i % 20) + 1}`,
+    actor: person(i),
+    organization: org(i % 5),
+    occurredAt: daysAgo(i),
+    summary: `Record ${(i % 20) + 1} was ${action.replaceAll('_', ' ')}`,
+    category: action === 'shared' ? 'access' : action === 'stage_changed' ? 'workflow' : 'record',
+    severity,
+    correlationId: `corr_${String(1000 + i)}`,
+    changesSummary: action === 'created'
+      ? 'Record created'
+      : action === 'stage_changed'
+        ? 'Stage moved'
+        : action === 'shared'
+          ? 'Share permissions updated'
+          : 'Title / status fields updated',
+    createdAt: daysAgo(i),
+    updatedAt: daysAgo(i),
+  }
+})
 
 export const mockDepartments: Department[] = Array.from({ length: 18 }, (_, i) => ({
   id: `dep_${i + 1}`,
@@ -179,18 +200,37 @@ export const mockOfficers: Officer[] = Array.from({ length: 22 }, (_, i) => ({
   updatedAt: daysAgo(i % 9),
 }))
 
-export const mockRoles: AppRole[] = Array.from({ length: 8 }, (_, i) => ({
-  id: `role_${i + 1}`,
-  code: ['ADMIN', 'EDITOR', 'VIEWER', 'RECORDS', 'MEETING', 'ORG', 'PORTAL', 'AUDIT'][i]!,
-  name: ['Administrator', 'Editor', 'Viewer', 'Records Officer', 'Meeting Manager', 'Org Admin', 'Portal Operator', 'Auditor'][i]!,
-  status: 'active',
-  description: 'Role permission set for Docetra modules',
-  permissionCount: 10 + i * 3,
-  userCount: 1 + i,
-  permissions: ['records.view', 'records.edit', 'org.view'],
-  createdAt: daysAgo(120 - i),
-  updatedAt: daysAgo(i),
-}))
+export const mockRoles: AppRole[] = Array.from({ length: 8 }, (_, i) => {
+  const permissionRows = [
+    {
+      id: `perm_row_${i}_1`,
+      documentType: 'incoming_document',
+      onlyIfCreator: i % 2 === 0,
+      level: i % 3,
+      actions: ['select', 'read', 'write', 'create', 'print', 'export'].slice(0, 3 + (i % 3)),
+    },
+    {
+      id: `perm_row_${i}_2`,
+      documentType: 'meeting_topic',
+      onlyIfCreator: false,
+      level: 0,
+      actions: ['select', 'read', 'report'],
+    },
+  ]
+  return {
+    id: `role_${i + 1}`,
+    code: ['ADMIN', 'EDITOR', 'VIEWER', 'RECORDS', 'MEETING', 'ORG', 'PORTAL', 'AUDIT'][i]!,
+    name: ['Administrator', 'Editor', 'Viewer', 'Records Officer', 'Meeting Manager', 'Org Admin', 'Portal Operator', 'Auditor'][i]!,
+    status: 'active',
+    description: 'Role permission set for Docetra modules',
+    permissionCount: permissionRows.reduce((sum, row) => sum + row.actions.length, 0),
+    userCount: 1 + i,
+    permissions: permissionRows.flatMap(row => row.actions.map(a => `${row.documentType}:${a}`)),
+    permissionRows,
+    createdAt: daysAgo(120 - i),
+    updatedAt: daysAgo(i),
+  }
+})
 
 export const mockUsers: AppUser[] = Array.from({ length: 16 }, (_, i) => ({
   id: `usr_${i + 1}`,
@@ -338,15 +378,48 @@ export const mockSystemLogs: SystemLog[] = Array.from({ length: 40 }, (_, i) => 
 }))
 
 export function getDashboardSummary(): DashboardSummary {
+  const meetingEvents = mockMeetingTopics.slice(0, 14).map((topic, i) => ({
+    id: `ev_mt_${topic.id}`,
+    title: topic.title,
+    start: topic.meetingDate || dateOnly(i),
+    allDay: true,
+    color: (['primary', 'info', 'success', 'warning'] as const)[i % 4],
+    type: 'meeting' as const,
+    href: `/meetings/topics/${topic.id}`,
+    location: i % 2 === 0 ? 'Room A' : 'Online',
+  }))
+
+  const deadlineEvents = mockIncomingDocuments
+    .filter(r => r.waiting || r.stage === 'approval')
+    .slice(0, 8)
+    .map((doc, i) => ({
+      id: `ev_dl_${doc.id}`,
+      title: doc.title,
+      start: doc.receivedDate || dateOnly(i % 12),
+      allDay: true,
+      color: 'error' as const,
+      type: 'deadline' as const,
+      href: `/records/incoming-documents/${doc.id}`,
+    }))
+
+  const historyEvents = mockMeetingHistory.slice(0, 10).map((m, i) => ({
+    id: `ev_mh_${m.id}`,
+    title: m.title,
+    start: m.meetingDate,
+    allDay: true,
+    color: 'neutral' as const,
+    type: 'meeting' as const,
+    href: m.topicId ? `/meetings/topics/${m.topicId}` : '/meetings/history',
+    location: m.location,
+  }))
+
   return {
     kpis: [
       { id: 'k1', labelKey: 'docetra.dashboard.kpi.activeRecords', value: 96, trend: 4, href: '/records/documents', updatedAt: daysAgo(0) },
       { id: 'k2', labelKey: 'docetra.dashboard.kpi.waiting', value: 12, trend: -2, href: '/records/incoming-documents?waiting=true', updatedAt: daysAgo(0) },
       { id: 'k3', labelKey: 'docetra.dashboard.kpi.overdue', value: 5, trend: 1, href: '/records/incoming-documents', updatedAt: daysAgo(0) },
-      { id: 'k4', labelKey: 'docetra.dashboard.kpi.meetings', value: 24, href: '/meetings/topics', updatedAt: daysAgo(0) },
-      { id: 'k5', labelKey: 'docetra.dashboard.kpi.incoming', value: 36, href: '/records/incoming-documents', updatedAt: daysAgo(0) },
-      { id: 'k6', labelKey: 'docetra.dashboard.kpi.outgoing', value: 28, href: '/records/outgoing-documents', updatedAt: daysAgo(0) },
-      { id: 'k7', labelKey: 'docetra.dashboard.kpi.uploads', value: 24, href: '/portal/file-upload', updatedAt: daysAgo(0) },
+      { id: 'k4', labelKey: 'docetra.dashboard.kpi.incoming', value: 36, href: '/records/incoming-documents', updatedAt: daysAgo(0) },
+      { id: 'k5', labelKey: 'docetra.dashboard.kpi.outgoing', value: 28, href: '/records/outgoing-documents', updatedAt: daysAgo(0) },
     ],
     workByStage: stages.map(s => ({
       stage: s,
@@ -357,6 +430,6 @@ export function getDashboardSummary(): DashboardSummary {
       date: dateOnly(11 - i),
       count: 4 + ((i * 3) % 9),
     })),
-    myWork: mockIncomingDocuments.filter(r => r.assignee?.id === 'p1').slice(0, 8),
+    events: [...meetingEvents, ...deadlineEvents, ...historyEvents],
   }
 }

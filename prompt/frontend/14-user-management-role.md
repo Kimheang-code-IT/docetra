@@ -4,9 +4,17 @@
 
 Implement `/user-management/roles` using the shared table and Nuxt UI document-page system.
 
-Use a server table with search, status, scope, protected-role, permission-count, and user-count filters. No Kanban. Add navigates to `/user-management/roles/new`; rows navigate to `/user-management/roles/:id`. The document page contains role identity and a scalable permission editor grouped by module and action, with search, indeterminate group selection, navigation visibility, affected-user summary, metadata rail, and Security Activity.
+Use a server table with columns **Role name**, **Users**, **Permissions**, **Status**. Filters: search, status. No Kanban. Add navigates to `/user-management/roles/new`; rows navigate to `/user-management/roles/:id`.
 
-Include immutable security Activity for role creation, permission changes, assignments, status, and protected-role actions. Do not include casual comments. Confirm high-impact changes and prevent unsafe edits to protected roles.
+### New / edit Role page
+
+ERPNext-style permission matrix (`AppRolePermissionMatrix`):
+
+- Role identity fields: code, role name, status, description.
+- Permissions table lists **all document types** automatically (no add-row / remove icons).
+- Columns: Document Type, Permissions checkbox grid only (no Role / Level columns — role identity is already on the form).
+- Persist `permissionRows` on the role; derive `permissionCount` / flat `permissions` on save.
+- No section subtitle under Role permissions. Security Activity for role creation and permission changes.
 
 ### Acceptance
 

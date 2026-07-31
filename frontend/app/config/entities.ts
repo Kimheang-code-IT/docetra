@@ -41,7 +41,7 @@ const workflowStages: WorkflowStage[] = [
 const statusFilter: FilterDef = {
   key: 'status',
   labelKey: 'docetra.fields.status',
-  type: 'select',
+  type: 'multiselect',
   options: [
     { label: 'Draft', value: 'draft', labelKey: 'docetra.status.draft' },
     { label: 'Active', value: 'active', labelKey: 'docetra.status.active' },
@@ -54,7 +54,7 @@ const statusFilter: FilterDef = {
 const stageFilter: FilterDef = {
   key: 'stage',
   labelKey: 'docetra.fields.stage',
-  type: 'select',
+  type: 'multiselect',
   options: workflowStages.map(s => ({ label: s.code, value: s.code, labelKey: s.labelKey })),
 }
 
@@ -347,32 +347,100 @@ export const entityConfigs: Record<string, EntityConfig> = {
     defaultView: 'table',
     readOnly: true,
     canCreate: false,
+    canDelete: false,
     canComment: false,
     titleField: 'summary',
     columns: [
-      { key: 'occurredAt', labelKey: 'docetra.fields.occurredAt', sortable: true, priority: 'high' },
-      { key: 'action', labelKey: 'docetra.fields.action', priority: 'high' },
-      { key: 'entityTitle', labelKey: 'docetra.fields.entity' },
-      { key: 'actor.name', labelKey: 'docetra.fields.actor' },
-      { key: 'summary', labelKey: 'docetra.fields.summary' },
+      { key: 'occurredAt', labelKey: 'docetra.fields.occurredAt', sortable: true, priority: 'high', cell: 'datetime' },
+      { key: 'action', labelKey: 'docetra.fields.action', priority: 'high', cell: 'badge' },
+      { key: 'entityType', labelKey: 'docetra.fields.recordType', priority: 'medium', cell: 'badge' },
+      { key: 'entityTitle', labelKey: 'docetra.fields.entity', priority: 'high' },
+      { key: 'actor.name', labelKey: 'docetra.fields.actor', priority: 'medium', cell: 'person' },
+      { key: 'organization.name', labelKey: 'docetra.fields.organization', priority: 'low' },
+      { key: 'severity', labelKey: 'docetra.fields.severity', priority: 'medium', cell: 'badge' },
+      { key: 'summary', labelKey: 'docetra.fields.summary', priority: 'high' },
+      { key: 'correlationId', labelKey: 'docetra.fields.correlationId', priority: 'low' },
     ],
-    filters: [{
-      key: 'action',
-      labelKey: 'docetra.fields.action',
-      type: 'select',
-      options: [
-        { label: 'Created', value: 'created' },
-        { label: 'Updated', value: 'updated' },
-        { label: 'Stage changed', value: 'stage_changed' },
-        { label: 'Shared', value: 'shared' },
-      ],
-    }],
-    tabs: masterDataTabs([
-      { key: 'action', labelKey: 'docetra.fields.action', type: 'text', readOnly: true },
-      { key: 'entityTitle', labelKey: 'docetra.fields.entity', type: 'text', readOnly: true },
-      { key: 'summary', labelKey: 'docetra.fields.summary', type: 'textarea', readOnly: true, colSpan: 2 },
-      { key: 'occurredAt', labelKey: 'docetra.fields.occurredAt', type: 'datetime', readOnly: true },
-    ]),
+    filters: [
+      {
+        key: 'action',
+        labelKey: 'docetra.fields.action',
+        type: 'select',
+        options: [
+          { label: 'Created', value: 'created', labelKey: 'docetra.logActions.created' },
+          { label: 'Updated', value: 'updated', labelKey: 'docetra.logActions.updated' },
+          { label: 'Stage changed', value: 'stage_changed', labelKey: 'docetra.logActions.stage_changed' },
+          { label: 'Shared', value: 'shared', labelKey: 'docetra.logActions.shared' },
+        ],
+      },
+      {
+        key: 'entityType',
+        labelKey: 'docetra.fields.recordType',
+        type: 'select',
+        options: [
+          { label: 'Incoming', value: 'incoming_document', labelKey: 'docetra.entityTypes.incoming_document' },
+          { label: 'Outgoing', value: 'outgoing_document', labelKey: 'docetra.entityTypes.outgoing_document' },
+          { label: 'Document', value: 'document', labelKey: 'docetra.entityTypes.document' },
+          { label: 'Master list', value: 'master_list_request', labelKey: 'docetra.entityTypes.master_list_request' },
+        ],
+      },
+      {
+        key: 'severity',
+        labelKey: 'docetra.fields.severity',
+        type: 'select',
+        options: [
+          { label: 'Info', value: 'info', labelKey: 'docetra.severity.info' },
+          { label: 'Warn', value: 'warn', labelKey: 'docetra.severity.warn' },
+          { label: 'Error', value: 'error', labelKey: 'docetra.severity.error' },
+        ],
+      },
+    ],
+    tabs: [
+      {
+        id: 'event',
+        labelKey: 'docetra.tabs.event',
+        sections: [{
+          id: 'summary',
+          titleKey: 'docetra.sections.eventSummary',
+          fields: [
+            { key: 'action', labelKey: 'docetra.fields.action', type: 'text', readOnly: true },
+            { key: 'occurredAt', labelKey: 'docetra.fields.occurredAt', type: 'datetime', readOnly: true },
+            { key: 'severity', labelKey: 'docetra.fields.severity', type: 'text', readOnly: true },
+            { key: 'category', labelKey: 'docetra.fields.category', type: 'text', readOnly: true },
+            { key: 'summary', labelKey: 'docetra.fields.summary', type: 'textarea', readOnly: true, colSpan: 2 },
+            { key: 'changesSummary', labelKey: 'docetra.fields.changes', type: 'textarea', readOnly: true, colSpan: 2 },
+          ],
+        }],
+      },
+      {
+        id: 'record',
+        labelKey: 'docetra.tabs.linkedRecord',
+        sections: [{
+          id: 'linked',
+          titleKey: 'docetra.sections.linkedRecord',
+          fields: [
+            { key: 'entityType', labelKey: 'docetra.fields.recordType', type: 'text', readOnly: true },
+            { key: 'entityId', labelKey: 'docetra.fields.recordId', type: 'text', readOnly: true },
+            { key: 'entityTitle', labelKey: 'docetra.fields.entity', type: 'text', readOnly: true, colSpan: 2 },
+            { key: 'organization.name', labelKey: 'docetra.fields.organization', type: 'text', readOnly: true },
+            { key: 'actor.name', labelKey: 'docetra.fields.actor', type: 'text', readOnly: true },
+          ],
+        }],
+      },
+      {
+        id: 'context',
+        labelKey: 'docetra.tabs.context',
+        sections: [{
+          id: 'request',
+          titleKey: 'docetra.sections.requestContext',
+          fields: [
+            { key: 'correlationId', labelKey: 'docetra.fields.correlationId', type: 'text', readOnly: true },
+            { key: 'category', labelKey: 'docetra.fields.category', type: 'text', readOnly: true },
+            { key: 'createdAt', labelKey: 'docetra.fields.createdAt', type: 'datetime', readOnly: true },
+          ],
+        }],
+      },
+    ],
   },
 
   departments: {
@@ -543,19 +611,42 @@ export const entityConfigs: Record<string, EntityConfig> = {
     canComment: false,
     titleField: 'name',
     columns: [
-      { key: 'code', labelKey: 'docetra.fields.code', sortable: true },
-      { key: 'name', labelKey: 'docetra.fields.name', sortable: true },
-      { key: 'permissionCount', labelKey: 'docetra.fields.permissions' },
-      { key: 'userCount', labelKey: 'docetra.fields.users' },
-      { key: 'status', labelKey: 'docetra.fields.status' },
+      { key: 'name', labelKey: 'docetra.fields.roleName', sortable: true, priority: 'high' },
+      { key: 'userCount', labelKey: 'docetra.fields.users', sortable: true, priority: 'high' },
+      { key: 'permissionCount', labelKey: 'docetra.fields.permissions', priority: 'high' },
+      { key: 'status', labelKey: 'docetra.fields.status', priority: 'high' },
     ],
     filters: [statusFilter],
-    tabs: masterDataTabs([
-      { key: 'code', labelKey: 'docetra.fields.code', type: 'text', required: true },
-      { key: 'name', labelKey: 'docetra.fields.name', type: 'text', required: true },
-      { key: 'description', labelKey: 'docetra.fields.description', type: 'textarea', colSpan: 2 },
-      { key: 'status', labelKey: 'docetra.fields.status', type: 'select', options: statusFilter.options },
-    ]),
+    tabs: [
+      {
+        id: 'details',
+        labelKey: 'docetra.tabs.details',
+        sections: [
+          {
+            id: 'identity',
+            titleKey: 'docetra.sections.main',
+            fields: [
+              { key: 'code', labelKey: 'docetra.fields.code', type: 'text', required: true },
+              { key: 'name', labelKey: 'docetra.fields.roleName', type: 'text', required: true },
+              { key: 'status', labelKey: 'docetra.fields.status', type: 'select', options: statusFilter.options },
+              { key: 'description', labelKey: 'docetra.fields.description', type: 'textarea', colSpan: 2 },
+            ],
+          },
+          {
+            id: 'permissions',
+            titleKey: 'docetra.sections.permissions',
+            fields: [
+              {
+                key: 'permissionRows',
+                labelKey: 'docetra.fields.permissions',
+                type: 'permission-matrix',
+                colSpan: 2,
+              },
+            ],
+          },
+        ],
+      },
+    ],
   },
 
   users: {

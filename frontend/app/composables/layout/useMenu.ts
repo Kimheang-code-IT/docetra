@@ -82,7 +82,7 @@ export function useMenu() {
     group(t('docetra.navigation.meeting'), 'i-lucide-calendar-days', [
       pageLink(t('docetra.pages.meetingTopic'), '/meetings/topics'),
       pageLink(t('docetra.pages.meetingHistory'), '/meetings/history'),
-    ]),
+    ], { defaultOpen: true }),
     group(t('docetra.navigation.record'), 'i-lucide-folder', [
       pageLink(t('docetra.pages.incomingDocument'), '/records/incoming-documents'),
       pageLink(t('docetra.pages.outgoingDocument'), '/records/outgoing-documents'),

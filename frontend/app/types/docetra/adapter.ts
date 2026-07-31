@@ -19,4 +19,5 @@ export interface EntityAdapter<T> {
   addComment?: (id: string, body: string) => Promise<ApiResponse<EntityComment>>
   listActivity?: (id: string, query?: ListQuery) => Promise<ApiResponse<ActivityEvent[]>>
   listAttachments?: (id: string) => Promise<ApiResponse<AttachmentMeta[]>>
+  replaceAttachments?: (id: string, files: AttachmentMeta[]) => Promise<ApiResponse<AttachmentMeta[]>>
 }

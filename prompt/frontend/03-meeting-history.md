@@ -2,16 +2,25 @@
 
 ## Copy/paste prompt
 
-Implement the read-only Meeting History workspace at `/meetings/history`.
+Implement the Meeting History workspace at `/meetings/history`, plus **per-meeting notes** that can be opened from the topic board.
 
-### Page design
+### List workspace
 
 Use `AppServerTable` with an optional timeline-view toggle, not Kanban. Filter by date range, meeting/topic, status, stage, actor, department, organization, and action. Columns include record time, meeting, topic, action, previous/new state summary, actor, and organization.
 
-Clicking a row navigates to `/meetings/history/:id`, a read-only Nuxt UI event page with a sticky header, event summary, safe before/after changes, linked meeting/topic, permitted attachments, correlation ID, metadata rail, and activity timeline. Do not show a comment composer or create/edit actions.
+Clicking a row navigates to `/meetings/history/:id`, a Nuxt UI document page with sticky header, summary fields, metadata rail, attachments, and activity. Use cursor pagination because history can grow while the user is browsing.
 
-Use cursor pagination because history can grow while the user is browsing. Redact sensitive metadata and deep-link only to records the user can view.
+### Meeting notes (TipTap + Uppy)
+
+From the Meeting Topics board (`⋯` → **Open notes**), open `AppMeetingNotesDialog` (fullscreen `UModal`) for that meeting:
+
+- Layout: **3-column editor** + **1-column files** (`lg:grid-cols-4`).
+- **Notes:** `AppRichTextNote` — Nuxt UI `UEditor` (TipTap) with HTML content, toolbar (headings, lists, marks, link). Persist on `MeetingHistory.notes`.
+- **Files:** `AppUppyUploader` — Uppy Dashboard + XHR upload (mock uploader when `useMockData`). Support large files (up to 200 MB). Persist via adapter `listAttachments` / `replaceAttachments` and update `attachmentCount`.
+- Save/cancel with unsaved-change confirm. Toast on success/failure.
+
+Shared components live under `components/common/` (`AppRichTextNote`, `AppUppyUploader`) so other entities can reuse them later.
 
 ### Acceptance
 
-History remains immutable, filters are URL-backed, event details are safe and permission-aware, and checks pass.
+History list/detail work; notes slideover opens from the board; rich text and Uppy uploads save against the meeting; checks pass.

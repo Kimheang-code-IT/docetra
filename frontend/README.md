@@ -1,56 +1,71 @@
-# PDME-Revenue Operations Management Platform
+# Docetra Frontend
 
-**PDME-Revenue** is an advanced, enterprise-grade frontend platform designed for Customs and Excise Cambodia management systems. 
+Nuxt 4 + Vue 3 + Nuxt UI 4 app for Docetra (meetings, records, organizations, users, portal).
 
-## Technology Stack
+## Stack
 
-The application has been engineered for maximum scalability, adhering to modern best practices:
-- **Core Engine:** Nuxt 4, Vue 3, Composition API
-- **UI Framework & Styling:** Nuxt UI v3 (Pro features enabled), TailwindCSS v4
-- **State Management:** Pinia
-- **Tables & Grids:** TanStack Vue Table v8
-- **Data Visualization:** Apache ECharts
-- **Internationalization:** `@nuxtjs/i18n` with support for English (`en`) and Khmer (`km`). Advanced typography overrides ensure "Siemreap" is injected for optimal Khmer rendering.
+- Nuxt 4, Vue 3, TypeScript, Pinia, VueUse
+- Nuxt UI 4 + Tailwind CSS 4
+- TanStack Vue Table, ECharts, TipTap (via `UEditor`), Uppy
+- i18n: English + Khmer (`i18n/locales/`)
 
-## Current Architectural State
+## Folder architecture
 
-The UI is entirely decoupled from the backend. 
-- All component views strictly consume data from `app/composables/table/` and state logic. 
-- All default mock datasets are located in `app/data/` representing exactly what the API JSON schema should return. This guarantees a highly accelerated transition phase when plugging into a live backend server.
-- The UI leverages a generic, unified `CommonAppExport` capability to allow instant `.csv` extractions for all data components based on a custom global Date-Range filter.
+```
+app/
+  adapters/          # Entity API adapters (mock ↔ /api/v2)
+  components/
+    common/          # Shared UI (filters, charts, rich text, uploaders)
+      editor/        # TipTap helpers (resizable image node view)
+    document/        # ERP document page kit
+    layout/          # Shell: header, sidebar, about, user menu
+    meeting/         # Meeting topic board + notes dialog
+    settings/        # Settings placeholders
+    workspace/       # List/Kanban workspace kit
+  composables/
+    layout/          # Sidebar, header, user menu
+    meeting/         # Topic board logic
+    workspace/       # Entity list + document page state
+  config/            # Entity schemas (columns, tabs, permissions)
+  layouts/           # default, auth
+  middleware/        # auth.global
+  mocks/             # Seed data + query helpers
+  pages/             # File-based routes
+  stores/            # Pinia (auth)
+  types/             # Shared TS types
+  utils/
+    api/ auth/ constants/ editor/ filter/ role/ storage/
+```
 
-## Future Improvement & API Roadmap
-1. **Backend Fetch Integration:** Replace statically imported `app/data/` objects with `useAsyncData()` or `$fetch()` queries inside the composables to hydrate tables directly from your database endpoints.
-2. **Server-Side Rendering/Pagination:** Upgrade TanStack tables configuration to pass `page`, `limit`, and `sorting` parameters explicitly to the API rather than filtering local arrays when arrays scale past 10,000 entries.
-3. **Authorization Routing:** Incorporate `middleware/auth.global.ts` to strictly lock administrative pages (e.g. `/settings`) requiring JWT Bearer token authentication via `NuxtAuth`.
-4. **Zod Validation:** Formally introduce robust client-side validation logic utilizing Zod to provide schema definitions for the various Create/Update modals before transmission to APIs.
+Nuxt auto-imports components by folder prefix, e.g.:
 
----
+- `common/AppEchart.vue` → `CommonAppEchart`
+- `meeting/AppMeetingTopicBoard.vue` → `MeetingAppMeetingTopicBoard`
+- `workspace/EntityWorkspaceView.vue` → `WorkspaceEntityWorkspaceView`
 
-## Setup & Development
+## Reuse rules
 
-Make sure to install the dependencies:
+| Need | Use |
+|------|-----|
+| Entity list / Kanban | `WorkspaceEntityWorkspaceView` + `config/entities.ts` |
+| Create / detail / edit | `DocumentEntityDocumentView` |
+| Meeting topic board | `MeetingAppMeetingTopicBoard` |
+| Rich notes | `CommonAppRichTextNote` |
+| Large uploads | `CommonAppUppyUploader` |
+| Dashboard KPI / calendar | `CommonAppSummaryCard`, `CommonAppEchart`, `CommonAppEventCalendar` |
+
+Do not add one-off page scaffolds. Prefer shared workspace/document/meeting components.
+
+## Mock vs API
+
+- `NUXT_PUBLIC_USE_MOCK_DATA=false` → adapters hit `runtimeConfig.public.apiBase`
+- Default mock mode uses `app/mocks` + in-memory stores in `app/adapters`
+
+## Scripts
 
 ```bash
 pnpm install
-```
-
-Start the development server on `http://localhost:3000`:
-
-```bash
 pnpm dev
-```
-
-## Production
-
-Build the application for production:
-
-```bash
+pnpm typecheck
 pnpm build
-```
-
-Locally preview production build:
-
-```bash
-pnpm preview
 ```

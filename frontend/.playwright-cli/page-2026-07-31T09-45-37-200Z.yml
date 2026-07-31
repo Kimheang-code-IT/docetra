@@ -1,0 +1,212 @@
+- generic:
+  - generic [ref=e1174]:
+    - generic [ref=e1175]:
+      - generic [ref=e1176]:
+        - link "Docetra" [ref=e1177] [cursor=pointer]:
+          - /url: /
+          - img "Docetra logo" [ref=e1179]
+        - button "Search… Ctrl k" [ref=e1182]:
+          - generic [ref=e1184]: Search…
+          - generic [ref=e1185]:
+            - generic [ref=e1186]: Ctrl
+            - generic [ref=e1187]: k
+      - navigation [ref=e1189]:
+        - list [ref=e1190]:
+          - listitem [ref=e1191]:
+            - link "Dashboard" [ref=e1192] [cursor=pointer]:
+              - /url: /
+          - listitem [ref=e1195]:
+            - button "Meeting" [expanded] [ref=e1196]
+            - region "Meeting" [ref=e1201]:
+              - list [ref=e1202]:
+                - listitem [ref=e1203]:
+                  - link "Topic" [active] [ref=e1204] [cursor=pointer]:
+                    - /url: /meetings/topics
+                - listitem [ref=e1206]:
+                  - link "History" [ref=e1207] [cursor=pointer]:
+                    - /url: /meetings/history
+          - listitem [ref=e1209]:
+            - button "Record" [ref=e1210]
+          - listitem [ref=e1215]:
+            - button "Organization" [ref=e1216]
+          - listitem [ref=e1221]:
+            - button "User Management" [ref=e1222]
+          - listitem [ref=e1227]:
+            - button "Portal" [ref=e1228]
+          - listitem [ref=e1233]:
+            - button "System Monitor" [ref=e1234]
+          - listitem [ref=e1239]:
+            - button "Configuration" [ref=e1240]
+          - listitem [ref=e1245]:
+            - button "Setting" [expanded] [ref=e1246]
+            - region "Setting" [ref=e1251]:
+              - list [ref=e1252]:
+                - listitem [ref=e1253]:
+                  - link "App Info" [ref=e1254] [cursor=pointer]:
+                    - /url: /settings/app-info
+                - listitem [ref=e1256]:
+                  - link "App Config" [ref=e1257] [cursor=pointer]:
+                    - /url: /settings/app-config
+                - listitem [ref=e1259]:
+                  - link "Storage" [ref=e1260] [cursor=pointer]:
+                    - /url: /settings/storage
+      - button "Moeng Kimheang Moeng Kimheang" [ref=e1264]:
+        - img "Moeng Kimheang" [ref=e1266]
+        - generic [ref=e1267]: Moeng Kimheang
+    - separator
+    - generic [ref=e1269]:
+      - generic [ref=e1270]:
+        - generic [ref=e1271]:
+          - button "Collapse sidebar" [ref=e1272]
+          - heading "breadcrumb Draft" [level=1] [ref=e1274]:
+            - generic [ref=e1275]:
+              - navigation "breadcrumb" [ref=e1276]:
+                - list [ref=e1277]:
+                  - listitem [ref=e1278]:
+                    - link "Meeting" [ref=e1279] [cursor=pointer]:
+                      - /url: /meetings/topics
+                  - listitem [ref=e1281]
+                  - listitem [ref=e1283]:
+                    - link "Topic" [ref=e1284] [cursor=pointer]:
+                      - /url: /meetings/topics
+                  - listitem [ref=e1286]
+                  - listitem [ref=e1288]:
+                    - generic [ref=e1289]: "Topic 1: Quarterly coordination"
+              - generic [ref=e1291]: Draft
+        - generic [ref=e1294]:
+          - link "List View" [ref=e1295] [cursor=pointer]:
+            - /url: /meetings/topics
+          - button "Previous" [ref=e1298]
+          - button "Next" [ref=e1300]
+          - button "Refresh" [ref=e1302]
+          - button "Actions" [ref=e1304]
+          - button "Save" [ref=e1306]
+      - main [ref=e1309]:
+        - generic [ref=e1312]:
+          - generic [ref=e1313]:
+            - generic [ref=e1314]:
+              - tablist [ref=e1317]:
+                - tab "Summary" [selected] [ref=e1319]
+                - tab "Meetings" [ref=e1321]
+              - generic [ref=e1325]:
+                - heading "Main information" [level=3] [ref=e1327]
+                - generic [ref=e1328]:
+                  - generic [ref=e1330]:
+                    - generic [ref=e1331]: Title*
+                    - textbox "Title*" [ref=e1338]:
+                      - /placeholder: Title
+                      - text: "Topic 1: Quarterly coordination"
+                  - generic [ref=e1340]:
+                    - generic [ref=e1341]: Status
+                    - combobox "Status" [ref=e1347]:
+                      - generic: Draft
+                  - generic [ref=e1351]:
+                    - generic [ref=e1352]: Stage
+                    - combobox "Stage" [ref=e1358]:
+                      - generic: Intake
+                  - generic [ref=e1362]:
+                    - generic [ref=e1363]: Meeting date
+                    - group [ref=e1369]:
+                      - spinbutton "month," [ref=e1370]: "7"
+                      - generic [ref=e1371]: /
+                      - spinbutton "day," [ref=e1372]: "31"
+                      - generic [ref=e1373]: /
+                      - spinbutton "year," [ref=e1374]: "2026"
+                      - button "Select a date" [ref=e1376]
+                      - textbox [ref=e1378]: 2026-07-31
+                  - generic [ref=e1380]:
+                    - generic [ref=e1381]: Description
+                    - textbox "Description" [ref=e1388]: Discuss open action items and document follow-up.
+            - generic [ref=e1390]:
+              - generic [ref=e1391]:
+                - heading "Comments (2)" [level=2] [ref=e1392]
+                - generic [ref=e1393]:
+                  - generic [ref=e1394]: MK
+                  - textbox "Type a reply / comment" [ref=e1397]
+              - generic [ref=e1398]:
+                - generic [ref=e1399]:
+                  - heading "Activity" [level=2] [ref=e1400]
+                  - button "New Email" [ref=e1401]
+                - generic [ref=e1404]:
+                  - generic [ref=e1405]:
+                    - separator [ref=e1409]
+                    - paragraph [ref=e1412]: Sokha Chan attached cover-letter.pdf • 1 minute ago
+                  - generic [ref=e1413]:
+                    - separator [ref=e1417]
+                    - generic [ref=e1420]:
+                      - generic [ref=e1421]:
+                        - generic [ref=e1422]: SC
+                        - paragraph [ref=e1424]: Sokha Chan commented • 1 day ago
+                        - generic [ref=e1425]:
+                          - button "Edit" [ref=e1426]
+                          - button [ref=e1428]
+                      - paragraph [ref=e1431]: Please review the attached files before the next meeting.
+                  - generic [ref=e1432]:
+                    - separator [ref=e1436]
+                    - paragraph [ref=e1439]: Sokha Chan assigned Dara Kim • 1 day ago
+                  - generic [ref=e1440]:
+                    - separator [ref=e1444]
+                    - generic [ref=e1447]:
+                      - generic [ref=e1448]:
+                        - generic [ref=e1449]: DK
+                        - paragraph [ref=e1451]: Dara Kim commented • 2 days ago
+                        - generic [ref=e1452]:
+                          - button "Edit" [ref=e1453]
+                          - button [ref=e1455]
+                      - paragraph [ref=e1458]: Noted. Will follow up with the department.
+                  - generic [ref=e1459]:
+                    - separator [ref=e1463]
+                    - paragraph [ref=e1466]: Sokha Chan created this • 2 days ago
+                  - generic [ref=e1467]:
+                    - separator [ref=e1471]
+                    - paragraph [ref=e1474]: Sokha Chan last edited this • 3 days ago
+                  - paragraph [ref=e1481]: Dara Kim changed the stage • 4 days ago
+              - button [ref=e1482]
+          - complementary [ref=e1484]:
+            - generic [ref=e1485]:
+              - generic [ref=e1486]: T
+              - generic [ref=e1487]:
+                - paragraph [ref=e1488]: "Topic 1: Quarterly coordination"
+                - paragraph [ref=e1489]: mt_1
+                - generic [ref=e1490]:
+                  - button [ref=e1491]
+                  - button [ref=e1493]
+                  - button [ref=e1495]
+            - generic [ref=e1497]:
+              - generic [ref=e1498]:
+                - generic [ref=e1499]:
+                  - generic [ref=e1501]: Assign
+                  - button [ref=e1502]
+                - list
+              - generic [ref=e1504]:
+                - generic [ref=e1505]:
+                  - generic [ref=e1507]: Attachments
+                  - button [ref=e1508]
+                - list [ref=e1510]:
+                  - listitem [ref=e1511]:
+                    - generic [ref=e1513]: cover-letter.pdf
+                    - button [ref=e1514]
+                  - listitem [ref=e1516]:
+                    - generic [ref=e1518]: supporting-docs.zip
+                    - button [ref=e1519]
+              - generic [ref=e1522]:
+                - generic [ref=e1524]: Tags
+                - button [ref=e1525]
+              - generic [ref=e1527]:
+                - generic [ref=e1528]:
+                  - generic [ref=e1530]: Share
+                  - button [ref=e1531]
+                - list
+              - generic [ref=e1534]:
+                - generic [ref=e1535]:
+                  - paragraph [ref=e1536]: Last Edited By You
+                  - paragraph [ref=e1537]: 2 minutes ago
+                - generic [ref=e1538]:
+                  - paragraph [ref=e1539]: Created By Sokha Chan
+                  - paragraph [ref=e1540]: 30 days ago
+  - generic [ref=e46]:
+    - button "Toggle Nuxt DevTools" [ref=e47] [cursor=pointer]
+    - generic "Page load time" [ref=e51]: "-"
+    - button "Toggle Component Inspector" [ref=e55] [cursor=pointer]
+  - region "Notifications (F8)":
+    - list

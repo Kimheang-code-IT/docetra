@@ -18,19 +18,16 @@ const props = withDefaults(
     noneLabel?: string
     /** Show search box inside the dropdown */
     searchable?: boolean
+    icon?: string
   }>(),
   {
     showNoneOption: false,
     searchable: true,
+    icon: 'i-lucide-funnel',
   },
 )
 
 const { t } = useI18n()
-
-const { widthStyle, rootClass } = useFilterAutoWidth(
-  () => props.label,
-  () => props.placeholder,
-)
 
 const menuItems = computed(() => {
   const rows = normalizeToMenuRows(props.items ?? [])
@@ -45,6 +42,23 @@ const menuItems = computed(() => {
 })
 
 const selectPlaceholder = computed(() => props.placeholder ?? props.label ?? t('components.select'))
+
+const displayLabel = computed(() => {
+  const selected = modelValue.value
+  if (!selected?.length) return undefined
+  const labels = selected
+    .map(value => menuItems.value.find(item => item.value === value)?.label)
+    .filter(Boolean) as string[]
+  if (!labels.length) return undefined
+  if (labels.length === 1) return labels[0]
+  return `${labels[0]} +${labels.length - 1}`
+})
+
+const { widthStyle, rootClass } = useFilterAutoWidth(
+  () => props.label,
+  () => selectPlaceholder.value,
+  () => displayLabel.value,
+)
 
 const searchInput = computed(() => {
   if (!props.searchable) return false
@@ -87,12 +101,17 @@ const internalValue = computed<any[]>({
       :items="menuItems"
       :placeholder="selectPlaceholder"
       value-key="value"
-      icon="i-lucide-filter"
+      :icon="icon"
       class="w-full font-normal"
       size="md"
       :search-input="searchInput"
       :filter-fields="['label']"
-      :ui="{ content: 'max-h-60 min-w-(--reka-combobox-trigger-width)' }"
+      :ui="{
+        base: 'rounded-md bg-default ring-1 ring-default',
+        value: 'truncate',
+        trailingIcon: 'text-muted',
+        content: 'max-h-60 min-w-(--reka-combobox-trigger-width)',
+      }"
       v-bind="$attrs"
     />
   </div>

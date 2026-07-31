@@ -39,6 +39,17 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/main.css'],
 
+  // Menu icons live in .ts files — include them in the client icon scan
+  icon: {
+    serverBundle: 'local',
+    clientBundle: {
+      scan: {
+        globInclude: ['**/*.{vue,jsx,tsx,md,mdc,mdx,ts,js}'],
+      },
+      sizeLimitKb: 512,
+    },
+  },
+
   i18n: {
     locales: [
       {
@@ -73,6 +84,23 @@ export default defineNuxtConfig({
   vite: {
     build: {
       chunkSizeWarningLimit: 1000
-    }
+    },
+    // TipTap/ProseMirror must share one instance (avoids blank editor / duplicate cell ID)
+    optimizeDeps: {
+      include: [
+        '@tiptap/core',
+        '@tiptap/vue-3',
+        '@tiptap/starter-kit',
+        '@tiptap/extension-text-align',
+        '@tiptap/extension-underline',
+        '@tiptap/extension-highlight',
+        '@tiptap/extension-text-style',
+        '@tiptap/extension-table',
+      ],
+    },
+    css: {
+      // Silence noisy Uppy package sourcemap warnings in dev
+      devSourcemap: false,
+    },
   }
 })

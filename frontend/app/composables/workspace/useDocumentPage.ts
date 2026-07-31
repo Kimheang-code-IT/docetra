@@ -1,6 +1,8 @@
 import type { EntityConfig } from '~/config/entities'
 import { getEntityAdapter } from '~/config/entities'
 import type { ActivityEvent, AttachmentMeta, EntityComment } from '~/types/docetra/common'
+import type { AppRolePermissionRow } from '~/types/docetra/entities'
+import { permissionRowsToFlatKeys } from '~/utils/role/permissions'
 
 function setByPath(obj: Record<string, unknown>, path: string, value: unknown) {
   const keys = path.split('.')
@@ -70,6 +72,7 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
         model.value = {
           status: 'draft',
           stage: config.stages?.[0]?.code || undefined,
+          ...(config.key === 'roles' ? { permissionRows: [] as AppRolePermissionRow[] } : {}),
         }
         initialSnapshot.value = JSON.stringify(model.value)
         comments.value = []
@@ -98,18 +101,32 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
     }
   }
 
+  function prepareModelForSave() {
+    const payload = { ...model.value }
+    if (config.key === 'roles') {
+      const rows = (Array.isArray(payload.permissionRows)
+        ? payload.permissionRows
+        : []) as AppRolePermissionRow[]
+      payload.permissionRows = rows
+      payload.permissions = permissionRowsToFlatKeys(rows)
+      payload.permissionCount = rows.reduce((sum, row) => sum + row.actions.length, 0)
+    }
+    return payload
+  }
+
   async function save() {
     if (config.readOnly) return
     saving.value = true
     try {
+      const payload = prepareModelForSave()
       if (isCreate.value) {
-        const res = await adapter.create(model.value as any)
+        const res = await adapter.create(payload as any)
         const created = res.data as { id: string }
         toast.add({ title: t('docetra.document.created'), color: 'success' })
         await router.replace(`${config.routeBase}/${created.id}`)
         return
       }
-      const res = await adapter.update(id.value, model.value as any)
+      const res = await adapter.update(id.value, payload as any)
       model.value = { ...(res.data as Record<string, unknown>) }
       initialSnapshot.value = JSON.stringify(model.value)
       toast.add({ title: t('docetra.document.saved'), color: 'success' })

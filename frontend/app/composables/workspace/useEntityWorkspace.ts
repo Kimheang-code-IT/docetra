@@ -54,16 +54,26 @@ export function useEntityWorkspace(config: EntityConfig) {
     const result: Record<string, string> = {}
     for (const filter of config.filters) {
       const value = route.query[filter.key]
-      if (typeof value === 'string' && value) result[filter.key] = value
+      if (Array.isArray(value)) {
+        const joined = value.filter((v): v is string => typeof v === 'string' && Boolean(v)).join(',')
+        if (joined) result[filter.key] = joined
+      }
+      else if (typeof value === 'string' && value) {
+        result[filter.key] = value
+      }
     }
     return result
   })
 
-  function setFilter(key: string, value: string | undefined) {
+  function setFilter(key: string, value: string | string[] | undefined) {
+    const next = Array.isArray(value)
+      ? (value.length ? value.join(',') : undefined)
+      : (value || undefined)
+
     router.replace({
       query: {
         ...route.query,
-        [key]: value || undefined,
+        [key]: next,
         page: undefined,
       },
     })
@@ -202,6 +212,30 @@ export function useEntityWorkspace(config: EntityConfig) {
       const stageKey = `docetra.stages.${text}`
       if (te(statusKey)) return t(statusKey)
       if (te(stageKey)) return t(stageKey)
+      return text
+    }
+
+    if (key === 'action') {
+      const actionKey = `docetra.logActions.${text}`
+      if (te(actionKey)) return t(actionKey)
+      return text.replaceAll('_', ' ')
+    }
+
+    if (key === 'entityType') {
+      const typeKey = `docetra.entityTypes.${text}`
+      if (te(typeKey)) return t(typeKey)
+      return text.replaceAll('_', ' ')
+    }
+
+    if (key === 'severity') {
+      const severityKey = `docetra.severity.${text}`
+      if (te(severityKey)) return t(severityKey)
+      return text
+    }
+
+    if (key === 'category') {
+      const categoryKey = `docetra.logCategories.${text}`
+      if (te(categoryKey)) return t(categoryKey)
       return text
     }
 

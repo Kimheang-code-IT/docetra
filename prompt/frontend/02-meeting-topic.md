@@ -2,24 +2,38 @@
 
 ## Copy/paste prompt
 
-Implement `/meetings/topics` using the shared table, Kanban, ERP-style document page, comments/activity, attachments, and record configuration components.
+Implement `/meetings/topics` as a **split topic/meeting board** (not the generic workspace Kanban as the primary view). Keep `/meetings/topics/new` and `/meetings/topics/:id` on the shared ERP-style document page.
 
-### Page design
+### Board layout (`AppMeetingTopicBoard`)
 
-- Default Kanban view grouped by configured topic stage, with a table-view toggle.
-- Toolbar filters: search, stage, status, owner, organization, meeting date, and child-meeting count.
-- Topic cards show title, status, owner, date, child count, and the first ordered child meetings.
-- Support dragging an unlinked meeting into a topic. After backend confirmation, remove it from the standalone meeting collection and show it only under the topic.
-- Provide accessible “Add meeting to topic” and “Move stage” actions as non-drag alternatives.
+Use a responsive **4-column grid**:
 
-### Create and document pages
+- **1 column left** — title **Topic**, search under it (filter by topic name), **All topics** control, then scrollable topic cards.
+- **3 columns right** — meetings title, datepicker + search, scrollable meeting cards.
 
-Add Topic navigates to `/meetings/topics/new`; rows and cards navigate to `/meetings/topics/:id`. Use the shared Nuxt UI document shell with header actions, Summary/Meetings/Relationships/Files tabs, a right metadata rail, and Comments & Activity below the form. Activity includes creation, edits, stage changes, child-link changes, files, and email events with an optional “New Email” action.
+### Behavior
 
-### Large data
+- **Default:** right pane lists **all meetings** across topics (and unassigned).
+- **Click a topic card:** right pane shows **only meetings for that topic**, ordered by `sortOrder` then date.
+- **Open topic:** `⋯` → Open topic, or double-click the card → `/meetings/topics/:id`.
+- Left: topic search. Right: meetings title, **datepicker** + search (no hint subtitle under the title).
+- **Meeting card click:** navigate to `/meetings/history/:id`.
+- **Order:** when a topic is selected, meetings can be **reordered by dragging** onto another meeting card.
+- **Drag and drop:** drag a meeting onto a topic card to **assign** it. Highlight drop target.
+- **Meeting card `⋯`:** Open meeting · Open notes · Assign to topic · Unassign.
+- **Open notes:** fullscreen dialog (`AppMeetingNotesDialog`) — TipTap notes in **3 cols**, Uppy files in **1 col**; save updates `notes` + attachments on the meeting.
+- Header Create → `/meetings/topics/new`; Refresh reloads topics + meetings.
 
-Paginate the table server-side and incrementally load each Kanban column and child list. Make drag/link operations optimistic only with rollback and conflict handling.
+### Data
+
+- Topics: meeting topic adapter. Meetings: meeting history adapter (`topicId`, `topicTitle`, `sortOrder`).
+- Assigning updates the meeting, then syncs the topic’s `childMeetingCount` / `childMeetings`.
+- Enforce no-duplicate topic link (a meeting belongs to at most one topic).
+
+### Document pages
+
+Add Topic → `/meetings/topics/new`; topic document keeps Summary / Meetings tabs, metadata rail, Comments & Activity.
 
 ### Acceptance
 
-Table and Kanban share one query state, topic linking follows the no-duplicate rule, document routes work, comments/activity are separate datasets, and checks pass.
+Split board is the default topics index, filter-by-topic works, DnD assign and `⋯` assign work, ordered meetings reorder when a topic is selected, document routes still work, and checks pass.

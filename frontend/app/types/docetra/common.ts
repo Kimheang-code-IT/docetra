@@ -100,6 +100,7 @@ export type FieldType =
   | 'relation'
   | 'file'
   | 'url'
+  | 'permission-matrix'
 
 export interface FieldOption {
   label: string
@@ -141,6 +142,8 @@ export interface TableColumnDef {
   sortable?: boolean
   width?: string
   priority?: 'high' | 'medium' | 'low'
+  /** How the cell should render. Defaults are inferred from the key when omitted. */
+  cell?: 'text' | 'badge' | 'datetime' | 'person'
 }
 
 export interface FilterDef {

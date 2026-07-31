@@ -20,15 +20,21 @@ Provide debounced search, filters, active-filter chips, date range, sort, column
 
 Generalize existing table primitives around TanStack Vue Table. Support server pagination, sorting, filtering, selection, sticky header, column visibility, row actions, bulk actions, skeletons, empty/error states, and responsive priority columns. Row activation navigates to the canonical document route.
 
-### `AppKanbanBoard`
+### `AppKanbanBoard` / `AppKanbanColumn` / `AppKanbanCard`
 
-Render typed workflow stages as horizontal columns with counts, bounded cards, per-column loading, and “Load more”. Support pointer and keyboard movement, validated transitions, optimistic updates with rollback, conflict feedback, and an accessible “Move to stage” action. Card activation navigates to the canonical document route.
+Reusable Jira / GitHub Projects–style board:
+
+- Board area scrolls on **Y** when a column has many cards (toolbar stays fixed). Columns grow with cards; stages still scroll on **X**.
+- Horizontal stage scrolling, drop-target highlight, drag-and-drop plus keyboard/menu “Move to stage”.
+- Cards size to content (title, assignee, status/waiting, attachment/comment counts). Override via `#card` / `#column-header-actions` slots.
+- Bounded per-column loading with “Load more”; optimistic move/rollback stays in the workspace composable.
+- Card activation navigates to the canonical document route.
 
 ## Document-page components
 
 ### `AppDocumentPage`
 
-Create the reusable full-page shell for new, detail, and edit routes. Compose it from Nuxt UI primitives such as `UPage`, `UPageHeader`, `UBreadcrumb`, `UTabs`, `UForm`, `UFormField`, `UButton`, `UBadge`, `UDropdownMenu`, `UCard`, `USeparator`, `USkeleton`, and responsive layout utilities available in the installed version.
+Create the reusable full-page shell for new, detail, and edit routes. Compose it from Nuxt UI primitives such as `UPage`, `UPageHeader`, `UBreadcrumb`, `UTabs`, `UForm`, `UFormField`, `UButton`, `UBadge`, `UDropdownMenu`, `UCard`, `USeparator`, and responsive layout utilities available in the installed version. Document detail/create content is edge-to-edge (`p-0`); list workspaces keep `px-1.5 pt-1.5 pb-0`. For loading, use Nuxt UI defaults (`UTable` `:loading` or a light spinner)—do not build custom skeleton page components.
 
 Provide:
 
@@ -95,6 +101,14 @@ Activity is immutable. Escape untrusted content, redact sensitive metadata, curs
 ### `AppAttachmentsPanel`
 
 Support files and URL attachments using storage metadata plus record-attachment links. Include upload progress, retry, safe preview/download, association state, and permissions. Do not store binary content in Pinia.
+
+### `AppRichTextNote`
+
+Reusable TipTap editor via Nuxt UI `UEditor` + `UEditorToolbar` (HTML content). Client-only with loading fallback. Used for meeting notes and any future rich-text fields.
+
+### `AppUppyUploader`
+
+Reusable Uppy Dashboard for large uploads (XHR in API mode; local mock uploader when `useMockData`). Emits `AttachmentMeta[]` on complete. Pair with adapter `listAttachments` / `replaceAttachments`.
 
 ### `useEntityWorkspace`
 

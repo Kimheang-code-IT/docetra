@@ -8,12 +8,10 @@ Implement the Docetra Dashboard at `/` using the shared foundation, workspace co
 
 Build a responsive operational overview, not a raw-record page:
 
-- KPI cards: active records, waiting records, overdue work, meetings, incoming documents, outgoing documents, and recent uploads.
-- Global date range, organization, record type, status, and stage filters.
-- “Work by stage” chart and “Records over time” chart using lazy-loaded ECharts.
-- Compact “My work” table linking to permitted records.
-- Recent Activity panel using the read-only timeline portion of `AppCommentsActivity`.
-- Quick links to the main record workspaces.
+- Exactly **5** KPI summary cards via reusable `AppSummaryCard` (title, value, overflow menu, optional trend/deep link): active records, waiting, overdue, incoming, outgoing.
+- Do **not** put a date range picker in the dashboard page header.
+- “Work by stage” and “Records over time” charts: each chart header top-right uses reusable `AppChartPeriodToolbar` (year pill, period pill like Monthly, `⋯` menu with Refresh). Persist `chartYear` / `chartPeriod` in the URL.
+- Full Google Calendar–style month calendar (`AppEventCalendar`) for meetings and deadlines: Today / prev-next month, day chips, selected-day agenda panel, event deep links. Do **not** show a “My work” table or Quick links block.
 
 Do not add Kanban or a create document page to the dashboard. Aggregates must come from summary endpoints rather than downloading raw records.
 

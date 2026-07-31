@@ -1,0 +1,41 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e7]:
+      - generic [ref=e8]:
+        - img "Logo" [ref=e10]
+        - generic [ref=e11]: Login
+      - generic [ref=e13]:
+        - generic [ref=e14]:
+          - generic [ref=e15]: Email*
+          - textbox "Email*" [ref=e20]:
+            - /placeholder: Enter your email
+            - text: heang@gmail.com
+        - generic [ref=e21]:
+          - generic [ref=e22]: Password*
+          - generic [ref=e26]:
+            - textbox "Password*" [ref=e27]:
+              - /placeholder: Enter your password
+              - text: "123456"
+            - button "Show password" [ref=e29]
+        - generic [ref=e33]:
+          - checkbox "Remember me" [ref=e35]:
+            - checkbox [ref=e36]
+          - generic [ref=e37]: Remember me
+        - button "Login" [ref=e39]
+      - generic [ref=e42]:
+        - link "Forgot password?" [ref=e43] [cursor=pointer]:
+          - /url: /forget-password
+        - generic [ref=e44]: © General Department of Customs and Excise of Cambodia
+    - alert [ref=e60]: Notification [ "Welcome", "Signed in as Moeng Kimheang." ]
+  - generic [ref=e46]:
+    - button "Toggle Nuxt DevTools" [ref=e47] [cursor=pointer]
+    - generic "Page load time" [ref=e51]: "-"
+    - button "Toggle Component Inspector" [ref=e55] [cursor=pointer]
+  - region "Notifications (F8)":
+    - list [ref=e62]:
+      - alert [ref=e63]:
+        - generic [ref=e64]:
+          - generic [ref=e65]: Welcome
+          - generic [ref=e66]: Signed in as Moeng Kimheang.
+        - button "Close" [ref=e68]
+        - progressbar "78%" [ref=e71]

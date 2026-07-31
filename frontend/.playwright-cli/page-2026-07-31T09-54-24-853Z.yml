@@ -1,0 +1,25 @@
+- generic [ref=f1e7]:
+  - generic [ref=f1e8]:
+    - img "Logo" [ref=f1e10]
+    - generic [ref=f1e11]: Login
+  - generic [ref=f1e13]:
+    - generic [ref=f1e14]:
+      - generic [ref=f1e15]: Email*
+      - textbox "Email*" [ref=f1e20]:
+        - /placeholder: Enter your email
+        - text: heang@gmail.com
+    - generic [ref=f1e21]:
+      - generic [ref=f1e22]: Password*
+      - generic [ref=f1e26]:
+        - textbox "Password*" [ref=f1e27]:
+          - /placeholder: Enter your password
+        - button "Show password" [ref=f1e29]
+    - generic [ref=f1e33]:
+      - checkbox "Remember me" [ref=f1e35]:
+        - checkbox [ref=f1e36]
+      - generic [ref=f1e37]: Remember me
+    - button "Login" [ref=f1e39]
+  - generic [ref=f1e42]:
+    - link "Forgot password?" [ref=f1e43] [cursor=pointer]:
+      - /url: /forget-password
+    - generic [ref=f1e44]: © General Department of Customs and Excise of Cambodia

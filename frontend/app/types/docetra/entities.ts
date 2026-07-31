@@ -4,7 +4,7 @@ export interface MeetingTopic extends BaseEntity {
   title: string
   meetingDate?: string
   childMeetingCount: number
-  childMeetings?: Array<{ id: string; title: string; meetingDate?: string }>
+  childMeetings?: Array<{ id: string; title: string; meetingDate?: string; sortOrder?: number }>
   description?: string
 }
 
@@ -15,6 +15,10 @@ export interface MeetingHistory extends BaseEntity {
   meetingDate: string
   location?: string
   attendeesCount: number
+  /** Order within a topic (lower first). */
+  sortOrder?: number
+  /** TipTap HTML meeting notes. */
+  notes?: string
 }
 
 export interface RecordDocument extends BaseEntity {
@@ -37,8 +41,14 @@ export interface RecordLog extends BaseEntity {
   entityId: string
   entityTitle: string
   actor?: PersonSummary
+  organization?: OrganizationSummary
   occurredAt: string
   summary: string
+  category?: string
+  severity?: 'info' | 'warn' | 'error'
+  correlationId?: string
+  /** Safe human-readable change summary (never raw secrets). */
+  changesSummary?: string
 }
 
 export interface Department extends BaseEntity {
@@ -88,6 +98,14 @@ export interface Officer extends BaseEntity {
   userId?: string
 }
 
+export interface AppRolePermissionRow {
+  id: string
+  documentType: string
+  onlyIfCreator?: boolean
+  level?: number
+  actions: string[]
+}
+
 export interface AppRole extends BaseEntity {
   code: string
   name: string
@@ -95,6 +113,7 @@ export interface AppRole extends BaseEntity {
   permissionCount: number
   userCount: number
   permissions?: string[]
+  permissionRows?: AppRolePermissionRow[]
 }
 
 export interface AppUser extends BaseEntity {
@@ -181,9 +200,22 @@ export interface DashboardKpi {
   updatedAt: string
 }
 
+export interface DashboardCalendarEvent {
+  id: string
+  title: string
+  /** ISO date (`YYYY-MM-DD`) or datetime */
+  start: string
+  end?: string
+  allDay?: boolean
+  color?: 'primary' | 'success' | 'warning' | 'error' | 'info' | 'neutral'
+  type?: 'meeting' | 'deadline' | 'record' | 'upload'
+  href?: string
+  location?: string
+}
+
 export interface DashboardSummary {
   kpis: DashboardKpi[]
   workByStage: Array<{ stage: string; count: number }>
   recordsOverTime: Array<{ date: string; count: number }>
-  myWork: RecordDocument[]
+  events: DashboardCalendarEvent[]
 }

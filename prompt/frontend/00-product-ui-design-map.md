@@ -16,7 +16,7 @@ Use only Nuxt UI components and existing project dependencies. Do not introduce 
 | Page type | Primary views | Create/detail/edit | Comments/activity |
 |---|---|---|---|
 | Workflow records | Table + Kanban | Full document page | Comments + activity |
-| Meeting topics | Kanban + table with child meetings | Full document page | Comments + activity |
+| Meeting topics | Topic/meeting split board (1+3); notes fullscreen dialog (TipTap 3 + Uppy 1) | Full document page | Comments + activity |
 | Organization master data | Table; hierarchy/card view where useful | Full document page | Activity; comments where collaboration helps |
 | Users and roles | Table | Full document page or permission editor page | Security activity; no casual comments |
 | Configuration reference data | Table | Full document page | Configuration activity |
@@ -72,3 +72,6 @@ Comments and system activity are separate datasets. Comments can be created; act
 - Keep board columns bounded and provide “Load more”.
 - Make exports asynchronous when the result is large.
 - Every workspace and document page needs loading, empty, error, retry, permission-denied, and partial-data states.
+- Prefer Nuxt UI default loading (`UTable` `:loading`, light spinner). Do not invent custom full-page skeleton kits.
+- App version comes only from `NUXT_PUBLIC_APP_VERSION` / `runtimeConfig.public.appVersion` and is shown in About.
+- List pages use `px-1.5 pt-1.5 pb-0`; document detail/create pages use `p-0`.

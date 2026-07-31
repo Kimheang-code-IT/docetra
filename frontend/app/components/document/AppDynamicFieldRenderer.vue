@@ -49,6 +49,11 @@ const multiValue = computed({
   set: (v: string | string[]) => emit('update:modelValue', v),
 })
 
+const permissionRows = computed({
+  get: () => (Array.isArray(props.modelValue) ? props.modelValue as any[] : []),
+  set: (v: any[]) => emit('update:modelValue', v),
+})
+
 const selectItems = computed(() =>
   (props.field.options || [])
     .filter(o => o.value !== '')
@@ -79,6 +84,7 @@ const placeholderText = computed(() => {
 })
 
 const isBoolean = computed(() => props.field.type === 'boolean')
+const isPermissionMatrix = computed(() => props.field.type === 'permission-matrix')
 
 function toggleHint() {
   hintOpen.value = !hintOpen.value
@@ -94,8 +100,14 @@ watch(() => props.field.key, () => {
 </script>
 
 <template>
+  <CommonAppRolePermissionMatrix
+    v-if="isPermissionMatrix"
+    v-model="permissionRows"
+    :disabled="disabled || field.readOnly"
+  />
+
   <!-- Checkbox: label beside control + optional info hint -->
-  <div v-if="isBoolean" class="flex min-h-9 flex-wrap items-center gap-2 pt-1">
+  <div v-else-if="isBoolean" class="flex min-h-9 flex-wrap items-center gap-2 pt-1">
     <UCheckbox
       v-model="boolValue"
       color="neutral"

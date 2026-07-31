@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { DocumentTabSchema } from '~/types/docetra/common'
 
-defineProps<{
+const props = defineProps<{
   tabs: DocumentTabSchema[]
   activeTab: string
   fieldValue: (key: string) => unknown
@@ -12,6 +12,14 @@ defineProps<{
 const emit = defineEmits<{
   'update:activeTab': [string]
 }>()
+
+const wideForm = computed(() =>
+  props.tabs.some(tab =>
+    tab.sections.some(section =>
+      section.fields.some(field => field.type === 'permission-matrix'),
+    ),
+  ),
+)
 </script>
 
 <template>
@@ -39,7 +47,10 @@ const emit = defineEmits<{
       />
     </div>
 
-    <div class="mx-auto w-full max-w-3xl px-6 xl:max-w-4xl">
+    <div
+      class="mx-auto w-full px-4 sm:px-6"
+      :class="wideForm ? 'max-w-6xl xl:max-w-7xl' : 'max-w-3xl xl:max-w-4xl'"
+    >
       <template v-for="tab in tabs" :key="tab.id">
         <div v-show="activeTab === tab.id" class="space-y-8 py-6">
           <section
@@ -62,7 +73,11 @@ const emit = defineEmits<{
                 v-for="field in section.fields"
                 :key="field.key"
                 :class="[
-                  field.colSpan === 2 || field.type === 'textarea' ? 'md:col-span-2' : '',
+                  field.colSpan === 2
+                    || field.type === 'textarea'
+                    || field.type === 'permission-matrix'
+                    ? 'md:col-span-2'
+                    : '',
                 ]"
               >
                 <DocumentAppDynamicFieldRenderer

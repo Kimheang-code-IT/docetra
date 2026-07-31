@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import type { FilterDef } from '~/types/docetra/common'
 
-const ALL_VALUE = '__all__'
-
 const props = defineProps<{
   search: string
   filters: FilterDef[]
@@ -16,29 +14,49 @@ const emit = defineEmits<{
   'update:search': [string]
   'update:view': [string]
   'update:sort': [string]
-  setFilter: [key: string, value: string | undefined]
+  setFilter: [key: string, value: string | string[] | undefined]
   clearFilters: []
 }>()
 
 const { t } = useI18n()
+
 const searchModel = computed({
   get: () => props.search,
   set: (value: string) => emit('update:search', value),
 })
 
-const activeChips = computed(() =>
-  props.filters
-    .map((filter) => {
-      const value = props.filterValues[filter.key]
-      if (!value) return null
-      const option = filter.options?.find(o => o.value === value)
-      return {
-        key: filter.key,
-        label: `${t(filter.labelKey)}: ${option ? t(option.labelKey || option.label) : value}`,
-      }
-    })
-    .filter(Boolean) as Array<{ key: string, label: string }>,
+const sortItems = computed(() => [
+  { label: t('docetra.sort.updatedDesc'), value: '-updatedAt' },
+  { label: t('docetra.sort.updatedAsc'), value: 'updatedAt' },
+  { label: t('docetra.sort.nameAsc'), value: 'name' },
+  { label: t('docetra.sort.titleAsc'), value: 'title' },
+])
+
+const sortModel = computed({
+  get: () => props.sort,
+  set: (value: string | number | boolean | null) => emit('update:sort', String(value || '-updatedAt')),
+})
+
+const selectFilters = computed(() =>
+  props.filters.filter(f => f.type === 'select' || f.type === 'multiselect'),
 )
+
+const activeChips = computed(() => {
+  const chips: Array<{ key: string, label: string }> = []
+  for (const filter of selectFilters.value) {
+    const raw = props.filterValues[filter.key]
+    if (!raw) continue
+    const values = raw.split(',').map(v => v.trim()).filter(Boolean)
+    for (const value of values) {
+      const option = filter.options?.find(o => o.value === value)
+      chips.push({
+        key: `${filter.key}:${value}`,
+        label: `${t(filter.labelKey)}: ${option ? t(option.labelKey || option.label) : value}`,
+      })
+    }
+  }
+  return chips
+})
 
 const viewItems = computed(() =>
   props.views.map(v => ({
@@ -48,24 +66,41 @@ const viewItems = computed(() =>
   })),
 )
 
-function filterItems(filter: FilterDef) {
-  return [
-    { label: t(filter.labelKey), value: ALL_VALUE },
-    ...(filter.options || [])
-      .filter(o => o.value !== '')
-      .map(o => ({
-        label: t(o.labelKey || o.label),
-        value: o.value,
-      })),
-  ]
+function filterModelValue(filter: FilterDef): string | string[] | null {
+  const raw = props.filterValues[filter.key]
+  if (!raw) return null
+  if (filter.type === 'multiselect') {
+    const values = raw.split(',').map(v => v.trim()).filter(Boolean)
+    return values.length ? values : null
+  }
+  return raw
 }
 
-function filterModelValue(key: string) {
-  return props.filterValues[key] || ALL_VALUE
+function onFilterChange(filter: FilterDef, value: string | string[] | null) {
+  if (value == null || value === '' || (Array.isArray(value) && !value.length)) {
+    emit('setFilter', filter.key, undefined)
+    return
+  }
+  emit('setFilter', filter.key, value)
 }
 
-function onFilterChange(key: string, value: string) {
-  emit('setFilter', key, !value || value === ALL_VALUE ? undefined : value)
+function removeChip(chipKey: string) {
+  const sep = chipKey.indexOf(':')
+  const filterKey = sep >= 0 ? chipKey.slice(0, sep) : chipKey
+  const value = sep >= 0 ? chipKey.slice(sep + 1) : ''
+  if (!filterKey) return
+  const filter = props.filters.find(f => f.key === filterKey)
+  const raw = props.filterValues[filterKey]
+  if (!filter || !raw || !value) {
+    emit('setFilter', filterKey, undefined)
+    return
+  }
+  if (filter.type !== 'multiselect') {
+    emit('setFilter', filterKey, undefined)
+    return
+  }
+  const next = raw.split(',').map(v => v.trim()).filter(v => v && v !== value)
+  emit('setFilter', filterKey, next.length ? next : undefined)
 }
 </script>
 
@@ -84,36 +119,20 @@ function onFilterChange(key: string, value: string) {
       />
 
       <div class="flex min-w-0 flex-1 flex-wrap items-center gap-2 xl:justify-end">
-        <USelect
-          v-for="filter in filters"
+        <CommonAppFilterSelect
+          v-for="filter in selectFilters"
           :key="filter.key"
-          :model-value="filterModelValue(filter.key)"
-          :items="filterItems(filter)"
-          value-key="value"
-          size="md"
-          icon="i-lucide-funnel"
-          class="min-w-[9rem] flex-1 sm:flex-none sm:w-40"
-          :ui="{
-            base: 'rounded-md bg-default ring-1 ring-default',
-            trailingIcon: 'text-muted',
-          }"
-          @update:model-value="(v: string) => onFilterChange(filter.key, v)"
+          :filter="filter"
+          :model-value="filterModelValue(filter)"
+          @update:model-value="(v) => onFilterChange(filter, v)"
         />
 
-        <USelect
-          :model-value="sort"
-          :items="[
-            { label: $t('docetra.sort.updatedDesc'), value: '-updatedAt' },
-            { label: $t('docetra.sort.updatedAsc'), value: 'updatedAt' },
-            { label: $t('docetra.sort.nameAsc'), value: 'name' },
-            { label: $t('docetra.sort.titleAsc'), value: 'title' },
-          ]"
-          value-key="value"
-          size="md"
+        <CommonAppSingleFilterSelect
+          v-model="sortModel"
+          :items="sortItems"
+          :label="$t('docetra.sort.updatedDesc')"
+          :placeholder="$t('docetra.sort.updatedDesc')"
           icon="i-lucide-list-filter"
-          class="min-w-[10rem] flex-1 sm:flex-none sm:w-44"
-          :ui="{ base: 'rounded-md bg-default ring-1 ring-default' }"
-          @update:model-value="(v: string) => emit('update:sort', v)"
         />
 
         <UTabs
@@ -135,7 +154,7 @@ function onFilterChange(key: string, value: string) {
         color="neutral"
         variant="subtle"
         class="cursor-pointer"
-        @click="emit('setFilter', chip.key, undefined)"
+        @click="removeChip(chip.key)"
       >
         {{ chip.label }}
         <UIcon name="i-lucide-x" class="ml-1 size-3" />

@@ -1,0 +1,175 @@
+- generic [active]:
+  - generic [ref=e490]:
+    - generic [ref=e491]:
+      - generic [ref=e492]:
+        - link "Docetra" [ref=e493] [cursor=pointer]:
+          - /url: /
+          - img "Docetra logo" [ref=e495]
+        - button "Search… Ctrl k" [ref=e498]:
+          - generic [ref=e500]: Search…
+          - generic [ref=e501]:
+            - generic [ref=e502]: Ctrl
+            - generic [ref=e503]: k
+      - navigation [ref=e505]:
+        - list [ref=e506]:
+          - listitem [ref=e507]:
+            - link "Dashboard" [ref=e508] [cursor=pointer]:
+              - /url: /
+          - listitem [ref=e511]:
+            - button "Meeting" [expanded] [ref=e512]
+            - region "Meeting" [ref=e517]:
+              - list [ref=e518]:
+                - listitem [ref=e519]:
+                  - link "Topic" [ref=e520] [cursor=pointer]:
+                    - /url: /meetings/topics
+                - listitem [ref=e522]:
+                  - link "History" [ref=e523] [cursor=pointer]:
+                    - /url: /meetings/history
+          - listitem [ref=e525]:
+            - button "Record" [ref=e526]
+          - listitem [ref=e531]:
+            - button "Organization" [ref=e532]
+          - listitem [ref=e537]:
+            - button "User Management" [ref=e538]
+          - listitem [ref=e543]:
+            - button "Portal" [ref=e544]
+          - listitem [ref=e549]:
+            - button "System Monitor" [ref=e550]
+          - listitem [ref=e555]:
+            - button "Configuration" [ref=e556]
+          - listitem [ref=e561]:
+            - button "Setting" [expanded] [ref=e562]
+            - region "Setting" [ref=e567]:
+              - list [ref=e568]:
+                - listitem [ref=e569]:
+                  - link "App Info" [ref=e570] [cursor=pointer]:
+                    - /url: /settings/app-info
+                - listitem [ref=e572]:
+                  - link "App Config" [ref=e573] [cursor=pointer]:
+                    - /url: /settings/app-config
+                - listitem [ref=e575]:
+                  - link "Storage" [ref=e576] [cursor=pointer]:
+                    - /url: /settings/storage
+      - button "Moeng Kimheang Moeng Kimheang" [ref=e580]:
+        - img "Moeng Kimheang" [ref=e582]
+        - generic [ref=e583]: Moeng Kimheang
+    - separator
+    - generic [ref=e585]:
+      - generic [ref=e586]:
+        - generic [ref=e587]:
+          - button "Collapse sidebar" [ref=e588]
+          - heading "breadcrumb Draft" [level=1] [ref=e906]:
+            - generic [ref=e907]:
+              - navigation "breadcrumb" [ref=e908]:
+                - list [ref=e909]:
+                  - listitem [ref=e910]:
+                    - link "Meeting" [ref=e911] [cursor=pointer]:
+                      - /url: /meetings/topics
+                  - listitem [ref=e913]
+                  - listitem [ref=e915]:
+                    - link "Topic" [ref=e916] [cursor=pointer]:
+                      - /url: /meetings/topics
+                  - listitem [ref=e918]
+                  - listitem [ref=e920]:
+                    - generic [ref=e921]: "Topic 1: Quarterly coordination"
+              - generic [ref=e923]: Draft
+        - generic [ref=e924]:
+          - link "List View" [ref=e925] [cursor=pointer]:
+            - /url: /meetings/topics
+          - button "Previous" [ref=e928]
+          - button "Next" [ref=e930]
+          - button "Refresh" [disabled] [ref=e932]
+          - button "Actions" [ref=e934]
+          - button "Save" [ref=e936]
+      - main [ref=e599]:
+        - generic [ref=e943]:
+          - generic [ref=e944]:
+            - generic [ref=e945]:
+              - tablist [ref=e948]:
+                - tab "Summary" [selected] [ref=e950]
+                - tab "Meetings" [ref=e952]
+              - generic [ref=e956]:
+                - heading "Main information" [level=3] [ref=e958]
+                - generic [ref=e959]:
+                  - generic [ref=e961]:
+                    - generic [ref=e962]: Title*
+                    - textbox "Title*" [ref=e969]:
+                      - /placeholder: Title
+                      - text: "Topic 1: Quarterly coordination"
+                  - generic [ref=e971]:
+                    - generic [ref=e972]: Status
+                    - combobox "Status" [ref=e978]:
+                      - generic: Draft
+                  - generic [ref=e982]:
+                    - generic [ref=e983]: Stage
+                    - combobox "Stage" [ref=e989]:
+                      - generic: Intake
+                  - generic [ref=e993]:
+                    - generic [ref=e994]: Meeting date
+                    - group [ref=e1000]:
+                      - spinbutton "month," [ref=e1001]: "7"
+                      - generic [ref=e1002]: /
+                      - spinbutton "day," [ref=e1003]: "31"
+                      - generic [ref=e1004]: /
+                      - spinbutton "year," [ref=e1005]: "2026"
+                      - button "Select a date" [ref=e1007]
+                      - textbox [ref=e1009]: 2026-07-31
+                  - generic [ref=e1011]:
+                    - generic [ref=e1012]: Description
+                    - textbox "Description" [ref=e1019]: Discuss open action items and document follow-up.
+            - generic [ref=e1021]:
+              - generic [ref=e1022]:
+                - heading "Comments (0)" [level=2] [ref=e1023]
+                - generic [ref=e1024]:
+                  - generic [ref=e1025]: MK
+                  - textbox "Type a reply / comment" [ref=e1028]
+              - generic [ref=e1029]:
+                - generic [ref=e1030]:
+                  - heading "Activity" [level=2] [ref=e1031]
+                  - button "New Email" [ref=e1032]
+                - paragraph [ref=e1035]: No activity yet
+              - button [ref=e1036]
+          - complementary [ref=e1038]:
+            - generic [ref=e1039]:
+              - generic [ref=e1040]: T
+              - generic [ref=e1041]:
+                - paragraph [ref=e1042]: "Topic 1: Quarterly coordination"
+                - paragraph [ref=e1043]: mt_1
+                - generic [ref=e1044]:
+                  - button [ref=e1045]
+                  - button [ref=e1047]
+                  - button [ref=e1049]
+            - generic [ref=e1051]:
+              - generic [ref=e1052]:
+                - generic [ref=e1053]:
+                  - generic [ref=e1055]: Assign
+                  - button [ref=e1056]
+                - list
+              - generic [ref=e1058]:
+                - generic [ref=e1059]:
+                  - generic [ref=e1061]: Attachments
+                  - button [ref=e1062]
+                - list
+              - generic [ref=e1065]:
+                - generic [ref=e1067]: Tags
+                - button [ref=e1068]
+              - generic [ref=e1070]:
+                - generic [ref=e1071]:
+                  - generic [ref=e1073]: Share
+                  - button [ref=e1074]
+                - list
+              - generic [ref=e1077]:
+                - generic [ref=e1078]:
+                  - paragraph [ref=e1079]: Last Edited By You
+                  - paragraph [ref=e1080]: 1 minute ago
+                - generic [ref=e1081]:
+                  - paragraph [ref=e1082]: Created By Sokha Chan
+                  - paragraph [ref=e1083]: 30 days ago
+  - generic [ref=e46]:
+    - button "Toggle Nuxt DevTools" [ref=e47] [cursor=pointer]
+    - generic "Page load time" [ref=e51]:
+      - generic [ref=e52]: "795"
+      - generic [ref=e53]: ms
+    - button "Toggle Component Inspector" [ref=e55] [cursor=pointer]
+  - region "Notifications (F8)":
+    - list

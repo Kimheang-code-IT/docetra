@@ -22,10 +22,28 @@ Use the technology already installed in `frontend/`:
 - Nuxt UI 4
 - Tailwind CSS 4
 - Pinia
-- Nuxt i18n
+- Nuxt i18n (default locale: English)
 - VueUse
 - TanStack Vue Table for future large datasets
 - ECharts for future dashboard visualizations
+
+### App version
+
+- Public version: `runtimeConfig.public.appVersion` from `NUXT_PUBLIC_APP_VERSION` (default `0.1.0` in `nuxt.config.ts`).
+- Display only in the About dialog version badge (`AppAboutDialog`). Bump via env or the nuxt.config default — do not hardcode a second version string in UI.
+
+### Shell padding
+
+| Surface | Padding |
+| --- | --- |
+| List / main (workspace, dashboard, settings, portal) | `px-1.5 pt-1.5 pb-0` |
+| Document detail / create | `p-0` (edge-to-edge under header) |
+| Header navbar | `px-1.5` horizontal |
+
+### Loading
+
+- No custom `App*Skeleton` components.
+- Prefer Nuxt UI defaults: `UTable` `:loading`, light spinner overlays elsewhere; keep virtualized rows while refreshing.
 
 ## How to use these prompts
 

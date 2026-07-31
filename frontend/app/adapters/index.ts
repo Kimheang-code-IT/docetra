@@ -130,7 +130,7 @@ export const adapters = {
   recordLogs: createEntityAdapter({
     endpoint: ApiEndpoints.RECORD_LOGS,
     store: recordLogs,
-    searchKeys: ['summary', 'entityTitle', 'action'],
+    searchKeys: ['summary', 'entityTitle', 'action', 'entityType', 'correlationId'],
   }),
   departments: createEntityAdapter({
     endpoint: ApiEndpoints.DEPARTMENTS,

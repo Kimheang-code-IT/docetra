@@ -108,7 +108,7 @@ async function onDeleteSelected(ids = selectedIds.value) {
         @clear-filters="clearFilters"
       />
       <WorkspaceAppKanbanBoard
-        class="min-h-0 flex-1 overflow-auto p-3"
+        class="min-h-0 flex-1 overflow-x-auto overflow-y-auto p-3"
         :stages="config.stages"
         :columns="kanbanColumns"
         :pending="pending"
@@ -170,6 +170,8 @@ async function onDeleteSelected(ids = selectedIds.value) {
         :error="error"
         :cell-value="cellValue"
         :can-delete="canDelete"
+        :selectable="!config.readOnly && config.canDelete !== false"
+        :show-meta="!config.readOnly"
         @update:page="page = $event"
         @update:limit="limit = $event"
         @update:selection="selectedIds = $event"

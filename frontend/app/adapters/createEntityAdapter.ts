@@ -199,6 +199,24 @@ export function createEntityAdapter<T extends { id: string; stage?: string; upda
       if (!store.attachments[id]) store.attachments[id] = seedAttachments()
       return ok(store.attachments[id]!)
     },
+
+    async replaceAttachments(id, files) {
+      if (!getUseMockData()) {
+        const api = useApi()
+        return await api.put(ApiEndpoints.ATTACHMENTS('entities', id), { files }) as any
+      }
+      await mockLatency(null)
+      store.attachments[id] = [...files]
+      const index = store.items.findIndex(x => x.id === id)
+      if (index >= 0) {
+        store.items[index] = {
+          ...store.items[index]!,
+          attachmentCount: files.length,
+          updatedAt: nowIso(),
+        } as T
+      }
+      return ok(store.attachments[id]!)
+    },
   }
 }
 
