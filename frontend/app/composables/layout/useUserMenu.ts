@@ -33,11 +33,11 @@ export function useUserMenu() {
     ],
     [
       {
-        label: t('settings.history'),
-        icon: 'i-lucide-clock',
+        label: t('docetra.pages.systemLog'),
+        icon: 'i-lucide-square-terminal',
         onSelect(e: Event) {
           e.preventDefault()
-          router.push('/records/logs')
+          router.push('/system-monitor/system-logs')
         },
       },
     ],

@@ -10,5 +10,10 @@ definePageMeta({
 </script>
 
 <template>
-  <WorkspaceEntityWorkspaceView :config="config" />
+  <RecordAppRecordStageBoard
+    :config="config"
+    date-field="sentDate"
+    subtitle-field="recipientOrganization.name"
+    state-key="record-stage-outgoing"
+  />
 </template>

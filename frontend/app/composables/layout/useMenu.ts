@@ -73,13 +73,13 @@ export function useMenu() {
   const links = computed<NavigationMenuItem[][]>(() => [[
     {
       label: t('docetra.navigation.dashboard'),
-      icon: 'i-lucide-layout-dashboard',
+      icon: 'i-lucide-house',
       to: '/',
       exact: true,
       class: 'text-sm gap-2',
       onSelect: close,
     },
-    group(t('docetra.navigation.meeting'), 'i-lucide-calendar-days', [
+    group(t('docetra.navigation.meeting'), 'i-lucide-video', [
       pageLink(t('docetra.pages.meetingTopic'), '/meetings/topics'),
       pageLink(t('docetra.pages.meetingHistory'), '/meetings/history'),
     ], { defaultOpen: true }),
@@ -97,24 +97,21 @@ export function useMenu() {
       pageLink(t('docetra.pages.companySector'), '/organizations/company-sectors'),
       pageLink(t('docetra.pages.officer'), '/organizations/officers'),
     ]),
-    group(t('docetra.navigation.userManagement'), 'i-lucide-users', [
-      pageLink(t('docetra.pages.role'), '/user-management/roles'),
-      pageLink(t('docetra.pages.user'), '/user-management/users'),
-    ]),
     group(t('docetra.navigation.portal'), 'i-lucide-square-arrow-out-up-right', [
       pageLink(t('docetra.pages.fileUpload'), '/portal/file-upload'),
       pageLink(t('docetra.pages.googleDriveSync'), '/portal/google-drive-sync'),
       pageLink(t('docetra.pages.portalLog'), '/portal/logs'),
     ]),
-    group(t('docetra.navigation.systemMonitor'), 'i-lucide-monitor', [
-      pageLink(t('docetra.pages.systemLog'), '/system-monitor/system-logs'),
+    group(t('docetra.navigation.userManagement'), 'i-lucide-users', [
+      pageLink(t('docetra.pages.role'), '/user-management/roles'),
+      pageLink(t('docetra.pages.user'), '/user-management/users'),
     ]),
-    group(t('docetra.navigation.configuration'), 'i-lucide-sliders-vertical', [
+    group(t('docetra.navigation.configuration'), 'i-lucide-bolt', [
       pageLink(t('docetra.pages.recordType'), '/configuration/record-types'),
       pageLink(t('docetra.pages.recordAttribute'), '/configuration/record-attributes'),
       pageLink(t('docetra.pages.documentType'), '/configuration/document-types'),
     ]),
-    group(t('docetra.navigation.setting'), 'i-lucide-sliders-horizontal', [
+    group(t('docetra.navigation.setting'), 'i-lucide-settings', [
       pageLink(t('docetra.pages.appInfo'), '/settings/app-info'),
       pageLink(t('docetra.pages.appConfig'), '/settings/app-config'),
       pageLink(t('docetra.pages.storage'), '/settings/storage'),

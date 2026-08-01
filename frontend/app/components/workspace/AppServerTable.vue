@@ -3,6 +3,8 @@ import { h, resolveComponent } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
 import type { Row, RowSelectionState } from '@tanstack/vue-table'
 import type { TableColumnDef } from '~/types/docetra/common'
+import type { RowActionItem } from '~/types/docetra/row-actions'
+import { DEFAULT_ROW_ACTIONS } from '~/types/docetra/row-actions'
 
 type DataRow = Record<string, unknown>
 
@@ -22,9 +24,12 @@ const props = withDefaults(defineProps<{
   selectable?: boolean
   /** Owner/comments meta rail. Off for log tables. */
   showMeta?: boolean
+  /** Per-row ⋯ action menu. Pass `false` to hide. */
+  rowActions?: RowActionItem[] | false
 }>(), {
   selectable: true,
   showMeta: true,
+  rowActions: () => DEFAULT_ROW_ACTIONS,
 })
 
 const emit = defineEmits<{
@@ -33,6 +38,7 @@ const emit = defineEmits<{
   'update:selection': [string[]]
   rowClick: [DataRow]
   deleteSelected: [string[]]
+  rowAction: [payload: { key: string, row: DataRow }]
   retry: []
 }>()
 
@@ -43,6 +49,16 @@ const UButton = resolveComponent('UButton')
 const UCheckbox = resolveComponent('UCheckbox')
 const UIcon = resolveComponent('UIcon')
 const AppTableRowMeta = resolveComponent('WorkspaceAppTableRowMeta')
+const AppRowActionsMenu = resolveComponent('CommonAppRowActionsMenu')
+
+const resolvedRowActions = computed(() => {
+  if (props.rowActions === false) return null
+  const actions = [...(props.rowActions || DEFAULT_ROW_ACTIONS)]
+  if (props.canDelete === false) {
+    return actions.filter(action => action.key !== 'delete')
+  }
+  return actions
+})
 
 const rowSelection = ref<RowSelectionState>({})
 
@@ -267,12 +283,39 @@ const tableColumns = computed<TableColumn<DataRow>[]>(() => {
     })
   }
 
+  if (resolvedRowActions.value?.length) {
+    cols.push({
+      id: 'actions',
+      header: () => '',
+      size: 48,
+      meta: {
+        class: {
+          th: 'w-12 min-w-12 sticky end-0 z-10 bg-muted',
+          td: 'w-12 min-w-12 sticky end-0 z-[1] bg-default',
+        },
+      },
+      cell: ({ row }) => h('div', {
+        class: 'flex justify-center',
+        onClick: (e: Event) => e.stopPropagation(),
+      }, [
+        h(AppRowActionsMenu, {
+          row: row.original,
+          actions: resolvedRowActions.value!,
+          alwaysVisible: true,
+          onAction: (payload: { key: string, row: DataRow }) => {
+            emit('rowAction', payload)
+          },
+        }),
+      ]),
+    })
+  }
+
   return cols
 })
 
 function onSelect(e: Event, row: Row<DataRow>) {
   const target = e.target as HTMLElement | null
-  if (target?.closest('[role="checkbox"], button, a, input')) return
+  if (target?.closest('[role="checkbox"], button, a, input, [data-reka-dropdown-menu-content], [role="menu"]')) return
   emit('rowClick', row.original)
 }
 
@@ -336,7 +379,7 @@ defineExpose({
         base: 'min-w-max w-full border-separate border-spacing-0',
         thead: '[&_tr]:border-b-0',
         tbody: 'divide-y-0',
-        tr: 'cursor-pointer hover:bg-muted/40 data-[selected=true]:bg-elevated/60',
+        tr: 'group cursor-pointer hover:bg-muted/40 data-[selected=true]:bg-elevated/60',
         th: 'sticky top-0 z-10 bg-muted px-2.5 py-2.5 text-xs font-bold text-highlighted border-b border-default',
         td: 'px-2.5 py-2 text-sm text-highlighted border-b border-default',
         empty: 'py-12 text-center text-muted',

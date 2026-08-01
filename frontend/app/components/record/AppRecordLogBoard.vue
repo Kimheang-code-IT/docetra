@@ -189,9 +189,14 @@ onMounted(() => {
             :can-delete="false"
             :selectable="false"
             :show-meta="false"
+            :row-actions="[
+              { key: 'detail', labelKey: 'docetra.rowActions.detail', icon: 'i-lucide-eye' },
+              { key: 'logs', labelKey: 'docetra.rowActions.logs', icon: 'i-lucide-scroll-text' },
+            ]"
             @update:page="page = $event"
             @update:limit="limit = $event"
             @row-click="openRow"
+            @row-action="({ key, row }) => key === 'detail' || key === 'logs' ? openRow(row) : undefined"
             @retry="refresh"
           />
         </section>

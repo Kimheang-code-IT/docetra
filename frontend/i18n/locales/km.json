@@ -95,6 +95,13 @@
       "deletedItems": "បានលុប {n} ធាតុ",
       "deleteFailed": "មិនអាចលុបធាតុដែលបានជ្រើសបានទេ"
     },
+    "rowActions": {
+      "detail": "មើលលម្អិត",
+      "logs": "មើលកំណត់ហេតុ",
+      "delete": "លុប",
+      "edit": "កែសម្រួល",
+      "duplicate": "ចម្លង"
+    },
     "views": {
       "table": "តារាង",
       "kanban": "កានបង់",
@@ -140,6 +147,19 @@
       "unassignedToast": "បានផ្តាច់កិច្ចប្រជុំពីប្រធានបទ",
       "assignFailed": "មិនអាចភ្ជាប់កិច្ចប្រជុំបានទេ",
       "reorderFailed": "មិនអាចតម្រៀបកិច្ចប្រជុំបានទេ"
+    },
+    "recordStageBoard": {
+      "stagesTitle": "ដំណាក់កាល",
+      "searchStages": "ស្វែងរកដំណាក់កាល…",
+      "searchRecords": "ស្វែងរកកំណត់ត្រា…",
+      "allRecords": "កំណត់ត្រាទាំងអស់",
+      "stageHint": "ទម្លាក់កាតនៅទីនេះដើម្បីផ្លាស់ដំណាក់កាល",
+      "emptyRecords": "គ្មានកំណត់ត្រាក្នុងទិដ្ឋភាពនេះ",
+      "moveToStage": "ផ្លាស់ទៅដំណាក់កាល",
+      "moved": "បានផ្លាស់ទៅ {stage}",
+      "moveFailed": "មិនអាចផ្លាស់កំណត់ត្រាបានទេ",
+      "collapseStages": "បង្រួមដំណាក់កាល",
+      "expandStages": "ពង្រីកដំណាក់កាល"
     },
     "meetingNotes": {
       "title": "កំណត់ចំណាំកិច្ចប្រជុំ",
@@ -335,6 +355,15 @@
         "errors": "កំហុស",
         "errorsHint": "ព្រឹត្តិការណ៍កម្រិតធ្ងន់ធ្ងរខ្ពស់"
       }
+    },
+    "fileUploadBoard": {
+      "uploadTitle": "ផ្ទុកឡើង",
+      "tableTitle": "ឯកសារដែលបានផ្ទុក",
+      "search": "ស្វែងរកឯកសារ…",
+      "uploadHint": "PDF រូបភាព ឯកសារការិយាល័យ និង zip រហូតដល់ 200 MB ក្នុងមួយឯកសារ",
+      "collapseUpload": "បង្រួមថតផ្ទុកឡើង",
+      "expandUpload": "ពង្រីកថតផ្ទុកឡើង",
+      "uploadFailed": "ការផ្ទុកឡើងបរាជ័យ"
     },
     "rolePermissions": {
       "documentType": "ប្រភេទឯកសារ",

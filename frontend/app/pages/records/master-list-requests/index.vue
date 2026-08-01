@@ -10,5 +10,10 @@ definePageMeta({
 </script>
 
 <template>
-  <WorkspaceEntityWorkspaceView :config="config" />
+  <RecordAppRecordStageBoard
+    :config="config"
+    date-field="updatedAt"
+    subtitle-field="owner.name"
+    state-key="record-stage-master-list"
+  />
 </template>

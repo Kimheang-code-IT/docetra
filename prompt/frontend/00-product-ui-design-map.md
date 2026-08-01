@@ -15,13 +15,13 @@ Use only Nuxt UI components and existing project dependencies. Do not introduce 
 
 | Page type | Primary views | Create/detail/edit | Comments/activity |
 |---|---|---|---|
-| Workflow records | Table + Kanban | Full document page | Comments + activity |
+| Workflow records | **Topic-style 1+3 stage board** (Incoming / Outgoing / Document / Master List Request) | Full document page | Comments + activity |
 | Meeting topics | Topic/meeting split board (1+3); notes fullscreen dialog (TipTap 3 + Uppy 1) | Full document page | Comments + activity |
 | Organization master data | Table; hierarchy/card view where useful | Full document page | Activity; comments where collaboration helps |
 | Users and roles | Table | Full document page or permission editor page | Security activity; no casual comments |
 | Configuration reference data | Table | Full document page | Configuration activity |
-| Upload and sync operations | Upload/status workspace + table | Full detail/configuration page | Job/file activity |
-| Logs and history | Read-only table/timeline | Read-only event page | Activity itself; no comment composer |
+| Upload and sync operations | File Upload: **1+3 split** (Uppy left + table right); Drive Sync: status + table | Full detail/configuration page | Job/file activity |
+| Logs and history | Read-only **1+3 split board** (Record Logs) or table; System Log via user menu | Read-only event page | Activity itself; no comment composer |
 | Dashboard | KPI and aggregate widgets | No create page | Recent activity feed |
 | Authentication | Focused form | Dedicated auth page | None |
 
@@ -75,3 +75,16 @@ Comments and system activity are separate datasets. Comments can be created; act
 - Prefer Nuxt UI default loading (`UTable` `:loading`, light spinner). Do not invent custom full-page skeleton kits.
 - App version comes only from `NUXT_PUBLIC_APP_VERSION` / `runtimeConfig.public.appVersion` and is shown in About.
 - List pages use `px-1.5 pt-1.5 pb-0`; document detail/create pages use `p-0`.
+- Record / Portal page titles are plural **Logs**.
+- System Log is opened from the user menu, not the sidebar.
+- Table rows expose a reusable `⋯` menu (`AppRowActionsMenu`) for Detail, Logs, and Delete when permitted.
+
+## Split boards (1+3)
+
+Used by Meeting Topics, Record Logs, File Upload, and Record stage boards (Incoming / Outgoing / Document / Master List Request):
+
+- Always side-by-side: left rail + right main pane (never stack the left rail above the content on desktop).
+- Left can collapse to an **icon-only** rail so the main pane gains width.
+- Right header: collapse toggle + title on the left; datepicker/search (or status + search) on the right (no subtitle under the title).
+- Comfortable header padding (`px-4 py-3.5`).
+- File Upload left rail hosts Uppy; Logs left rail hosts view tabs; Record boards host workflow stages; Topics host topic cards.

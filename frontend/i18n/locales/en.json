@@ -24,7 +24,7 @@
       "outgoingDocument": "Outgoing Document",
       "document": "Document",
       "masterListRequest": "Master List Request",
-      "recordLog": "Log",
+      "recordLog": "Logs",
       "department": "Department",
       "company": "Company",
       "companyPurpose": "Company Purpose",
@@ -37,7 +37,7 @@
       "documentType": "Document Type",
       "fileUpload": "File Upload",
       "googleDriveSync": "Google Drive Sync",
-      "portalLog": "Log",
+      "portalLog": "Logs",
       "systemLog": "System Log",
       "appInfo": "App Info",
       "appConfig": "App Config",
@@ -95,6 +95,13 @@
       "deletedItems": "Deleted {n} item(s)",
       "deleteFailed": "Failed to delete selected items"
     },
+    "rowActions": {
+      "detail": "View detail",
+      "logs": "View logs",
+      "delete": "Delete",
+      "edit": "Edit",
+      "duplicate": "Duplicate"
+    },
     "views": {
       "table": "Table",
       "kanban": "Kanban",
@@ -140,6 +147,19 @@
       "unassignedToast": "Meeting unassigned from topic",
       "assignFailed": "Could not assign meeting",
       "reorderFailed": "Could not reorder meetings"
+    },
+    "recordStageBoard": {
+      "stagesTitle": "Stages",
+      "searchStages": "Search stages…",
+      "searchRecords": "Search records…",
+      "allRecords": "All records",
+      "stageHint": "Drop a card here to move stage",
+      "emptyRecords": "No records in this view",
+      "moveToStage": "Move to stage",
+      "moved": "Moved to {stage}",
+      "moveFailed": "Could not move record",
+      "collapseStages": "Collapse stages",
+      "expandStages": "Expand stages"
     },
     "meetingNotes": {
       "title": "Meeting notes",
@@ -335,6 +355,15 @@
         "errors": "Errors",
         "errorsHint": "High-severity events only"
       }
+    },
+    "fileUploadBoard": {
+      "uploadTitle": "Upload",
+      "tableTitle": "Uploaded files",
+      "search": "Search files…",
+      "uploadHint": "PDF, images, office, and zip up to 200 MB each",
+      "collapseUpload": "Collapse upload folder",
+      "expandUpload": "Expand upload folder",
+      "uploadFailed": "Upload failed"
     },
     "rolePermissions": {
       "documentType": "Document Type",

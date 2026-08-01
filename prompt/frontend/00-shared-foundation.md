@@ -4,20 +4,29 @@
 
 You are implementing the Docetra v2 frontend inside the existing `frontend/` directory. First inspect the current code, package versions, layouts, components, composables, stores, middleware, i18n files, and local conventions. Preserve useful existing infrastructure and unrelated user changes.
 
-Use only the existing stack: Nuxt 4, Vue 3, TypeScript, Nuxt UI 4, Tailwind CSS 4, Pinia, Nuxt i18n, VueUse, TanStack Vue Table, and ECharts. Do not add a new UI framework, state library, chart library, or duplicate dependency.
+Use only the existing stack: Nuxt 4, Vue 3, TypeScript, Nuxt UI 4, Tailwind CSS 4, Pinia, Nuxt i18n, VueUse, TanStack Vue Table, TipTap (via Nuxt UI `UEditor`), Uppy, and ECharts. Do not add a new UI framework, state library, chart library, or duplicate dependency. Pin TipTap packages to one version (e.g. `3.29.2`) with `pnpm.overrides` so ProseMirror is not duplicated.
 
-Build a reusable authenticated application shell matching the supplied sidebar structure:
+Build a reusable authenticated application shell matching this navigation:
+
+**Sidebar (`useMenu.ts`):**
 
 - Dashboard
 - Meeting: Topic, History
-- Record: Incoming Document, Outgoing Document, Document, Master List Request, Log
+- Record: Incoming Document, Outgoing Document, Document, Master List Request, Logs
 - Organization: Department, Company, Company Purpose, Company Sector, Officer
 - User Management: Role, User
+- Portal: File Upload, Google Drive Sync, Logs
 - Configuration: Record Type, Record Attribute, Document Type
-- Portal: File Upload, Google Drive Sync, Log
-- System Monitor: System Log
+- Setting: App Info, App Config, Storage
+
+**User menu (`useUserMenu.ts`):**
+
+- System Log → `/system-monitor/system-logs` (not a sidebar item)
+- Language, About, Appearance, Logout
 
 Use Nuxt UI navigation components and Lucide icons already available through Iconify. Groups must be collapsible, keyboard accessible, responsive, and show the active child route. On small screens, use the existing dashboard/sidebar mobile behavior. Keep navigation data in one typed configuration source rather than duplicating it in templates. All user-facing labels must use i18n keys with English and Khmer entries; do not hardcode labels in page templates.
+
+Page titles for Record / Portal logs use plural **Logs** (`docetra.pages.recordLog`, `docetra.pages.portalLog`).
 
 ### App version and About
 
@@ -42,7 +51,7 @@ Use Nuxt UI navigation components and Lucide icons already available through Ico
 
 ### Implement now
 
-1. Create or update the shared shell and sidebar.
+1. Create or update the shared shell and sidebar + user menu.
 2. Keep every route listed in `prompt/frontend/README.md`.
 3. Implement `00-reusable-workspace-components.md` before duplicating page UI.
 4. Replace blank placeholders with the complete page composition defined by each page prompt.
@@ -69,11 +78,12 @@ All list and board pages must use:
 - Bounded Kanban columns with incremental loading and optimistic transition rollback.
 - Dedicated schema-driven `/new` and `/:id` document pages for create, detail, and edit.
 - ERP-style document layout built only with Nuxt UI: sticky header/actions, section tabs, responsive form grid, right metadata rail, comments, and activity.
+- Per-row `⋯` action menus (`AppRowActionsMenu`) for Detail / Logs / Delete (permission-aware).
 
 Follow `/api/v2` REST conventions from the specifications. Keep uncertain endpoint names behind typed adapters rather than spreading invented URLs through page components.
 
 ### Quality checks
 
-Run the available typecheck and build commands. Fix errors caused by this work. Confirm that every sidebar link resolves, active navigation works, group toggles work, English and Khmer keys exist, table/board state survives refresh, document forms are keyboard accessible, unsaved-change protection works, and permission-hidden actions cannot be triggered from the UI.
+Run the available typecheck and build commands. Fix errors caused by this work. Confirm that every sidebar link resolves, System Log opens from the user menu, active navigation works, group toggles work, English and Khmer keys exist, table/board state survives refresh, document forms are keyboard accessible, unsaved-change protection works, and permission-hidden actions cannot be triggered from the UI.
 
 At completion, report the files changed, routes created, verification commands, and any pre-existing issue that prevented a clean check.

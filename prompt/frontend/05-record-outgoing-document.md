@@ -2,18 +2,16 @@
 
 ## Copy/paste prompt
 
-Implement `/records/outgoing-documents` using the reusable workflow workspace.
+Implement `/records/outgoing-documents` as a **Topic-style split board** (`AppRecordStageBoard`), same pattern as Incoming Document.
 
-### Views
+### Board layout
 
-Provide table and stage-based Kanban. Filters include sent/planned date, recipient organization, owner department, document type, status, stage, waiting state, assignee, delivery channel, and attachment presence. Cards/rows show reference, title, recipient, date, owner, stage, waiting state, and attachment/comment counts.
+- Left: stages rail with search, All records, stage cards + counts; collapsible to icon-only.
+- Right: datepicker (`sentDate`) + search; 3-column record cards (title, recipient subtitle, date, status/stage).
+- Drag onto stage or `⋯` → Move to stage. Row actions: Detail · Logs · Delete.
 
-### Create and document pages
-
-Add navigates to `/records/outgoing-documents/new`; rows and cards navigate to `/records/outgoing-documents/:id`. Use the shared Nuxt UI document shell with Details, Recipients, Relationships, Files, Delivery, and Access tabs; assignment, tags, sharing, and ownership live in the right rail. Place Comments & Activity below the form. Add permission-aware send/share/export actions. Activity shows creation, edits, dispatch events, workflow changes, recipients, attachments, sharing, and emails.
-
-Bulk actions must use explicit IDs or a server-side selection token. Stage changes require backend validation and rollback.
+Create → `/records/outgoing-documents/new`; card → `/records/outgoing-documents/:id` with shared Nuxt UI document shell (Details, Recipients, Relationships, Files, Delivery, Access; Comments & Activity).
 
 ### Acceptance
 
-Table/Kanban state is URL-backed, recipient and workflow behavior are distinct from incoming documents, the document page is reusable, and checks pass.
+Topic-style board is default; recipient/workflow behavior stays distinct from incoming; collapse works; checks pass.

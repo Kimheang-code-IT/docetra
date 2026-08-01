@@ -2,19 +2,25 @@
 
 ## Copy/paste prompt
 
-Implement `/records/incoming-documents` as a complete workflow workspace using the shared table, Kanban, ERP-style document page, dynamic fields, attachments, comments, and activity components.
+Implement `/records/incoming-documents` as a **Topic-style split board** (`AppRecordStageBoard`), not the plain table/Kanban workspace as the primary index.
 
-### Views
+### Board layout
 
-- Table and stage-based Kanban toggle.
-- Search plus filters for received date, sender organization, owner department, document type, status, stage, waiting state, assignee, and attachment presence.
-- Rows/cards show reference number, title, sender, received date, owner, assignee, stage, waiting state, and attachment/comment counts.
-- Stage movement must use validated transitions with rollback.
+**Left (stages rail)**
 
-### Create and document pages
+- Title **Stages**, search stages, **All records (n)** control.
+- Stage cards with count badges (Intake / Review / Approval / Completed).
+- Collapse to icon-only rail (Logs-style) so the cards gain width.
+- Drag a record card onto a stage to move workflow stage.
 
-Add navigates to `/records/incoming-documents/new`; rows and cards navigate to `/records/incoming-documents/:id`. The Nuxt UI document page captures reference, title, sender, received date, owner, type, stage, and files. Tabs contain Details, Organizations, Relationships, Files, and Access; the right rail contains assignment, tags, sharing, and ownership. Place Comments & Activity below the form. Activity records creation, edits, assignment, workflow, sharing, attachments, comments, and emails. Provide “New Email” only when permitted.
+**Right (records)**
+
+- Collapse toggle + selected stage / All records title.
+- Datepicker (`receivedDate`) + search.
+- 3-column card grid (topic page style): title, sender subtitle, date, reference, status/stage badges, `⋯` (Detail · Logs · Move to stage · Delete).
+
+Create → `/records/incoming-documents/new`; card click → `/records/incoming-documents/:id`. Document page keeps schema tabs, metadata rail, Comments & Activity.
 
 ### Acceptance
 
-Both views use server data and shared URL state, the document form is schema-driven, activity is immutable, comments are writable, and checks pass.
+Split board is default; stage filter and drag-move work; collapse is icon-only; document routes still work; checks pass.

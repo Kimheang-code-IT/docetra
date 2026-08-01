@@ -2,16 +2,16 @@
 
 ## Copy/paste prompt
 
-Implement the unified document explorer at `/records/documents`.
+Implement the unified document explorer at `/records/documents` as a **Topic-style split board** (`AppRecordStageBoard`).
 
-### Page design
+### Board layout
 
-Provide a server table and optional Kanban view when the selected document type has configured workflow stages. Filters: direction, document type, organization, department, owner, status, stage, date range, attachment presence, and sharing scope. Persist view and filters in the URL.
+- Left: stages rail (All + Intake/Review/Approval/Completed) with counts; collapsible icon-only.
+- Right: datepicker (`updatedAt`) + search; 3-column cards (title, document type subtitle, date, status/stage).
+- Drag/move stage; `⋯` Detail · Logs · Delete.
 
-Use shared summary rows/cards. Add navigates to `/records/documents/new`; rows/cards navigate to the canonical source document route. The Nuxt UI document page lets the user select direction/type and loads the correct schema. Tabs include Details, Workflow, Organizations, Relationships, Files, and Access, with Comments & Activity below the form. Do not duplicate incoming/outgoing source records.
-
-When mixed types have incompatible stages, disable Kanban with an explanatory message or require a single type filter.
+Add → `/records/documents/new`; cards open the canonical source document route. The Nuxt UI document page selects direction/type and loads the correct schema. Do not duplicate incoming/outgoing source records.
 
 ### Acceptance
 
-The unified view remains type-driven, links to the same source records as specialized pages, handles mixed-stage constraints, and checks pass.
+Topic-style board is default; type-driven detail still works; collapse works; checks pass.

@@ -11,10 +11,13 @@ const props = withDefaults(defineProps<{
   entityId: string
   endpoint?: string
   height?: number
+  /** Fill parent height (ResizeObserver). Overrides fixed height when true. */
+  fill?: boolean
   note?: string
   disabled?: boolean
 }>(), {
   height: 280,
+  fill: false,
 })
 
 const emit = defineEmits<{
@@ -27,14 +30,27 @@ const uppy = shallowRef<InstanceType<typeof Uppy> | null>(null)
 const bootError = ref<string | null>(null)
 const booted = ref(false)
 const fallbackInput = ref<HTMLInputElement | null>(null)
+const hostEl = ref<HTMLElement | null>(null)
+const measuredHeight = ref(props.height)
+
+const effectiveHeight = computed(() =>
+  props.fill ? Math.max(measuredHeight.value, 200) : props.height,
+)
 
 const dashboardProps = computed(() => ({
   width: '100%' as const,
-  height: props.height,
+  height: effectiveHeight.value,
   proudlyDisplayPoweredByUppy: false,
   note: props.note || t('docetra.meetingNotes.uploadHint'),
   showProgressDetails: true,
 }))
+
+useResizeObserver(hostEl, (entries) => {
+  if (!props.fill) return
+  const entry = entries[0]
+  if (!entry) return
+  measuredHeight.value = Math.floor(entry.contentRect.height)
+})
 
 function toAttachmentMeta(file: {
   name?: string | null
@@ -130,11 +146,15 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="space-y-2">
+  <div
+    class="flex min-h-0 flex-col gap-2"
+    :class="fill ? 'h-full' : ''"
+  >
     <div
       v-if="!booted"
       class="flex items-center justify-center rounded-lg border border-dashed border-default bg-elevated/30"
-      :style="{ minHeight: `${height}px` }"
+      :class="fill ? 'min-h-0 flex-1' : ''"
+      :style="fill ? undefined : { minHeight: `${height}px` }"
     >
       <UIcon name="i-lucide-loader-circle" class="size-5 animate-spin text-primary" />
     </div>
@@ -142,7 +162,8 @@ onBeforeUnmount(() => {
     <div
       v-else-if="bootError || !uppy"
       class="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-default bg-elevated/30 px-4 py-6 text-center"
-      :style="{ minHeight: `${height}px` }"
+      :class="fill ? 'min-h-0 flex-1' : ''"
+      :style="fill ? undefined : { minHeight: `${height}px` }"
     >
       <UIcon name="i-lucide-upload" class="size-8 text-muted" />
       <div class="space-y-1">
@@ -174,8 +195,10 @@ onBeforeUnmount(() => {
 
     <ClientOnly v-else>
       <div
-        class="uppy-host overflow-hidden rounded-lg border border-default"
-        :style="{ minHeight: `${height}px` }"
+        ref="hostEl"
+        class="uppy-host min-h-0 overflow-hidden rounded-lg border border-default"
+        :class="fill ? 'h-full flex-1' : ''"
+        :style="fill ? undefined : { minHeight: `${height}px` }"
       >
         <UppyDashboard
           :uppy="uppy"
@@ -185,7 +208,8 @@ onBeforeUnmount(() => {
       <template #fallback>
         <div
           class="flex items-center justify-center rounded-lg border border-dashed border-default bg-elevated/30"
-          :style="{ minHeight: `${height}px` }"
+          :class="fill ? 'min-h-0 flex-1' : ''"
+          :style="fill ? undefined : { minHeight: `${height}px` }"
         >
           <UIcon name="i-lucide-loader-circle" class="size-5 animate-spin text-primary" />
         </div>

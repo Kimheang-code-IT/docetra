@@ -2,16 +2,31 @@
 
 ## Copy/paste prompt
 
-Implement `/portal/file-upload` using the shared upload, table, Nuxt UI document-page, attachment, and activity patterns.
+Implement `/portal/file-upload` as a **1+3 split board** (`AppFileUploadBoard`), same family as Record Logs and Meeting Topics.
 
-### Page design
+### Index layout
 
-Top section: accessible drag/drop zone and file picker with allowed type/size guidance. Below: server-paginated upload table filtered by file name/type, uploader, status, linked record, storage source, and date.
+**Left (upload folder) — Uppy**
 
-Support bounded concurrent uploads, per-file progress, cancellation, retry, and partial failures. Clicking a file navigates to `/portal/file-upload/:id`, a read-only document page with metadata rail, safe preview/download, record links, storage status, and immutable file Activity. Comments are optional and disabled by default.
+- Header title **Upload** only (comfortable padding `px-4 py-3.5`).
+- Body: reusable `AppUppyUploader` (TipTap/Uppy stack already in the app) filling the panel height (`fill`).
+- Collapse toggle (like Logs): left rail shrinks to **icon-only** (~`3.5rem`) with folder/upload icons and tooltips so the table gains width.
+- Always side-by-side with the table — never stack the uploader above the table on desktop.
+- On complete: create portal file-upload rows via adapter, toast, refresh table. Do not store binaries in Pinia.
 
-Do not store binary content in Pinia or database payloads. Use object-storage/direct upload contracts when available.
+**Right (uploaded files) — table**
+
+- Toolbar: collapse toggle + **Uploaded files** title; search on the right.
+- `AppServerTable` with file name, type, size, uploader, status, storage, linked record, uploaded date.
+- Per-row `⋯` (`AppRowActionsMenu`): View detail · View logs · Delete (when permitted).
+- Row click / Detail → `/portal/file-upload/:id`.
+
+Persist left collapse in `useState`. i18n under `docetra.fileUploadBoard.*`.
+
+### Detail — `/portal/file-upload/:id`
+
+Read-only Nuxt UI document page with metadata rail, safe preview/download, record links, storage status, and immutable file Activity. Comments optional and off by default.
 
 ### Acceptance
 
-Upload progress and retry are accessible, metadata persists separately from binaries, the table handles large history, and checks pass.
+Split board is default; Uppy uploads land in the table; collapse is icon-only; large history stays server-paginated; checks pass.

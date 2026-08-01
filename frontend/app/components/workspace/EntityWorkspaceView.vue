@@ -44,6 +44,16 @@ const canDelete = computed(() =>
   props.config.canDelete !== false && !props.config.readOnly,
 )
 
+const tableRowActions = computed(() => {
+  if (props.config.readOnly) {
+    return [
+      { key: 'detail', labelKey: 'docetra.rowActions.detail', icon: 'i-lucide-eye' },
+      { key: 'logs', labelKey: 'docetra.rowActions.logs', icon: 'i-lucide-scroll-text' },
+    ]
+  }
+  return undefined
+})
+
 async function onMove(id: string, stage: string) {
   try {
     await moveToStage(id, stage)
@@ -77,6 +87,26 @@ async function onDeleteSelected(ids = selectedIds.value) {
   }
   finally {
     deleting.value = false
+  }
+}
+
+function onRowAction(payload: { key: string, row: Record<string, unknown> }) {
+  const { key, row } = payload
+  if (key === 'detail' || key === 'edit') {
+    openRow(row)
+    return
+  }
+  if (key === 'logs') {
+    const id = String(row.id || '')
+    navigateTo({
+      path: '/records/logs',
+      query: id ? { q: id } : undefined,
+    })
+    return
+  }
+  if (key === 'delete') {
+    const id = String(row.id || '')
+    if (id) onDeleteSelected([id])
   }
 }
 </script>
@@ -172,10 +202,12 @@ async function onDeleteSelected(ids = selectedIds.value) {
         :can-delete="canDelete"
         :selectable="!config.readOnly && config.canDelete !== false"
         :show-meta="!config.readOnly"
+        :row-actions="tableRowActions"
         @update:page="page = $event"
         @update:limit="limit = $event"
         @update:selection="selectedIds = $event"
         @row-click="openRow"
+        @row-action="onRowAction"
         @delete-selected="onDeleteSelected"
         @retry="refresh"
       >

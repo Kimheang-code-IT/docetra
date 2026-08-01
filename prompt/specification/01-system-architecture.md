@@ -62,8 +62,6 @@ Each module should own its own logic, data access, and internal services as much
 
 ## Module responsibilities
 
-
-
 ### record
 
 Handles the unified record model, record types, record history, stages, timelines, attachments, and record-specific business behavior.
