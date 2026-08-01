@@ -17,8 +17,9 @@ export function useMeetingTopicBoard() {
   const dropTopicId = ref<string | null>(null)
   const topicSearch = ref('')
   const meetingSearch = ref('')
-  /** YYYY-MM-DD — empty = no date filter */
-  const meetingDateFilter = ref('')
+  /** YYYY-MM-DD — empty = open-ended */
+  const meetingDateStart = ref('')
+  const meetingDateEnd = ref('')
 
   const selectedTopic = computed(() =>
     selectedTopicId.value
@@ -37,13 +38,20 @@ export function useMeetingTopicBoard() {
 
   const filteredMeetings = computed(() => {
     const q = meetingSearch.value.trim().toLowerCase()
-    const dateKey = meetingDateFilter.value.slice(0, 10)
+    const start = meetingDateStart.value.slice(0, 10)
+    const end = meetingDateEnd.value.slice(0, 10)
     let list = meetings.value
     if (selectedTopicId.value) {
       list = list.filter(m => m.topicId === selectedTopicId.value)
     }
-    if (dateKey) {
-      list = list.filter(m => String(m.meetingDate || '').slice(0, 10) === dateKey)
+    if (start || end) {
+      list = list.filter((m) => {
+        const day = String(m.meetingDate || '').slice(0, 10)
+        if (!day) return false
+        if (start && day < start) return false
+        if (end && day > end) return false
+        return true
+      })
     }
     if (q) {
       list = list.filter(m =>
@@ -195,7 +203,8 @@ export function useMeetingTopicBoard() {
     meetings,
     topicSearch,
     meetingSearch,
-    meetingDateFilter,
+    meetingDateStart,
+    meetingDateEnd,
     selectedTopicId,
     selectedTopic,
     filteredTopics,

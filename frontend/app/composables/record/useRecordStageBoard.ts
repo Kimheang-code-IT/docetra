@@ -27,7 +27,8 @@ export function useRecordStageBoard(
 
   const stageSearch = ref('')
   const recordSearch = ref(String(route.query.q || ''))
-  const dateFilter = ref('')
+  const dateStart = ref(typeof route.query.startDate === 'string' ? route.query.startDate : '')
+  const dateEnd = ref(typeof route.query.endDate === 'string' ? route.query.endDate : '')
   const leftCollapsed = useState(options.stateKey || `record-stage-left-${config.key}`, () => false)
 
   const selectedStage = computed({
@@ -71,11 +72,15 @@ export function useRecordStageBoard(
 
   const filteredItems = computed(() => {
     let rows = items.value
-    const date = dateFilter.value.trim()
-    if (date) {
+    const start = dateStart.value.trim().slice(0, 10)
+    const end = dateEnd.value.trim().slice(0, 10)
+    if (start || end) {
       rows = rows.filter((row) => {
-        const value = String(getByPath(row, options.dateField) || '')
-        return value.startsWith(date) || value.slice(0, 10) === date
+        const value = String(getByPath(row, options.dateField) || '').slice(0, 10)
+        if (!value) return false
+        if (start && value < start) return false
+        if (end && value > end) return false
+        return true
       })
     }
     return rows
@@ -209,7 +214,8 @@ export function useRecordStageBoard(
     filteredStages,
     stageSearch,
     recordSearch,
-    dateFilter,
+    dateStart,
+    dateEnd,
     leftCollapsed,
     selectedStage,
     selectedStageMeta,

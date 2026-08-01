@@ -8,7 +8,8 @@ const {
   meetings,
   topicSearch,
   meetingSearch,
-  meetingDateFilter,
+  meetingDateStart,
+  meetingDateEnd,
   selectedTopicId,
   selectedTopic,
   filteredTopics,
@@ -151,10 +152,10 @@ function onMeetingsPanelDrop(event: DragEvent) {
               {{ selectedTopic?.title || $t('docetra.meetingBoard.allMeetings') }}
             </h2>
             <div class="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
-              <CommonAppInputDate
-                v-model="meetingDateFilter"
+              <CommonAppInputDateRange
+                v-model:start="meetingDateStart"
+                v-model:end="meetingDateEnd"
                 size="sm"
-                class="w-full sm:w-40"
               />
               <UInput
                 v-model="meetingSearch"

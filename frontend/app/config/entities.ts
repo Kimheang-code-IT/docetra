@@ -38,6 +38,20 @@ const workflowStages: WorkflowStage[] = [
   { id: 'completed', code: 'completed', labelKey: 'docetra.stages.completed', order: 4, color: 'success' },
 ]
 
+/** Record module workflow (Incoming / Outgoing / Document / Master List). */
+const recordWorkflowStages: WorkflowStage[] = [
+  { id: 'created', code: 'created', labelKey: 'docetra.stages.created', order: 1, color: 'neutral' },
+  { id: 'record_created', code: 'record_created', labelKey: 'docetra.stages.recordCreated', order: 2, color: 'info' },
+  { id: 'observation_note', code: 'observation_note', labelKey: 'docetra.stages.observationNote', order: 3, color: 'warning' },
+  { id: 'waiting_related_document', code: 'waiting_related_document', labelKey: 'docetra.stages.waitingRelatedDocument', order: 4, color: 'warning' },
+  { id: 'submitted_director', code: 'submitted_director', labelKey: 'docetra.stages.submittedDirector', order: 5, color: 'primary' },
+  { id: 'submitted_ddg', code: 'submitted_ddg', labelKey: 'docetra.stages.submittedDdg', order: 6, color: 'primary' },
+  { id: 'submitted_dg', code: 'submitted_dg', labelKey: 'docetra.stages.submittedDg', order: 7, color: 'primary' },
+  { id: 'further_measures', code: 'further_measures', labelKey: 'docetra.stages.furtherMeasures', order: 8, color: 'info' },
+  { id: 'reply', code: 'reply', labelKey: 'docetra.stages.reply', order: 9, color: 'success' },
+  { id: 'finished_final', code: 'finished_final', labelKey: 'docetra.stages.finishedFinal', order: 10, color: 'success' },
+]
+
 const statusFilter: FilterDef = {
   key: 'status',
   labelKey: 'docetra.fields.status',
@@ -58,6 +72,13 @@ const stageFilter: FilterDef = {
   options: workflowStages.map(s => ({ label: s.code, value: s.code, labelKey: s.labelKey })),
 }
 
+const recordStageFilter: FilterDef = {
+  key: 'stage',
+  labelKey: 'docetra.fields.stage',
+  type: 'multiselect',
+  options: recordWorkflowStages.map(s => ({ label: s.code, value: s.code, labelKey: s.labelKey })),
+}
+
 function recordTabs(extraFields: DocumentTabSchema['sections'][0]['fields'] = []): DocumentTabSchema[] {
   return [
     {
@@ -76,7 +97,7 @@ function recordTabs(extraFields: DocumentTabSchema['sections'][0]['fields'] = []
             { label: 'Memo', value: 'Memo' },
           ] },
           { key: 'status', labelKey: 'docetra.fields.status', type: 'select', options: statusFilter.options },
-          { key: 'stage', labelKey: 'docetra.fields.stage', type: 'select', options: stageFilter.options },
+          { key: 'stage', labelKey: 'docetra.fields.stage', type: 'select', options: recordStageFilter.options },
           { key: 'description', labelKey: 'docetra.fields.description', type: 'textarea', colSpan: 2 },
           ...extraFields,
         ],
@@ -220,7 +241,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
     defaultView: 'table',
     canCreate: true,
     canComment: true,
-    stages: workflowStages,
+    stages: recordWorkflowStages,
     titleField: 'title',
     columns: [
       { key: 'referenceNumber', labelKey: 'docetra.fields.referenceNumber', sortable: true, priority: 'high' },
@@ -235,7 +256,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
     ],
     filters: [
       statusFilter,
-      stageFilter,
+      recordStageFilter,
       { key: 'waiting', labelKey: 'docetra.fields.waiting', type: 'boolean' },
     ],
     tabs: recordTabs([
@@ -267,7 +288,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
     defaultView: 'table',
     canCreate: true,
     canComment: true,
-    stages: workflowStages,
+    stages: recordWorkflowStages,
     titleField: 'title',
     columns: [
       { key: 'referenceNumber', labelKey: 'docetra.fields.referenceNumber', sortable: true, priority: 'high' },
@@ -277,7 +298,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
       { key: 'stage', labelKey: 'docetra.fields.stage' },
       { key: 'status', labelKey: 'docetra.fields.status' },
     ],
-    filters: [statusFilter, stageFilter],
+    filters: [statusFilter, recordStageFilter],
     tabs: recordTabs([
       { key: 'sentDate', labelKey: 'docetra.fields.sentDate', type: 'date' },
     ]),
@@ -295,7 +316,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
     defaultView: 'table',
     canCreate: true,
     canComment: true,
-    stages: workflowStages,
+    stages: recordWorkflowStages,
     titleField: 'title',
     columns: [
       { key: 'referenceNumber', labelKey: 'docetra.fields.referenceNumber', sortable: true, priority: 'high' },
@@ -305,7 +326,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
       { key: 'status', labelKey: 'docetra.fields.status' },
       { key: 'updatedAt', labelKey: 'docetra.fields.updatedAt', sortable: true },
     ],
-    filters: [statusFilter, stageFilter],
+    filters: [statusFilter, recordStageFilter],
     tabs: recordTabs(),
   },
 
@@ -321,7 +342,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
     defaultView: 'table',
     canCreate: true,
     canComment: true,
-    stages: workflowStages,
+    stages: recordWorkflowStages,
     titleField: 'title',
     columns: [
       { key: 'referenceNumber', labelKey: 'docetra.fields.referenceNumber', sortable: true },
@@ -331,7 +352,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
       { key: 'owner.name', labelKey: 'docetra.fields.owner' },
       { key: 'updatedAt', labelKey: 'docetra.fields.updatedAt' },
     ],
-    filters: [statusFilter, stageFilter],
+    filters: [statusFilter, recordStageFilter],
     tabs: recordTabs(),
   },
 

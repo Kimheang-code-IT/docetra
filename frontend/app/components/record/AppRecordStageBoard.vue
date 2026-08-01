@@ -18,7 +18,8 @@ const {
   filteredStages,
   stageSearch,
   recordSearch,
-  dateFilter,
+  dateStart,
+  dateEnd,
   leftCollapsed,
   selectedStage,
   selectedStageMeta,
@@ -35,8 +36,6 @@ const {
   openCreate,
   openRow,
   moveToStage,
-  subtitleOf,
-  dateOf,
   labelOf,
   statusLabel,
   stageLabel,
@@ -250,10 +249,10 @@ async function onDelete(row: Record<string, unknown>) {
             </div>
 
             <div class="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
-              <CommonAppInputDate
-                v-model="dateFilter"
+              <CommonAppInputDateRange
+                v-model:start="dateStart"
+                v-model:end="dateEnd"
                 size="sm"
-                class="w-full sm:w-40"
               />
               <UInput
                 v-model="recordSearch"
@@ -272,8 +271,6 @@ async function onDelete(row: Record<string, unknown>) {
                 :key="String(row.id)"
                 :row="row"
                 :title="labelOf(row)"
-                :subtitle="subtitleOf(row)"
-                :date="dateOf(row)"
                 :status-label="statusLabel(row.status)"
                 :stage-label="stageLabel(row.stage)"
                 :stages="stages"

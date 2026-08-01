@@ -44,7 +44,6 @@
       "storage": "Storage"
     },
     "descriptions": {
-      "dashboard": "Operational overview across records, meetings, and uploads.",
       "meetingTopic": "Plan and track meeting topics by stage.",
       "meetingHistory": "Browse completed and scheduled meetings.",
       "incomingDocument": "Manage inbound documents through workflow stages.",
@@ -58,7 +57,6 @@
       "companySector": "Reference list of company sectors.",
       "officer": "Officers mapped to departments and users.",
       "role": "Security roles and permission sets.",
-      "rolePermissions": "Grant module access with document-level permission checkboxes.",
       "user": "Application user accounts.",
       "recordType": "Configure record behavior and stages.",
       "recordAttribute": "Configure dynamic record fields.",
@@ -76,12 +74,9 @@
       "priorityScore": "Numeric priority used for sorting and triage. Higher values surface first in work queues. If not set, the default from Record Settings is used."
     },
     "actions": {
-      "create": "Create",
       "addItem": "Add Item",
       "refresh": "Refresh",
       "retry": "Retry",
-      "back": "Back",
-      "searchPlaceholder": "Search…",
       "clearFilters": "Clear filters",
       "all": "All",
       "loadMore": "Load more",
@@ -98,9 +93,7 @@
     "rowActions": {
       "detail": "View detail",
       "logs": "View logs",
-      "delete": "Delete",
-      "edit": "Edit",
-      "duplicate": "Duplicate"
+      "delete": "Delete"
     },
     "views": {
       "table": "Table",
@@ -118,7 +111,17 @@
       "intake": "Intake",
       "review": "Review",
       "approval": "Approval",
-      "completed": "Completed"
+      "completed": "Completed",
+      "created": "Created",
+      "recordCreated": "Record Created",
+      "observationNote": "Observation Note",
+      "waitingRelatedDocument": "Waiting for Related Document",
+      "submittedDirector": "Submitted to Director",
+      "submittedDdg": "Submitted to DDG",
+      "submittedDg": "Submitted to DG",
+      "furtherMeasures": "Further Measures",
+      "reply": "Reply",
+      "finishedFinal": "Finished (Final)"
     },
     "status": {
       "draft": "Draft",
@@ -130,12 +133,10 @@
       "failed": "Failed"
     },
     "meetingBoard": {
-      "topics": "Topics",
       "searchTopics": "Search topics…",
       "searchMeetings": "Search meetings…",
       "allTopics": "All topics",
       "allMeetings": "All meetings",
-      "meetingsHint": "Drag a meeting onto a topic, or use ⋯ → Assign to topic. With a topic selected, drag cards to reorder.",
       "emptyMeetings": "No meetings in this view",
       "assignToTopic": "Assign to topic",
       "unassignFromTopic": "Unassign from topic",
@@ -163,9 +164,6 @@
     },
     "meetingNotes": {
       "title": "Meeting notes",
-      "description": "Rich notes and large file uploads for this meeting.",
-      "notesSection": "Notes",
-      "filesSection": "Files",
       "placeholder": "Write meeting notes…",
       "uploadHint": "PDF, images, office, and zip up to 200 MB each",
       "saved": "Meeting notes saved",
@@ -226,6 +224,8 @@
       "owner": "Owner",
       "assignee": "Assignee",
       "meetingDate": "Meeting date",
+      "startDate": "Start date",
+      "endDate": "End date",
       "childMeetings": "Child meetings",
       "updatedAt": "Updated",
       "createdAt": "Created",
@@ -339,7 +339,6 @@
     },
     "recordLogBoard": {
       "tabsTitle": "Log views",
-      "tabsHint": "Choose a tab to change the table columns.",
       "search": "Search logs…",
       "collapseTabs": "Collapse log views",
       "expandTabs": "Expand log views",
@@ -367,12 +366,6 @@
     },
     "rolePermissions": {
       "documentType": "Document Type",
-      "level": "Level",
-      "onlyIfCreator": "Only If Creator",
-      "rolePlaceholder": "Role name",
-      "empty": "No permission rows yet. Add a document type below.",
-      "addDocumentType": "Select document type",
-      "addRow": "Add row",
       "actions": {
         "select": "Select",
         "read": "Read",
@@ -394,9 +387,6 @@
       "notFound": "Document not found",
       "noAttachments": "No attachments yet",
       "loadFailed": "Failed to load data"
-    },
-    "table": {
-      "showing": "Showing {count} of {total}"
     },
     "document": {
       "new": "New {entity}",
@@ -465,8 +455,6 @@
     "dashboard": {
       "workByStage": "Work by stage",
       "recordsOverTime": "Records over time",
-      "myWork": "My work",
-      "quickLinks": "Quick links",
       "chartFilters": {
         "thisYear": "This Year",
         "lastYear": "Last Year",
@@ -488,7 +476,9 @@
         "more": "+{n} more",
         "eventsCount": "{n} event | {n} events",
         "emptyDay": "No events on this day",
-        "allDay": "All day"
+        "allDay": "All day",
+        "filterAll": "All event types",
+        "viewAll": "View all"
       },
       "eventType": {
         "meeting": "Meeting",
@@ -500,31 +490,20 @@
         "activeRecords": "Active records",
         "waiting": "Waiting",
         "overdue": "Overdue",
-        "meetings": "Meetings",
         "incoming": "Incoming",
-        "outgoing": "Outgoing",
-        "uploads": "Uploads"
+        "outgoing": "Outgoing"
       }
     }
-  },
-  "navigation": {
-    "dashboard": "Dashboard",
-    "reports": "Financial Reports",
-    "settings": "Settings",
-    "import": "Data Import",
-    "history": "Audit History"
   },
   "actions": {
     "edit": "Edit",
     "delete": "Delete",
     "view": "View",
     "save": "Save",
-    "confirm": "Confirm",
     "add": "Add",
     "cancel": "Cancel",
     "export": "Export",
-    "close": "Close",
-    "import": "Import"
+    "close": "Close"
   },
   "common": {
     "rank": "#",

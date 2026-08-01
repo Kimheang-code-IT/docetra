@@ -3,7 +3,7 @@ import type { DropdownMenuItem } from '@nuxt/ui'
 import { usePreferencesStore, type AppLocale } from '~/stores/preferences'
 
 const preferences = usePreferencesStore()
-const { t, locale, locales } = useI18n()
+const { locale, locales } = useI18n()
 
 preferences.hydrate()
 
@@ -37,7 +37,7 @@ const items = computed<DropdownMenuItem[][]>(() => [
       :label="currentLabel"
       trailing-icon="i-lucide-chevron-down"
       class="bg-default/80 shadow-sm ring-1 ring-default backdrop-blur-sm"
-      :aria-label="t('settings.language')"
+      :aria-label="$t('settings.language')"
     />
   </UDropdownMenu>
 </template>

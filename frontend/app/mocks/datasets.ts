@@ -21,11 +21,27 @@ import type {
 } from '~/types/docetra/entities'
 import { dateOnly, daysAgo, org, person } from './seed'
 
-const stages = ['intake', 'review', 'approval', 'completed'] as const
+const meetingStages = ['intake', 'review', 'approval', 'completed'] as const
+const recordStages = [
+  'created',
+  'record_created',
+  'observation_note',
+  'waiting_related_document',
+  'submitted_director',
+  'submitted_ddg',
+  'submitted_dg',
+  'further_measures',
+  'reply',
+  'finished_final',
+] as const
 const statuses = ['draft', 'active', 'pending', 'completed', 'archived'] as const
 
-function stage(i: number) {
-  return stages[i % stages.length]!
+function meetingStage(i: number) {
+  return meetingStages[i % meetingStages.length]!
+}
+
+function recordStage(i: number) {
+  return recordStages[i % recordStages.length]!
 }
 
 function status(i: number) {
@@ -36,7 +52,7 @@ export const mockMeetingTopics: MeetingTopic[] = Array.from({ length: 24 }, (_, 
   id: `mt_${i + 1}`,
   title: `Topic ${i + 1}: Quarterly coordination`,
   status: status(i),
-  stage: stage(i),
+  stage: meetingStage(i),
   meetingDate: dateOnly(i % 20),
   childMeetingCount: (i % 4) + 1,
   childMeetings: Array.from({ length: Math.min(2, (i % 4) + 1) }, (_, j) => ({
@@ -79,7 +95,7 @@ function makeRecord(kind: RecordDocument['recordKind'], count: number, prefix: s
     title: `${kind.replace('_', ' ')} record ${i + 1}`,
     recordKind: kind,
     status: status(i),
-    stage: stage(i),
+    stage: recordStage(i),
     documentType: ['Letter', 'Report', 'Contract', 'Memo'][i % 4],
     senderOrganization: kind === 'incoming' ? org(i) : org(2),
     recipientOrganization: kind === 'outgoing' ? org(i) : org(3),
@@ -390,7 +406,7 @@ export function getDashboardSummary(): DashboardSummary {
   }))
 
   const deadlineEvents = mockIncomingDocuments
-    .filter(r => r.waiting || r.stage === 'approval')
+    .filter(r => r.waiting || r.stage === 'waiting_related_document' || r.stage === 'submitted_director')
     .slice(0, 8)
     .map((doc, i) => ({
       id: `ev_dl_${doc.id}`,
@@ -421,7 +437,7 @@ export function getDashboardSummary(): DashboardSummary {
       { id: 'k4', labelKey: 'docetra.dashboard.kpi.incoming', value: 36, href: '/records/incoming-documents', updatedAt: daysAgo(0) },
       { id: 'k5', labelKey: 'docetra.dashboard.kpi.outgoing', value: 28, href: '/records/outgoing-documents', updatedAt: daysAgo(0) },
     ],
-    workByStage: stages.map(s => ({
+    workByStage: recordStages.map(s => ({
       stage: s,
       count: mockIncomingDocuments.filter(r => r.stage === s).length
         + mockOutgoingDocuments.filter(r => r.stage === s).length,

@@ -22,12 +22,9 @@ const { t, locale } = useI18n()
 
 const viewCursor = ref(startOfMonth(new Date()))
 const selectedKey = ref(toDateKey(new Date()))
+const typeFilter = ref<'all' | DashboardCalendarEvent['type']>('all')
 
 const todayKey = computed(() => toDateKey(new Date()))
-
-const monthLabel = computed(() =>
-  viewCursor.value.toLocaleDateString(locale.value, { month: 'long', year: 'numeric' }),
-)
 
 const monthItems = computed(() =>
   Array.from({ length: 12 }, (_, month) => ({
@@ -46,7 +43,7 @@ const yearItems = computed(() => {
     if (Number.isFinite(y)) years.add(y)
   }
   return [...years]
-    .sort((a, b) => a - b)
+    .sort((a, b) => b - a)
     .map(year => ({ label: String(year), value: year }))
 })
 
@@ -64,6 +61,10 @@ const selectedYear = computed({
   },
 })
 
+const monthYearLabel = computed(() =>
+  viewCursor.value.toLocaleDateString(locale.value, { month: 'long', year: 'numeric' }),
+)
+
 const weekdayLabels = computed(() => {
   const monday = startOfWeekMonday(new Date())
   return Array.from({ length: 7 }, (_, i) => {
@@ -74,9 +75,14 @@ const weekdayLabels = computed(() => {
 
 const weeks = computed(() => buildMonthWeeks(viewCursor.value))
 
+const filteredEvents = computed(() => {
+  if (typeFilter.value === 'all') return props.events
+  return props.events.filter(event => event.type === typeFilter.value)
+})
+
 const eventsByDay = computed(() => {
   const map = new Map<string, DashboardCalendarEvent[]>()
-  for (const event of props.events) {
+  for (const event of filteredEvents.value) {
     const key = toDateKey(parseEventDate(event.start))
     const list = map.get(key) || []
     list.push(event)
@@ -99,12 +105,49 @@ const selectedLabel = computed(() => {
   })
 })
 
-function goToday() {
-  const now = new Date()
-  viewCursor.value = startOfMonth(now)
-  selectedKey.value = toDateKey(now)
-  emit('daySelect', selectedKey.value)
+const selectUi = {
+  base: 'rounded-lg bg-elevated ring-0 font-medium text-highlighted',
+  trailingIcon: 'text-muted',
 }
+
+const navBtnClass = 'rounded-lg bg-elevated'
+
+const moreItems = computed(() => [
+  [
+    {
+      label: t('docetra.dashboard.calendar.filterAll'),
+      icon: typeFilter.value === 'all' ? 'i-lucide-check' : 'i-lucide-list-filter',
+      onSelect: () => { typeFilter.value = 'all' },
+    },
+    {
+      label: t('docetra.dashboard.eventType.meeting'),
+      icon: typeFilter.value === 'meeting' ? 'i-lucide-check' : 'i-lucide-video',
+      onSelect: () => { typeFilter.value = 'meeting' },
+    },
+    {
+      label: t('docetra.dashboard.eventType.deadline'),
+      icon: typeFilter.value === 'deadline' ? 'i-lucide-check' : 'i-lucide-alarm-clock',
+      onSelect: () => { typeFilter.value = 'deadline' },
+    },
+    {
+      label: t('docetra.dashboard.eventType.record'),
+      icon: typeFilter.value === 'record' ? 'i-lucide-check' : 'i-lucide-file-text',
+      onSelect: () => { typeFilter.value = 'record' },
+    },
+    {
+      label: t('docetra.dashboard.eventType.upload'),
+      icon: typeFilter.value === 'upload' ? 'i-lucide-check' : 'i-lucide-upload',
+      onSelect: () => { typeFilter.value = 'upload' },
+    },
+  ],
+  [
+    {
+      label: t('docetra.dashboard.calendar.viewAll'),
+      icon: 'i-lucide-external-link',
+      onSelect: () => navigateTo('/meetings/history'),
+    },
+  ],
+])
 
 function prevMonth() {
   viewCursor.value = addMonths(viewCursor.value, -1)
@@ -218,62 +261,68 @@ function isSameMonth(d: Date) {
 <template>
   <section class="flex min-h-128 flex-col overflow-hidden rounded-md border border-default bg-default lg:min-h-144">
     <header class="flex flex-wrap items-center justify-between gap-3 border-b border-default px-3 py-2.5 sm:px-4">
-      <div class="flex flex-wrap items-center gap-2">
-        <UButton color="neutral" variant="outline" size="sm" @click="goToday">
-          {{ $t('docetra.dashboard.calendar.today') }}
-        </UButton>
-        <div class="flex items-center">
+      <div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+        <div class="flex items-center gap-1.5">
           <UButton
             icon="i-lucide-chevron-left"
             color="neutral"
-            variant="ghost"
+            variant="soft"
             size="sm"
+            square
+            :class="navBtnClass"
             :aria-label="$t('docetra.dashboard.calendar.prevMonth')"
             @click="prevMonth"
           />
           <UButton
             icon="i-lucide-chevron-right"
             color="neutral"
-            variant="ghost"
+            variant="soft"
             size="sm"
+            square
+            :class="navBtnClass"
             :aria-label="$t('docetra.dashboard.calendar.nextMonth')"
             @click="nextMonth"
           />
         </div>
-        <div class="flex flex-wrap items-center gap-2">
-          <USelect
-            v-model="selectedMonth"
-            :items="monthItems"
-            value-key="value"
-            size="sm"
-            class="w-36"
-            :aria-label="$t('docetra.dashboard.calendar.pickMonth')"
-            :ui="{ base: 'font-semibold' }"
-          />
-          <USelectMenu
-            v-model="selectedYear"
-            :items="yearItems"
-            value-key="value"
-            size="sm"
-            class="w-24"
-            :search-input="{
-              placeholder: $t('docetra.dashboard.calendar.searchYear'),
-              icon: 'i-lucide-search',
-            }"
-            :aria-label="$t('docetra.dashboard.calendar.pickYear')"
-            :ui="{
-              base: 'font-semibold',
-              content: 'max-h-60 min-w-(--reka-combobox-trigger-width)',
-            }"
-          />
-        </div>
+
         <h2 class="sr-only">
-          {{ monthLabel }}
+          {{ monthYearLabel }}
         </h2>
       </div>
-      <p class="text-xs text-muted">
-        {{ $t('docetra.dashboard.calendar.hint') }}
-      </p>
+
+      <div class="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+        <USelect
+          v-model="selectedMonth"
+          :items="monthItems"
+          value-key="value"
+          size="sm"
+          class="w-36"
+          :aria-label="$t('docetra.dashboard.calendar.pickMonth')"
+          :ui="selectUi"
+        />
+
+        <USelect
+          v-model="selectedYear"
+          :items="yearItems"
+          value-key="value"
+          size="sm"
+          class="w-28"
+          :aria-label="$t('docetra.dashboard.calendar.pickYear')"
+          :ui="selectUi"
+        />
+
+        <UDropdownMenu :items="moreItems" :content="{ align: 'end' }">
+          <UButton
+            icon="i-lucide-ellipsis"
+            color="neutral"
+            variant="soft"
+            size="sm"
+            square
+            class="rounded-lg"
+            :aria-label="$t('docetra.actions.more')"
+          />
+        </UDropdownMenu>
+      </div>
     </header>
 
     <div class="flex min-h-0 flex-1 flex-col lg:flex-row">
