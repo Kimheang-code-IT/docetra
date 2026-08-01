@@ -4,10 +4,14 @@
 
 Implement `/forget-password` in the shared auth design language.
 
-Use two clear states: email request form and neutral success confirmation. Validate email, show loading, prevent duplicate submission, provide Back to Login, and offer Enter OTP after success. Do not reveal whether an account exists. Add an accessible resend cooldown when connected to `/api/v2/auth/forgot-password`.
+### Flow
 
-Keep all copy localized. This page does not use workspace tables, Kanban, business document forms, comments, or activity.
+1. **Request:** email form → send reset code (not an OTP login step).
+2. **Verify on same page:** after success, show “Check your email” with a **6-character** `UPinInput`, Verify Code, Resend, and Back to Login.
+3. On valid code, continue (mock: toast + redirect to `/login`). Do **not** use a separate `/otp` page and do **not** add OTP after login.
+
+Validate email, show loading, prevent duplicate submission. Do not reveal whether an account exists. Connect through adapters for forgot-password, verify, and resend. Keep copy localized. Language switcher lives in the auth layout (top-right).
 
 ### Acceptance
 
-Both states are keyboard accessible, account existence is not disclosed, navigation works, and checks pass.
+Both states are keyboard accessible; 6-digit code input works with paste; account existence is not disclosed; no dedicated OTP route; checks pass.

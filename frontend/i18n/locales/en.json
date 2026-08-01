@@ -797,20 +797,21 @@
     },
     "forgetPassword": {
       "title": "Forgot Password",
-      "desc": "Enter your email address and we'll send you a reset link.",
-      "submitBtn": "Send Reset Link",
+      "desc": "Enter your email address and we'll send you a reset code.",
+      "submitBtn": "Send Reset Code",
       "backToLogin": "Back to Login",
       "sentTitle": "Check your email",
-      "sentDesc": "A password reset link has been sent to {email}. Please check your inbox.",
-      "enterOtp": "Enter OTP Code"
-    },
-    "otp": {
-      "title": "OTP Verification",
-      "desc": "Enter the one-time password sent to your email or phone.",
-      "newCodeSent": "A new code has been sent!",
+      "sentDesc": "A 6-character reset code has been sent to {email}. Enter it below to continue.",
+      "enterCode": "Enter reset code",
       "didntGetCode": "Didn't get a code?",
-      "resend": "Resend",
-      "verify": "Verify OTP"
+      "resendCode": "Resend",
+      "verifyCode": "Verify Code",
+      "codeVerified": "Code verified",
+      "codeVerifiedDesc": "You can now sign in or set a new password.",
+      "codeInvalid": "Invalid code",
+      "codeInvalidDesc": "Check the code in your email and try again.",
+      "codeResent": "A new code has been sent",
+      "codeResendFailed": "Could not resend the code"
     },
     "dataEntry": {
       "title": "Data Entry",

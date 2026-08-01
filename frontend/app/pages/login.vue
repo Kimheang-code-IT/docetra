@@ -152,11 +152,11 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
 
       <template #footer>
         <div class="text-center space-y-2">
-          <UButton variant="link" size="sm" to="/forget-password" class="text-muted-foreground">
+          <UButton variant="link" size="sm" to="/forget-password" class="text-muted-foreground underline">
             {{ t('pages.auth.forgotPassword') }}
           </UButton>
           <div>
-            <span class="font-black">© <span class="font-normal text-sm">{{ $t('pages.auth.departmentLine') }}</span></span>
+            <span class="font-normal text-sm text-muted">{{ $t('settings.aboutCopyright') }}</span>
           </div>
         </div>
       </template>

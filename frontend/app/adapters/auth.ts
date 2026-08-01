@@ -28,23 +28,24 @@ export async function requestPasswordReset(email: string) {
   return await api.post(ApiEndpoints.AUTH_FORGOT_PASSWORD, { email })
 }
 
-export async function verifyOtp(code: string) {
+/** Verify the 6-character reset code emailed after forgot-password. */
+export async function verifyPasswordResetCode(email: string, code: string) {
   if (useMock()) {
     await mockLatency(null, 400)
-    if (!code || code.length < 6) {
-      throw createError({ statusCode: 400, statusMessage: 'Invalid OTP' })
+    if (!code || code.length !== 6) {
+      throw createError({ statusCode: 400, statusMessage: 'Invalid code' })
     }
-    return ok({ verified: true })
+    return ok({ verified: true, email })
   }
   const api = useApi()
-  return await api.post(ApiEndpoints.AUTH_OTP_VERIFY, { code })
+  return await api.post(ApiEndpoints.AUTH_RESET_VERIFY, { email, code })
 }
 
-export async function resendOtp() {
+export async function resendPasswordResetCode(email: string) {
   if (useMock()) {
     await mockLatency(null, 400)
-    return ok({ sent: true })
+    return ok({ sent: true, email })
   }
   const api = useApi()
-  return await api.post(ApiEndpoints.AUTH_OTP_RESEND, {})
+  return await api.post(ApiEndpoints.AUTH_RESET_RESEND, { email })
 }

@@ -1,8 +1,8 @@
 export const ApiEndpoints = {
   AUTH_LOGIN: '/api/v2/auth/login',
   AUTH_FORGOT_PASSWORD: '/api/v2/auth/forgot-password',
-  AUTH_OTP_VERIFY: '/api/v2/auth/otp/verify',
-  AUTH_OTP_RESEND: '/api/v2/auth/otp/resend',
+  AUTH_RESET_VERIFY: '/api/v2/auth/forgot-password/verify',
+  AUTH_RESET_RESEND: '/api/v2/auth/forgot-password/resend',
 
   DASHBOARD_SUMMARY: '/api/v2/dashboard/summary',
 

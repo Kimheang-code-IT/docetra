@@ -88,7 +88,7 @@ Use the technology already installed in `frontend/`:
 | 19 | User menu | System Log | `/system-monitor/system-logs` | `19-system-monitor-system-log.md` |
 | 20 | Auth | Login | `/login` | `20-auth-login.md` |
 | 21 | Auth | Forget Password | `/forget-password` | `21-auth-forget-password.md` |
-| 22 | Auth | OTP Verification | `/otp` | `22-auth-otp.md` |
+| 22 | — | OTP removed (no page) | — | `22-auth-otp.md` |
 | 23 | Sidebar · Configuration | Record Type | `/configuration/record-types` | `23-configuration-record-type.md` |
 | 24 | Sidebar · Configuration | Record Attribute | `/configuration/record-attributes` | `24-configuration-record-attribute.md` |
 | 25 | Sidebar · Configuration | Document Type | `/configuration/document-types` | `25-configuration-document-type.md` |
