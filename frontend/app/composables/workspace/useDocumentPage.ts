@@ -3,24 +3,7 @@ import { getEntityAdapter } from '~/config/entities'
 import type { ActivityEvent, AttachmentMeta, EntityComment } from '~/types/docetra/common'
 import type { AppRolePermissionRow } from '~/types/docetra/entities'
 import { permissionRowsToFlatKeys } from '~/utils/role/permissions'
-
-function setByPath(obj: Record<string, unknown>, path: string, value: unknown) {
-  const keys = path.split('.')
-  let current: any = obj
-  for (let i = 0; i < keys.length - 1; i++) {
-    const key = keys[i]!
-    if (!current[key] || typeof current[key] !== 'object') current[key] = {}
-    current = current[key]
-  }
-  current[keys[keys.length - 1]!] = value
-}
-
-function getByPath(obj: Record<string, unknown>, path: string): unknown {
-  return path.split('.').reduce<unknown>((acc, key) => {
-    if (acc && typeof acc === 'object') return (acc as Record<string, unknown>)[key]
-    return undefined
-  }, obj)
-}
+import { getByPath, setByPath } from '~/utils/object-path'
 
 export function useDocumentPage(config: EntityConfig, idParam?: string) {
   const route = useRoute()

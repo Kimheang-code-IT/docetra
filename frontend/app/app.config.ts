@@ -5,6 +5,156 @@ export default defineAppConfig({
       secondary: 'navy',
       neutral: 'zinc',
     },
+
+    /**
+     * Global form control look (matches Docetra document forms):
+     * soft elevated fill, no hard ring, rounded-md.
+     * Applies to Input / Select / Textarea / InputDate / InputNumber / Checkbox / FormField.
+     */
+    formField: {
+      slots: {
+        label: 'block text-sm font-medium text-toned',
+        help: 'mt-1.5 text-xs text-muted leading-relaxed',
+        error: 'mt-1.5 text-xs text-error',
+        hint: 'text-xs text-muted',
+        description: 'text-xs text-muted',
+      },
+    },
+
+    input: {
+      variants: {
+        variant: {
+          soft: 'text-highlighted bg-elevated/70 hover:bg-elevated focus:bg-elevated disabled:bg-elevated/50 ring-0',
+        },
+      },
+      defaultVariants: {
+        size: 'md',
+        color: 'neutral',
+        variant: 'soft',
+      },
+    },
+
+    textarea: {
+      variants: {
+        variant: {
+          soft: 'text-highlighted bg-elevated/70 hover:bg-elevated focus:bg-elevated disabled:bg-elevated/50 ring-0',
+        },
+      },
+      defaultVariants: {
+        size: 'md',
+        color: 'neutral',
+        variant: 'soft',
+      },
+    },
+
+    select: {
+      variants: {
+        variant: {
+          soft: 'text-highlighted bg-elevated/70 hover:bg-elevated focus:bg-elevated disabled:bg-elevated/50 ring-0',
+        },
+      },
+      defaultVariants: {
+        size: 'md',
+        color: 'neutral',
+        variant: 'soft',
+      },
+    },
+
+    selectMenu: {
+      variants: {
+        variant: {
+          soft: 'text-highlighted bg-elevated/70 hover:bg-elevated focus:bg-elevated disabled:bg-elevated/50 ring-0',
+        },
+      },
+      defaultVariants: {
+        size: 'md',
+        color: 'neutral',
+        variant: 'soft',
+      },
+    },
+
+    inputMenu: {
+      variants: {
+        variant: {
+          soft: 'text-highlighted bg-elevated/70 hover:bg-elevated focus:bg-elevated disabled:bg-elevated/50 ring-0',
+        },
+      },
+      defaultVariants: {
+        size: 'md',
+        color: 'neutral',
+        variant: 'soft',
+      },
+    },
+
+    inputNumber: {
+      variants: {
+        variant: {
+          soft: 'text-highlighted bg-elevated/70 hover:bg-elevated focus:bg-elevated disabled:bg-elevated/50 ring-0',
+        },
+      },
+      defaultVariants: {
+        size: 'md',
+        color: 'neutral',
+        variant: 'soft',
+      },
+    },
+
+    inputDate: {
+      variants: {
+        variant: {
+          soft: 'text-highlighted bg-elevated/70 hover:bg-elevated has-focus:bg-elevated disabled:bg-elevated/50 ring-0',
+        },
+      },
+      defaultVariants: {
+        size: 'md',
+        color: 'neutral',
+        variant: 'soft',
+      },
+    },
+
+    inputTime: {
+      variants: {
+        variant: {
+          soft: 'text-highlighted bg-elevated/70 hover:bg-elevated has-focus:bg-elevated disabled:bg-elevated/50 ring-0',
+        },
+      },
+      defaultVariants: {
+        size: 'md',
+        color: 'neutral',
+        variant: 'soft',
+      },
+    },
+
+    pinInput: {
+      variants: {
+        variant: {
+          soft: 'text-highlighted bg-elevated/70 hover:bg-elevated focus:bg-elevated disabled:bg-elevated/50 ring-0',
+        },
+      },
+      defaultVariants: {
+        size: 'md',
+        color: 'neutral',
+        variant: 'soft',
+      },
+    },
+
+    /** Checked state uses inverted (near-black) fill like the document form screenshot. */
+    checkbox: {
+      defaultVariants: {
+        size: 'md',
+        color: 'neutral',
+        variant: 'list',
+        indicator: 'start',
+      },
+    },
+
+    switch: {
+      defaultVariants: {
+        size: 'md',
+        color: 'neutral',
+      },
+    },
+
     dashboardPanel: {
       slots: {
         // Keep main content inset consistent (reload + navigate)

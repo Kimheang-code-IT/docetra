@@ -16,7 +16,7 @@ export const useAuthStore = defineStore('auth', () => {
   function logout() {
     token.value = null
     user.value = null
-    return navigateTo('/login')
+    return navigateTo('/auth/login')
   }
 
   /**

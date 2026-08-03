@@ -3,6 +3,7 @@ export const ApiEndpoints = {
   AUTH_FORGOT_PASSWORD: '/api/v2/auth/forgot-password',
   AUTH_RESET_VERIFY: '/api/v2/auth/forgot-password/verify',
   AUTH_RESET_RESEND: '/api/v2/auth/forgot-password/resend',
+  AUTH_RESET_PASSWORD: '/api/v2/auth/forgot-password/reset',
 
   DASHBOARD_SUMMARY: '/api/v2/dashboard/summary',
 
@@ -27,6 +28,10 @@ export const ApiEndpoints = {
   RECORD_TYPES: '/api/v2/configuration/record-types',
   RECORD_ATTRIBUTES: '/api/v2/configuration/record-attributes',
   DOCUMENT_TYPES: '/api/v2/configuration/document-types',
+
+  APP_INFO: '/api/v2/settings/app-info',
+  APP_CONFIG: '/api/v2/settings/app-config',
+  STORAGE_PROVIDERS: '/api/v2/settings/storage',
 
   FILE_UPLOADS: '/api/v2/portal/file-uploads',
   GOOGLE_DRIVE_SYNC: '/api/v2/portal/google-drive-sync',

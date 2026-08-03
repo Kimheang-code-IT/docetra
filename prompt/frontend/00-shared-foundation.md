@@ -4,7 +4,7 @@
 
 You are implementing the Docetra v2 frontend inside the existing `frontend/` directory. First inspect the current code, package versions, layouts, components, composables, stores, middleware, i18n files, and local conventions. Preserve useful existing infrastructure and unrelated user changes.
 
-Use only the existing stack: Nuxt 4, Vue 3, TypeScript, Nuxt UI 4, Tailwind CSS 4, Pinia, Nuxt i18n, VueUse, TanStack Vue Table, TipTap (via Nuxt UI `UEditor`), Uppy, and ECharts. Do not add a new UI framework, state library, chart library, or duplicate dependency. Pin TipTap packages to one version (e.g. `3.29.2`) with `pnpm.overrides` so ProseMirror is not duplicated.
+Use only the existing stack and versions from `frontend/package.json` / `prompt/frontend/README.md` Technology baseline: Nuxt `^4.3.1`, Vue `^3.5.29`, TypeScript `^5.9.3`, Nuxt UI `^4.5.1`, Tailwind CSS `^4.2.1`, Pinia `^3.0.4`, Nuxt i18n `^10.2.3`, VueUse `^14.2.1`, TanStack Vue Table `^8.21.3`, TipTap `3.29.2` (via Nuxt UI `UEditor`), Uppy 5.x (`@uppy/vue` `^3.2.0`), ECharts `^6.0.0`, Zod `^4.3.6`. Do not add a new UI framework, state library, chart library, or duplicate dependency. Pin all TipTap packages to `3.29.2` with `pnpm.overrides` so ProseMirror is not duplicated.
 
 Build a reusable authenticated application shell matching this navigation:
 
@@ -17,7 +17,7 @@ Build a reusable authenticated application shell matching this navigation:
 - User Management: Role, User
 - Portal: File Upload, Google Drive Sync, Logs
 - Configuration: Record Type, Record Attribute, Document Type
-- Setting: App Info, App Config, Storage
+- Settings: App Info, App Config, Storage
 
 **User menu (`useUserMenu.ts`):**
 
@@ -35,6 +35,10 @@ Page titles for Record / Portal logs use plural **Logs** (`docetra.pages.recordL
 - To bump the displayed app version, update `NUXT_PUBLIC_APP_VERSION` in the environment or the default in `nuxt.config.ts`. Prefer env for deploy pipelines.
 - Keep About content light: brand, tagline, version badge, social links, copyright. Do not reintroduce framework/installed-apps dumps unless product asks for them.
 - Default i18n locale is **English** (`defaultLocale: 'en'`). Persist language only when the user explicitly chooses Khmer or English.
+
+### Form controls
+
+All `UInput`, `USelect`, `UTextarea`, `UInputDate`, `UInputNumber`, and `UCheckbox` use the soft elevated style by default (`variant: soft`, light gray fill, no hard ring). Configured globally in `frontend/app/app.config.ts`. Do not restyle individual fields unless a control needs a deliberate exception (e.g. ghost search). Use `UFormField` with `required` for the red asterisk. Checkboxes default to neutral (dark checked fill).
 
 ### Layout padding
 

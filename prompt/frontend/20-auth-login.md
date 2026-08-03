@@ -2,9 +2,9 @@
 
 ## Copy/paste prompt
 
-Implement `/login` as the focused Docetra authentication entry using the `auth` layout and Nuxt UI.
+Implement `/auth/login` as the focused Docetra authentication entry using the `auth` layout and Nuxt UI. Keep legacy `/login` as a redirect to `/auth/login`.
 
-Design a responsive branded card with email, password visibility toggle, remember-me, Forgot Password link, submit loading state, validation, and accessible error summary. Keep keyboard focus correct and prevent duplicate submission.
+Design a responsive branded form with email, password, remember-me, Forgot Password link (`/auth/forget-password`), submit loading state, validation, and accessible errors. Keep keyboard focus correct and prevent duplicate submission.
 
 On success, store the session and redirect to `/` (or the first permitted route). **Do not add an OTP / 2FA step after login.** Keep the mock adapter isolated.
 

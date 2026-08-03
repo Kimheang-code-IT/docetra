@@ -16,7 +16,16 @@ const emit = defineEmits<{
 const wideForm = computed(() =>
   props.tabs.some(tab =>
     tab.sections.some(section =>
-      section.fields.some(field => field.type === 'permission-matrix'),
+      section.fields.some(field =>
+        field.type === 'permission-matrix'
+        || field.type === 'telegram-destinations'
+        || field.type === 'notification-rules'
+        || field.type === 'assigned-attributes'
+        || field.type === 'workflow-builder'
+        || field.type === 'validation-builder'
+        || field.type === 'options-builder'
+        || field.type === 'visibility-builder',
+      ),
     ),
   ),
 )
@@ -76,6 +85,16 @@ const wideForm = computed(() =>
                   field.colSpan === 2
                     || field.type === 'textarea'
                     || field.type === 'permission-matrix'
+                    || field.type === 'telegram-destinations'
+                    || field.type === 'notification-rules'
+                    || field.type === 'connection-status'
+                    || field.type === 'alert'
+                    || field.type === 'assigned-attributes'
+                    || field.type === 'workflow-builder'
+                    || field.type === 'numbering-preview'
+                    || field.type === 'validation-builder'
+                    || field.type === 'options-builder'
+                    || field.type === 'visibility-builder'
                     ? 'md:col-span-2'
                     : '',
                 ]"

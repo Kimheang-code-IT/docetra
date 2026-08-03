@@ -1,14 +1,13 @@
 <script setup lang="ts">
-import { getEntityConfig } from '~/config/entities'
-
-const config = getEntityConfig('documentTypes')
-
 definePageMeta({
   titleKey: 'docetra.pages.documentType',
   permission: 'configuration.document_types.view',
 })
+
+const route = useRoute()
+const id = computed(() => String(route.params.id || ''))
 </script>
 
 <template>
-  <DocumentEntityDocumentView :config="config" />
+  <ConfigurationAppDocumentTypeEditor :document-type-id="id" />
 </template>

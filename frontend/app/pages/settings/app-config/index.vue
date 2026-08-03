@@ -1,13 +1,203 @@
 <script setup lang="ts">
+import type { AppConfig } from '~/types/docetra/settings'
+import type { ConnectionStatusFieldValue } from '~/types/docetra/common'
+import { appConfigTabs } from '~/config/settings-schemas'
+import { useSettingsRepositories } from '~/repositories'
+import { useAppHeader } from '~/composables/layout/useAppHeader'
+import { getByPath, setByPath } from '~/utils/object-path'
+
 definePageMeta({
   titleKey: 'docetra.pages.appConfig',
 })
+
+const { appConfig } = useSettingsRepositories()
+const { t } = useI18n()
+const toast = useToast()
+const { setTitle, clear } = useAppHeader()
+
+const pending = ref(true)
+const saving = ref(false)
+const testingEmail = ref(false)
+const testingTelegram = ref(false)
+const dirty = ref(false)
+const confirmModeOpen = ref(false)
+const pendingMode = ref<'maintenance' | 'readOnly' | null>(null)
+const activeTab = ref('general')
+const model = ref<AppConfig | null>(null)
+
+async function load() {
+  pending.value = true
+  try {
+    model.value = await appConfig.get()
+    dirty.value = false
+  }
+  catch (e: any) {
+    toast.add({ title: e?.message || t('docetra.common.loadFailed'), color: 'error' })
+  }
+  finally {
+    pending.value = false
+  }
+}
+
+watch(model, () => { if (model.value) dirty.value = true }, { deep: true })
+
+function fieldValue(key: string): unknown {
+  if (!model.value) return undefined
+
+  if (key === '__emailConnection') {
+    const value: ConnectionStatusFieldValue = {
+      status: model.value.email.connectionStatus,
+      message: model.value.email.lastTestMessage,
+      lastTestedAt: model.value.email.lastTestedAt,
+    }
+    return value
+  }
+
+  if (key === '__telegramConnection') {
+    const value: ConnectionStatusFieldValue = {
+      status: model.value.telegram.connectionStatus,
+      message: model.value.telegram.lastTestMessage,
+      lastTestedAt: model.value.telegram.lastTestedAt,
+      details: model.value.telegram.botUsername
+        ? [{ label: t('docetra.settings.botUsername'), value: model.value.telegram.botUsername }]
+        : [],
+    }
+    return value
+  }
+
+  if (key === '__securityAlert') return null
+
+  return getByPath(model.value, key)
+}
+
+function setFieldValue(key: string, value: unknown) {
+  if (!model.value) return
+
+  if (key === '__emailConnection' || key === '__telegramConnection' || key === '__securityAlert') {
+    return
+  }
+
+  if (key === 'system.maintenanceMode' || key === 'system.readOnlyMode') {
+    const kind = key === 'system.maintenanceMode' ? 'maintenance' : 'readOnly'
+    if (value === true) {
+      pendingMode.value = kind
+      confirmModeOpen.value = true
+      return
+    }
+    setByPath(model.value as any, key, false)
+    return
+  }
+
+  setByPath(model.value as any, key, value)
+}
+
+async function save() {
+  if (!model.value) return
+  saving.value = true
+  try {
+    model.value = await appConfig.update(model.value)
+    toast.add({ title: t('docetra.common.saved'), color: 'success' })
+    dirty.value = false
+  }
+  catch (e: any) {
+    toast.add({ title: e?.message || t('docetra.common.saveFailed'), color: 'error' })
+  }
+  finally {
+    saving.value = false
+  }
+}
+
+async function testEmail() {
+  testingEmail.value = true
+  try {
+    if (model.value) await appConfig.update({ email: model.value.email })
+    const result = await appConfig.testEmailConnection()
+    model.value = await appConfig.get()
+    toast.add({
+      title: result.message,
+      color: result.status === 'connected' ? 'success' : 'error',
+    })
+  }
+  finally {
+    testingEmail.value = false
+  }
+}
+
+async function testTelegram() {
+  testingTelegram.value = true
+  try {
+    if (model.value) await appConfig.update({ telegram: model.value.telegram })
+    const result = await appConfig.testTelegramConnection()
+    model.value = await appConfig.get()
+    toast.add({
+      title: result.message,
+      color: result.status === 'connected' ? 'success' : 'error',
+    })
+  }
+  finally {
+    testingTelegram.value = false
+  }
+}
+
+function confirmMode() {
+  if (!model.value || !pendingMode.value) {
+    confirmModeOpen.value = false
+    return
+  }
+  if (pendingMode.value === 'maintenance') model.value.system.maintenanceMode = true
+  else model.value.system.readOnlyMode = true
+  pendingMode.value = null
+  confirmModeOpen.value = false
+}
+
+function cancelMode() {
+  pendingMode.value = null
+  confirmModeOpen.value = false
+}
+
+onMounted(() => {
+  setTitle(t('docetra.pages.appConfig'))
+  void load()
+})
+onBeforeUnmount(clear)
+
+useHead(() => ({ title: `${t('docetra.pages.appConfig')} · ${t('docetra.brand.name')}` }))
 </script>
 
 <template>
-  <SettingsAppSettingsPlaceholder
-    title-key="docetra.pages.appConfig"
-    description-key="docetra.descriptions.appConfig"
-    icon="i-lucide-settings-2"
+  <DocumentAppDocumentPage
+    :tabs="appConfigTabs"
+    v-model:active-tab="activeTab"
+    :field-value="fieldValue"
+    :set-field-value="setFieldValue"
+    :pending="pending || !model"
+    :saving="saving"
+    :show-comments="false"
+    :show-meta-rail="false"
+    :show-list-nav="false"
+    @save="save"
+    @refresh="load"
+  >
+    <template #actions>
+      <CommonAppConnectionTestButton
+        v-if="activeTab === 'email'"
+        :loading="testingEmail"
+        @click="testEmail"
+      />
+      <CommonAppConnectionTestButton
+        v-if="activeTab === 'telegram'"
+        :loading="testingTelegram"
+        @click="testTelegram"
+      />
+    </template>
+  </DocumentAppDocumentPage>
+
+  <CommonAppConfirmDialog
+    v-model:open="confirmModeOpen"
+    :title="t('docetra.settings.confirmModeTitle')"
+    :description="t('docetra.settings.confirmModeHelp')"
+    confirm-color="warning"
+    @confirm="confirmMode"
+    @cancel="cancelMode"
   />
 </template>

@@ -1,0 +1,171 @@
+<script setup lang="ts">
+import {
+  resendPasswordResetCode,
+  verifyPasswordResetCode,
+} from '~/adapters/auth'
+import {
+  getPasswordResetSession,
+  markPasswordResetVerified,
+  MOCK_RESET_CODE,
+} from '~/utils/auth/password-reset'
+
+definePageMeta({
+  layout: 'auth',
+})
+
+const { t } = useI18n()
+const router = useRouter()
+const toast = useToast()
+const config = useRuntimeConfig()
+
+const verifying = ref(false)
+const resending = ref(false)
+const code = ref<string[]>(['', '', '', '', '', ''])
+const session = ref(getPasswordResetSession())
+
+const useMock = computed(() => config.public.useMockData !== false)
+
+useSeoMeta({
+  title: () => t('pages.forgetPassword.verifyTitle'),
+  description: () => t('pages.forgetPassword.verifyDesc'),
+})
+
+onMounted(() => {
+  session.value = getPasswordResetSession()
+  if (!session.value?.email) {
+    void router.replace('/auth/forget-password')
+  }
+})
+
+const codeComplete = computed(() =>
+  code.value.every(digit => digit && digit.length === 1),
+)
+
+const codeValue = computed(() => code.value.join(''))
+
+async function onVerifyCode() {
+  if (!codeComplete.value || verifying.value || !session.value?.email) return
+  verifying.value = true
+  try {
+    await verifyPasswordResetCode(session.value.email, codeValue.value)
+    markPasswordResetVerified(codeValue.value)
+    toast.add({
+      title: t('pages.forgetPassword.codeVerified'),
+      description: t('pages.forgetPassword.codeVerifiedDesc'),
+      color: 'success',
+    })
+    await router.push('/auth/reset-password')
+  }
+  catch {
+    toast.add({
+      title: t('pages.forgetPassword.codeInvalid'),
+      description: t('pages.forgetPassword.codeInvalidDesc'),
+      color: 'error',
+    })
+  }
+  finally {
+    verifying.value = false
+  }
+}
+
+async function onResendCode() {
+  if (resending.value || !session.value?.email) return
+  resending.value = true
+  try {
+    await resendPasswordResetCode(session.value.email)
+    code.value = ['', '', '', '', '', '']
+    toast.add({
+      title: t('pages.forgetPassword.codeResent'),
+      color: 'success',
+    })
+  }
+  catch {
+    toast.add({
+      title: t('pages.forgetPassword.codeResendFailed'),
+      color: 'error',
+    })
+  }
+  finally {
+    resending.value = false
+  }
+}
+</script>
+
+<template>
+  <div class="flex w-full flex-col items-center justify-center">
+    <div class="mb-6 flex flex-col items-center gap-3">
+      <img src="/assets/images/logo.png" alt="Logo" class="h-20 w-auto rounded-full shadow">
+      <h2 class="text-center text-2xl font-normal">
+        {{ t('pages.forgetPassword.verifyTitle') }}
+      </h2>
+      <p class="text-center text-sm text-muted">
+        {{ t('pages.forgetPassword.sentDesc', { email: session?.email || '…' }) }}
+      </p>
+      <p v-if="useMock" class="text-center text-xs text-muted">
+        {{ t('pages.forgetPassword.mockCodeHint', { code: MOCK_RESET_CODE }) }}
+      </p>
+    </div>
+
+    <form class="flex w-full flex-col items-center gap-5" @submit.prevent="onVerifyCode">
+      <UPinInput
+        v-model="code"
+        :length="6"
+        size="xl"
+        placeholder="○"
+        autofocus
+        otp
+        required
+        :aria-label="t('pages.forgetPassword.enterCode')"
+      />
+
+      <div class="flex items-center justify-center gap-1">
+        <span class="text-sm text-muted">{{ t('pages.forgetPassword.didntGetCode') }}</span>
+        <UButton
+          variant="link"
+          size="sm"
+          class="underline"
+          :loading="resending"
+          :disabled="resending"
+          @click="onResendCode"
+        >
+          {{ t('pages.forgetPassword.resendCode') }}
+        </UButton>
+      </div>
+
+      <UButton
+        type="submit"
+        color="primary"
+        size="lg"
+        class="h-10 w-full justify-center text-base font-normal"
+        :loading="verifying"
+        :disabled="!codeComplete || verifying"
+      >
+        {{ t('pages.forgetPassword.verifyCode') }}
+      </UButton>
+    </form>
+
+    <div class="mt-4 flex w-full flex-col gap-2">
+      <UButton
+        variant="link"
+        size="sm"
+        class="w-full justify-center text-muted-foreground underline"
+        to="/auth/forget-password"
+      >
+        {{ t('pages.forgetPassword.changeEmail') }}
+      </UButton>
+      <UButton
+        variant="link"
+        size="sm"
+        class="w-full justify-center text-muted-foreground underline"
+        to="/auth/login"
+      >
+        <UIcon name="i-lucide-arrow-left" class="mr-1" />
+        {{ t('pages.forgetPassword.backToLogin') }}
+      </UButton>
+    </div>
+
+    <div class="mt-4 text-center">
+      <span class="text-sm font-normal text-muted">{{ $t('settings.aboutCopyright') }}</span>
+    </div>
+  </div>
+</template>

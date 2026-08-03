@@ -1,5 +1,22 @@
 <script setup lang="ts">
-import type { DocumentFieldSchema } from '~/types/docetra/common'
+import type {
+  ConnectionStatusFieldValue,
+  DocumentFieldSchema,
+} from '~/types/docetra/common'
+import type {
+  AttributeDataType,
+  AttributeOption,
+  ConfigWorkflowStage,
+  RecordAttribute,
+  RecordTypeAttribute,
+  RecordTypeNumbering,
+  ValidationRule,
+  VisibilityRule,
+  WorkflowTransition,
+} from '~/types/docetra/configuration'
+import type { ConnectionStatus, NotificationRule, TelegramDestination } from '~/types/docetra/settings'
+import { TELEGRAM_TEMPLATE_VARIABLES } from '~/types/docetra/settings'
+import { createId } from '~/mocks/query'
 
 const props = defineProps<{
   field: DocumentFieldSchema
@@ -15,9 +32,12 @@ const { t, te } = useI18n()
 
 const hintOpen = ref(false)
 
-const inputUi = {
-  base: 'bg-elevated/70 ring-0 rounded-md focus-visible:ring-2 focus-visible:ring-primary/25',
-}
+const destinationTypeItems = [
+  { label: 'Chat', value: 'chat' },
+  { label: 'Channel', value: 'channel' },
+  { label: 'Group', value: 'group' },
+  { label: 'Organization', value: 'organization' },
+]
 
 const stringValue = computed({
   get: () => String(props.modelValue ?? ''),
@@ -54,6 +74,58 @@ const permissionRows = computed({
   set: (v: any[]) => emit('update:modelValue', v),
 })
 
+const csvValue = computed({
+  get: () => Array.isArray(props.modelValue)
+    ? (props.modelValue as unknown[]).map(String).join(', ')
+    : String(props.modelValue ?? ''),
+  set: (v: string) => {
+    emit(
+      'update:modelValue',
+      String(v || '')
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean),
+    )
+  },
+})
+
+const imageValue = computed({
+  get: () => (props.modelValue == null || props.modelValue === ''
+    ? undefined
+    : String(props.modelValue)),
+  set: (v: string | undefined) => emit('update:modelValue', v),
+})
+
+const colorValue = computed({
+  get: () => String(props.modelValue || '#2563eb'),
+  set: (v: string) => emit('update:modelValue', v),
+})
+
+const secretValue = computed({
+  get: () => String(props.modelValue ?? ''),
+  set: (v: string) => emit('update:modelValue', v),
+})
+
+const destinationsValue = computed({
+  get: () => (Array.isArray(props.modelValue) ? props.modelValue as TelegramDestination[] : []),
+  set: (v: TelegramDestination[]) => emit('update:modelValue', v),
+})
+
+const rulesValue = computed({
+  get: () => (Array.isArray(props.modelValue) ? props.modelValue as NotificationRule[] : []),
+  set: (v: NotificationRule[]) => emit('update:modelValue', v),
+})
+
+const connectionValue = computed(() => {
+  const raw = props.modelValue as ConnectionStatusFieldValue | null | undefined
+  return {
+    status: (raw?.status || 'not_tested') as ConnectionStatus,
+    message: raw?.message,
+    lastTestedAt: raw?.lastTestedAt,
+    details: raw?.details,
+  }
+})
+
 const selectItems = computed(() =>
   (props.field.options || [])
     .filter(o => o.value !== '')
@@ -85,6 +157,152 @@ const placeholderText = computed(() => {
 
 const isBoolean = computed(() => props.field.type === 'boolean')
 const isPermissionMatrix = computed(() => props.field.type === 'permission-matrix')
+const isSecret = computed(() => props.field.type === 'secret')
+const isColor = computed(() => props.field.type === 'color')
+const isImage = computed(() => props.field.type === 'image')
+const isIcon = computed(() => props.field.type === 'icon')
+const isTelegramDestinations = computed(() => props.field.type === 'telegram-destinations')
+const isNotificationRules = computed(() => props.field.type === 'notification-rules')
+const isConnectionStatus = computed(() => props.field.type === 'connection-status')
+const isAlert = computed(() => props.field.type === 'alert')
+const isAssignedAttributes = computed(() => props.field.type === 'assigned-attributes')
+const isWorkflowBuilder = computed(() => props.field.type === 'workflow-builder')
+const isNumberingPreview = computed(() => props.field.type === 'numbering-preview')
+const isValidationBuilder = computed(() => props.field.type === 'validation-builder')
+const isOptionsBuilder = computed(() => props.field.type === 'options-builder')
+const isVisibilityBuilder = computed(() => props.field.type === 'visibility-builder')
+
+const iconValue = computed({
+  get: () => String(props.modelValue ?? ''),
+  set: (v: string) => emit('update:modelValue', v),
+})
+
+const assignedAttributes = computed({
+  get: () => (Array.isArray(props.modelValue) ? props.modelValue as RecordTypeAttribute[] : []),
+  set: (v: RecordTypeAttribute[]) => emit('update:modelValue', v),
+})
+
+const attributeCatalog = computed(() =>
+  (Array.isArray(props.field.meta?.catalog) ? props.field.meta!.catalog as RecordAttribute[] : []),
+)
+
+const selectedAttributeId = ref<string>()
+
+const workflowValue = computed({
+  get: () => {
+    const raw = props.modelValue as { stages?: ConfigWorkflowStage[], transitions?: WorkflowTransition[] } | null
+    return {
+      stages: raw?.stages || [],
+      transitions: raw?.transitions || [],
+    }
+  },
+  set: (v: { stages: ConfigWorkflowStage[], transitions: WorkflowTransition[] }) => emit('update:modelValue', v),
+})
+
+const workflowStages = computed({
+  get: () => workflowValue.value.stages,
+  set: (stages: ConfigWorkflowStage[]) => {
+    workflowValue.value = { ...workflowValue.value, stages }
+  },
+})
+
+const workflowTransitions = computed({
+  get: () => workflowValue.value.transitions,
+  set: (transitions: WorkflowTransition[]) => {
+    workflowValue.value = { ...workflowValue.value, transitions }
+  },
+})
+
+const numberingPreview = computed(() =>
+  (props.modelValue && typeof props.modelValue === 'object'
+    ? props.modelValue as RecordTypeNumbering
+    : { prefix: 'DOC', sequenceLength: 4, includeYear: true, resetYearly: true }),
+)
+
+const validationValue = computed({
+  get: () => (props.modelValue && typeof props.modelValue === 'object' ? props.modelValue as ValidationRule : {}),
+  set: (v: ValidationRule) => emit('update:modelValue', v),
+})
+
+const validationDataType = computed(() =>
+  (props.field.meta?.dataType as AttributeDataType) || 'short_text',
+)
+
+const optionsBuilderValue = computed({
+  get: () => (Array.isArray(props.modelValue) ? props.modelValue as AttributeOption[] : []),
+  set: (v: AttributeOption[]) => emit('update:modelValue', v),
+})
+
+const visibilityValue = computed({
+  get: () => (props.modelValue == null ? null : props.modelValue as VisibilityRule),
+  set: (v: VisibilityRule | null) => emit('update:modelValue', v),
+})
+
+const visibilityFieldOptions = computed(() =>
+  (props.field.options || []).map(o => ({
+    label: o.labelKey ? t(o.labelKey) : o.label,
+    value: o.value,
+  })),
+)
+
+function addAssignedAttribute() {
+  const id = selectedAttributeId.value
+  if (!id) return
+  const attr = attributeCatalog.value.find(a => a.id === id)
+  if (!attr) return
+  const row: RecordTypeAttribute = {
+    attributeId: attr.id,
+    attributeCode: attr.code,
+    attributeLabel: attr.label,
+    dataType: attr.dataType,
+    required: attr.required,
+    readOnly: attr.readOnly,
+    visible: true,
+    searchable: attr.searchable,
+    filterable: attr.filterable,
+    showInList: attr.showInList,
+    section: 'General',
+    order: assignedAttributes.value.length,
+  }
+  assignedAttributes.value = [...assignedAttributes.value, row]
+  selectedAttributeId.value = undefined
+}
+
+function updateAssigned(id: string, patch: Partial<RecordTypeAttribute>) {
+  assignedAttributes.value = assignedAttributes.value.map(a =>
+    a.attributeId === id ? { ...a, ...patch } : a,
+  )
+}
+
+function removeAssigned(id: string) {
+  assignedAttributes.value = assignedAttributes.value
+    .filter(a => a.attributeId !== id)
+    .map((a, index) => ({ ...a, order: index }))
+}
+
+function onReorderAssigned(items: Array<RecordTypeAttribute & { id: string }>) {
+  assignedAttributes.value = items.map((a, index) => ({
+    attributeId: a.attributeId,
+    attributeCode: a.attributeCode,
+    attributeLabel: a.attributeLabel,
+    dataType: a.dataType,
+    required: a.required,
+    readOnly: a.readOnly,
+    visible: a.visible,
+    searchable: a.searchable,
+    filterable: a.filterable,
+    showInList: a.showInList,
+    section: a.section,
+    order: index,
+  }))
+}
+
+const textareaHelp = computed(() => {
+  if (props.field.key === 'telegram.messageTemplate') {
+    return TELEGRAM_TEMPLATE_VARIABLES.join(' ')
+  }
+  return helpText.value || undefined
+})
 
 function toggleHint() {
   hintOpen.value = !hintOpen.value
@@ -97,6 +315,23 @@ function closeHint() {
 watch(() => props.field.key, () => {
   hintOpen.value = false
 })
+
+function addDestination() {
+  const next: TelegramDestination = {
+    id: createId('td'),
+    name: 'New destination',
+    type: 'chat',
+    chatId: '',
+    enabledEvents: ['record_created'],
+    status: 'not_tested',
+    enabled: true,
+  }
+  destinationsValue.value = [...destinationsValue.value, next]
+}
+
+function removeDestination(id: string) {
+  destinationsValue.value = destinationsValue.value.filter(d => d.id !== id)
+}
 </script>
 
 <template>
@@ -106,11 +341,263 @@ watch(() => props.field.key, () => {
     :disabled="disabled || field.readOnly"
   />
 
+  <UAlert
+    v-else-if="isAlert"
+    class="md:col-span-2"
+    :color="field.alertColor || 'warning'"
+    variant="subtle"
+    :title="labelText"
+    :description="helpText || undefined"
+  />
+
+  <CommonAppSecretInput
+    v-else-if="isSecret"
+    v-model="secretValue"
+    :label="labelText"
+    :help="helpText || undefined"
+    :disabled="disabled || field.readOnly"
+  />
+
+  <CommonAppColorPicker
+    v-else-if="isColor"
+    v-model="colorValue"
+    :label="labelText"
+    :disabled="disabled || field.readOnly"
+  />
+
+  <CommonAppImageUploadField
+    v-else-if="isImage"
+    v-model="imageValue"
+    :label="labelText"
+    :help="helpText || undefined"
+    :disabled="disabled || field.readOnly"
+  />
+
+  <CommonAppIconPicker
+    v-else-if="isIcon"
+    v-model="iconValue"
+    :label="labelText"
+    :disabled="disabled || field.readOnly"
+  />
+
+  <ConfigurationAppNumberingPreview
+    v-else-if="isNumberingPreview"
+    class="md:col-span-2"
+    :numbering="numberingPreview"
+  />
+
+  <ConfigurationAppValidationRuleBuilder
+    v-else-if="isValidationBuilder"
+    v-model="validationValue"
+    class="md:col-span-2"
+    :data-type="validationDataType"
+  />
+
+  <ConfigurationAppAttributeOptionsBuilder
+    v-else-if="isOptionsBuilder"
+    v-model="optionsBuilderValue"
+    class="md:col-span-2"
+  />
+
+  <ConfigurationAppVisibilityRuleBuilder
+    v-else-if="isVisibilityBuilder"
+    v-model="visibilityValue"
+    class="md:col-span-2"
+    :field-options="visibilityFieldOptions"
+  />
+
+  <div v-else-if="isWorkflowBuilder" class="md:col-span-2">
+    <ConfigurationAppWorkflowStageBuilder
+      v-model:stages="workflowStages"
+      v-model:transitions="workflowTransitions"
+    />
+  </div>
+
+  <div
+    v-else-if="isAssignedAttributes"
+    class="space-y-4 md:col-span-2"
+  >
+    <div class="flex flex-wrap items-end gap-2">
+      <UFormField :label="t('docetra.config.assignAttribute')" class="min-w-64 flex-1">
+        <USelect
+          v-model="selectedAttributeId"
+          :items="selectItems"
+          value-key="value"
+          class="w-full"
+          :disabled="disabled || field.readOnly"
+        />
+      </UFormField>
+      <UButton
+        icon="i-lucide-plus"
+        :disabled="!selectedAttributeId || disabled || field.readOnly"
+        @click="addAssignedAttribute"
+      >
+        {{ t('docetra.config.addAttribute') }}
+      </UButton>
+    </div>
+
+    <CommonAppSortableList
+      :items="assignedAttributes.map(a => ({ ...a, id: a.attributeId }))"
+      @reorder="onReorderAssigned($event as any)"
+    >
+      <template #default="{ item }">
+        <div class="space-y-2">
+          <div class="flex items-center justify-between gap-2">
+            <div>
+              <p class="text-sm font-medium">
+                {{ item.attributeLabel }}
+              </p>
+              <p class="text-xs text-muted">
+                {{ item.attributeCode }} · {{ item.dataType }}
+              </p>
+            </div>
+            <UButton
+              icon="i-lucide-trash-2"
+              color="error"
+              variant="ghost"
+              size="xs"
+              :disabled="disabled || field.readOnly"
+              @click="removeAssigned(item.attributeId)"
+            />
+          </div>
+          <div class="grid gap-2 sm:grid-cols-3">
+            <UCheckbox
+              :model-value="item.required"
+              :label="t('docetra.fields.required')"
+              :disabled="disabled || field.readOnly"
+              @update:model-value="updateAssigned(item.attributeId, { required: Boolean($event) })"
+            />
+            <UCheckbox
+              :model-value="item.readOnly"
+              :label="t('docetra.config.readOnly')"
+              :disabled="disabled || field.readOnly"
+              @update:model-value="updateAssigned(item.attributeId, { readOnly: Boolean($event) })"
+            />
+            <UCheckbox
+              :model-value="item.visible"
+              :label="t('docetra.config.visible')"
+              :disabled="disabled || field.readOnly"
+              @update:model-value="updateAssigned(item.attributeId, { visible: Boolean($event) })"
+            />
+            <UCheckbox
+              :model-value="item.searchable"
+              :label="t('docetra.config.searchable')"
+              :disabled="disabled || field.readOnly"
+              @update:model-value="updateAssigned(item.attributeId, { searchable: Boolean($event) })"
+            />
+            <UCheckbox
+              :model-value="item.filterable"
+              :label="t('docetra.config.filterable')"
+              :disabled="disabled || field.readOnly"
+              @update:model-value="updateAssigned(item.attributeId, { filterable: Boolean($event) })"
+            />
+            <UCheckbox
+              :model-value="item.showInList"
+              :label="t('docetra.config.showInList')"
+              :disabled="disabled || field.readOnly"
+              @update:model-value="updateAssigned(item.attributeId, { showInList: Boolean($event) })"
+            />
+          </div>
+          <UInput
+            :model-value="item.section || ''"
+            size="sm"
+            :placeholder="t('docetra.config.section')"
+            :disabled="disabled || field.readOnly"
+            @update:model-value="updateAssigned(item.attributeId, { section: String($event) })"
+          />
+        </div>
+      </template>
+      <template #empty>
+        {{ t('docetra.config.noAssignedAttributes') }}
+      </template>
+    </CommonAppSortableList>
+  </div>
+
+  <div
+    v-else-if="isTelegramDestinations"
+    class="space-y-3 md:col-span-2"
+  >
+    <div class="flex items-center justify-between">
+      <h4 class="text-sm font-semibold">
+        {{ t('docetra.settings.destinations') }}
+      </h4>
+      <UButton
+        size="sm"
+        icon="i-lucide-plus"
+        :disabled="disabled || field.readOnly"
+        @click="addDestination"
+      >
+        {{ t('docetra.settings.addDestination') }}
+      </UButton>
+    </div>
+
+    <div
+      v-for="dest in destinationsValue"
+      :key="dest.id"
+      class="grid gap-2 rounded-lg border border-default p-3 md:grid-cols-4"
+    >
+      <UInput
+        v-model="dest.name"
+        :placeholder="t('docetra.fields.name')"
+        :disabled="disabled || field.readOnly"
+      />
+      <UInput
+        v-model="dest.chatId"
+        placeholder="Chat ID"
+        :disabled="disabled || field.readOnly"
+      />
+      <USelect
+        v-model="dest.type"
+        :items="destinationTypeItems"
+        value-key="value"
+        label-key="label"
+        :disabled="disabled || field.readOnly"
+      />
+      <div class="flex items-center justify-between gap-2">
+        <USwitch v-model="dest.enabled" :disabled="disabled || field.readOnly" />
+        <UButton
+          icon="i-lucide-trash-2"
+          color="error"
+          variant="ghost"
+          size="xs"
+          :disabled="disabled || field.readOnly"
+          @click="removeDestination(dest.id)"
+        />
+      </div>
+    </div>
+  </div>
+
+  <div
+    v-else-if="isNotificationRules"
+    class="space-y-2 md:col-span-2"
+  >
+    <p class="text-sm font-medium">
+      {{ t('docetra.settings.eventRules') }}
+    </p>
+    <div
+      v-for="rule in rulesValue"
+      :key="rule.id"
+      class="flex items-center justify-between rounded-md border border-default px-3 py-2"
+    >
+      <span class="text-sm">{{ rule.event }}</span>
+      <USwitch v-model="rule.enabled" :disabled="disabled || field.readOnly" />
+    </div>
+  </div>
+
+  <CommonAppConnectionStatusCard
+    v-else-if="isConnectionStatus"
+    class="md:col-span-2"
+    :status="connectionValue.status"
+    :title="labelText"
+    :message="connectionValue.message"
+    :last-tested-at="connectionValue.lastTestedAt"
+    :details="connectionValue.details"
+  />
+
   <!-- Checkbox: label beside control + optional info hint -->
   <div v-else-if="isBoolean" class="flex min-h-9 flex-wrap items-center gap-2 pt-1">
     <UCheckbox
       v-model="boolValue"
-      color="neutral"
       :disabled="disabled || field.readOnly"
       :required="field.required"
       :ui="{ label: 'text-sm text-highlighted' }"
@@ -155,11 +642,7 @@ watch(() => props.field.key, () => {
     v-else
     :label="labelText"
     :required="field.required"
-    :help="helpText || undefined"
-    :ui="{
-      label: 'text-sm font-medium text-toned',
-      help: 'text-xs text-muted leading-relaxed mt-1.5',
-    }"
+    :help="field.type === 'textarea' ? textareaHelp : (helpText || undefined)"
   >
     <div class="flex items-start gap-1.5">
       <div class="min-w-0 flex-1">
@@ -168,16 +651,15 @@ watch(() => props.field.key, () => {
           v-model="stringValue"
           :disabled="disabled || field.readOnly"
           :placeholder="placeholderText"
-          :rows="4"
+          :rows="field.rows || 4"
           class="w-full"
-          :ui="inputUi"
+          :class="field.key === 'telegram.messageTemplate' ? 'font-mono text-sm' : ''"
         />
         <UInputNumber
           v-else-if="field.type === 'number'"
           v-model="numberValue"
           :disabled="disabled || field.readOnly"
           class="w-full"
-          :ui="inputUi"
         />
         <CommonAppInputDate
           v-else-if="field.type === 'date'"
@@ -202,7 +684,6 @@ watch(() => props.field.key, () => {
           :placeholder="placeholderText"
           :disabled="disabled || field.readOnly"
           class="w-full"
-          :ui="inputUi"
         />
         <USelect
           v-else-if="field.type === 'multiselect'"
@@ -213,7 +694,13 @@ watch(() => props.field.key, () => {
           :placeholder="placeholderText"
           :disabled="disabled || field.readOnly"
           class="w-full"
-          :ui="inputUi"
+        />
+        <UInput
+          v-else-if="field.type === 'csv-list'"
+          v-model="csvValue"
+          :placeholder="placeholderText"
+          :disabled="disabled || field.readOnly"
+          class="w-full"
         />
         <UInput
           v-else
@@ -222,7 +709,6 @@ watch(() => props.field.key, () => {
           :placeholder="placeholderText"
           :disabled="disabled || field.readOnly"
           class="w-full"
-          :ui="inputUi"
         />
       </div>
 

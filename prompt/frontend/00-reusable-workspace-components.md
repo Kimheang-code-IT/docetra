@@ -2,7 +2,7 @@
 
 ## Copy/paste prompt
 
-Build the shared Docetra workspace and ERP-style document-page component system in the existing Nuxt 4, Vue 3, TypeScript, Nuxt UI 4, Pinia, i18n, VueUse, and TanStack Vue Table application. Inspect and reuse compatible components already present in `frontend/app/components`.
+Build the shared Docetra workspace and ERP-style document-page component system in the existing stack (Nuxt `^4.3.1`, Vue `^3.5.29`, TypeScript `^5.9.3`, Nuxt UI `^4.5.1`, Pinia `^3.0.4`, i18n `^10.2.3`, VueUse `^14.2.1`, TanStack Vue Table `^8.21.3` — see `prompt/frontend/README.md` Technology baseline). Inspect and reuse compatible components already present in `frontend/app/components`.
 
 Use Nuxt UI primitives for the complete interface. Do not add another UI framework and do not copy ERPNext code or branding. Components must be typed, accessible, responsive, permission-aware, and API-agnostic.
 

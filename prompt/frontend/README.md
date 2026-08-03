@@ -17,19 +17,31 @@ Build the complete Docetra operational UI from a reusable workspace system:
 
 ## Technology baseline
 
-Use the technology already installed in `frontend/`:
+Use the technology already installed in `frontend/package.json` (do not invent newer majors). Keep versions aligned with that file when bumping deps.
 
-- Nuxt 4 and Vue 3
-- TypeScript with `<script setup lang="ts">`
-- Nuxt UI 4 (including `UEditor` / TipTap)
-- Tailwind CSS 4
-- Pinia
-- Nuxt i18n (default locale: English)
-- VueUse
-- TanStack Vue Table
-- TipTap 3.29.x (pinned via `pnpm.overrides`; keep a single `@tiptap/pm`)
-- Uppy (`@uppy/core`, `@uppy/dashboard`, `@uppy/vue`, `@uppy/xhr-upload`)
-- ECharts for dashboard visualizations
+| Package | Version |
+| --- | --- |
+| `nuxt` | `^4.3.1` |
+| `vue` | `^3.5.29` |
+| `typescript` | `^5.9.3` |
+| `vue-tsc` | `^3.2.5` |
+| `@nuxt/ui` | `^4.5.1` (includes `UEditor`) |
+| `tailwindcss` | `^4.2.1` |
+| `pinia` / `@pinia/nuxt` | `^3.0.4` / `^0.11.3` |
+| `@nuxtjs/i18n` | `^10.2.3` (default locale: English) |
+| `@vueuse/core` / `@vueuse/nuxt` | `^14.2.1` |
+| `@tanstack/vue-table` | `^8.21.3` |
+| TipTap (`@tiptap/*`) | `3.29.2` exact — pin all via `pnpm.overrides`; single `@tiptap/pm` |
+| `@uppy/core` / `@uppy/dashboard` / `@uppy/xhr-upload` | `^5.2.0` / `^5.1.1` / `^5.2.0` |
+| `@uppy/vue` | `^3.2.0` |
+| `echarts` / `vue-echarts` | `^6.0.0` / `^8.0.1` |
+| `zod` | `^4.3.6` |
+| `@nuxt/image` | `^2.0.0` |
+| `@internationalized/date` | `^3.12.0` |
+| `@nuxt/fonts` | `^0.14.0` |
+| Package manager | `pnpm@10.30.3` |
+
+Use `<script setup lang="ts">`. Do not add a second UI kit, state library, chart library, or duplicate TipTap/ProseMirror tree.
 
 ### App version
 
@@ -51,7 +63,7 @@ Use the technology already installed in `frontend/`:
 
 ### Navigation notes
 
-- Sidebar: Dashboard, Meeting, Record, Organization, User Management, Portal, Configuration, Setting.
+- Sidebar: Dashboard, Meeting, Record, Organization, User Management, Portal, Configuration, Settings.
 - **System Log** is not a sidebar group — open it from the **user menu** (`useUserMenu`) → System Log → `/system-monitor/system-logs`.
 - Record / Portal list titles use plural **Logs** (`docetra.pages.recordLog`, `docetra.pages.portalLog`).
 
@@ -60,8 +72,9 @@ Use the technology already installed in `frontend/`:
 1. Read [`00-product-ui-design-map.md`](./00-product-ui-design-map.md).
 2. Implement [`00-reusable-workspace-components.md`](./00-reusable-workspace-components.md).
 3. Apply [`00-shared-foundation.md`](./00-shared-foundation.md).
-4. Run the page prompts in numeric order, or select one module at a time.
-5. Reuse shared components; page files should primarily configure fields, filters, actions, and views.
+4. For Configuration & Settings, implement [`00B-configuration-settings-kit.md`](./00B-configuration-settings-kit.md) first, then prompts 23–28 (Record Attribute before Record Type).
+5. Run other page prompts in numeric order, or select one module at a time.
+6. Reuse shared components; page files should primarily configure fields, filters, actions, and views.
 
 ## Route inventory
 
@@ -86,12 +99,15 @@ Use the technology already installed in `frontend/`:
 | 17 | Sidebar · Portal | Google Drive Sync | `/portal/google-drive-sync` | `17-portal-google-drive-sync.md` |
 | 18 | Sidebar · Portal | Logs | `/portal/logs` | `18-portal-log.md` |
 | 19 | User menu | System Log | `/system-monitor/system-logs` | `19-system-monitor-system-log.md` |
-| 20 | Auth | Login | `/login` | `20-auth-login.md` |
-| 21 | Auth | Forget Password | `/forget-password` | `21-auth-forget-password.md` |
-| 22 | — | OTP removed (no page) | — | `22-auth-otp.md` |
+| 20 | Auth | Login | `/auth/login` | `20-auth-login.md` |
+| 21 | Auth | Forget Password | `/auth/forget-password` → verify → reset | `21-auth-forget-password.md` |
+| 22 | Auth | Verify code / Reset password | `/auth/verify-code`, `/auth/reset-password` | `22-auth-otp.md` |
 | 23 | Sidebar · Configuration | Record Type | `/configuration/record-types` | `23-configuration-record-type.md` |
 | 24 | Sidebar · Configuration | Record Attribute | `/configuration/record-attributes` | `24-configuration-record-attribute.md` |
 | 25 | Sidebar · Configuration | Document Type | `/configuration/document-types` | `25-configuration-document-type.md` |
+| 26 | Sidebar · Settings | App Info | `/settings/app-info` | `26-settings-app-info.md` |
+| 27 | Sidebar · Settings | App Config | `/settings/app-config` | `27-settings-app-config.md` |
+| 28 | Sidebar · Settings | Storage | `/settings/storage` | `28-settings-storage.md` |
 
 ## Product references
 
@@ -104,3 +120,4 @@ Before implementing the later full UI, consult:
 - `prompt/specification/06-api-contracts.md`
 - `prompt/specification/08-shared-standards.md`
 - The relevant file under `prompt/specification/modules/`
+- Configuration & Settings kit: [`00B-configuration-settings-kit.md`](./00B-configuration-settings-kit.md)

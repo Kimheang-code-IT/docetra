@@ -101,11 +101,33 @@ export type FieldType =
   | 'file'
   | 'url'
   | 'permission-matrix'
+  | 'secret'
+  | 'color'
+  | 'image'
+  | 'csv-list'
+  | 'telegram-destinations'
+  | 'notification-rules'
+  | 'connection-status'
+  | 'alert'
+  | 'icon'
+  | 'assigned-attributes'
+  | 'workflow-builder'
+  | 'numbering-preview'
+  | 'validation-builder'
+  | 'options-builder'
+  | 'visibility-builder'
 
 export interface FieldOption {
   label: string
   value: string
   labelKey?: string
+}
+
+export interface ConnectionStatusFieldValue {
+  status: string
+  message?: string
+  lastTestedAt?: string
+  details?: Array<{ label: string, value: string }>
 }
 
 export interface DocumentFieldSchema {
@@ -121,6 +143,12 @@ export interface DocumentFieldSchema {
   /** Hint shown via info icon (especially useful for checkboxes). Falls back to helpKey. */
   hintKey?: string
   placeholderKey?: string
+  /** Textarea row count (defaults to 4). */
+  rows?: number
+  /** Alert color when type is `alert`. */
+  alertColor?: 'error' | 'warning' | 'info' | 'success' | 'neutral'
+  /** Extra context for specialized field renderers (e.g. dataType, catalog). */
+  meta?: Record<string, unknown>
 }
 
 export interface DocumentSectionSchema {

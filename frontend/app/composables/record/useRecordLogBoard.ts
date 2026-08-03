@@ -12,18 +12,18 @@ export interface RecordLogTab {
   columns: TableColumnDef[]
 }
 
-const baseColumns = {
-  occurredAt: { key: 'occurredAt', labelKey: 'docetra.fields.occurredAt', sortable: true, priority: 'high', cell: 'datetime' as const },
-  action: { key: 'action', labelKey: 'docetra.fields.action', priority: 'high', cell: 'badge' as const },
-  entityType: { key: 'entityType', labelKey: 'docetra.fields.recordType', priority: 'medium', cell: 'badge' as const },
+const baseColumns: Record<string, TableColumnDef> = {
+  occurredAt: { key: 'occurredAt', labelKey: 'docetra.fields.occurredAt', sortable: true, priority: 'high', cell: 'datetime' },
+  action: { key: 'action', labelKey: 'docetra.fields.action', priority: 'high', cell: 'badge' },
+  entityType: { key: 'entityType', labelKey: 'docetra.fields.recordType', priority: 'medium', cell: 'badge' },
   entityTitle: { key: 'entityTitle', labelKey: 'docetra.fields.entity', priority: 'high' },
-  actor: { key: 'actor.name', labelKey: 'docetra.fields.actor', priority: 'medium', cell: 'person' as const },
+  actor: { key: 'actor.name', labelKey: 'docetra.fields.actor', priority: 'medium', cell: 'person' },
   organization: { key: 'organization.name', labelKey: 'docetra.fields.organization', priority: 'low' },
-  severity: { key: 'severity', labelKey: 'docetra.fields.severity', priority: 'medium', cell: 'badge' as const },
+  severity: { key: 'severity', labelKey: 'docetra.fields.severity', priority: 'medium', cell: 'badge' },
   summary: { key: 'summary', labelKey: 'docetra.fields.summary', priority: 'high' },
   changes: { key: 'changesSummary', labelKey: 'docetra.fields.changes', priority: 'high' },
   correlationId: { key: 'correlationId', labelKey: 'docetra.fields.correlationId', priority: 'low' },
-  category: { key: 'category', labelKey: 'docetra.fields.category', priority: 'medium', cell: 'badge' as const },
+  category: { key: 'category', labelKey: 'docetra.fields.category', priority: 'medium', cell: 'badge' },
 }
 
 export const RECORD_LOG_TABS: RecordLogTab[] = [
