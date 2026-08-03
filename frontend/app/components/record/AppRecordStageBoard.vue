@@ -87,7 +87,7 @@ async function onMoveStage(id: string, stageCode: string) {
 function onLogs(row: Record<string, unknown>) {
   const id = String(row.id || '')
   navigateTo({
-    path: '/records/logs',
+    path: '/records/record-logs',
     query: id ? { q: id } : undefined,
   })
 }

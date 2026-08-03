@@ -299,7 +299,7 @@ export function useRecordLogBoard() {
   }
 
   function openRow(row: Record<string, unknown>) {
-    navigateTo(`/records/logs/${row.id}`)
+    navigateTo(`/records/record-logs/${row.id}`)
   }
 
   async function refresh() {

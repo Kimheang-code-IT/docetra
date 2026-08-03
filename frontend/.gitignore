@@ -29,8 +29,8 @@ yarn-error.log*
 .DS_Store
 Thumbs.db
 
-# Logs
-logs
+# Logs (runtime/output only — do not ignore app page folders)
+/logs
 *.log
 
 # Misc

@@ -88,7 +88,7 @@ export function useMenu() {
       pageLink(t('docetra.pages.outgoingDocument'), '/records/outgoing-documents'),
       pageLink(t('docetra.pages.document'), '/records/documents'),
       pageLink(t('docetra.pages.masterListRequest'), '/records/master-list-requests'),
-      pageLink(t('docetra.pages.recordLog'), '/records/logs'),
+      pageLink(t('docetra.pages.recordLog'), '/records/record-logs'),
     ]),
     group(t('docetra.navigation.organization'), 'i-lucide-building-2', [
       pageLink(t('docetra.pages.department'), '/organizations/departments'),
@@ -100,7 +100,7 @@ export function useMenu() {
     group(t('docetra.navigation.portal'), 'i-lucide-square-arrow-out-up-right', [
       pageLink(t('docetra.pages.fileUpload'), '/portal/file-upload'),
       pageLink(t('docetra.pages.googleDriveSync'), '/portal/google-drive-sync'),
-      pageLink(t('docetra.pages.portalLog'), '/portal/logs'),
+      pageLink(t('docetra.pages.portalLog'), '/portal/portal-logs'),
     ]),
     group(t('docetra.navigation.userManagement'), 'i-lucide-users', [
       pageLink(t('docetra.pages.role'), '/user-management/roles'),

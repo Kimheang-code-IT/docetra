@@ -358,7 +358,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
 
   recordLogs: {
     key: 'recordLogs',
-    routeBase: '/records/logs',
+    routeBase: '/records/record-logs',
     titleKey: 'docetra.pages.recordLog',
     descriptionKey: 'docetra.descriptions.recordLog',
     permission: 'records.logs.view',
@@ -860,7 +860,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
 
   portalLogs: {
     key: 'portalLogs',
-    routeBase: '/portal/logs',
+    routeBase: '/portal/portal-logs',
     titleKey: 'docetra.pages.portalLog',
     descriptionKey: 'docetra.descriptions.portalLog',
     permission: 'portal.logs.view',

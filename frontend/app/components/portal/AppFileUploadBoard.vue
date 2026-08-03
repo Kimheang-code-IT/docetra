@@ -128,7 +128,7 @@ function onRowAction(payload: { key: string, row: Record<string, unknown> }) {
   if (key === 'logs') {
     const id = String(row.id || '')
     navigateTo({
-      path: '/records/logs',
+      path: '/records/record-logs',
       query: id ? { q: id } : undefined,
     })
     return
