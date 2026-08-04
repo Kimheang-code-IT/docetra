@@ -89,14 +89,14 @@ function toggleAction(documentType: string, action: string, checked: boolean | '
 </script>
 
 <template>
-  <div class="overflow-x-auto rounded-xl border border-default">
-    <table class="min-w-full text-sm">
+  <div class="overflow-x-auto rounded-lg border border-default">
+    <table class="w-full text-sm">
       <thead>
         <tr class="bg-elevated/80 text-left text-highlighted">
-          <th class="whitespace-nowrap rounded-tl-xl px-4 py-3 font-semibold">
+          <th class="w-[30%] whitespace-nowrap rounded-tl-lg px-3 py-2.5 font-semibold">
             {{ $t('docetra.rolePermissions.documentType') }}
           </th>
-          <th class="min-w-80 rounded-tr-xl px-4 py-3 font-semibold">
+          <th class="rounded-tr-lg px-3 py-2.5 font-semibold">
             {{ $t('docetra.fields.permissions') }}
           </th>
         </tr>
@@ -107,24 +107,25 @@ function toggleAction(documentType: string, action: string, checked: boolean | '
           :key="row.documentType"
           class="align-top border-t border-default"
         >
-          <td class="px-4 py-4 font-medium text-highlighted">
+          <td class="px-3 py-3 font-medium text-highlighted">
             {{ documentTypeLabel(row.documentType) }}
           </td>
-          <td class="px-4 py-4">
-            <div class="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-3">
+          <td class="px-3 py-3">
+            <div class="grid grid-cols-2 gap-x-3 gap-y-1.5 sm:grid-cols-3">
               <div
                 v-for="(col, colIndex) in actionColumns"
                 :key="colIndex"
-                class="space-y-2"
+                class="space-y-1.5"
               >
                 <label
                   v-for="action in col"
                   :key="action"
-                  class="flex cursor-pointer items-center gap-2 text-sm text-highlighted"
+                  class="flex cursor-pointer items-center gap-1.5 text-xs text-highlighted sm:text-sm"
                 >
                   <UCheckbox
                     :model-value="hasAction(row, action)"
                     :disabled="disabled"
+                    size="sm"
                     @update:model-value="(v) => toggleAction(row.documentType, action, v)"
                   />
                   <span>{{ actionLabel(action) }}</span>

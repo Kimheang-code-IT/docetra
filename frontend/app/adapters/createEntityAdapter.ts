@@ -1,114 +1,93 @@
 import type { EntityAdapter } from '~/types/docetra/adapter'
-import type { ActivityEvent, AttachmentMeta, EntityComment } from '~/types/docetra/common'
+import type { ActivityEvent, ApiResponse, AttachmentMeta, EntityComment } from '~/types/docetra/common'
 import { applyListQuery, createId, mockLatency, nowIso, ok } from '~/mocks/query'
 import { person, seedActivity, seedAttachments, seedComments } from '~/mocks/seed'
-import { ApiEndpoints } from '~/utils/constants/api-endpoints'
 
-type Store<T extends { id: string }> = {
+type EntityRecord = { id: string; stage?: string; updatedAt?: string; createdAt?: string }
+
+type MockStore<T extends EntityRecord> = {
   items: T[]
   comments: Record<string, EntityComment[]>
   activity: Record<string, ActivityEvent[]>
   attachments: Record<string, AttachmentMeta[]>
 }
 
-function getUseMockData() {
-  const config = useRuntimeConfig()
-  return config.public.useMockData !== false
+export function createMockStore<T extends EntityRecord>(seed: T[]): MockStore<T> {
+  return { items: structuredClone(seed), comments: {}, activity: {}, attachments: {} }
 }
 
-export function createEntityAdapter<T extends { id: string; stage?: string; updatedAt?: string }>(options: {
+function usesMockData() {
+  return useRuntimeConfig().public.useMockData !== false
+}
+
+/**
+ * One entity contract with two isolated providers: bounded local mock data for
+ * development and the versioned REST API for real deployments.
+ */
+export function createEntityAdapter<T extends EntityRecord>(options: {
   endpoint: string
-  store: Store<T>
+  store: MockStore<T>
   searchKeys?: string[]
-  createDefaults?: (payload: Partial<T>) => T
 }): EntityAdapter<T> {
-  const { endpoint, store, searchKeys, createDefaults } = options
+  const { endpoint, store, searchKeys } = options
+  const resource = (id: string) => `${endpoint}/${encodeURIComponent(id)}`
 
   return {
     async list(query) {
-      if (!getUseMockData()) {
-        const api = useApi()
-        return await api.get(endpoint, { query }) as any
+      if (!usesMockData()) {
+        return useApi().get<ApiResponse<T[]>>(endpoint, {
+          query,
+          requestKey: `list:${endpoint}`,
+          cancelPrevious: true,
+        })
       }
       await mockLatency(null)
-      return applyListQuery(store.items as any, query, searchKeys)
+      return applyListQuery(store.items as unknown as Record<string, unknown>[], query, searchKeys) as unknown as ApiResponse<T[]>
     },
 
     async get(id) {
-      if (!getUseMockData()) {
-        const api = useApi()
-        return await api.get(`${endpoint}/${id}`) as any
-      }
+      if (!usesMockData()) return useApi().get<ApiResponse<T>>(resource(id))
       await mockLatency(null)
-      const item = store.items.find(x => x.id === id)
+      const item = store.items.find(row => row.id === id)
       if (!item) throw createError({ statusCode: 404, statusMessage: 'Not found' })
-      return ok(item)
+      return ok(structuredClone(item))
     },
 
     async create(payload) {
-      if (!getUseMockData()) {
-        const api = useApi()
-        return await api.post(endpoint, payload as any) as any
-      }
+      if (!usesMockData()) return useApi().post<ApiResponse<T>>(endpoint, payload)
       await mockLatency(null)
-      const item = createDefaults
-        ? createDefaults(payload)
-        : ({
-            ...payload,
-            id: createId('ent'),
-            createdAt: nowIso(),
-            updatedAt: nowIso(),
-          } as unknown as T)
+      const now = nowIso()
+      const item = {
+        ...payload,
+        id: createId('ent'),
+        createdAt: now,
+        updatedAt: now,
+      } as T
       store.items.unshift(item)
       store.comments[item.id] = []
-      store.activity[item.id] = [{
-        id: createId('act'),
-        entityType: endpoint,
-        entityId: item.id,
-        action: 'created',
-        actor: person(0),
-        summary: `${person(0).name} created this record`,
-        occurredAt: nowIso(),
-      }]
       store.attachments[item.id] = []
-      return ok(item)
+      store.activity[item.id] = seedActivity(endpoint, item.id, 1)
+      return ok(structuredClone(item))
     },
 
     async update(id, payload) {
-      if (!getUseMockData()) {
-        const api = useApi()
-        return await api.patch(`${endpoint}/${id}`, payload as any) as any
-      }
+      if (!usesMockData()) return useApi().patch<ApiResponse<T>>(resource(id), payload)
       await mockLatency(null)
-      const index = store.items.findIndex(x => x.id === id)
+      const index = store.items.findIndex(row => row.id === id)
       if (index < 0) throw createError({ statusCode: 404, statusMessage: 'Not found' })
-      const updated = {
-        ...store.items[index]!,
-        ...payload,
-        updatedAt: nowIso(),
-      } as T
-      store.items[index] = updated
-      const activity = store.activity[id] || []
-      activity.unshift({
-        id: createId('act'),
-        entityType: endpoint,
-        entityId: id,
-        action: 'updated',
-        actor: person(0),
-        summary: `${person(0).name} updated this record`,
-        occurredAt: nowIso(),
-      })
-      store.activity[id] = activity
-      return ok(updated)
+      const item = { ...store.items[index]!, ...payload, updatedAt: nowIso() } as T
+      store.items[index] = item
+      store.activity[id] = [
+        { id: createId('act'), entityType: endpoint, entityId: id, action: 'updated', actor: person(0), summary: `${person(0).name} updated this record`, occurredAt: nowIso() },
+        ...(store.activity[id] || []),
+      ]
+      return ok(structuredClone(item))
     },
 
     async delete(id) {
-      if (!getUseMockData()) {
-        const api = useApi()
-        return await api.delete(`${endpoint}/${id}`) as any
-      }
+      if (!usesMockData()) return useApi().delete<ApiResponse<{ id: string }>>(resource(id))
       await mockLatency(null)
-      const index = store.items.findIndex(x => x.id === id)
+      const index = store.items.findIndex(row => row.id === id)
       if (index < 0) throw createError({ statusCode: 404, statusMessage: 'Not found' })
       store.items.splice(index, 1)
       delete store.comments[id]
@@ -118,13 +97,10 @@ export function createEntityAdapter<T extends { id: string; stage?: string; upda
     },
 
     async deleteMany(ids) {
-      if (!getUseMockData()) {
-        const api = useApi()
-        return await api.delete(endpoint, { body: { ids } }) as any
-      }
+      if (!usesMockData()) return useApi().post<ApiResponse<{ ids: string[] }>>(`${endpoint}/bulk-delete`, { ids })
       await mockLatency(null)
       const idSet = new Set(ids)
-      store.items = store.items.filter(item => !idSet.has(item.id))
+      store.items = store.items.filter(row => !idSet.has(row.id))
       for (const id of ids) {
         delete store.comments[id]
         delete store.activity[id]
@@ -134,97 +110,48 @@ export function createEntityAdapter<T extends { id: string; stage?: string; upda
     },
 
     async transitionStage(id, stage) {
-      return await this.update(id, { stage } as Partial<T>)
+      if (!usesMockData()) return useApi().patch<ApiResponse<T>>(`${resource(id)}/stage`, { stage })
+      return this.update(id, { stage } as Partial<T>)
     },
 
-    async listByStage(stage, query) {
-      return await this.list({ ...query, stage, limit: query?.limit || 10 })
+    listByStage(stage, query) {
+      return this.list({ ...query, stage })
     },
 
     async listComments(id, query) {
-      if (!getUseMockData()) {
-        const api = useApi()
-        return await api.get(ApiEndpoints.COMMENTS('entities', id), { query }) as any
-      }
+      if (!usesMockData()) return useApi().get<ApiResponse<EntityComment[]>>(`${resource(id)}/comments`, { query })
       await mockLatency(null)
-      if (!store.comments[id]) store.comments[id] = seedComments('entity', id)
-      return applyListQuery(store.comments[id] as any, query, ['body'])
+      store.comments[id] ||= seedComments(endpoint, id)
+      return applyListQuery(store.comments[id] as unknown as Record<string, unknown>[], query, ['body']) as unknown as ApiResponse<EntityComment[]>
     },
 
     async addComment(id, body) {
-      if (!getUseMockData()) {
-        const api = useApi()
-        return await api.post(ApiEndpoints.COMMENTS('entities', id), { body }) as any
-      }
+      if (!usesMockData()) return useApi().post<ApiResponse<EntityComment>>(`${resource(id)}/comments`, { body })
       await mockLatency(null)
-      const comment: EntityComment = {
-        id: createId('cmt'),
-        entityType: 'entity',
-        entityId: id,
-        body,
-        author: person(0),
-        createdAt: nowIso(),
-      }
-      store.comments[id] = [comment, ...(store.comments[id] || seedComments('entity', id))]
-      const activity = store.activity[id] || seedActivity('entity', id)
-      activity.unshift({
-        id: createId('act'),
-        entityType: 'entity',
-        entityId: id,
-        action: 'commented',
-        actor: comment.author,
-        summary: `${comment.author.name} commented`,
-        occurredAt: comment.createdAt,
-      })
-      store.activity[id] = activity
+      const comment: EntityComment = { id: createId('cmt'), entityType: endpoint, entityId: id, body, author: person(0), createdAt: nowIso() }
+      store.comments[id] = [comment, ...(store.comments[id] || [])]
       return ok(comment)
     },
 
     async listActivity(id, query) {
-      if (!getUseMockData()) {
-        const api = useApi()
-        return await api.get(ApiEndpoints.ACTIVITY('entities', id), { query }) as any
-      }
+      if (!usesMockData()) return useApi().get<ApiResponse<ActivityEvent[]>>(`${resource(id)}/activity`, { query })
       await mockLatency(null)
-      if (!store.activity[id]) store.activity[id] = seedActivity('entity', id)
-      return applyListQuery(store.activity[id] as any, query, ['summary', 'action'])
+      store.activity[id] ||= seedActivity(endpoint, id)
+      return applyListQuery(store.activity[id] as unknown as Record<string, unknown>[], query, ['summary', 'action']) as unknown as ApiResponse<ActivityEvent[]>
     },
 
     async listAttachments(id) {
-      if (!getUseMockData()) {
-        const api = useApi()
-        return await api.get(ApiEndpoints.ATTACHMENTS('entities', id)) as any
-      }
+      if (!usesMockData()) return useApi().get<ApiResponse<AttachmentMeta[]>>(`${resource(id)}/attachments`)
       await mockLatency(null)
-      if (!store.attachments[id]) store.attachments[id] = seedAttachments()
-      return ok(store.attachments[id]!)
+      store.attachments[id] ||= seedAttachments()
+      return ok(structuredClone(store.attachments[id]))
     },
 
     async replaceAttachments(id, files) {
-      if (!getUseMockData()) {
-        const api = useApi()
-        return await api.put(ApiEndpoints.ATTACHMENTS('entities', id), { files }) as any
-      }
+      if (!usesMockData()) return useApi().put<ApiResponse<AttachmentMeta[]>>(`${resource(id)}/attachments`, { files })
       await mockLatency(null)
-      store.attachments[id] = [...files]
-      const index = store.items.findIndex(x => x.id === id)
-      if (index >= 0) {
-        store.items[index] = {
-          ...store.items[index]!,
-          attachmentCount: files.length,
-          updatedAt: nowIso(),
-        } as T
-      }
-      return ok(store.attachments[id]!)
+      store.attachments[id] = structuredClone(files)
+      return ok(structuredClone(files))
     },
-  }
-}
-
-export function createStore<T extends { id: string }>(items: T[]): Store<T> {
-  return {
-    items: [...items],
-    comments: {},
-    activity: {},
-    attachments: {},
   }
 }

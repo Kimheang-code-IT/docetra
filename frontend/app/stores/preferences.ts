@@ -1,16 +1,32 @@
 import { defineStore } from 'pinia'
 import { computed } from 'vue'
+import type { AppFontSize } from '~/types/docetra/settings'
 
 const THEME_PRIMARY_KEY = 'ui:theme:primary'
 const THEME_NEUTRAL_KEY = 'ui:theme:neutral'
 const LOCALE_KEY = 'ui:locale'
+const FONT_SIZE_KEY = 'ui:font-size'
 
 export type AppLocale = 'en' | 'km'
 
 type UiColorConfig = { primary?: string; neutral?: string }
 
+const FONT_SIZE_PX: Record<AppFontSize, string> = {
+  sm: '14px',
+  md: '15px',
+  lg: '16px',
+  xl: '18px',
+}
+
+const DEFAULT_FONT_SIZE: AppFontSize = 'md'
+
+function normalizeFontSize(value: string | null | undefined): AppFontSize {
+  if (value === 'sm' || value === 'md' || value === 'lg' || value === 'xl') return value
+  return DEFAULT_FONT_SIZE
+}
+
 /**
- * Cross-page UI preferences (theme colors + locale).
+ * Cross-page UI preferences (theme colors, font size, locale).
  * Persists to localStorage; hydrates once per session via useState guards.
  */
 export const usePreferencesStore = defineStore('preferences', () => {
@@ -19,6 +35,8 @@ export const usePreferencesStore = defineStore('preferences', () => {
 
   const isThemeLoaded = useState('ui-theme-loaded', () => false)
   const isLocaleLoaded = useState('ui-locale-loaded', () => false)
+  const isFontSizeLoaded = useState('ui-font-size-loaded', () => false)
+  const fontSize = useState<AppFontSize>('ui-font-size', () => DEFAULT_FONT_SIZE)
 
   const uiColors = computed<UiColorConfig>(() =>
     ((appConfig.ui as { colors?: UiColorConfig }).colors ?? {}),
@@ -54,6 +72,28 @@ export const usePreferencesStore = defineStore('preferences', () => {
     persistThemeToLocal(next)
   }
 
+  function applyFontSizeToDom(size: AppFontSize) {
+    if (!import.meta.client) return
+    const px = FONT_SIZE_PX[size]
+    const root = document.documentElement
+    root.style.setProperty('--app-font-size', px)
+    root.style.fontSize = px
+  }
+
+  function loadFontSizeFromLocal() {
+    if (typeof window === 'undefined') return
+    const saved = normalizeFontSize(localStorage.getItem(FONT_SIZE_KEY))
+    fontSize.value = saved
+    applyFontSizeToDom(saved)
+  }
+
+  function setFontSize(size: AppFontSize) {
+    const next = normalizeFontSize(size)
+    fontSize.value = next
+    if (import.meta.client) localStorage.setItem(FONT_SIZE_KEY, next)
+    applyFontSizeToDom(next)
+  }
+
   function loadLocaleFromLocal() {
     if (typeof window === 'undefined') return
     const savedLocale = localStorage.getItem(LOCALE_KEY)
@@ -80,12 +120,19 @@ export const usePreferencesStore = defineStore('preferences', () => {
       loadLocaleFromLocal()
       isLocaleLoaded.value = true
     }
+    if (!isFontSizeLoaded.value) {
+      loadFontSizeFromLocal()
+      isFontSizeLoaded.value = true
+    }
   }
 
   return {
     uiColors,
+    fontSize,
+    fontSizePx: FONT_SIZE_PX,
     hydrate,
     applyThemeColor,
     setLocale,
+    setFontSize,
   }
 })

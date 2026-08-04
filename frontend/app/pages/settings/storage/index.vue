@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { StorageProvider, StorageProviderType } from '~/types/docetra/settings'
 import type { ConnectionStatusFieldValue } from '~/types/docetra/common'
-import { storageProviderTabs } from '~/config/settings-schemas'
+import { storageSettingsTabs } from '~/config/settings-schemas'
 import { useSettingsRepositories } from '~/repositories'
 import { useAppHeader } from '~/composables/layout/useAppHeader'
 import { getByPath, setByPath } from '~/utils/object-path'
@@ -10,6 +10,8 @@ definePageMeta({
   titleKey: 'docetra.pages.storage',
 })
 
+const STORAGE_TAB_TYPES = storageSettingsTabs.map(tab => tab.id) as StorageProviderType[]
+
 const { storage } = useSettingsRepositories()
 const { t } = useI18n()
 const toast = useToast()
@@ -17,38 +19,52 @@ const { setTitle, clear } = useAppHeader()
 
 const pending = ref(true)
 const saving = ref(false)
-const testingId = ref<string | null>(null)
+const testing = ref(false)
 const providers = ref<StorageProvider[]>([])
-const selectedId = ref<string | null>(null)
 const draft = ref<StorageProvider | null>(null)
-const activeTab = ref('provider')
+const activeTab = ref<string>(STORAGE_TAB_TYPES[0] || 'amazon_s3')
 
-const tabs = computed(() => storageProviderTabs(draft.value?.type))
+const tabs = storageSettingsTabs
+
+function providerForTab(type: string) {
+  return providers.value.find(p => p.type === type) || null
+}
+
+/** Clone without structuredClone — works with Vue reactive proxies. */
+function cloneProvider(value: StorageProvider): StorageProvider {
+  return JSON.parse(JSON.stringify(value)) as StorageProvider
+}
+
+function applyDraftForTab(type: string) {
+  const found = providerForTab(type)
+  draft.value = found ? cloneProvider(found) : null
+}
 
 async function load() {
   pending.value = true
   try {
-    providers.value = await storage.list()
-    if (!selectedId.value && providers.value[0]) {
-      selectProvider(providers.value[0].id)
+    const all = await storage.list()
+    // Only keep providers that have a settings tab (S3, Google Drive).
+    providers.value = all.filter(p => STORAGE_TAB_TYPES.includes(p.type))
+    if (!providerForTab(activeTab.value) && providers.value[0]) {
+      activeTab.value = providers.value[0].type
     }
-    else if (selectedId.value) {
-      selectProvider(selectedId.value)
-    }
+    applyDraftForTab(activeTab.value)
   }
   catch (e: any) {
     toast.add({ title: e?.message || t('docetra.common.loadFailed'), color: 'error' })
+    draft.value = null
   }
   finally {
     pending.value = false
   }
 }
 
-function selectProvider(id: string) {
-  selectedId.value = id
-  const found = providers.value.find(p => p.id === id)
-  draft.value = found ? structuredClone(found) : null
-}
+watch(activeTab, (type) => {
+  // Avoid clearing draft while the initial load is still in flight.
+  if (pending.value) return
+  applyDraftForTab(type)
+})
 
 function fieldValue(key: string): unknown {
   if (!draft.value) return undefined
@@ -59,7 +75,7 @@ function fieldValue(key: string): unknown {
       message: draft.value.lastTestMessage,
       lastTestedAt: draft.value.lastTestedAt,
       details: [
-        { label: t('docetra.settings.providerType'), value: draft.value.type },
+        { label: t('docetra.settings.providerType'), value: draft.value.type.replaceAll('_', ' ') },
         {
           label: t('docetra.settings.default'),
           value: draft.value.isDefault ? t('docetra.common.yes') : t('docetra.common.no'),
@@ -94,9 +110,10 @@ async function save() {
   }
 }
 
-async function setDefault(id: string) {
+async function setDefault() {
+  if (!draft.value) return
   try {
-    await storage.setDefault(id)
+    await storage.setDefault(draft.value.id)
     toast.add({ title: t('docetra.settings.defaultUpdated'), color: 'success' })
     await load()
   }
@@ -105,10 +122,13 @@ async function setDefault(id: string) {
   }
 }
 
-async function testConnection(id: string) {
-  testingId.value = id
+async function testConnection() {
+  if (!draft.value) return
+  testing.value = true
   try {
-    const result = await storage.testConnection(id)
+    // Persist the draft first so the backend tests the current form values.
+    await storage.update(draft.value.id, draft.value)
+    const result = await storage.testConnection(draft.value.id)
     toast.add({
       title: result.message,
       color: result.status === 'connected' ? 'success' : 'error',
@@ -116,19 +136,8 @@ async function testConnection(id: string) {
     await load()
   }
   finally {
-    testingId.value = null
+    testing.value = false
   }
-}
-
-function providerIcon(type: StorageProviderType) {
-  const map: Record<StorageProviderType, string> = {
-    local: 'i-lucide-hard-drive',
-    cloudflare_r2: 'i-lucide-cloud',
-    amazon_s3: 'i-lucide-box',
-    minio: 'i-lucide-server',
-    google_drive: 'i-lucide-folder-sync',
-  }
-  return map[type]
 }
 
 onMounted(() => {
@@ -149,68 +158,37 @@ useHead(() => ({ title: `${t('docetra.pages.storage')} · ${t('docetra.brand.nam
     :pending="pending"
     :saving="saving"
     :can-save="Boolean(draft)"
+    :error="!pending && !draft ? t('docetra.common.loadFailed') : null"
     :show-comments="false"
     :show-meta-rail="false"
     :show-list-nav="false"
+    content-wide
     @save="save"
     @refresh="load"
   >
     <template #actions>
       <CommonAppConnectionTestButton
         v-if="draft"
-        :loading="testingId === draft.id"
-        @click="testConnection(draft.id)"
+        :loading="testing"
+        @click="testConnection"
       />
       <UButton
         v-if="draft && !draft.isDefault"
         color="neutral"
         variant="soft"
         icon="i-lucide-star"
-        @click="setDefault(draft.id)"
+        @click="setDefault"
       >
         {{ t('docetra.settings.setDefault') }}
       </UButton>
-    </template>
-
-    <template #before-form>
-      <div class="grid gap-3 px-4 pt-4 sm:px-6 md:grid-cols-2 xl:grid-cols-3">
-        <button
-          v-for="provider in providers"
-          :key="provider.id"
-          type="button"
-          class="rounded-lg border p-4 text-left transition"
-          :class="selectedId === provider.id ? 'border-primary bg-primary/5' : 'border-default bg-default hover:border-primary/40'"
-          @click="selectProvider(provider.id)"
-        >
-          <div class="flex items-start justify-between gap-2">
-            <div class="flex items-center gap-2">
-              <div class="flex size-9 items-center justify-center rounded-lg bg-elevated">
-                <UIcon :name="providerIcon(provider.type)" class="size-4" />
-              </div>
-              <div>
-                <p class="text-sm font-semibold">
-                  {{ provider.name }}
-                </p>
-                <p class="text-xs capitalize text-muted">
-                  {{ provider.type.replaceAll('_', ' ') }}
-                </p>
-              </div>
-            </div>
-            <UBadge v-if="provider.isDefault" color="primary" variant="subtle" size="sm">
-              {{ t('docetra.settings.default') }}
-            </UBadge>
-          </div>
-          <div class="mt-3 flex flex-wrap gap-2">
-            <CommonAppStatusBadge :status="provider.connectionStatus" />
-            <UBadge :color="provider.active ? 'success' : 'neutral'" variant="subtle" size="sm">
-              {{ provider.active ? t('docetra.status.active') : t('docetra.status.disabled') }}
-            </UBadge>
-          </div>
-          <p class="mt-2 truncate text-xs text-muted">
-            {{ provider.bucket || provider.folderId || provider.uploadPathPattern }}
-          </p>
-        </button>
-      </div>
+      <UBadge
+        v-else-if="draft?.isDefault"
+        color="primary"
+        variant="subtle"
+        class="self-center"
+      >
+        {{ t('docetra.settings.default') }}
+      </UBadge>
     </template>
   </DocumentAppDocumentPage>
 </template>

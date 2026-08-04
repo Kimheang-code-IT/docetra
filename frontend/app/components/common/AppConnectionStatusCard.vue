@@ -1,17 +1,14 @@
 <script setup lang="ts">
 import type { ConnectionStatus } from '~/types/docetra/settings'
 
-const props = withDefaults(defineProps<{
+const props = defineProps<{
   status: ConnectionStatus
   title?: string
   titleKey?: string
   message?: string
   lastTestedAt?: string
-  mockHint?: boolean
   details?: Array<{ label: string, value: string }>
-}>(), {
-  mockHint: true,
-})
+}>()
 
 const { t, te } = useI18n()
 
@@ -39,9 +36,6 @@ const statusMeta = computed(() => {
       <div>
         <p class="text-sm font-medium text-highlighted">
           {{ titleText }}
-        </p>
-        <p v-if="mockHint" class="mt-0.5 text-xs text-muted">
-          {{ t('docetra.connection.mockHint') }}
         </p>
       </div>
       <UBadge :color="statusMeta.color" variant="subtle" class="shrink-0">

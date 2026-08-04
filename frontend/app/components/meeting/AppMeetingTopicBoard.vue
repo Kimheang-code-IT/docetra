@@ -14,6 +14,7 @@ const {
   selectedTopic,
   filteredTopics,
   filteredMeetings,
+  unassignedMeetingCount,
   topicMeetingCounts,
   draggingMeetingId,
   dropTopicId,
@@ -24,10 +25,27 @@ const {
   openTopic,
   openMeeting,
   openCreateTopic,
+  openCreateMeeting,
 } = useMeetingTopicBoard()
 
 const notesOpen = ref(false)
 const notesMeetingId = ref<string | null>(null)
+
+/** Add Topic always; Add Meeting only on standalone (All meetings) view. */
+const createButtons = computed(() => {
+  const buttons = [
+    { labelKey: 'docetra.meetingBoard.createTopic', icon: 'i-lucide-messages-square' },
+  ]
+  if (selectedTopicId.value == null) {
+    buttons.push({ labelKey: 'docetra.meetingBoard.createMeeting', icon: 'i-lucide-calendar-plus' })
+  }
+  return buttons
+})
+
+function onCreateButton(index: number) {
+  if (index === 0) openCreateTopic()
+  else openCreateMeeting()
+}
 
 onMounted(() => {
   refresh()
@@ -77,8 +95,8 @@ function onMeetingsPanelDrop(event: DragEvent) {
     title-key="docetra.pages.meetingTopic"
     description-key="docetra.descriptions.meetingTopic"
     icon="i-lucide-messages-square"
-    :can-create="true"
-    @create="openCreateTopic"
+    :create-buttons="createButtons"
+    @create-button="onCreateButton"
     @refresh="refresh"
   >
     <div class="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-sm border border-default bg-default">
@@ -104,10 +122,8 @@ function onMeetingsPanelDrop(event: DragEvent) {
             <h2 class="text-sm font-semibold text-highlighted">
               {{ $t('docetra.pages.meetingTopic') }}
             </h2>
-            <UInput
+            <CommonAppLiveSearch
               v-model="topicSearch"
-              icon="i-lucide-search"
-              size="sm"
               class="w-full"
               :placeholder="$t('docetra.meetingBoard.searchTopics')"
             />
@@ -119,8 +135,8 @@ function onMeetingsPanelDrop(event: DragEvent) {
                 : 'border-default text-muted hover:border-primary/30'"
               @click="selectTopic(null)"
             >
-              {{ $t('docetra.meetingBoard.allTopics') }}
-              <span class="ml-1 tabular-nums text-xs">({{ meetings.length }})</span>
+              {{ $t('docetra.meetingBoard.unassigned') }}
+              <span class="ml-1 tabular-nums text-xs">({{ unassignedMeetingCount }})</span>
             </button>
           </div>
 
@@ -157,10 +173,8 @@ function onMeetingsPanelDrop(event: DragEvent) {
                 v-model:end="meetingDateEnd"
                 size="sm"
               />
-              <UInput
+              <CommonAppLiveSearch
                 v-model="meetingSearch"
-                icon="i-lucide-search"
-                size="sm"
                 class="w-full sm:w-56"
                 :placeholder="$t('docetra.meetingBoard.searchMeetings')"
               />

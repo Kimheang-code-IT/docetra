@@ -59,5 +59,4 @@ export function clearPasswordResetSession() {
   writeRaw(null)
 }
 
-/** Mock demo code shown in UI hints. */
 export const MOCK_RESET_CODE = '123456'

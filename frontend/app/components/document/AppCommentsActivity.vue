@@ -24,7 +24,6 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
-const root = ref<HTMLElement | null>(null)
 
 const showInput = computed(() => props.canComment && props.showComposer)
 
@@ -71,10 +70,6 @@ const timelineItems = computed<ActivityTimelineItem[]>(() => {
 
   return [...commentItems, ...eventItems].sort((a, b) => b.at - a.at)
 })
-
-function scrollTop() {
-  root.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-}
 
 function relativeTime(iso: string) {
   const diff = Date.now() - new Date(iso).getTime()
@@ -145,7 +140,7 @@ const commentActions = computed(() => [[
 </script>
 
 <template>
-  <div ref="root" class="relative space-y-8 border-t border-default py-6">
+  <div class="relative space-y-8 border-t border-default py-6">
     <!-- Comments -->
     <section class="space-y-3">
       <h2 class="text-base font-semibold text-highlighted">
@@ -281,17 +276,5 @@ const commentActions = computed(() => [[
 
       <p v-else class="text-sm text-muted">{{ $t('docetra.activity.empty') }}</p>
     </section>
-
-    <div class="pointer-events-none sticky bottom-4 flex justify-end">
-      <UButton
-        icon="i-lucide-chevron-up"
-        color="neutral"
-        variant="soft"
-        size="sm"
-        square
-        class="pointer-events-auto border border-default shadow-sm"
-        @click="scrollTop"
-      />
-    </div>
   </div>
 </template>

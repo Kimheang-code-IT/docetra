@@ -88,7 +88,7 @@ function onDrop(event: DragEvent) {
           color="neutral"
           variant="ghost"
           size="xs"
-          class="shrink-0 opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100"
+          class="shrink-0"
           :aria-label="$t('docetra.actions.more')"
           @click.stop
         />

@@ -7,7 +7,9 @@ import type {
 import { OPTION_DATA_TYPES } from '~/types/docetra/configuration'
 import { recordAttributeTabs } from '~/config/configuration-schemas'
 import { useConfigurationRepositories } from '~/repositories'
+import { useConfirm } from '~/composables/common/useConfirm'
 import { useAppHeader } from '~/composables/layout/useAppHeader'
+import { toConfigCode } from '~/utils/config-code'
 import { getByPath, setByPath } from '~/utils/object-path'
 
 const props = defineProps<{
@@ -20,14 +22,16 @@ const { attributes } = useConfigurationRepositories()
 const { t } = useI18n()
 const toast = useToast()
 const router = useRouter()
+const { confirm } = useConfirm()
 const { setBreadcrumbs, clear } = useAppHeader()
 
 const pending = ref(true)
 const saving = ref(false)
 const dirty = ref(false)
-const unsavedOpen = ref(false)
+const hydrating = ref(false)
 const activeTab = ref('basic')
 const model = ref(emptyAttribute())
+const codeTouched = ref(false)
 
 const showOptions = computed(() => OPTION_DATA_TYPES.includes(model.value.dataType))
 
@@ -74,10 +78,10 @@ function emptyAttribute(): RecordAttribute {
   }
 }
 
-watch(model, () => { dirty.value = true }, { deep: true })
-
 async function load() {
   pending.value = true
+  hydrating.value = true
+  codeTouched.value = !isCreate.value
   try {
     if (isCreate.value) {
       model.value = emptyAttribute()
@@ -93,6 +97,8 @@ async function load() {
   }
   finally {
     pending.value = false
+    await nextTick()
+    hydrating.value = false
   }
 }
 
@@ -101,7 +107,16 @@ function fieldValue(key: string) {
 }
 
 function setFieldValue(key: string, value: unknown) {
+  if (key === 'code') codeTouched.value = true
   setByPath(model.value as any, key, value)
+
+  if (key === 'label' && isCreate.value && !codeTouched.value) {
+    model.value.code = toConfigCode(String(value || ''), 'snake')
+  }
+
+  if (key === 'dataType' && !OPTION_DATA_TYPES.includes(value as AttributeDataType)) {
+    model.value.options = []
+  }
 }
 
 function toInput(): CreateRecordAttributeInput {
@@ -158,16 +173,12 @@ async function save() {
   }
 }
 
-function goBack() {
+async function goBack() {
   if (dirty.value) {
-    unsavedOpen.value = true
-    return
+    const ok = await confirm({ kind: 'unsaved' })
+    if (!ok) return
+    dirty.value = false
   }
-  void router.push('/configuration/record-attributes')
-}
-
-function discardAndLeave() {
-  dirty.value = false
   void router.push('/configuration/record-attributes')
 }
 
@@ -176,18 +187,22 @@ watch(
   () => {
     setBreadcrumbs([
       { label: t('docetra.pages.recordAttribute'), to: '/configuration/record-attributes' },
-      { label: isCreate.value ? t('docetra.common.create') : (model.value.label || model.value.code || '…') },
+      { label: isCreate.value ? t('docetra.config.createRecordAttribute') : (model.value.label || model.value.code || '…') },
     ])
   },
   { immediate: true },
 )
+
+watch(model, () => {
+  if (!hydrating.value) dirty.value = true
+}, { deep: true })
 
 onBeforeUnmount(clear)
 onMounted(() => void load())
 watch(() => props.attributeId, () => void load())
 
 useHead(() => ({
-  title: `${isCreate.value ? t('docetra.common.create') : model.value.label} · ${t('docetra.pages.recordAttribute')}`,
+  title: `${isCreate.value ? t('docetra.config.createRecordAttribute') : model.value.label} · ${t('docetra.pages.recordAttribute')}`,
 }))
 </script>
 
@@ -199,9 +214,13 @@ useHead(() => ({
     :set-field-value="setFieldValue"
     :pending="pending"
     :saving="saving"
+    :is-create="isCreate"
+    :save-label="isCreate ? t('docetra.common.create') : t('docetra.common.save')"
     :show-comments="false"
     :show-meta-rail="false"
-    :show-list-nav="false"
+    :show-list-nav="true"
+    list-to="/configuration/record-attributes"
+    content-wide
     @save="save"
     @refresh="load"
   >
@@ -210,14 +229,5 @@ useHead(() => ({
         {{ t('docetra.common.cancel') }}
       </UButton>
     </template>
-
-    <template #aside>
-      <ConfigurationAppDynamicFieldPreview :attribute="model" />
-    </template>
   </DocumentAppDocumentPage>
-
-  <CommonAppUnsavedChangesDialog
-    v-model:open="unsavedOpen"
-    @discard="discardAndLeave"
-  />
 </template>

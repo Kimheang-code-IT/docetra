@@ -2,10 +2,12 @@
 import type { FilterDef, TableColumnDef } from '~/types/docetra/common'
 import type { RowActionItem } from '~/types/docetra/row-actions'
 
-defineProps<{
+const props = withDefaults(defineProps<{
   titleKey: string
   descriptionKey?: string
   icon?: string
+  canCreate?: boolean
+  createLabelKey?: string
   columns: TableColumnDef[]
   rows: Record<string, unknown>[]
   total: number
@@ -19,7 +21,9 @@ defineProps<{
   filterValues?: Record<string, string>
   rowActions?: RowActionItem[]
   cellValue: (row: Record<string, unknown>, key: string) => string
-}>()
+}>(), {
+  canCreate: true,
+})
 
 const emit = defineEmits<{
   create: []
@@ -29,7 +33,7 @@ const emit = defineEmits<{
   'update:limit': [number]
   'update:selection': [string[]]
   'update:sort': [string]
-  setFilter: [key: string, value: string]
+  setFilter: [key: string, value: string | string[] | undefined]
   clearFilters: []
   rowClick: [Record<string, unknown>]
   rowAction: [payload: { key: string, row: Record<string, unknown> }]
@@ -40,37 +44,39 @@ const emit = defineEmits<{
 
 <template>
   <WorkspaceAppWorkspacePage
-    :title-key="titleKey"
-    :description-key="descriptionKey"
-    :icon="icon"
+    :title-key="props.titleKey"
+    :description-key="props.descriptionKey"
+    :icon="props.icon"
+    :can-create="props.canCreate === true"
+    :create-label-key="props.createLabelKey"
     @create="emit('create')"
     @refresh="emit('refresh')"
   >
     <div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-sm border border-default bg-default">
       <WorkspaceAppWorkspaceToolbar
-        :search="search"
-        :filters="filters || []"
-        :filter-values="filterValues || {}"
+        :search="props.search"
+        :filters="props.filters || []"
+        :filter-values="props.filterValues || {}"
         view="table"
         :views="['table']"
-        :sort="sort || '-updatedAt'"
+        :sort="props.sort || '-updatedAt'"
         @update:search="emit('update:search', $event)"
         @update:sort="emit('update:sort', $event)"
-        @set-filter="(key: string, value: string | string[] | undefined) => emit('setFilter', key, Array.isArray(value) ? value[0] || '' : (value || ''))"
+        @set-filter="(key: string, value: string | string[] | undefined) => emit('setFilter', key, value)"
         @clear-filters="emit('clearFilters')"
       />
 
       <WorkspaceAppServerTable
         class="min-h-0 flex-1"
-        :columns="columns"
-        :rows="rows"
-        :total="total"
-        :page="page"
-        :limit="limit"
-        :pending="pending"
-        :error="error"
-        :cell-value="cellValue"
-        :row-actions="rowActions"
+        :columns="props.columns"
+        :rows="props.rows"
+        :total="props.total"
+        :page="props.page"
+        :limit="props.limit"
+        :pending="props.pending"
+        :error="props.error"
+        :cell-value="props.cellValue"
+        :row-actions="props.rowActions"
         :show-meta="false"
         @update:page="emit('update:page', $event)"
         @update:limit="emit('update:limit', $event)"

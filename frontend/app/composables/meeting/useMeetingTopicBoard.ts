@@ -1,5 +1,6 @@
 import type { MeetingHistory, MeetingTopic } from '~/types/docetra/entities'
 import { getEntityAdapter } from '~/config/entities'
+import { isWithinDateTimeRange } from '~/utils/date-time-range'
 
 export function useMeetingTopicBoard() {
   const { t } = useI18n()
@@ -11,13 +12,13 @@ export function useMeetingTopicBoard() {
   const error = ref<string | null>(null)
   const topics = ref<MeetingTopic[]>([])
   const meetings = ref<MeetingHistory[]>([])
-  /** null = show meetings for all topics */
+  /** null = standalone / unassigned meetings pool */
   const selectedTopicId = ref<string | null>(null)
   const draggingMeetingId = ref<string | null>(null)
   const dropTopicId = ref<string | null>(null)
   const topicSearch = ref('')
   const meetingSearch = ref('')
-  /** YYYY-MM-DD — empty = open-ended */
+  /** YYYY-MM-DDTHH:mm — empty = open-ended */
   const meetingDateStart = ref('')
   const meetingDateEnd = ref('')
 
@@ -36,22 +37,21 @@ export function useMeetingTopicBoard() {
     )
   })
 
+  const unassignedMeetings = computed(() =>
+    meetings.value.filter(m => !m.topicId),
+  )
+
+  const unassignedMeetingCount = computed(() => unassignedMeetings.value.length)
+
   const filteredMeetings = computed(() => {
     const q = meetingSearch.value.trim().toLowerCase()
-    const start = meetingDateStart.value.slice(0, 10)
-    const end = meetingDateEnd.value.slice(0, 10)
-    let list = meetings.value
-    if (selectedTopicId.value) {
-      list = list.filter(m => m.topicId === selectedTopicId.value)
-    }
-    if (start || end) {
-      list = list.filter((m) => {
-        const day = String(m.meetingDate || '').slice(0, 10)
-        if (!day) return false
-        if (start && day < start) return false
-        if (end && day > end) return false
-        return true
-      })
+    let list = selectedTopicId.value
+      ? meetings.value.filter(m => m.topicId === selectedTopicId.value)
+      : unassignedMeetings.value
+    if (meetingDateStart.value || meetingDateEnd.value) {
+      list = list.filter(m =>
+        isWithinDateTimeRange(m.meetingDate, meetingDateStart.value, meetingDateEnd.value),
+      )
     }
     if (q) {
       list = list.filter(m =>
@@ -196,6 +196,10 @@ export function useMeetingTopicBoard() {
     navigateTo('/meetings/topics/new')
   }
 
+  function openCreateMeeting() {
+    navigateTo('/meetings/history/new')
+  }
+
   return {
     pending,
     error,
@@ -209,6 +213,7 @@ export function useMeetingTopicBoard() {
     selectedTopic,
     filteredTopics,
     filteredMeetings,
+    unassignedMeetingCount,
     topicMeetingCounts,
     draggingMeetingId,
     dropTopicId,
@@ -219,5 +224,6 @@ export function useMeetingTopicBoard() {
     openTopic,
     openMeeting,
     openCreateTopic,
+    openCreateMeeting,
   }
 }

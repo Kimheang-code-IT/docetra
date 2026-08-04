@@ -36,6 +36,10 @@
 }
 
 @layer base {
+  html {
+    font-size: var(--app-font-size, 15px);
+  }
+
   html,
   body {
     font-family: var(--font-sans) !important;

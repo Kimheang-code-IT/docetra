@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { EntityConfig } from '~/config/entities'
+import { useConfirm } from '~/composables/common/useConfirm'
 import { useEntityWorkspace } from '~/composables/workspace/useEntityWorkspace'
 
 const props = defineProps<{
@@ -32,6 +33,7 @@ const {
 
 const toast = useToast()
 const { t } = useI18n()
+const { confirm } = useConfirm()
 
 const searchInput = ref(q.value)
 const selectedIds = ref<string[]>([])
@@ -65,10 +67,8 @@ async function onMove(id: string, stage: string) {
 
 async function onDeleteSelected(ids = selectedIds.value) {
   if (!ids.length || !canDelete.value) return
-  const confirmed = window.confirm(
-    t('docetra.actions.deleteConfirm', { n: ids.length }),
-  )
-  if (!confirmed) return
+  const ok = await confirm({ kind: 'delete', count: ids.length })
+  if (!ok) return
 
   deleting.value = true
   try {
@@ -116,7 +116,8 @@ function onRowAction(payload: { key: string, row: Record<string, unknown> }) {
     :title-key="config.titleKey"
     :description-key="config.descriptionKey"
     :icon="config.icon"
-    :can-create="config.canCreate !== false && !config.readOnly"
+    :can-create="config.canCreate === true && !config.readOnly"
+    :create-label-key="config.createLabelKey"
     @create="openCreate"
     @refresh="refresh"
   >

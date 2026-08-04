@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { EntityConfig } from '~/config/entities'
 import { getEntityAdapter } from '~/config/entities'
+import { useConfirm } from '~/composables/common/useConfirm'
 import { useRecordStageBoard } from '~/composables/record/useRecordStageBoard'
 
 const props = defineProps<{
@@ -12,6 +13,7 @@ const props = defineProps<{
 
 const toast = useToast()
 const { t } = useI18n()
+const { confirm } = useConfirm()
 const adapter = getEntityAdapter(props.config.key)
 
 const {
@@ -95,8 +97,8 @@ function onLogs(row: Record<string, unknown>) {
 async function onDelete(row: Record<string, unknown>) {
   const id = String(row.id || '')
   if (!id) return
-  const confirmed = window.confirm(t('docetra.actions.deleteConfirm', { n: 1 }))
-  if (!confirmed) return
+  const ok = await confirm({ kind: 'delete', count: 1 })
+  if (!ok) return
   try {
     if (adapter.delete) await adapter.delete(id)
     else if (adapter.deleteMany) await adapter.deleteMany([id])
@@ -138,7 +140,7 @@ async function onDelete(row: Record<string, unknown>) {
         <!-- Left: stages (topic-style) -->
         <aside
           class="flex h-full min-h-0 shrink-0 flex-col overflow-hidden border-e border-default bg-default transition-[width] duration-200"
-          :style="{ width: leftCollapsed ? '3.5rem' : '16rem' }"
+          :style="{ width: leftCollapsed ? '3.5rem' : '22rem' }"
         >
           <div
             class="shrink-0 space-y-2 border-b border-default"
@@ -154,11 +156,9 @@ async function onDelete(row: Record<string, unknown>) {
               <UIcon name="i-lucide-layers" class="size-4 text-muted" />
             </div>
 
-            <UInput
+            <CommonAppLiveSearch
               v-if="!leftCollapsed"
               v-model="stageSearch"
-              icon="i-lucide-search"
-              size="sm"
               class="w-full"
               :placeholder="$t('docetra.recordStageBoard.searchStages')"
             />
@@ -254,10 +254,8 @@ async function onDelete(row: Record<string, unknown>) {
                 v-model:end="dateEnd"
                 size="sm"
               />
-              <UInput
+              <CommonAppLiveSearch
                 v-model="recordSearch"
-                icon="i-lucide-search"
-                size="sm"
                 class="w-full sm:w-56"
                 :placeholder="$t('docetra.recordStageBoard.searchRecords')"
               />

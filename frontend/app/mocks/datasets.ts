@@ -6,7 +6,6 @@ import type {
   CompanySector,
   DashboardSummary,
   Department,
-  DocumentTypeConfig,
   FileUploadItem,
   GoogleDriveSyncJob,
   MeetingHistory,
@@ -325,18 +324,6 @@ export const mockRecordAttributes: RecordAttributeConfig[] = Array.from({ length
   required: i % 3 === 0,
   usageCount: i + 1,
   createdAt: daysAgo(150 - i),
-  updatedAt: daysAgo(i),
-}))
-
-export const mockDocumentTypes: DocumentTypeConfig[] = Array.from({ length: 10 }, (_, i) => ({
-  id: `dt_${i + 1}`,
-  code: `DT_${i + 1}`,
-  name: ['Letter', 'Report', 'Contract', 'Memo', 'Invoice', 'Policy', 'Minutes', 'Form', 'Annex', 'Other'][i]!,
-  status: 'active',
-  description: 'Document classification type',
-  usageCount: 3 + i,
-  allowedMimeTypes: 'application/pdf,image/*',
-  createdAt: daysAgo(140 - i),
   updatedAt: daysAgo(i),
 }))
 

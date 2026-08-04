@@ -1,6 +1,6 @@
-const MIN_WIDTH_PX = 144 // ~9rem — compact toolbar filter
-const MAX_WIDTH_PX = 360 // grow enough for full titles; still wrap-safe on mobile
-const CHROME_PX = 72 // leading icon + trailing chevron + horizontal padding
+const MIN_WIDTH_PX = 120 // compact dashboard-style pill
+const MAX_WIDTH_PX = 520
+const CHROME_PX = 52 // trailing chevron + horizontal padding (no leading icon by default)
 
 let measureEl: HTMLSpanElement | null = null
 
@@ -15,8 +15,8 @@ function measureTextWidth(text: string): number {
       visibility: 'hidden',
       whiteSpace: 'nowrap',
       pointerEvents: 'none',
-      fontSize: '14px',
-      fontWeight: '400',
+      fontSize: '13px',
+      fontWeight: '500',
       fontFamily: 'inherit',
     })
     document.body.appendChild(measureEl)

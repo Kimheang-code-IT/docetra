@@ -26,8 +26,6 @@ export type AttributeDataType =
   | 'user'
   | 'record_reference'
 
-export type DocumentDirection = 'incoming' | 'outgoing' | 'internal' | 'both'
-
 export type VisibilityOperator =
   | 'equals'
   | 'not_equals'
@@ -171,29 +169,6 @@ export type CreateRecordTypeInput = Omit<
 
 export type UpdateRecordTypeInput = Partial<CreateRecordTypeInput>
 
-export type DocumentPriority = 'low' | 'normal' | 'high' | 'urgent'
-export type DocumentConfidentiality = 'public' | 'internal' | 'confidential' | 'restricted'
-
-export interface DocumentType extends BaseEntity {
-  name: string
-  code: string
-  description?: string
-  direction: DocumentDirection
-  relatedRecordTypeId?: string
-  relatedRecordTypeName?: string
-  defaultPriority: DocumentPriority
-  defaultConfidentiality: DocumentConfidentiality
-  allowedFileTypes: string[]
-  maxFileSizeMb: number
-}
-
-export type CreateDocumentTypeInput = Omit<
-  DocumentType,
-  'id' | 'createdAt' | 'updatedAt' | 'status' | 'relatedRecordTypeName'
-> & { status?: EntityStatus | string }
-
-export type UpdateDocumentTypeInput = Partial<CreateDocumentTypeInput>
-
 export interface RecordAttributeQuery {
   q?: string
   page?: number
@@ -210,15 +185,6 @@ export interface RecordTypeQuery {
   sort?: string
   status?: string
   workflowEnabled?: boolean | string
-}
-
-export interface DocumentTypeQuery {
-  q?: string
-  page?: number
-  limit?: number
-  sort?: string
-  status?: string
-  direction?: DocumentDirection | string
 }
 
 export const ATTRIBUTE_DATA_TYPES: AttributeDataType[] = [

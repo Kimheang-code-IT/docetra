@@ -2,7 +2,9 @@
 import type { AppInfo } from '~/types/docetra/settings'
 import { appInfoTabs } from '~/config/settings-schemas'
 import { useSettingsRepositories } from '~/repositories'
+import { useConfirm } from '~/composables/common/useConfirm'
 import { useAppHeader } from '~/composables/layout/useAppHeader'
+import { useAppBranding } from '~/composables/settings/useAppBranding'
 import { getByPath, setByPath } from '~/utils/object-path'
 
 definePageMeta({
@@ -10,14 +12,15 @@ definePageMeta({
 })
 
 const { appInfo } = useSettingsRepositories()
+const { applyFromAppInfo } = useAppBranding()
 const { t } = useI18n()
 const toast = useToast()
+const { confirm } = useConfirm()
 const { setTitle, clear } = useAppHeader()
 
 const pending = ref(true)
 const saving = ref(false)
 const dirty = ref(false)
-const unsavedOpen = ref(false)
 const activeTab = ref('info')
 const model = ref<AppInfo | null>(null)
 
@@ -25,6 +28,7 @@ async function load() {
   pending.value = true
   try {
     model.value = await appInfo.get()
+    applyFromAppInfo(model.value)
     dirty.value = false
   }
   catch (e: any) {
@@ -34,6 +38,13 @@ async function load() {
     pending.value = false
   }
 }
+
+watch(
+  () => model.value?.branding.primaryColor,
+  () => {
+    if (model.value) applyFromAppInfo(model.value)
+  },
+)
 
 watch(model, () => { if (model.value) dirty.value = true }, { deep: true })
 
@@ -52,6 +63,7 @@ async function save() {
   saving.value = true
   try {
     model.value = await appInfo.update(model.value)
+    applyFromAppInfo(model.value)
     toast.add({ title: t('docetra.common.saved'), color: 'success' })
     dirty.value = false
   }
@@ -64,9 +76,19 @@ async function save() {
 }
 
 async function reset() {
+  const ok = await confirm({
+    kind: 'update',
+    titleKey: 'docetra.common.reset',
+    descriptionKey: 'docetra.confirm.genericDescription',
+    confirmLabelKey: 'docetra.common.reset',
+    confirmColor: 'warning',
+  })
+  if (!ok) return
+
   saving.value = true
   try {
     model.value = await appInfo.reset()
+    applyFromAppInfo(model.value)
     dirty.value = false
     toast.add({ title: t('docetra.common.resetDone'), color: 'success' })
   }
@@ -95,6 +117,7 @@ useHead(() => ({ title: `${t('docetra.pages.appInfo')} · ${t('docetra.brand.nam
     :show-comments="false"
     :show-meta-rail="false"
     :show-list-nav="false"
+    content-wide
     @save="save"
     @refresh="load"
   >
@@ -103,40 +126,5 @@ useHead(() => ({ title: `${t('docetra.pages.appInfo')} · ${t('docetra.brand.nam
         {{ t('docetra.common.reset') }}
       </UButton>
     </template>
-
-    <template v-if="model" #aside>
-      <div class="space-y-3 text-center">
-        <p class="text-left text-sm font-medium text-highlighted">
-          {{ t('docetra.common.preview') }}
-        </p>
-        <div
-          class="mx-auto flex size-16 items-center justify-center rounded-xl"
-          :style="{ backgroundColor: model.branding.primaryColor || '#2563eb' }"
-        >
-          <img
-            v-if="model.branding.mainLogoUrl"
-            :src="model.branding.mainLogoUrl"
-            alt=""
-            class="max-h-12 max-w-12 object-contain"
-          >
-          <span v-else class="text-lg font-bold text-white">
-            {{ (model.shortName || 'D').slice(0, 2) }}
-          </span>
-        </div>
-        <div>
-          <p class="text-base font-semibold">
-            {{ model.applicationName }}
-          </p>
-          <p class="text-xs text-muted">
-            {{ model.organizationName }}
-          </p>
-        </div>
-        <p class="text-xs text-muted">
-          {{ model.footer.copyrightText }}
-        </p>
-      </div>
-    </template>
   </DocumentAppDocumentPage>
-
-  <CommonAppUnsavedChangesDialog v-model:open="unsavedOpen" />
 </template>

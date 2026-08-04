@@ -4,6 +4,7 @@ const model = defineModel<string>({ default: '#2563eb' })
 const props = withDefaults(defineProps<{
   label?: string
   labelKey?: string
+  help?: string
   disabled?: boolean
 }>(), {
   disabled: false,
@@ -32,7 +33,7 @@ const PRESETS = [
 </script>
 
 <template>
-  <UFormField :label="labelText">
+  <UFormField :label="labelText" :help="props.help || undefined">
     <div class="flex flex-wrap items-center gap-2">
       <input
         v-model="model"

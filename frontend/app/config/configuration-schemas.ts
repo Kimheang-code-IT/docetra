@@ -10,8 +10,10 @@ const statusOptions: FieldOption[] = [
 export function recordTypeTabs(ctx: {
   attributeCatalog: RecordAttribute[]
   availableAttributeOptions: FieldOption[]
+  /** When false, workflow builder tab is omitted (follows features.enableWorkflow). */
+  enableWorkflow?: boolean
 }): DocumentTabSchema[] {
-  return [
+  const tabs: DocumentTabSchema[] = [
     {
       id: 'general',
       labelKey: 'docetra.config.tabs.general',
@@ -21,7 +23,7 @@ export function recordTypeTabs(ctx: {
         fields: [
           { key: 'name', labelKey: 'docetra.fields.name', type: 'text', required: true },
           { key: 'code', labelKey: 'docetra.fields.code', type: 'text', required: true },
-          { key: 'description', labelKey: 'docetra.fields.description', type: 'textarea', colSpan: 2, rows: 2 },
+          { key: 'description', labelKey: 'docetra.fields.description', type: 'textarea', colSpan: 2, rows: 3 },
           { key: 'icon', labelKey: 'docetra.common.icon', type: 'icon' },
           { key: 'color', labelKey: 'docetra.common.color', type: 'color' },
           { key: 'status', labelKey: 'docetra.fields.status', type: 'select', options: statusOptions },
@@ -80,7 +82,10 @@ export function recordTypeTabs(ctx: {
         ],
       }],
     },
-    {
+  ]
+
+  if (ctx.enableWorkflow !== false) {
+    tabs.push({
       id: 'workflow',
       labelKey: 'docetra.config.tabs.workflow',
       sections: [{
@@ -90,8 +95,10 @@ export function recordTypeTabs(ctx: {
           { key: '__workflow', labelKey: 'docetra.config.tabs.workflow', type: 'workflow-builder', colSpan: 2 },
         ],
       }],
-    },
-  ]
+    })
+  }
+
+  return tabs
 }
 
 export function recordAttributeTabs(ctx: {
@@ -116,7 +123,7 @@ export function recordAttributeTabs(ctx: {
         fields: [
           { key: 'label', labelKey: 'docetra.fields.label', type: 'text', required: true },
           { key: 'code', labelKey: 'docetra.fields.code', type: 'text', required: true, readOnly: ctx.codeReadOnly },
-          { key: 'description', labelKey: 'docetra.fields.description', type: 'textarea', colSpan: 2, rows: 2 },
+          { key: 'description', labelKey: 'docetra.fields.description', type: 'textarea', colSpan: 2, rows: 3 },
           { key: 'helpText', labelKey: 'docetra.config.helpText', type: 'text' },
           { key: 'dataType', labelKey: 'docetra.config.dataTypeLabel', type: 'select', options: dataTypeOptions },
           { key: 'placeholder', labelKey: 'docetra.config.placeholder', type: 'text' },
@@ -193,71 +200,4 @@ export function recordAttributeTabs(ctx: {
   })
 
   return tabs
-}
-
-export function documentTypeTabs(ctx: {
-  recordTypeOptions: FieldOption[]
-}): DocumentTabSchema[] {
-  return [
-    {
-      id: 'details',
-      labelKey: 'docetra.config.tabs.general',
-      sections: [{
-        id: 'details',
-        titleKey: 'docetra.config.tabs.general',
-        fields: [
-          { key: 'name', labelKey: 'docetra.fields.name', type: 'text', required: true },
-          { key: 'code', labelKey: 'docetra.fields.code', type: 'text', required: true },
-          { key: 'description', labelKey: 'docetra.fields.description', type: 'textarea', colSpan: 2, rows: 2 },
-          {
-            key: 'direction',
-            labelKey: 'docetra.config.direction',
-            type: 'select',
-            options: [
-              { label: 'Incoming', value: 'incoming' },
-              { label: 'Outgoing', value: 'outgoing' },
-              { label: 'Internal', value: 'internal' },
-              { label: 'Both', value: 'both' },
-            ],
-          },
-          {
-            key: 'relatedRecordTypeId',
-            labelKey: 'docetra.config.relatedRecordType',
-            type: 'select',
-            options: ctx.recordTypeOptions,
-          },
-          {
-            key: 'defaultPriority',
-            labelKey: 'docetra.config.defaultPriority',
-            type: 'select',
-            options: [
-              { label: 'Low', value: 'low' },
-              { label: 'Normal', value: 'normal' },
-              { label: 'High', value: 'high' },
-              { label: 'Urgent', value: 'urgent' },
-            ],
-          },
-          {
-            key: 'defaultConfidentiality',
-            labelKey: 'docetra.config.defaultConfidentiality',
-            type: 'select',
-            options: [
-              { label: 'Public', value: 'public' },
-              { label: 'Internal', value: 'internal' },
-              { label: 'Confidential', value: 'confidential' },
-              { label: 'Restricted', value: 'restricted' },
-            ],
-          },
-          {
-            key: 'allowedFileTypes',
-            labelKey: 'docetra.config.allowedExtensions',
-            type: 'csv-list',
-            helpKey: 'docetra.config.extensionsHelp',
-          },
-          { key: 'maxFileSizeMb', labelKey: 'docetra.config.maxFileSizeMb', type: 'number' },
-          { key: 'status', labelKey: 'docetra.fields.status', type: 'select', options: statusOptions },
-        ],
-      }],
-    },
-  ]
 }

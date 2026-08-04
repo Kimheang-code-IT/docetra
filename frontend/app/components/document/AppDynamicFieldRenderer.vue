@@ -2,6 +2,7 @@
 import type {
   ConnectionStatusFieldValue,
   DocumentFieldSchema,
+  FieldOption,
 } from '~/types/docetra/common'
 import type {
   AttributeDataType,
@@ -16,7 +17,9 @@ import type {
 } from '~/types/docetra/configuration'
 import type { ConnectionStatus, NotificationRule, TelegramDestination } from '~/types/docetra/settings'
 import { TELEGRAM_TEMPLATE_VARIABLES } from '~/types/docetra/settings'
-import { createId } from '~/mocks/query'
+import { createClientId } from '~/utils/client-id'
+import { resolveFieldHelp } from '~/utils/field-help'
+import { loadReferenceOptions } from '~/adapters/reference-options'
 
 const props = defineProps<{
   field: DocumentFieldSchema
@@ -126,8 +129,26 @@ const connectionValue = computed(() => {
   }
 })
 
+const remoteOptions = ref<FieldOption[]>([])
+const optionsPending = ref(false)
+
+watch(() => props.field.optionsEndpoint, async (endpoint) => {
+  remoteOptions.value = []
+  if (!endpoint) return
+  optionsPending.value = true
+  try {
+    remoteOptions.value = await loadReferenceOptions(endpoint)
+  }
+  catch {
+    remoteOptions.value = []
+  }
+  finally {
+    optionsPending.value = false
+  }
+}, { immediate: true })
+
 const selectItems = computed(() =>
-  (props.field.options || [])
+  [...(props.field.options || []), ...remoteOptions.value]
     .filter(o => o.value !== '')
     .map(o => ({
       label: t(o.labelKey || o.label),
@@ -137,15 +158,13 @@ const selectItems = computed(() =>
 
 const labelText = computed(() => t(props.field.labelKey))
 
-const helpText = computed(() => {
-  if (!props.field.helpKey || !te(props.field.helpKey)) return ''
-  return t(props.field.helpKey)
-})
+const helpText = computed(() =>
+  resolveFieldHelp(props.field, labelText.value, t, te),
+)
 
 const hintText = computed(() => {
-  const key = props.field.hintKey || props.field.helpKey
-  if (!key || !te(key)) return ''
-  return t(key)
+  if (props.field.hintKey && te(props.field.hintKey)) return t(props.field.hintKey)
+  return helpText.value
 })
 
 const placeholderText = computed(() => {
@@ -301,7 +320,16 @@ const textareaHelp = computed(() => {
   if (props.field.key === 'telegram.messageTemplate') {
     return TELEGRAM_TEMPLATE_VARIABLES.join(' ')
   }
-  return helpText.value || undefined
+  return helpText.value
+})
+
+/** Textareas: min 3 lines, grow with content up to 7. */
+const TEXTAREA_MIN_ROWS = 3
+const TEXTAREA_MAX_ROWS = 7
+
+const textareaRows = computed(() => {
+  const requested = props.field.rows ?? TEXTAREA_MIN_ROWS
+  return Math.min(TEXTAREA_MAX_ROWS, Math.max(TEXTAREA_MIN_ROWS, requested))
 })
 
 function toggleHint() {
@@ -318,7 +346,7 @@ watch(() => props.field.key, () => {
 
 function addDestination() {
   const next: TelegramDestination = {
-    id: createId('td'),
+    id: createClientId('td'),
     name: 'New destination',
     type: 'chat',
     chatId: '',
@@ -354,7 +382,7 @@ function removeDestination(id: string) {
     v-else-if="isSecret"
     v-model="secretValue"
     :label="labelText"
-    :help="helpText || undefined"
+    :help="helpText"
     :disabled="disabled || field.readOnly"
   />
 
@@ -362,6 +390,7 @@ function removeDestination(id: string) {
     v-else-if="isColor"
     v-model="colorValue"
     :label="labelText"
+    :help="helpText"
     :disabled="disabled || field.readOnly"
   />
 
@@ -369,7 +398,7 @@ function removeDestination(id: string) {
     v-else-if="isImage"
     v-model="imageValue"
     :label="labelText"
-    :help="helpText || undefined"
+    :help="helpText"
     :disabled="disabled || field.readOnly"
   />
 
@@ -377,6 +406,7 @@ function removeDestination(id: string) {
     v-else-if="isIcon"
     v-model="iconValue"
     :label="labelText"
+    :help="helpText"
     :disabled="disabled || field.readOnly"
   />
 
@@ -425,6 +455,7 @@ function removeDestination(id: string) {
           value-key="value"
           class="w-full"
           :disabled="disabled || field.readOnly"
+          :loading="optionsPending"
         />
       </UFormField>
       <UButton
@@ -594,55 +625,60 @@ function removeDestination(id: string) {
     :details="connectionValue.details"
   />
 
-  <!-- Checkbox: label beside control + optional info hint -->
-  <div v-else-if="isBoolean" class="flex min-h-9 flex-wrap items-center gap-2 pt-1">
-    <UCheckbox
-      v-model="boolValue"
-      :disabled="disabled || field.readOnly"
-      :required="field.required"
-      :ui="{ label: 'text-sm text-highlighted' }"
-    >
-      <template #label>
-        <span class="inline-flex items-center gap-1.5">
-          <span>{{ labelText }}</span>
-          <UButton
-            v-if="hintText"
-            icon="i-lucide-info"
-            color="neutral"
-            variant="ghost"
-            size="xs"
-            square
-            class="text-muted"
-            :aria-label="hintText"
-            @click.prevent.stop="toggleHint"
-          />
-        </span>
-      </template>
-    </UCheckbox>
+  <!-- Checkbox: label beside control + helper text below -->
+  <UFormField
+    v-else-if="isBoolean"
+    :help="helpText"
+  >
+    <div class="flex min-h-9 flex-wrap items-center gap-2 pt-1">
+      <UCheckbox
+        v-model="boolValue"
+        :disabled="disabled || field.readOnly"
+        :required="field.required"
+        :ui="{ label: 'text-sm text-highlighted' }"
+      >
+        <template #label>
+          <span class="inline-flex items-center gap-1.5">
+            <span>{{ labelText }}</span>
+            <UButton
+              v-if="hintText"
+              icon="i-lucide-info"
+              color="neutral"
+              variant="ghost"
+              size="xs"
+              square
+              class="text-muted"
+              :aria-label="hintText"
+              @click.prevent.stop="toggleHint"
+            />
+          </span>
+        </template>
+      </UCheckbox>
 
-    <div
-      v-if="hintText && hintOpen"
-      class="inline-flex max-w-md items-start gap-2 rounded-md border border-default bg-elevated px-2.5 py-1.5 text-xs text-toned"
-    >
-      <p class="min-w-0 flex-1 leading-relaxed">{{ hintText }}</p>
-      <UButton
-        icon="i-lucide-x"
-        color="neutral"
-        variant="soft"
-        size="xs"
-        square
-        class="shrink-0"
-        @click="closeHint"
-      />
+      <div
+        v-if="hintText && hintOpen"
+        class="inline-flex max-w-md items-start gap-2 rounded-md border border-default bg-elevated px-2.5 py-1.5 text-xs text-toned"
+      >
+        <p class="min-w-0 flex-1 leading-relaxed">{{ hintText }}</p>
+        <UButton
+          icon="i-lucide-x"
+          color="neutral"
+          variant="soft"
+          size="xs"
+          square
+          class="shrink-0"
+          @click="closeHint"
+        />
+      </div>
     </div>
-  </div>
+  </UFormField>
 
   <!-- Standard fields: label + control + help below -->
   <UFormField
     v-else
     :label="labelText"
     :required="field.required"
-    :help="field.type === 'textarea' ? textareaHelp : (helpText || undefined)"
+    :help="field.type === 'textarea' && textareaHelp ? textareaHelp : helpText"
   >
     <div class="flex items-start gap-1.5">
       <div class="min-w-0 flex-1">
@@ -651,7 +687,9 @@ function removeDestination(id: string) {
           v-model="stringValue"
           :disabled="disabled || field.readOnly"
           :placeholder="placeholderText"
-          :rows="field.rows || 4"
+          :rows="textareaRows"
+          :maxrows="TEXTAREA_MAX_ROWS"
+          autoresize
           class="w-full"
           :class="field.key === 'telegram.messageTemplate' ? 'font-mono text-sm' : ''"
         />
@@ -683,6 +721,7 @@ function removeDestination(id: string) {
           value-key="value"
           :placeholder="placeholderText"
           :disabled="disabled || field.readOnly"
+          :loading="optionsPending"
           class="w-full"
         />
         <USelect
@@ -693,6 +732,7 @@ function removeDestination(id: string) {
           multiple
           :placeholder="placeholderText"
           :disabled="disabled || field.readOnly"
+          :loading="optionsPending"
           class="w-full"
         />
         <UInput

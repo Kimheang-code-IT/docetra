@@ -31,6 +31,7 @@ const model = defineModel<string>({ default: '' })
 const props = withDefaults(defineProps<{
   label?: string
   labelKey?: string
+  help?: string
   icons?: string[]
   disabled?: boolean
 }>(), {
@@ -66,7 +67,7 @@ function clear() {
 </script>
 
 <template>
-  <UFormField :label="labelText">
+  <UFormField :label="labelText" :help="props.help || undefined">
     <div class="flex items-center gap-2">
       <UButton
         color="neutral"

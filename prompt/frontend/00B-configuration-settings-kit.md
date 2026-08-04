@@ -1,6 +1,9 @@
 # Prompt 00B — Configuration & Settings Reusable Kit
 
-## Copy/paste prompt
+> **Status:** Implemented — architecture reference only (not a build ticket).
+> Key code: `config/configuration-schemas.ts`, `config/settings-schemas.ts` (`storageSettingsTabs`), `repositories/*` (mock now / HTTP when `useMockData=false`), list/editor components under `components/configuration/` and settings pages.
+
+## Reference (was copy/paste prompt)
 
 Build and reuse the Docetra **Configuration & Settings** shared kit already started under `frontend/`. Do not invent a second UI kit. Prefer existing Nuxt UI primitives and the components listed below.
 
@@ -22,7 +25,7 @@ Use `useConfigurationRepositories()` and `useSettingsRepositories()` from `app/r
 
 ### Types
 
-- `app/types/docetra/configuration.ts` — RecordType, RecordAttribute, options, validation, visibility, workflow, DocumentType
+- `app/types/docetra/configuration.ts` — RecordType, RecordAttribute, options, validation, visibility, workflow
 - `app/types/docetra/settings.ts` — AppInfo, AppConfig, Email, Telegram, Storage, ConnectionStatus
 
 ### Shared common components (`app/components/common/`)
@@ -75,4 +78,4 @@ Sidebar group label must be **Settings** (`docetra.navigation.settings`), routes
 
 ### Acceptance
 
-Reusable kit exists, typed repositories work, builders render, Settings nav label is correct, and later page prompts can compose these pieces without rewriting the foundation.
+Reusable kit exists, typed repositories work, builders render, Settings nav label is correct, and Configuration / Settings pages compose these pieces without rewriting the foundation.

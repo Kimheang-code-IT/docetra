@@ -58,7 +58,7 @@ watch(
         to: props.config.routeBase,
       },
       {
-        label: isCreate.value ? t('docetra.document.newShort') : title.value,
+        label: title.value,
       },
     ])
 

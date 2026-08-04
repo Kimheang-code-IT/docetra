@@ -108,25 +108,35 @@ function onDrop(event: DragEvent) {
           color="neutral"
           variant="ghost"
           size="xs"
-          class="shrink-0 opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100"
+          class="shrink-0"
           :aria-label="$t('docetra.actions.more')"
           @click.stop
         />
       </UDropdownMenu>
     </div>
 
-    <div class="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-muted">
-      <span v-if="meeting.meetingDate" class="inline-flex items-center gap-1">
-        <UIcon name="i-lucide-calendar" class="size-3" />
-        {{ meeting.meetingDate }}
-      </span>
-      <span v-if="meeting.location" class="inline-flex items-center gap-1">
-        <UIcon name="i-lucide-map-pin" class="size-3" />
-        {{ meeting.location }}
-      </span>
+    <div
+      v-if="statusLabel || meeting.sortOrder != null"
+      class="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-muted"
+    >
       <UBadge size="sm" color="neutral" variant="subtle">{{ statusLabel }}</UBadge>
       <span v-if="meeting.sortOrder != null" class="tabular-nums text-[11px]">
         #{{ meeting.sortOrder + 1 }}
+      </span>
+    </div>
+
+    <div
+      v-if="meeting.meetingDate || meeting.location"
+      class="mt-2 flex items-center justify-between gap-2 border-t border-default pt-2 text-xs text-muted"
+    >
+      <span v-if="meeting.meetingDate" class="inline-flex min-w-0 items-center gap-1 truncate">
+        <UIcon name="i-lucide-calendar" class="size-3 shrink-0" />
+        <span class="truncate">{{ meeting.meetingDate }}</span>
+      </span>
+      <span v-else />
+      <span v-if="meeting.location" class="inline-flex min-w-0 items-center gap-1 truncate">
+        <UIcon name="i-lucide-map-pin" class="size-3 shrink-0" />
+        <span class="truncate">{{ meeting.location }}</span>
       </span>
     </div>
   </article>

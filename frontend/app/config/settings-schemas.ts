@@ -1,47 +1,39 @@
 import type { DocumentTabSchema } from '~/types/docetra/common'
 import type { StorageProviderType } from '~/types/docetra/settings'
+import {
+  AWS_REGION_OPTIONS,
+  CURRENCY_OPTIONS,
+  DATE_FORMAT_OPTIONS,
+  LANDING_PAGE_OPTIONS,
+  LOCALE_OPTIONS,
+  PAGE_SIZE_OPTIONS,
+  SYNC_SCHEDULE_OPTIONS,
+  TIME_FORMAT_OPTIONS,
+  TIMEZONE_OPTIONS,
+} from '~/utils/constants/select-options'
 
-/** App Info — single tab with general / branding / footer sections. */
+/** App Info — flat form (no tabs UI when single tab). */
 export const appInfoTabs: DocumentTabSchema[] = [
   {
     id: 'info',
-    labelKey: 'docetra.settings.tabs.general',
+    labelKey: 'docetra.pages.appInfo',
     sections: [
       {
-        id: 'general',
-        titleKey: 'docetra.settings.generalInfo',
-        descriptionKey: 'docetra.settings.generalInfoHelp',
+        id: 'info',
         fields: [
-          { key: 'applicationName', labelKey: 'docetra.settings.applicationName', type: 'text', required: true },
-          { key: 'shortName', labelKey: 'docetra.settings.shortName', type: 'text', required: true },
-          { key: 'organizationName', labelKey: 'docetra.settings.organizationName', type: 'text', colSpan: 2 },
-          { key: 'description', labelKey: 'docetra.fields.description', type: 'textarea', colSpan: 2, rows: 2 },
+          { key: 'applicationName', labelKey: 'docetra.settings.applicationName', type: 'text', required: true, colSpan: 2 },
+          { key: 'description', labelKey: 'docetra.fields.description', type: 'textarea', colSpan: 2, rows: 3 },
           { key: 'supportEmail', labelKey: 'docetra.settings.supportEmail', type: 'text' },
           { key: 'supportPhone', labelKey: 'docetra.settings.supportPhone', type: 'text' },
           { key: 'website', labelKey: 'docetra.settings.website', type: 'url' },
           { key: 'address', labelKey: 'docetra.settings.address', type: 'text' },
-        ],
-      },
-      {
-        id: 'branding',
-        titleKey: 'docetra.settings.branding',
-        descriptionKey: 'docetra.settings.brandingHelp',
-        fields: [
-          { key: 'branding.mainLogoUrl', labelKey: 'docetra.settings.mainLogo', type: 'image' },
-          { key: 'branding.sidebarLogoUrl', labelKey: 'docetra.settings.sidebarLogo', type: 'image' },
-          { key: 'branding.faviconUrl', labelKey: 'docetra.settings.favicon', type: 'image' },
-          { key: 'branding.loginBackgroundUrl', labelKey: 'docetra.settings.loginBackground', type: 'image' },
-          { key: 'branding.primaryColor', labelKey: 'docetra.settings.primaryColor', type: 'color' },
-          { key: 'branding.secondaryColor', labelKey: 'docetra.settings.secondaryColor', type: 'color' },
-        ],
-      },
-      {
-        id: 'footer',
-        titleKey: 'docetra.settings.footerInfo',
-        fields: [
           { key: 'footer.copyrightText', labelKey: 'docetra.settings.copyright', type: 'text', colSpan: 2 },
-          { key: 'footer.privacyPolicyUrl', labelKey: 'docetra.settings.privacyUrl', type: 'url', colSpan: 2 },
-          { key: 'footer.termsUrl', labelKey: 'docetra.settings.termsUrl', type: 'url', colSpan: 2 },
+          {
+            key: 'branding.primaryColor',
+            labelKey: 'docetra.settings.primaryColor',
+            type: 'color',
+          },
+          { key: 'branding.mainLogoUrl', labelKey: 'docetra.settings.logo', type: 'image', colSpan: 2 },
         ],
       },
     ],
@@ -58,8 +50,18 @@ export const appConfigTabs: DocumentTabSchema[] = [
         id: 'general',
         titleKey: 'docetra.settings.tabs.general',
         fields: [
-          { key: 'general.defaultLandingPage', labelKey: 'docetra.settings.defaultLandingPage', type: 'text' },
-          { key: 'general.defaultPageSize', labelKey: 'docetra.settings.defaultPageSize', type: 'number' },
+          {
+            key: 'general.defaultLandingPage',
+            labelKey: 'docetra.settings.defaultLandingPage',
+            type: 'select',
+            options: LANDING_PAGE_OPTIONS,
+          },
+          {
+            key: 'general.defaultPageSize',
+            labelKey: 'docetra.settings.defaultPageSize',
+            type: 'select',
+            options: PAGE_SIZE_OPTIONS,
+          },
           {
             key: 'general.defaultRecordView',
             labelKey: 'docetra.settings.defaultRecordView',
@@ -94,11 +96,36 @@ export const appConfigTabs: DocumentTabSchema[] = [
               { label: 'Khmer', value: 'km' },
             ],
           },
-          { key: 'localization.timezone', labelKey: 'docetra.settings.timezone', type: 'text' },
-          { key: 'localization.dateFormat', labelKey: 'docetra.settings.dateFormat', type: 'text' },
-          { key: 'localization.timeFormat', labelKey: 'docetra.settings.timeFormat', type: 'text' },
-          { key: 'localization.currency', labelKey: 'docetra.settings.currency', type: 'text' },
-          { key: 'localization.locale', labelKey: 'docetra.settings.locale', type: 'text' },
+          {
+            key: 'localization.timezone',
+            labelKey: 'docetra.settings.timezone',
+            type: 'select',
+            options: TIMEZONE_OPTIONS,
+          },
+          {
+            key: 'localization.dateFormat',
+            labelKey: 'docetra.settings.dateFormat',
+            type: 'select',
+            options: DATE_FORMAT_OPTIONS,
+          },
+          {
+            key: 'localization.timeFormat',
+            labelKey: 'docetra.settings.timeFormat',
+            type: 'select',
+            options: TIME_FORMAT_OPTIONS,
+          },
+          {
+            key: 'localization.currency',
+            labelKey: 'docetra.settings.currency',
+            type: 'select',
+            options: CURRENCY_OPTIONS,
+          },
+          {
+            key: 'localization.locale',
+            labelKey: 'docetra.settings.locale',
+            type: 'select',
+            options: LOCALE_OPTIONS,
+          },
         ],
       },
     ],
@@ -164,7 +191,7 @@ export const appConfigTabs: DocumentTabSchema[] = [
             labelKey: 'docetra.settings.messageTemplate',
             type: 'textarea',
             colSpan: 2,
-            rows: 6,
+            rows: 7,
           },
           {
             key: 'telegram.destinations',
@@ -241,7 +268,12 @@ export const appConfigTabs: DocumentTabSchema[] = [
         fields: [
           { key: 'system.maintenanceMode', labelKey: 'docetra.settings.maintenanceMode', type: 'boolean' },
           { key: 'system.readOnlyMode', labelKey: 'docetra.settings.readOnlyMode', type: 'boolean' },
-          { key: 'system.paginationDefault', labelKey: 'docetra.settings.paginationDefault', type: 'number' },
+          {
+            key: 'system.paginationDefault',
+            labelKey: 'docetra.settings.paginationDefault',
+            type: 'select',
+            options: PAGE_SIZE_OPTIONS,
+          },
           { key: 'system.configurationVersion', labelKey: 'docetra.settings.configurationVersion', type: 'text', readOnly: true },
           { key: 'system.environment', labelKey: 'docetra.settings.environment', type: 'text', readOnly: true },
           { key: 'system.cacheStatus', labelKey: 'docetra.settings.cacheStatus', type: 'text', readOnly: true },
@@ -252,12 +284,8 @@ export const appConfigTabs: DocumentTabSchema[] = [
   },
 ]
 
-const storageBaseFields = [
+const storageCommonFields = [
   { key: 'name', labelKey: 'docetra.fields.name', type: 'text' as const, required: true },
-  { key: 'type', labelKey: 'docetra.settings.providerType', type: 'text' as const, readOnly: true },
-  { key: 'maxFileSizeMb', labelKey: 'docetra.config.maxFileSizeMb', type: 'number' as const },
-  { key: 'allowedFileTypes', labelKey: 'docetra.config.allowedExtensions', type: 'csv-list' as const },
-  { key: 'uploadPathPattern', labelKey: 'docetra.settings.uploadPathPattern', type: 'text' as const, colSpan: 2 as const },
   { key: 'active', labelKey: 'docetra.status.active', type: 'boolean' as const },
   {
     key: 'accessMode',
@@ -268,62 +296,88 @@ const storageBaseFields = [
       { label: 'Public', value: 'public' },
     ],
   },
+  { key: 'maxFileSizeMb', labelKey: 'docetra.config.maxFileSizeMb', type: 'number' as const },
+  { key: 'allowedFileTypes', labelKey: 'docetra.config.allowedExtensions', type: 'csv-list' as const, colSpan: 2 as const },
+  { key: 'uploadPathPattern', labelKey: 'docetra.settings.uploadPathPattern', type: 'text' as const, colSpan: 2 as const },
 ]
 
-const storageS3Fields = [
-  { key: 'endpoint', labelKey: 'docetra.settings.endpoint', type: 'text' as const },
-  { key: 'region', labelKey: 'docetra.settings.region', type: 'text' as const },
-  { key: 'bucket', labelKey: 'docetra.settings.bucket', type: 'text' as const },
-  { key: 'publicUrl', labelKey: 'docetra.settings.publicUrl', type: 'url' as const },
-  { key: 'accessKey', labelKey: 'docetra.settings.accessKey', type: 'text' as const },
-  { key: 'secretKey', labelKey: 'docetra.settings.secretKey', type: 'secret' as const },
-  { key: 'pathStyle', labelKey: 'docetra.settings.pathStyle', type: 'boolean' as const },
-]
+const storageConnectionField = {
+  key: '__storageConnection',
+  labelKey: 'docetra.connection.title',
+  type: 'connection-status' as const,
+  colSpan: 2 as const,
+}
 
-const storageDriveFields = [
-  { key: 'folderId', labelKey: 'docetra.settings.folderId', type: 'text' as const },
-  { key: 'syncSchedule', labelKey: 'docetra.settings.syncSchedule', type: 'text' as const },
-]
-
-/** Storage provider editor form — sections depend on provider type. */
-export function storageProviderTabs(type: StorageProviderType | null | undefined): DocumentTabSchema[] {
-  const sections: DocumentTabSchema['sections'] = [
-    {
-      id: 'basics',
-      titleKey: 'docetra.settings.tabs.general',
-      fields: [...storageBaseFields],
-    },
-  ]
-
-  if (type && ['cloudflare_r2', 'amazon_s3', 'minio'].includes(type)) {
-    sections.push({
-      id: 's3',
-      titleKey: 'docetra.settings.s3Settings',
-      fields: [...storageS3Fields],
-    })
-  }
-
-  if (type === 'google_drive') {
-    sections.push({
-      id: 'drive',
-      titleKey: 'docetra.settings.driveSettings',
-      fields: [...storageDriveFields],
-    })
-  }
-
-  sections.push({
-    id: 'connection',
-    titleKey: 'docetra.connection.title',
-    fields: [
-      { key: '__storageConnection', labelKey: 'docetra.connection.title', type: 'connection-status', colSpan: 2 },
+/** Storage settings — S3 and Google Drive only. */
+export const storageSettingsTabs: DocumentTabSchema[] = [
+  {
+    id: 'amazon_s3',
+    labelKey: 'docetra.settings.storageTabs.amazonS3',
+    sections: [
+      {
+        id: 's3-connection',
+        titleKey: 'docetra.settings.connectionSettings',
+        fields: [
+          {
+            key: 'region',
+            labelKey: 'docetra.settings.region',
+            type: 'select',
+            required: true,
+            options: AWS_REGION_OPTIONS,
+          },
+          { key: 'bucket', labelKey: 'docetra.settings.bucket', type: 'text', required: true },
+          { key: 'endpoint', labelKey: 'docetra.settings.endpoint', type: 'text', colSpan: 2 },
+          { key: 'publicUrl', labelKey: 'docetra.settings.publicUrl', type: 'url', colSpan: 2 },
+          { key: 'accessKey', labelKey: 'docetra.settings.accessKey', type: 'text', required: true },
+          { key: 'secretKey', labelKey: 'docetra.settings.secretKey', type: 'secret', required: true },
+        ],
+      },
+      {
+        id: 's3-options',
+        titleKey: 'docetra.settings.tabs.general',
+        fields: [...storageCommonFields],
+      },
+      {
+        id: 's3-status',
+        titleKey: 'docetra.connection.title',
+        fields: [storageConnectionField],
+      },
     ],
-  })
+  },
+  {
+    id: 'google_drive',
+    labelKey: 'docetra.settings.storageTabs.googleDrive',
+    sections: [
+      {
+        id: 'drive-connection',
+        titleKey: 'docetra.settings.connectionSettings',
+        fields: [
+          { key: 'clientId', labelKey: 'docetra.settings.clientId', type: 'text', required: true, colSpan: 2 },
+          { key: 'clientSecret', labelKey: 'docetra.settings.clientSecret', type: 'secret', required: true, colSpan: 2 },
+          { key: 'folderId', labelKey: 'docetra.settings.folderId', type: 'text', required: true },
+          {
+            key: 'syncSchedule',
+            labelKey: 'docetra.settings.syncSchedule',
+            type: 'select',
+            options: SYNC_SCHEDULE_OPTIONS,
+          },
+        ],
+      },
+      {
+        id: 'drive-options',
+        titleKey: 'docetra.settings.tabs.general',
+        fields: [...storageCommonFields],
+      },
+      {
+        id: 'drive-status',
+        titleKey: 'docetra.connection.title',
+        fields: [storageConnectionField],
+      },
+    ],
+  },
+]
 
-  return [
-    {
-      id: 'provider',
-      labelKey: 'docetra.pages.storage',
-      sections,
-    },
-  ]
+/** @deprecated Use `storageSettingsTabs` — kept for any leftover imports. */
+export function storageProviderTabs(_type?: StorageProviderType | null): DocumentTabSchema[] {
+  return storageSettingsTabs
 }

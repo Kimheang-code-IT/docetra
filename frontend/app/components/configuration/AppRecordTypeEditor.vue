@@ -10,7 +10,9 @@ import {
 } from '~/types/docetra/configuration'
 import { recordTypeTabs } from '~/config/configuration-schemas'
 import { useConfigurationRepositories } from '~/repositories'
+import { useConfirm } from '~/composables/common/useConfirm'
 import { useAppHeader } from '~/composables/layout/useAppHeader'
+import { toConfigCode } from '~/utils/config-code'
 import { getByPath, setByPath } from '~/utils/object-path'
 
 const props = defineProps<{
@@ -22,15 +24,17 @@ const { recordTypes, attributes } = useConfigurationRepositories()
 const { t } = useI18n()
 const toast = useToast()
 const router = useRouter()
+const { confirm } = useConfirm()
 const { setBreadcrumbs, clear } = useAppHeader()
 
 const pending = ref(true)
 const saving = ref(false)
 const dirty = ref(false)
-const unsavedOpen = ref(false)
+const hydrating = ref(false)
 const activeTab = ref('general')
 const catalog = ref<RecordAttribute[]>([])
 const model = ref(emptyType())
+const codeTouched = ref(false)
 
 const availableAttributeOptions = computed(() => {
   const used = new Set(model.value.attributes.map(a => a.attributeId))
@@ -42,10 +46,17 @@ const availableAttributeOptions = computed(() => {
     }))
 })
 
-const tabs = computed(() => recordTypeTabs({
-  attributeCatalog: catalog.value,
-  availableAttributeOptions: availableAttributeOptions.value,
-}))
+const tabs = computed(() => {
+  const next = recordTypeTabs({
+    attributeCatalog: catalog.value,
+    availableAttributeOptions: availableAttributeOptions.value,
+    enableWorkflow: model.value.features.enableWorkflow,
+  })
+  if (!model.value.features.enableWorkflow && activeTab.value === 'workflow') {
+    activeTab.value = 'general'
+  }
+  return next
+})
 
 function emptyType(): RecordType {
   const now = new Date().toISOString()
@@ -71,6 +82,8 @@ function emptyType(): RecordType {
 
 async function load() {
   pending.value = true
+  hydrating.value = true
+  codeTouched.value = !isCreate.value
   try {
     const attrRes = await attributes.list({ limit: 200, status: 'active' })
     catalog.value = attrRes.data || []
@@ -88,6 +101,8 @@ async function load() {
   }
   finally {
     pending.value = false
+    await nextTick()
+    hydrating.value = false
   }
 }
 
@@ -102,6 +117,7 @@ function fieldValue(key: string) {
 }
 
 function setFieldValue(key: string, value: unknown) {
+  if (key === 'code') codeTouched.value = true
   if (key === '__workflow') {
     const payload = value as { stages?: any[], transitions?: any[] }
     model.value.stages = payload.stages || []
@@ -109,6 +125,21 @@ function setFieldValue(key: string, value: unknown) {
     return
   }
   setByPath(model.value as any, key, value)
+
+  if (key === 'name' && isCreate.value && !codeTouched.value) {
+    const code = toConfigCode(String(value || ''), 'snake')
+    model.value.code = code
+    if (code) {
+      model.value.numbering = {
+        ...model.value.numbering,
+        prefix: toConfigCode(String(value || ''), 'upper').slice(0, 8) || 'DOC',
+      }
+    }
+  }
+
+  if (key === 'features.enableWorkflow') {
+    model.value.workflowEnabled = Boolean(value)
+  }
 }
 
 function toInput(): CreateRecordTypeInput {
@@ -122,8 +153,8 @@ function toInput(): CreateRecordTypeInput {
     features: m.features,
     numbering: m.numbering,
     attributes: m.attributes,
-    stages: m.stages,
-    transitions: m.transitions,
+    stages: m.features.enableWorkflow ? m.stages : [],
+    transitions: m.features.enableWorkflow ? m.transitions : [],
     status: m.status,
   }
 }
@@ -157,10 +188,11 @@ async function save() {
   }
 }
 
-function goBack() {
+async function goBack() {
   if (dirty.value) {
-    unsavedOpen.value = true
-    return
+    const ok = await confirm({ kind: 'unsaved' })
+    if (!ok) return
+    dirty.value = false
   }
   void router.push('/configuration/record-types')
 }
@@ -170,19 +202,22 @@ watch(
   () => {
     setBreadcrumbs([
       { label: t('docetra.pages.recordType'), to: '/configuration/record-types' },
-      { label: isCreate.value ? t('docetra.common.create') : (model.value.name || '…') },
+      { label: isCreate.value ? t('docetra.config.createRecordType') : (model.value.name || '…') },
     ])
   },
   { immediate: true },
 )
 
-watch(model, () => { dirty.value = true }, { deep: true })
+watch(model, () => {
+  if (!hydrating.value) dirty.value = true
+}, { deep: true })
+
 onBeforeUnmount(clear)
 onMounted(() => void load())
 watch(() => props.recordTypeId, () => void load())
 
 useHead(() => ({
-  title: `${isCreate.value ? t('docetra.common.create') : model.value.name} · ${t('docetra.pages.recordType')}`,
+  title: `${isCreate.value ? t('docetra.config.createRecordType') : model.value.name} · ${t('docetra.pages.recordType')}`,
 }))
 </script>
 
@@ -194,9 +229,13 @@ useHead(() => ({
     :set-field-value="setFieldValue"
     :pending="pending"
     :saving="saving"
+    :is-create="isCreate"
+    :save-label="isCreate ? t('docetra.common.create') : t('docetra.common.save')"
     :show-comments="false"
     :show-meta-rail="false"
-    :show-list-nav="false"
+    :show-list-nav="true"
+    list-to="/configuration/record-types"
+    content-wide
     @save="save"
     @refresh="load"
   >
@@ -205,14 +244,5 @@ useHead(() => ({
         {{ t('docetra.common.cancel') }}
       </UButton>
     </template>
-
-    <template #aside>
-      <ConfigurationAppRecordFormPreview :record-type="model" />
-    </template>
   </DocumentAppDocumentPage>
-
-  <CommonAppUnsavedChangesDialog
-    v-model:open="unsavedOpen"
-    @discard="() => { dirty = false; router.push('/configuration/record-types') }"
-  />
 </template>

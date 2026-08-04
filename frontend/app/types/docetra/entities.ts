@@ -25,7 +25,10 @@ export interface RecordDocument extends BaseEntity {
   referenceNumber: string
   title: string
   recordKind: 'incoming' | 'outgoing' | 'document' | 'master_list_request'
-  documentType?: string
+  /** Configured Record Type id (Configuration → Record Types). */
+  recordTypeId?: string
+  /** Denormalized Record Type name for list/board display. */
+  recordTypeName?: string
   senderOrganization?: OrganizationSummary
   recipientOrganization?: OrganizationSummary
   receivedDate?: string
@@ -145,14 +148,6 @@ export interface RecordAttributeConfig extends BaseEntity {
   required: boolean
   usageCount: number
   optionsJson?: string
-}
-
-export interface DocumentTypeConfig extends BaseEntity {
-  code: string
-  name: string
-  description?: string
-  usageCount: number
-  allowedMimeTypes?: string
 }
 
 export interface FileUploadItem extends BaseEntity {

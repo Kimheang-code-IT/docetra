@@ -42,10 +42,12 @@ export function applyListQuery<T extends Record<string, unknown>>(
   }
 
   if (query.stage) {
-    filtered = filtered.filter(item => item.stage === query.stage)
+    const stages = String(query.stage).split(',').filter(Boolean)
+    filtered = filtered.filter(item => stages.includes(String(item.stage || '')))
   }
   if (query.status) {
-    filtered = filtered.filter(item => item.status === query.status)
+    const statuses = String(query.status).split(',').filter(Boolean)
+    filtered = filtered.filter(item => statuses.includes(String(item.status || '')))
   }
 
   for (const [key, value] of Object.entries(query)) {

@@ -1,8 +1,6 @@
 <script setup lang="ts">
-/**
- * Soft period controls for chart headers (year + granularity + overflow refresh).
- * Matches compact dashboard filter chips: muted pills with caret / ellipsis.
- */
+import { filterSelectUi } from '~/utils/filter/select-ui'
+
 const year = defineModel<string>('year', { default: 'this' })
 const period = defineModel<string>('period', { default: 'monthly' })
 
@@ -37,11 +35,6 @@ const moreItems = computed(() => [[
     onSelect: () => emit('refresh'),
   },
 ]])
-
-const selectUi = {
-  base: 'rounded-lg bg-elevated ring-0 font-medium text-highlighted',
-  trailingIcon: 'text-muted',
-}
 </script>
 
 <template>
@@ -53,7 +46,7 @@ const selectUi = {
       size="sm"
       class="w-30"
       :aria-label="$t('docetra.dashboard.chartFilters.pickYear')"
-      :ui="selectUi"
+      :ui="filterSelectUi"
     />
 
     <USelect
@@ -63,7 +56,7 @@ const selectUi = {
       size="sm"
       class="w-34"
       :aria-label="$t('docetra.dashboard.chartFilters.pickPeriod')"
-      :ui="selectUi"
+      :ui="filterSelectUi"
     />
 
     <UDropdownMenu :items="moreItems" :content="{ align: 'end' }">

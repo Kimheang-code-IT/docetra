@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { AttachmentMeta, PersonSummary } from '~/types/docetra/common'
+import { fileTypeIcon } from '~/utils/file-icon'
 
 const props = defineProps<{
   title?: string
@@ -290,7 +291,13 @@ function removeAttachment(id: string) {
             :key="file.id"
             class="group flex items-center gap-2 text-sm text-highlighted"
           >
-            <UIcon name="i-lucide-file" class="size-3.5 shrink-0 text-muted" />
+            <span class="grid size-6 shrink-0 place-items-center rounded-md bg-elevated ring ring-default">
+              <UIcon
+                :name="fileTypeIcon(file).icon"
+                class="size-3"
+                :class="fileTypeIcon(file).class"
+              />
+            </span>
             <span class="min-w-0 flex-1 truncate">{{ file.name }}</span>
             <UButton
               icon="i-lucide-x"

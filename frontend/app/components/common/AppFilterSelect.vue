@@ -40,10 +40,10 @@ const items = computed(() =>
 const singleValue = computed({
   get: () => {
     const value = props.modelValue
-    if (Array.isArray(value)) return value[0] ?? null
-    return value ?? null
+    if (Array.isArray(value)) return value[0]
+    return value ?? undefined
   },
-  set: (value: string | number | boolean | null) => {
+  set: (value: string | number | boolean | undefined) => {
     emit('update:modelValue', value == null ? null : String(value))
   },
 })

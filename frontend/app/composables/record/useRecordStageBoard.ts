@@ -1,6 +1,7 @@
 import type { EntityConfig } from '~/config/entities'
 import { getEntityAdapter } from '~/config/entities'
 import type { WorkflowStage } from '~/types/docetra/common'
+import { isWithinDateTimeRange } from '~/utils/date-time-range'
 
 function getByPath(obj: Record<string, unknown>, path: string): unknown {
   return path.split('.').reduce<unknown>((acc, key) => {
@@ -72,16 +73,14 @@ export function useRecordStageBoard(
 
   const filteredItems = computed(() => {
     let rows = items.value
-    const start = dateStart.value.trim().slice(0, 10)
-    const end = dateEnd.value.trim().slice(0, 10)
-    if (start || end) {
-      rows = rows.filter((row) => {
-        const value = String(getByPath(row, options.dateField) || '').slice(0, 10)
-        if (!value) return false
-        if (start && value < start) return false
-        if (end && value > end) return false
-        return true
-      })
+    if (dateStart.value.trim() || dateEnd.value.trim()) {
+      rows = rows.filter(row =>
+        isWithinDateTimeRange(
+          String(getByPath(row, options.dateField) || ''),
+          dateStart.value,
+          dateEnd.value,
+        ),
+      )
     }
     return rows
   })

@@ -27,9 +27,6 @@ function toggleLeftPanel() {
   leftCollapsed.value = !leftCollapsed.value
 }
 
-onMounted(() => {
-  refresh()
-})
 </script>
 
 <template>
@@ -61,7 +58,7 @@ onMounted(() => {
         <!-- Left 1-col tab rail -->
         <aside
           class="flex h-full min-h-0 shrink-0 flex-col overflow-hidden border-e border-default bg-default transition-[width] duration-200"
-          :style="{ width: leftCollapsed ? '3.5rem' : '16rem' }"
+          :style="{ width: leftCollapsed ? '3.5rem' : '22rem' }"
         >
           <div
             class="flex shrink-0 items-center border-b border-default"
@@ -164,12 +161,11 @@ onMounted(() => {
               <CommonAppInputDate
                 v-model="dateFilter"
                 size="sm"
-                class="w-40"
+                granularity="minute"
+                class="w-44 sm:w-52"
               />
-              <UInput
+              <CommonAppLiveSearch
                 v-model="search"
-                icon="i-lucide-search"
-                size="sm"
                 class="w-48 lg:w-56"
                 :placeholder="$t('docetra.recordLogBoard.search')"
               />

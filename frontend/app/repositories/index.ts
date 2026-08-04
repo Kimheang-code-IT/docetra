@@ -1,58 +1,35 @@
-import type {
-  DocumentTypeRepository,
-  RecordAttributeRepository,
-  RecordTypeRepository,
-} from '~/repositories/contracts/configuration'
-import type {
-  AppConfigRepository,
-  AppInfoRepository,
-  StorageRepository,
-} from '~/repositories/contracts/settings'
-import {
-  createMockDocumentTypeRepository,
-  createMockRecordAttributeRepository,
-  createMockRecordTypeRepository,
-} from '~/repositories/mock/configuration'
-import {
-  createMockAppConfigRepository,
-  createMockAppInfoRepository,
-  createMockStorageRepository,
-} from '~/repositories/mock/settings'
+import type { RecordAttributeRepository, RecordTypeRepository } from '~/repositories/contracts/configuration'
+import type { AppConfigRepository, AppInfoRepository, StorageRepository } from '~/repositories/contracts/settings'
+import { createHttpRecordAttributeRepository, createHttpRecordTypeRepository } from '~/repositories/http/configuration'
+import { createHttpAppConfigRepository, createHttpAppInfoRepository } from '~/repositories/http/settings'
+import { createHttpStorageRepository } from '~/repositories/http/settings-storage'
+import { createMockRecordAttributeRepository, createMockRecordTypeRepository } from '~/repositories/mock/configuration'
+import { createMockAppConfigRepository, createMockAppInfoRepository, createMockStorageRepository } from '~/repositories/mock/settings'
 
-/**
- * Repository factory. Mock implementations persist to localStorage.
- * Swap to HTTP repositories later without changing page components.
- *
- * Singletons keep in-memory + localStorage state consistent across navigations.
- */
+let mode: 'mock' | 'http' | null = null
+let recordAttributeRepo: RecordAttributeRepository
+let recordTypeRepo: RecordTypeRepository
+let appInfoRepo: AppInfoRepository
+let appConfigRepo: AppConfigRepository
+let storageRepo: StorageRepository
 
-let recordAttributeRepo: RecordAttributeRepository | null = null
-let recordTypeRepo: RecordTypeRepository | null = null
-let documentTypeRepo: DocumentTypeRepository | null = null
-let appInfoRepo: AppInfoRepository | null = null
-let appConfigRepo: AppConfigRepository | null = null
-let storageRepo: StorageRepository | null = null
+function ensureRepositories() {
+  const nextMode = useRuntimeConfig().public.useMockData !== false ? 'mock' : 'http'
+  if (mode === nextMode) return
+  mode = nextMode
+  recordAttributeRepo = nextMode === 'mock' ? createMockRecordAttributeRepository() : createHttpRecordAttributeRepository()
+  recordTypeRepo = nextMode === 'mock' ? createMockRecordTypeRepository() : createHttpRecordTypeRepository()
+  appInfoRepo = nextMode === 'mock' ? createMockAppInfoRepository() : createHttpAppInfoRepository()
+  appConfigRepo = nextMode === 'mock' ? createMockAppConfigRepository() : createHttpAppConfigRepository()
+  storageRepo = nextMode === 'mock' ? createMockStorageRepository() : createHttpStorageRepository()
+}
 
 export function useConfigurationRepositories() {
-  recordAttributeRepo ||= createMockRecordAttributeRepository()
-  recordTypeRepo ||= createMockRecordTypeRepository()
-  documentTypeRepo ||= createMockDocumentTypeRepository()
-
-  return {
-    attributes: recordAttributeRepo,
-    recordTypes: recordTypeRepo,
-    documentTypes: documentTypeRepo,
-  }
+  ensureRepositories()
+  return { attributes: recordAttributeRepo!, recordTypes: recordTypeRepo! }
 }
 
 export function useSettingsRepositories() {
-  appInfoRepo ||= createMockAppInfoRepository()
-  appConfigRepo ||= createMockAppConfigRepository()
-  storageRepo ||= createMockStorageRepository()
-
-  return {
-    appInfo: appInfoRepo,
-    appConfig: appConfigRepo,
-    storage: storageRepo,
-  }
+  ensureRepositories()
+  return { appInfo: appInfoRepo!, appConfig: appConfigRepo!, storage: storageRepo! }
 }

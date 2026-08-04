@@ -1,5 +1,6 @@
 import type { EntityConfig } from '~/config/entities'
 import { getEntityAdapter } from '~/config/entities'
+import { useConfirm } from '~/composables/common/useConfirm'
 import type { ActivityEvent, AttachmentMeta, EntityComment } from '~/types/docetra/common'
 import type { AppRolePermissionRow } from '~/types/docetra/entities'
 import { permissionRowsToFlatKeys } from '~/utils/role/permissions'
@@ -10,6 +11,7 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
   const router = useRouter()
   const { t } = useI18n()
   const toast = useToast()
+  const { confirm } = useConfirm()
   const adapter = getEntityAdapter(config.key)
 
   const id = computed(() => idParam || String(route.params.id || ''))
@@ -31,7 +33,10 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
   const dirty = computed(() => JSON.stringify(model.value) !== initialSnapshot.value)
 
   const title = computed(() => {
-    if (isCreate.value) return t('docetra.document.new', { entity: t(config.titleKey) })
+    if (isCreate.value) {
+      if (config.createLabelKey) return t(config.createLabelKey)
+      return t('docetra.document.new', { entity: t(config.titleKey) })
+    }
     const value = model.value[config.titleField]
     return value ? String(value) : t(config.titleKey)
   })
@@ -148,12 +153,12 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
     }
   }
 
-  function confirmLeave() {
+  async function confirmLeave() {
     if (!dirty.value) return true
-    return window.confirm(t('docetra.document.unsavedConfirm'))
+    return confirm({ kind: 'unsaved' })
   }
 
-  onBeforeRouteLeave(() => confirmLeave())
+  onBeforeRouteLeave(async () => confirmLeave())
 
   if (import.meta.client) {
     useEventListener(window, 'beforeunload', (event) => {

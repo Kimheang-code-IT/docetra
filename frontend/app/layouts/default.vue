@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useMenu } from '~/composables/layout/useMenu'
 
+const { t } = useI18n()
 const { links } = useMenu()
 
 const searchGroups = computed(() => {
@@ -31,7 +32,7 @@ const searchGroups = computed(() => {
 
   return [{
     id: 'navigation',
-    label: 'Pages',
+    label: t('common.pages'),
     items,
   }]
 })

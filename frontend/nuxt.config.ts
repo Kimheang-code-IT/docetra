@@ -18,7 +18,6 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       apiBase: import.meta.env.NUXT_PUBLIC_API_BASE || 'http://localhost:8000',
-      // Set `NUXT_PUBLIC_USE_MOCK_DATA=false` for API-only analytics and table fallbacks in dev/prod.
       useMockData: import.meta.env.NUXT_PUBLIC_USE_MOCK_DATA !== 'false',
       appVersion: import.meta.env.NUXT_PUBLIC_APP_VERSION || '0.1.0',
     }

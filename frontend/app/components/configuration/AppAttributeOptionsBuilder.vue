@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { AttributeOption } from '~/types/docetra/configuration'
-import { createId } from '~/mocks/query'
+import { createClientId } from '~/utils/client-id'
 
 const model = defineModel<AttributeOption[]>({ default: () => [] })
 
@@ -11,7 +11,7 @@ function addOption() {
   model.value = [
     ...model.value,
     {
-      id: createId('opt'),
+      id: createClientId('opt'),
       label: `Option ${order + 1}`,
       value: `option_${order + 1}`,
       active: true,

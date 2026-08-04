@@ -3,6 +3,7 @@ import type { AppConfig } from '~/types/docetra/settings'
 import type { ConnectionStatusFieldValue } from '~/types/docetra/common'
 import { appConfigTabs } from '~/config/settings-schemas'
 import { useSettingsRepositories } from '~/repositories'
+import { useConfirm } from '~/composables/common/useConfirm'
 import { useAppHeader } from '~/composables/layout/useAppHeader'
 import { getByPath, setByPath } from '~/utils/object-path'
 
@@ -13,6 +14,7 @@ definePageMeta({
 const { appConfig } = useSettingsRepositories()
 const { t } = useI18n()
 const toast = useToast()
+const { confirm } = useConfirm()
 const { setTitle, clear } = useAppHeader()
 
 const pending = ref(true)
@@ -20,8 +22,6 @@ const saving = ref(false)
 const testingEmail = ref(false)
 const testingTelegram = ref(false)
 const dirty = ref(false)
-const confirmModeOpen = ref(false)
-const pendingMode = ref<'maintenance' | 'readOnly' | null>(null)
 const activeTab = ref('general')
 const model = ref<AppConfig | null>(null)
 
@@ -67,10 +67,16 @@ function fieldValue(key: string): unknown {
 
   if (key === '__securityAlert') return null
 
+  // Select options use string values; coerce number fields for USelect match.
+  if (key === 'general.defaultPageSize' || key === 'system.paginationDefault') {
+    const raw = getByPath(model.value, key)
+    return raw == null || raw === '' ? undefined : String(raw)
+  }
+
   return getByPath(model.value, key)
 }
 
-function setFieldValue(key: string, value: unknown) {
+async function setFieldValue(key: string, value: unknown) {
   if (!model.value) return
 
   if (key === '__emailConnection' || key === '__telegramConnection' || key === '__securityAlert') {
@@ -78,13 +84,22 @@ function setFieldValue(key: string, value: unknown) {
   }
 
   if (key === 'system.maintenanceMode' || key === 'system.readOnlyMode') {
-    const kind = key === 'system.maintenanceMode' ? 'maintenance' : 'readOnly'
     if (value === true) {
-      pendingMode.value = kind
-      confirmModeOpen.value = true
-      return
+      const ok = await confirm({
+        kind: 'update',
+        titleKey: 'docetra.settings.confirmModeTitle',
+        descriptionKey: 'docetra.settings.confirmModeHelp',
+        confirmColor: 'warning',
+      })
+      if (!ok) return
     }
-    setByPath(model.value as any, key, false)
+    setByPath(model.value as any, key, value)
+    return
+  }
+
+  if (key === 'general.defaultPageSize' || key === 'system.paginationDefault') {
+    const n = Number(value)
+    setByPath(model.value as any, key, Number.isFinite(n) ? n : 20)
     return
   }
 
@@ -139,22 +154,6 @@ async function testTelegram() {
   }
 }
 
-function confirmMode() {
-  if (!model.value || !pendingMode.value) {
-    confirmModeOpen.value = false
-    return
-  }
-  if (pendingMode.value === 'maintenance') model.value.system.maintenanceMode = true
-  else model.value.system.readOnlyMode = true
-  pendingMode.value = null
-  confirmModeOpen.value = false
-}
-
-function cancelMode() {
-  pendingMode.value = null
-  confirmModeOpen.value = false
-}
-
 onMounted(() => {
   setTitle(t('docetra.pages.appConfig'))
   void load()
@@ -191,13 +190,4 @@ useHead(() => ({ title: `${t('docetra.pages.appConfig')} · ${t('docetra.brand.n
       />
     </template>
   </DocumentAppDocumentPage>
-
-  <CommonAppConfirmDialog
-    v-model:open="confirmModeOpen"
-    :title="t('docetra.settings.confirmModeTitle')"
-    :description="t('docetra.settings.confirmModeHelp')"
-    confirm-color="warning"
-    @confirm="confirmMode"
-    @cancel="cancelMode"
-  />
 </template>

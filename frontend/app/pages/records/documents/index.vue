@@ -13,7 +13,7 @@ definePageMeta({
   <RecordAppRecordStageBoard
     :config="config"
     date-field="updatedAt"
-    subtitle-field="documentType"
+    subtitle-field="recordTypeName"
     state-key="record-stage-documents"
   />
 </template>

@@ -39,7 +39,9 @@ function day(value: unknown) {
 }
 
 const referenceNumber = computed(() => String(props.row.referenceNumber || ''))
-const documentType = computed(() => String(props.row.documentType || ''))
+const recordTypeLabel = computed(() =>
+  String(props.row.recordTypeName || props.row.recordTypeId || ''),
+)
 const sender = computed(() => orgName(props.row.senderOrganization))
 const recipient = computed(() => orgName(props.row.recipientOrganization))
 const ownerDepartment = computed(() => orgName(props.row.ownerDepartment))
@@ -134,12 +136,12 @@ function onDragStart(event: DragEvent) {
           {{ title }}
         </p>
         <p
-          v-if="referenceNumber || documentType"
+          v-if="referenceNumber || recordTypeLabel"
           class="mt-1 truncate text-xs text-muted"
         >
           <span v-if="referenceNumber">{{ referenceNumber }}</span>
-          <span v-if="referenceNumber && documentType"> · </span>
-          <span v-if="documentType">{{ documentType }}</span>
+          <span v-if="referenceNumber && recordTypeLabel"> · </span>
+          <span v-if="recordTypeLabel">{{ recordTypeLabel }}</span>
         </p>
       </div>
       <UDropdownMenu :items="menuItems" :content="{ align: 'end' }">
@@ -148,7 +150,7 @@ function onDragStart(event: DragEvent) {
           color="neutral"
           variant="ghost"
           size="xs"
-          class="shrink-0 opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100"
+          class="shrink-0"
           :aria-label="$t('docetra.actions.more')"
           @click.stop
         />
@@ -177,12 +179,10 @@ function onDragStart(event: DragEvent) {
       </span>
     </div>
 
-    <div class="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-muted">
-      <span v-if="dateLabel" class="inline-flex items-center gap-1">
-        <UIcon name="i-lucide-calendar" class="size-3" />
-        {{ dateLabel }}
-      </span>
-
+    <div
+      v-if="statusLabel || stageLabel || waiting"
+      class="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-muted"
+    >
       <UBadge v-if="statusLabel" size="sm" color="neutral" variant="subtle">
         {{ statusLabel }}
       </UBadge>
@@ -200,17 +200,9 @@ function onDragStart(event: DragEvent) {
     </div>
 
     <div
-      v-if="attachmentCount || commentCount || tags.length"
+      v-if="tags.length"
       class="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted"
     >
-      <span v-if="attachmentCount" class="inline-flex items-center gap-1">
-        <UIcon name="i-lucide-paperclip" class="size-3" />
-        {{ attachmentCount }}
-      </span>
-      <span v-if="commentCount" class="inline-flex items-center gap-1">
-        <UIcon name="i-lucide-message-circle" class="size-3" />
-        {{ commentCount }}
-      </span>
       <UBadge
         v-for="tag in tags.slice(0, 2)"
         :key="tag"
@@ -220,6 +212,30 @@ function onDragStart(event: DragEvent) {
       >
         {{ tag }}
       </UBadge>
+    </div>
+
+    <div
+      v-if="dateLabel || attachmentCount || commentCount"
+      class="mt-2 flex items-center justify-between gap-2 border-t border-default pt-2 text-xs text-muted"
+    >
+      <span v-if="dateLabel" class="inline-flex min-w-0 items-center gap-1 truncate">
+        <UIcon name="i-lucide-calendar" class="size-3 shrink-0" />
+        <span class="truncate">{{ dateLabel }}</span>
+      </span>
+      <span v-else />
+      <span
+        v-if="attachmentCount || commentCount"
+        class="inline-flex shrink-0 items-center gap-2"
+      >
+        <span v-if="attachmentCount" class="inline-flex items-center gap-1">
+          <UIcon name="i-lucide-paperclip" class="size-3" />
+          {{ attachmentCount }}
+        </span>
+        <span v-if="commentCount" class="inline-flex items-center gap-1">
+          <UIcon name="i-lucide-message-circle" class="size-3" />
+          {{ commentCount }}
+        </span>
+      </span>
     </div>
   </article>
 </template>

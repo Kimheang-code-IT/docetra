@@ -1,6 +1,9 @@
 # Prompt 00A — Reusable Nuxt UI Workspace and Document Components
 
-## Copy/paste prompt
+> **Status:** Implemented — architecture reference only (not a build ticket).
+> Key code: `EntityWorkspaceView`, `AppServerTable`, `AppKanban*`, `AppDocumentPage`, `EntityDocumentView`, boards under `components/{meeting,record,portal}/`.
+
+## Reference (was copy/paste prompt)
 
 Build the shared Docetra workspace and ERP-style document-page component system in the existing stack (Nuxt `^4.3.1`, Vue `^3.5.29`, TypeScript `^5.9.3`, Nuxt UI `^4.5.1`, Pinia `^3.0.4`, i18n `^10.2.3`, VueUse `^14.2.1`, TanStack Vue Table `^8.21.3` — see `prompt/frontend/README.md` Technology baseline). Inspect and reuse compatible components already present in `frontend/app/components`.
 
@@ -202,4 +205,4 @@ Coordinate route identity, create/read/edit state, schema, initial values, dirty
 
 ## Acceptance
 
-Add focused tests for URL state, pagination, stage rollback, document routing, unsaved changes, validation focus, create-to-detail navigation, comment submission, activity rendering, and row action menus. Run typecheck and production build. Demonstrate the shared system on at least one workflow record page before migrating the remaining page prompts.
+Add focused tests for URL state, pagination, stage rollback, document routing, unsaved changes, validation focus, create-to-detail navigation, comment submission, activity rendering, and row action menus. Run typecheck and production build. The shared system is already used across Meeting, Record, Organization, Portal, and User Management pages.

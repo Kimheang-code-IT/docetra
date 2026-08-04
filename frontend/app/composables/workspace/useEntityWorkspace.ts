@@ -37,9 +37,10 @@ export function useEntityWorkspace(config: EntityConfig) {
   })
 
   const limit = computed({
-    get: () => Number(route.query.limit || 10),
+    get: () => Math.min(Math.max(Number(route.query.limit || 10) || 10, 10), 100),
     set: (value) => {
-      router.replace({ query: { ...route.query, limit: value === 10 ? undefined : String(value), page: undefined } })
+      const bounded = Math.min(Math.max(value, 10), 100)
+      router.replace({ query: { ...route.query, limit: bounded === 10 ? undefined : String(bounded), page: undefined } })
     },
   })
 
@@ -225,6 +226,10 @@ export function useEntityWorkspace(config: EntityConfig) {
       const typeKey = `docetra.entityTypes.${text}`
       if (te(typeKey)) return t(typeKey)
       return text.replaceAll('_', ' ')
+    }
+
+    if (key === 'recordTypeId') {
+      return String(row.recordTypeName || text)
     }
 
     if (key === 'severity') {

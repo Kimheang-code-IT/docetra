@@ -109,7 +109,6 @@ export function useMenu() {
     group(t('docetra.navigation.configuration'), 'i-lucide-bolt', [
       pageLink(t('docetra.pages.recordType'), '/configuration/record-types'),
       pageLink(t('docetra.pages.recordAttribute'), '/configuration/record-attributes'),
-      pageLink(t('docetra.pages.documentType'), '/configuration/document-types'),
     ]),
     group(t('docetra.navigation.settings'), 'i-lucide-settings', [
       pageLink(t('docetra.pages.appInfo'), '/settings/app-info'),

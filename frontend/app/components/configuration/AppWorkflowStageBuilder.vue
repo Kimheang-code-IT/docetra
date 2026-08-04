@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { ConfigWorkflowStage, WorkflowTransition } from '~/types/docetra/configuration'
-import { createId } from '~/mocks/query'
+import { createClientId } from '~/utils/client-id'
 
 const stages = defineModel<ConfigWorkflowStage[]>('stages', { default: () => [] })
 const transitions = defineModel<WorkflowTransition[]>('transitions', { default: () => [] })
@@ -12,7 +12,7 @@ function addStage() {
   stages.value = [
     ...stages.value,
     {
-      id: createId('st'),
+      id: createClientId('st'),
       name: `Stage ${order + 1}`,
       code: `stage_${order + 1}`,
       color: '#64748b',
@@ -53,7 +53,7 @@ function addTransition() {
   transitions.value = [
     ...transitions.value,
     {
-      id: createId('tr'),
+      id: createClientId('tr'),
       fromStageCode: codes[0]!,
       toStageCode: codes[1]!,
     },

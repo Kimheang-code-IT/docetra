@@ -1,6 +1,9 @@
 # Prompt 00 — Shared Nuxt UI Foundation
 
-## Copy/paste prompt
+> **Status:** Implemented — architecture reference only (not a build ticket).
+> Key code: `layouts/default.vue`, `useMenu.ts`, `useUserMenu.ts`, `AppHeader*`, `AppSlidebar`, i18n, adapters.
+
+## Reference (was copy/paste prompt)
 
 You are implementing the Docetra v2 frontend inside the existing `frontend/` directory. First inspect the current code, package versions, layouts, components, composables, stores, middleware, i18n files, and local conventions. Preserve useful existing infrastructure and unrelated user changes.
 
@@ -16,7 +19,7 @@ Build a reusable authenticated application shell matching this navigation:
 - Organization: Department, Company, Company Purpose, Company Sector, Officer
 - User Management: Role, User
 - Portal: File Upload, Google Drive Sync, Logs
-- Configuration: Record Type, Record Attribute, Document Type
+- Configuration: Record Type, Record Attribute
 - Settings: App Info, App Config, Storage
 
 **User menu (`useUserMenu.ts`):**

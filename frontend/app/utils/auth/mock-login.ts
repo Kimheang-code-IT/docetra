@@ -9,14 +9,14 @@ export type MockLoginAccount = {
 /** Frontend-only demo accounts. Replace with real API auth later. */
 export const MOCK_LOGIN_ACCOUNTS: MockLoginAccount[] = [
   {
-    email: 'heang@gmail.com',
+    email: 'admin@gmail.com',
     password: '123456',
     user: {
       id: 1,
-      name: 'Moeng Kimheang',
-      email: 'heang@gmail.com',
+      name: 'System Administrator',
+      email: 'admin@gmail.com',
       role: 'SuperAdmin',
-      avatar: 'https://ui-avatars.com/api/?name=Moeng+Kimheang&background=e8472a&color=fff',
+      avatar: 'https://ui-avatars.com/api/?name=System+Administrator&background=e8472a&color=fff',
       pageAccess: ['ALL_PAGES'],
     },
   },

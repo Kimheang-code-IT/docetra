@@ -2,6 +2,7 @@
 import type { MeetingHistory } from '~/types/docetra/entities'
 import type { AttachmentMeta } from '~/types/docetra/common'
 import { getEntityAdapter } from '~/config/entities'
+import { useConfirm } from '~/composables/common/useConfirm'
 
 const open = defineModel<boolean>('open', { default: false })
 
@@ -15,6 +16,7 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const toast = useToast()
+const { confirm } = useConfirm()
 const meetingsAdapter = getEntityAdapter('meetingHistory')
 
 const pending = ref(false)
@@ -81,6 +83,8 @@ function removeAttachment(id: string) {
 
 async function save() {
   if (!props.meetingId || !meeting.value) return
+  const ok = await confirm({ kind: 'save' })
+  if (!ok) return
   saving.value = true
   try {
     const res = await meetingsAdapter.update(props.meetingId, {
@@ -103,10 +107,13 @@ async function save() {
   }
 }
 
-function onClose(value: boolean) {
-  if (!value && dirty.value && !window.confirm(t('docetra.document.unsavedConfirm'))) {
-    open.value = true
-    return
+async function onClose(value: boolean) {
+  if (!value && dirty.value) {
+    const ok = await confirm({ kind: 'unsaved' })
+    if (!ok) {
+      open.value = true
+      return
+    }
   }
   open.value = value
 }
@@ -174,6 +181,7 @@ function onClose(value: boolean) {
             v-if="meetingId && !pending"
             :key="`uppy-${meetingId}`"
             :entity-id="meetingId"
+            :endpoint="`/api/v2/meetings/history/${encodeURIComponent(meetingId)}/attachments`"
             :height="260"
             @complete="onUploadsComplete"
           />

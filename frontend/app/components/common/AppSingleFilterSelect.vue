@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { normalizeToMenuRows } from '~/utils/filter/menu-items'
+import { getFilterSelectUi, isFilterValueActive } from '~/utils/filter/select-ui'
 
-const modelValue = defineModel<string | number | boolean | null>({ default: null })
+const modelValue = defineModel<string | number | boolean | undefined>({ default: undefined })
 
 const props = withDefaults(
   defineProps<{
@@ -14,7 +15,6 @@ const props = withDefaults(
   }>(),
   {
     searchable: true,
-    icon: 'i-lucide-funnel',
   },
 )
 
@@ -30,7 +30,8 @@ const displayLabel = computed(() => {
   const value = modelValue.value
   if (value == null || value === '') return undefined
   const match = menuItems.value.find(item => item.value === value)
-  return match?.label
+  if (!match?.label) return undefined
+  return props.label ? `${props.label}: ${match.label}` : match.label
 })
 
 const { widthStyle, rootClass } = useFilterAutoWidth(
@@ -46,6 +47,8 @@ const searchInput = computed(() => {
     icon: 'i-lucide-search',
   }
 })
+
+const selectUi = computed(() => getFilterSelectUi(isFilterValueActive(modelValue.value)))
 </script>
 
 <template>
@@ -56,16 +59,11 @@ const searchInput = computed(() => {
       :placeholder="selectPlaceholder"
       value-key="value"
       :icon="icon"
-      class="w-full font-normal"
-      size="md"
+      class="w-full"
+      size="sm"
       :search-input="searchInput"
       :filter-fields="['label']"
-      :ui="{
-        base: 'rounded-md bg-default ring-1 ring-default',
-        value: 'truncate',
-        trailingIcon: 'text-muted',
-        content: 'max-h-60 min-w-(--reka-combobox-trigger-width)',
-      }"
+      :ui="selectUi"
       v-bind="$attrs"
     />
   </div>

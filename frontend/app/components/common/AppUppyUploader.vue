@@ -2,7 +2,9 @@
 import Uppy from '@uppy/core'
 import XHRUpload from '@uppy/xhr-upload'
 import UppyDashboard from '@uppy/vue/dashboard'
-import type { AttachmentMeta } from '~/types/docetra/common'
+import type { ApiResponse, AttachmentMeta } from '~/types/docetra/common'
+import { useAuthStore } from '~/stores/auth'
+import { createClientId } from '~/utils/client-id'
 
 import '@uppy/core/css/style.min.css'
 import '@uppy/dashboard/css/style.min.css'
@@ -26,7 +28,9 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const config = useRuntimeConfig()
-const uppy = shallowRef<InstanceType<typeof Uppy> | null>(null)
+const authStore = useAuthStore()
+const api = useApi()
+const uppy = shallowRef<Uppy<any, any> | null>(null)
 const bootError = ref<string | null>(null)
 const booted = ref(false)
 const fallbackInput = ref<HTMLInputElement | null>(null)
@@ -37,12 +41,24 @@ const effectiveHeight = computed(() =>
   props.fill ? Math.max(measuredHeight.value, 200) : props.height,
 )
 
+/** Reserve space for the file-type icon strip above the dashboard. */
+const dashboardHeight = computed(() => Math.max(effectiveHeight.value - 48, 160))
+
+const typeHints = [
+  { icon: 'i-lucide-file-text', class: 'text-red-600 dark:text-red-400', label: 'PDF' },
+  { icon: 'i-lucide-image', class: 'text-sky-600 dark:text-sky-400', label: 'Image' },
+  { icon: 'i-lucide-file-type', class: 'text-blue-600 dark:text-blue-400', label: 'Doc' },
+  { icon: 'i-lucide-sheet', class: 'text-emerald-600 dark:text-emerald-400', label: 'Sheet' },
+  { icon: 'i-lucide-file-archive', class: 'text-amber-600 dark:text-amber-400', label: 'Zip' },
+] as const
+
 const dashboardProps = computed(() => ({
   width: '100%' as const,
-  height: effectiveHeight.value,
+  height: dashboardHeight.value,
   proudlyDisplayPoweredByUppy: false,
   note: props.note || t('docetra.meetingNotes.uploadHint'),
   showProgressDetails: true,
+  hideUploadButton: false,
 }))
 
 useResizeObserver(hostEl, (entries) => {
@@ -52,13 +68,23 @@ useResizeObserver(hostEl, (entries) => {
   measuredHeight.value = Math.floor(entry.contentRect.height)
 })
 
-function toAttachmentMeta(file: {
-  name?: string | null
-  type?: string | null
-  size?: number | null
-}): AttachmentMeta {
+const uploadPath = computed(() => props.endpoint || ApiEndpoints.ATTACHMENTS('entities', props.entityId))
+
+const uploadUrl = computed(() => {
+  if (/^https?:\/\//i.test(uploadPath.value)) return uploadPath.value
+  return new URL(uploadPath.value, String(config.public.apiBase)).toString()
+})
+
+function attachmentFromResponse(body: unknown): AttachmentMeta | null {
+  if (!body || typeof body !== 'object') return null
+  const candidate = 'data' in body ? (body as ApiResponse<unknown>).data : body
+  if (!candidate || typeof candidate !== 'object' || !('id' in candidate)) return null
+  return candidate as AttachmentMeta
+}
+
+function mockAttachment(file: { name?: string | null; type?: string | null; size?: number | null }): AttachmentMeta {
   return {
-    id: `att_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    id: createClientId('att'),
     name: file.name || 'file',
     mimeType: file.type || 'application/octet-stream',
     sizeBytes: file.size || 0,
@@ -67,16 +93,23 @@ function toAttachmentMeta(file: {
   }
 }
 
-function emitFromFiles(files: File[]) {
-  if (!files.length) return
-  emit('complete', files.map(file => toAttachmentMeta(file)))
-}
-
-function onFallbackPicked(event: Event) {
+async function onFallbackPicked(event: Event) {
   const input = event.target as HTMLInputElement
   const files = Array.from(input.files || [])
   input.value = ''
-  emitFromFiles(files)
+  if (config.public.useMockData !== false) {
+    if (files.length) emit('complete', files.map(mockAttachment))
+    return
+  }
+  const uploaded: AttachmentMeta[] = []
+  for (const file of files) {
+    const form = new FormData()
+    form.append('file', file)
+    const response = await api.post<AttachmentMeta | ApiResponse<AttachmentMeta>>(uploadPath.value, form)
+    const meta = attachmentFromResponse(response)
+    if (meta) uploaded.push(meta)
+  }
+  if (uploaded.length) emit('complete', uploaded)
 }
 
 onMounted(() => {
@@ -90,43 +123,34 @@ onMounted(() => {
       },
     })
 
-    const useMock = config.public.useMockData !== false
-    if (useMock) {
-      instance.addUploader(async (fileIDs) => {
-        const metas: AttachmentMeta[] = []
-        for (const id of fileIDs) {
+    if (config.public.useMockData !== false) {
+      instance.addUploader(async (fileIds) => {
+        for (const id of fileIds) {
           const file = instance.getFile(id)
           if (!file) continue
           const size = file.size || 0
           instance.setFileState(id, {
-            progress: {
-              uploadComplete: true,
-              uploadStarted: Date.now(),
-              percentage: 100,
-              bytesUploaded: size,
-              bytesTotal: size,
-            },
+            progress: { uploadComplete: true, uploadStarted: Date.now(), percentage: 100, bytesUploaded: size, bytesTotal: size },
           })
-          instance.emit('upload-success', file, { body: {}, status: 200 })
-          metas.push(toAttachmentMeta(file))
+          instance.emit('upload-success', file, { body: { data: mockAttachment(file) }, status: 200 } as any)
         }
-        if (metas.length) emit('complete', metas)
       })
     }
     else {
-      const endpoint = props.endpoint
-        || `${config.public.apiBase}${ApiEndpoints.ATTACHMENTS('entities', props.entityId)}`
       instance.use(XHRUpload, {
-        endpoint,
+        endpoint: uploadUrl.value,
         fieldName: 'file',
         formData: true,
         bundle: false,
-      })
-      instance.on('complete', (result) => {
-        const metas = (result.successful || []).map(file => toAttachmentMeta(file))
-        if (metas.length) emit('complete', metas)
+        headers: authStore.token ? { Authorization: `Bearer ${authStore.token}` } : {},
       })
     }
+    instance.on('complete', (result) => {
+      const metas = (result.successful || [])
+        .map(file => attachmentFromResponse(file.response?.body))
+        .filter((file): file is AttachmentMeta => Boolean(file))
+      if (metas.length) emit('complete', metas)
+    })
 
     uppy.value = instance
   }
@@ -152,7 +176,7 @@ onBeforeUnmount(() => {
   >
     <div
       v-if="!booted"
-      class="flex items-center justify-center rounded-lg border border-dashed border-default bg-elevated/30"
+      class="flex items-center justify-center rounded-xl border border-dashed border-default bg-elevated/40"
       :class="fill ? 'min-h-0 flex-1' : ''"
       :style="fill ? undefined : { minHeight: `${height}px` }"
     >
@@ -161,11 +185,23 @@ onBeforeUnmount(() => {
 
     <div
       v-else-if="bootError || !uppy"
-      class="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-default bg-elevated/30 px-4 py-6 text-center"
+      class="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-default bg-elevated/40 px-4 py-6 text-center"
       :class="fill ? 'min-h-0 flex-1' : ''"
       :style="fill ? undefined : { minHeight: `${height}px` }"
     >
-      <UIcon name="i-lucide-upload" class="size-8 text-muted" />
+      <div class="grid size-14 place-items-center rounded-2xl bg-primary/10 ring ring-primary/20">
+        <UIcon name="i-lucide-cloud-upload" class="size-7 text-primary" />
+      </div>
+      <div class="flex items-center justify-center gap-1.5">
+        <span
+          v-for="hint in typeHints"
+          :key="hint.label"
+          class="grid size-8 place-items-center rounded-md bg-default ring ring-default"
+          :title="hint.label"
+        >
+          <UIcon :name="hint.icon" class="size-3.5" :class="hint.class" />
+        </span>
+      </div>
       <div class="space-y-1">
         <p class="text-sm font-medium text-highlighted">
           {{ $t('docetra.attachments.drop') }}
@@ -196,18 +232,35 @@ onBeforeUnmount(() => {
     <ClientOnly v-else>
       <div
         ref="hostEl"
-        class="uppy-host min-h-0 overflow-hidden rounded-lg border border-default"
+        class="uppy-host flex min-h-0 flex-col overflow-hidden rounded-xl border border-dashed border-default bg-elevated/40"
         :class="fill ? 'h-full flex-1' : ''"
         :style="fill ? undefined : { minHeight: `${height}px` }"
       >
-        <UppyDashboard
-          :uppy="uppy"
-          :props="dashboardProps"
-        />
+        <div class="flex shrink-0 items-center justify-center gap-1.5 border-b border-default/80 px-3 py-2.5">
+          <div class="grid size-8 place-items-center rounded-lg bg-primary/10">
+            <UIcon name="i-lucide-cloud-upload" class="size-4 text-primary" />
+          </div>
+          <div class="ms-1 flex items-center gap-1">
+            <span
+              v-for="hint in typeHints"
+              :key="hint.label"
+              class="grid size-7 place-items-center rounded-md bg-default/80 ring ring-default"
+              :title="hint.label"
+            >
+              <UIcon :name="hint.icon" class="size-3.5" :class="hint.class" />
+            </span>
+          </div>
+        </div>
+        <div class="min-h-0 flex-1 overflow-hidden">
+          <UppyDashboard
+            :uppy="uppy"
+            :props="dashboardProps"
+          />
+        </div>
       </div>
       <template #fallback>
         <div
-          class="flex items-center justify-center rounded-lg border border-dashed border-default bg-elevated/30"
+          class="flex items-center justify-center rounded-xl border border-dashed border-default bg-elevated/40"
           :class="fill ? 'min-h-0 flex-1' : ''"
           :style="fill ? undefined : { minHeight: `${height}px` }"
         >
@@ -223,5 +276,21 @@ onBeforeUnmount(() => {
   width: 100% !important;
   border: 0;
   background: transparent;
+  box-shadow: none;
+}
+
+.uppy-host :deep(.uppy-Dashboard-AddFiles-title),
+.uppy-host :deep(.uppy-Dashboard-note) {
+  color: var(--ui-text-muted);
+}
+
+.uppy-host :deep(.uppy-DashboardContent-bar),
+.uppy-host :deep(.uppy-StatusBar) {
+  border-color: var(--ui-border);
+  background: transparent;
+}
+
+.uppy-host :deep(.uppy-Dashboard-Item-previewInnerWrap) {
+  background-color: var(--ui-bg-elevated);
 }
 </style>

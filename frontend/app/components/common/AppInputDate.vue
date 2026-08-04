@@ -26,6 +26,16 @@ const inputDate = useTemplateRef<{ inputsRef?: Array<{ $el?: HTMLElement }> } | 
 
 const isDateTime = computed(() => props.granularity !== 'day')
 
+const hourItems = Array.from({ length: 24 }, (_, i) => ({
+  label: String(i).padStart(2, '0'),
+  value: i,
+}))
+
+const minuteItems = Array.from({ length: 60 }, (_, i) => ({
+  label: String(i).padStart(2, '0'),
+  value: i,
+}))
+
 function parseValue(value?: string | null): DateValue | undefined {
   if (!value) return undefined
   try {
@@ -89,6 +99,54 @@ const calendarRef = computed({
   },
 })
 
+const selectedHour = computed({
+  get: () => {
+    const value = dateValue.value as CalendarDateTime | undefined
+    return value && 'hour' in value ? value.hour : 0
+  },
+  set: (hour: number) => {
+    const current = dateValue.value as CalendarDateTime | CalendarDate | undefined
+    const base = current || new CalendarDateTime(
+      new Date().getFullYear(),
+      new Date().getMonth() + 1,
+      new Date().getDate(),
+      0,
+      0,
+    )
+    dateValue.value = new CalendarDateTime(
+      base.year,
+      base.month,
+      base.day,
+      hour,
+      'minute' in base ? base.minute : 0,
+    )
+  },
+})
+
+const selectedMinute = computed({
+  get: () => {
+    const value = dateValue.value as CalendarDateTime | undefined
+    return value && 'minute' in value ? value.minute : 0
+  },
+  set: (minute: number) => {
+    const current = dateValue.value as CalendarDateTime | CalendarDate | undefined
+    const base = current || new CalendarDateTime(
+      new Date().getFullYear(),
+      new Date().getMonth() + 1,
+      new Date().getDate(),
+      0,
+      0,
+    )
+    dateValue.value = new CalendarDateTime(
+      base.year,
+      base.month,
+      base.day,
+      'hour' in base ? base.hour : 0,
+      minute,
+    )
+  },
+})
+
 const trailingReference = computed(() => {
   const inputs = inputDate.value?.inputsRef || []
   const el = inputs[inputs.length - 1]?.$el || inputs[0]?.$el
@@ -114,13 +172,41 @@ const trailingReference = computed(() => {
           color="neutral"
           variant="link"
           size="sm"
-          icon="i-lucide-calendar"
-          aria-label="Select a date"
+          :icon="isDateTime ? 'i-lucide-calendar-clock' : 'i-lucide-calendar'"
+          :aria-label="isDateTime ? 'Select date and time' : 'Select a date'"
           class="px-0"
           :disabled="disabled"
         />
         <template #content>
-          <UCalendar v-model="calendarRef" class="p-2" />
+          <div class="space-y-2 p-2">
+            <UCalendar v-model="calendarRef" />
+            <div
+              v-if="isDateTime"
+              class="flex items-center gap-2 border-t border-default pt-2"
+            >
+              <USelect
+                v-model="selectedHour"
+                :items="hourItems"
+                value-key="value"
+                label-key="label"
+                size="sm"
+                class="w-20"
+                :disabled="disabled"
+                aria-label="Hour"
+              />
+              <span class="text-sm text-muted" aria-hidden="true">:</span>
+              <USelect
+                v-model="selectedMinute"
+                :items="minuteItems"
+                value-key="value"
+                label-key="label"
+                size="sm"
+                class="w-20"
+                :disabled="disabled"
+                aria-label="Minute"
+              />
+            </div>
+          </div>
         </template>
       </UPopover>
     </template>

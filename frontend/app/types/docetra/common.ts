@@ -138,6 +138,8 @@ export interface DocumentFieldSchema {
   readOnly?: boolean
   colSpan?: 1 | 2
   options?: FieldOption[]
+  /** Bounded API endpoint returning active `{ label, value }` options. */
+  optionsEndpoint?: string
   /** Help text shown below the input (ERPNext-style field description). */
   helpKey?: string
   /** Hint shown via info icon (especially useful for checkboxes). Falls back to helpKey. */
@@ -153,7 +155,7 @@ export interface DocumentFieldSchema {
 
 export interface DocumentSectionSchema {
   id: string
-  titleKey: string
+  titleKey?: string
   descriptionKey?: string
   fields: DocumentFieldSchema[]
 }

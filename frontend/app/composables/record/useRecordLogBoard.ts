@@ -1,6 +1,7 @@
 import type { TableColumnDef } from '~/types/docetra/common'
 import type { RecordLog } from '~/types/docetra/entities'
 import { getEntityAdapter } from '~/config/entities'
+import { toComparableDateTime } from '~/utils/date-time-range'
 
 export interface RecordLogTab {
   id: string
@@ -12,7 +13,7 @@ export interface RecordLogTab {
   columns: TableColumnDef[]
 }
 
-const baseColumns: Record<string, TableColumnDef> = {
+const baseColumns = {
   occurredAt: { key: 'occurredAt', labelKey: 'docetra.fields.occurredAt', sortable: true, priority: 'high', cell: 'datetime' },
   action: { key: 'action', labelKey: 'docetra.fields.action', priority: 'high', cell: 'badge' },
   entityType: { key: 'entityType', labelKey: 'docetra.fields.recordType', priority: 'medium', cell: 'badge' },
@@ -24,6 +25,10 @@ const baseColumns: Record<string, TableColumnDef> = {
   changes: { key: 'changesSummary', labelKey: 'docetra.fields.changes', priority: 'high' },
   correlationId: { key: 'correlationId', labelKey: 'docetra.fields.correlationId', priority: 'low' },
   category: { key: 'category', labelKey: 'docetra.fields.category', priority: 'medium', cell: 'badge' },
+} satisfies Record<string, TableColumnDef>
+
+function pickColumns(...keys: Array<keyof typeof baseColumns>): TableColumnDef[] {
+  return keys.map(key => baseColumns[key])
 }
 
 export const RECORD_LOG_TABS: RecordLogTab[] = [
@@ -32,15 +37,7 @@ export const RECORD_LOG_TABS: RecordLogTab[] = [
     labelKey: 'docetra.recordLogBoard.tabs.all',
     descriptionKey: 'docetra.recordLogBoard.tabs.allHint',
     icon: 'i-lucide-list',
-    columns: [
-      baseColumns.occurredAt,
-      baseColumns.action,
-      baseColumns.entityType,
-      baseColumns.entityTitle,
-      baseColumns.actor,
-      baseColumns.severity,
-      baseColumns.summary,
-    ],
+    columns: pickColumns('occurredAt', 'action', 'entityType', 'entityTitle', 'actor', 'severity', 'summary'),
   },
   {
     id: 'created',
@@ -48,14 +45,7 @@ export const RECORD_LOG_TABS: RecordLogTab[] = [
     descriptionKey: 'docetra.recordLogBoard.tabs.createdHint',
     icon: 'i-lucide-plus-circle',
     filter: { action: 'created' },
-    columns: [
-      baseColumns.occurredAt,
-      baseColumns.entityType,
-      baseColumns.entityTitle,
-      baseColumns.actor,
-      baseColumns.organization,
-      baseColumns.summary,
-    ],
+    columns: pickColumns('occurredAt', 'entityType', 'entityTitle', 'actor', 'organization', 'summary'),
   },
   {
     id: 'updated',
@@ -63,14 +53,7 @@ export const RECORD_LOG_TABS: RecordLogTab[] = [
     descriptionKey: 'docetra.recordLogBoard.tabs.updatedHint',
     icon: 'i-lucide-pencil',
     filter: { action: 'updated' },
-    columns: [
-      baseColumns.occurredAt,
-      baseColumns.entityType,
-      baseColumns.entityTitle,
-      baseColumns.changes,
-      baseColumns.actor,
-      baseColumns.summary,
-    ],
+    columns: pickColumns('occurredAt', 'entityType', 'entityTitle', 'changes', 'actor', 'summary'),
   },
   {
     id: 'stage_changed',
@@ -78,14 +61,7 @@ export const RECORD_LOG_TABS: RecordLogTab[] = [
     descriptionKey: 'docetra.recordLogBoard.tabs.stageHint',
     icon: 'i-lucide-git-branch',
     filter: { action: 'stage_changed' },
-    columns: [
-      baseColumns.occurredAt,
-      baseColumns.entityTitle,
-      baseColumns.severity,
-      baseColumns.actor,
-      baseColumns.summary,
-      baseColumns.correlationId,
-    ],
+    columns: pickColumns('occurredAt', 'entityTitle', 'severity', 'actor', 'summary', 'correlationId'),
   },
   {
     id: 'shared',
@@ -93,14 +69,7 @@ export const RECORD_LOG_TABS: RecordLogTab[] = [
     descriptionKey: 'docetra.recordLogBoard.tabs.sharedHint',
     icon: 'i-lucide-share-2',
     filter: { action: 'shared' },
-    columns: [
-      baseColumns.occurredAt,
-      baseColumns.entityTitle,
-      baseColumns.actor,
-      baseColumns.organization,
-      baseColumns.summary,
-      baseColumns.correlationId,
-    ],
+    columns: pickColumns('occurredAt', 'entityTitle', 'actor', 'organization', 'summary', 'correlationId'),
   },
   {
     id: 'incoming',
@@ -108,14 +77,7 @@ export const RECORD_LOG_TABS: RecordLogTab[] = [
     descriptionKey: 'docetra.recordLogBoard.tabs.incomingHint',
     icon: 'i-lucide-inbox',
     filter: { entityType: 'incoming_document' },
-    columns: [
-      baseColumns.occurredAt,
-      baseColumns.action,
-      baseColumns.entityTitle,
-      baseColumns.actor,
-      baseColumns.severity,
-      baseColumns.summary,
-    ],
+    columns: pickColumns('occurredAt', 'action', 'entityTitle', 'actor', 'severity', 'summary'),
   },
   {
     id: 'outgoing',
@@ -123,14 +85,7 @@ export const RECORD_LOG_TABS: RecordLogTab[] = [
     descriptionKey: 'docetra.recordLogBoard.tabs.outgoingHint',
     icon: 'i-lucide-send',
     filter: { entityType: 'outgoing_document' },
-    columns: [
-      baseColumns.occurredAt,
-      baseColumns.action,
-      baseColumns.entityTitle,
-      baseColumns.actor,
-      baseColumns.organization,
-      baseColumns.summary,
-    ],
+    columns: pickColumns('occurredAt', 'action', 'entityTitle', 'actor', 'organization', 'summary'),
   },
   {
     id: 'errors',
@@ -138,14 +93,7 @@ export const RECORD_LOG_TABS: RecordLogTab[] = [
     descriptionKey: 'docetra.recordLogBoard.tabs.errorsHint',
     icon: 'i-lucide-triangle-alert',
     filter: { severity: 'error' },
-    columns: [
-      baseColumns.occurredAt,
-      baseColumns.action,
-      baseColumns.entityTitle,
-      baseColumns.severity,
-      baseColumns.summary,
-      baseColumns.correlationId,
-    ],
+    columns: pickColumns('occurredAt', 'action', 'entityTitle', 'severity', 'summary', 'correlationId'),
   },
 ]
 
@@ -164,9 +112,12 @@ export function useRecordLogBoard() {
 
   const pending = ref(false)
   const error = ref<string | null>(null)
-  const allItems = ref<RecordLog[]>([])
+  const pageItems = ref<RecordLog[]>([])
+  const total = ref(0)
+  const tabCounts = ref(new Map<string, number>())
   const search = ref('')
   const dateFilter = ref('')
+  let requestToken = 0
 
   const selectedTabId = computed({
     get: () => String(route.query.tab || 'all'),
@@ -191,12 +142,13 @@ export function useRecordLogBoard() {
   })
 
   const limit = computed({
-    get: () => Number(route.query.limit || 20),
+    get: () => Math.min(Math.max(Number(route.query.limit || 20) || 20, 10), 100),
     set: (value) => {
+      const bounded = Math.min(Math.max(value, 10), 100)
       router.replace({
         query: {
           ...route.query,
-          limit: value === 20 ? undefined : String(value),
+          limit: bounded === 20 ? undefined : String(bounded),
           page: undefined,
         },
       })
@@ -206,60 +158,6 @@ export function useRecordLogBoard() {
   const selectedTab = computed(() =>
     RECORD_LOG_TABS.find(tab => tab.id === selectedTabId.value) || RECORD_LOG_TABS[0]!,
   )
-
-  const tabCounts = computed(() => {
-    const counts = new Map<string, number>()
-    for (const tab of RECORD_LOG_TABS) {
-      if (!tab.filter || !Object.keys(tab.filter).length) {
-        counts.set(tab.id, allItems.value.length)
-        continue
-      }
-      counts.set(
-        tab.id,
-        allItems.value.filter(item => matchesFilter(item, tab.filter!)).length,
-      )
-    }
-    return counts
-  })
-
-  const filteredItems = computed(() => {
-    let rows = [...allItems.value]
-    const filter = selectedTab.value.filter
-    if (filter) rows = rows.filter(item => matchesFilter(item, filter))
-
-    if (dateFilter.value) {
-      const day = dateFilter.value.slice(0, 10)
-      rows = rows.filter(item => String(item.occurredAt || '').slice(0, 10) === day)
-    }
-
-    const q = search.value.trim().toLowerCase()
-    if (q) {
-      rows = rows.filter(item =>
-        [item.summary, item.entityTitle, item.action, item.entityType, item.correlationId, item.actor?.name]
-          .filter(Boolean)
-          .some(value => String(value).toLowerCase().includes(q)),
-      )
-    }
-
-    rows.sort((a, b) => String(b.occurredAt).localeCompare(String(a.occurredAt)))
-    return rows
-  })
-
-  const total = computed(() => filteredItems.value.length)
-
-  const pageItems = computed(() => {
-    const start = (page.value - 1) * limit.value
-    return filteredItems.value.slice(start, start + limit.value)
-  })
-
-  function matchesFilter(
-    item: RecordLog,
-    filter: NonNullable<RecordLogTab['filter']>,
-  ) {
-    return Object.entries(filter).every(([key, value]) =>
-      String((item as Record<string, unknown>)[key] ?? '') === String(value),
-    )
-  }
 
   function selectTab(id: string) {
     selectedTabId.value = id
@@ -303,11 +201,28 @@ export function useRecordLogBoard() {
   }
 
   async function refresh() {
+    const token = ++requestToken
     pending.value = true
     error.value = null
     try {
-      const res = await adapter.list({ page: 1, limit: 9999, sort: '-occurredAt' })
-      allItems.value = (res.data || []) as RecordLog[]
+      const startDate = toComparableDateTime(dateFilter.value, 'start') || undefined
+      const endDate = startDate ? `${startDate.slice(0, 10)}T23:59` : undefined
+      const res = await adapter.list({
+        page: page.value,
+        limit: limit.value,
+        sort: '-occurredAt',
+        q: search.value.trim() || undefined,
+        startDate,
+        endDate,
+        ...(selectedTab.value.filter || {}),
+      })
+      if (token !== requestToken) return
+      pageItems.value = (res.data || []) as RecordLog[]
+      total.value = res.meta?.total || 0
+
+      const counts = (res.meta as (typeof res.meta & { counts?: Record<string, number> }))?.counts
+      if (counts) tabCounts.value = new Map(Object.entries(counts))
+      else tabCounts.value = new Map([[selectedTab.value.id, total.value]])
     }
     catch (e: any) {
       error.value = e?.message || t('docetra.states.loadFailed')
@@ -317,13 +232,15 @@ export function useRecordLogBoard() {
     }
   }
 
-  watch(selectedTabId, () => {
+  watch([selectedTabId, dateFilter], () => {
     if (page.value !== 1) page.value = 1
+    else void refresh()
   })
-
-  watch([search, dateFilter], () => {
+  watch([page, limit], () => { void refresh() }, { immediate: true })
+  watch(search, useDebounceFn(() => {
     if (page.value !== 1) page.value = 1
-  })
+    else void refresh()
+  }, 300))
 
   return {
     pending,

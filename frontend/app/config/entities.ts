@@ -7,6 +7,7 @@ import type {
 import type { AdapterKey } from '~/adapters'
 import type { EntityAdapter } from '~/types/docetra/adapter'
 import { adapters } from '~/adapters'
+import { ApiEndpoints } from '~/utils/constants/api-endpoints'
 
 export interface EntityConfig {
   key: AdapterKey
@@ -21,6 +22,8 @@ export interface EntityConfig {
   defaultView: 'table' | 'kanban' | 'hierarchy'
   readOnly?: boolean
   canCreate?: boolean
+  /** Header/create-page label, e.g. docetra.config.createRecordAttribute → "New Attribute". */
+  createLabelKey?: string
   canDelete?: boolean
   canComment?: boolean
   stages?: WorkflowStage[]
@@ -90,12 +93,12 @@ function recordTabs(extraFields: DocumentTabSchema['sections'][0]['fields'] = []
         fields: [
           { key: 'referenceNumber', labelKey: 'docetra.fields.referenceNumber', type: 'text', required: true },
           { key: 'title', labelKey: 'docetra.fields.title', type: 'text', required: true, colSpan: 2 },
-          { key: 'documentType', labelKey: 'docetra.fields.documentType', type: 'select', options: [
-            { label: 'Letter', value: 'Letter' },
-            { label: 'Report', value: 'Report' },
-            { label: 'Contract', value: 'Contract' },
-            { label: 'Memo', value: 'Memo' },
-          ] },
+          {
+            key: 'recordTypeId',
+            labelKey: 'docetra.fields.recordType',
+            type: 'select',
+            optionsEndpoint: `${ApiEndpoints.RECORD_TYPES}/options`,
+          },
           { key: 'status', labelKey: 'docetra.fields.status', type: 'select', options: statusFilter.options },
           { key: 'stage', labelKey: 'docetra.fields.stage', type: 'select', options: recordStageFilter.options },
           { key: 'description', labelKey: 'docetra.fields.description', type: 'textarea', colSpan: 2 },
@@ -154,6 +157,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
     views: ['kanban', 'table'],
     defaultView: 'kanban',
     canCreate: true,
+    createLabelKey: 'docetra.meetingBoard.createTopic',
     canComment: true,
     stages: workflowStages,
     titleField: 'title',
@@ -207,7 +211,8 @@ export const entityConfigs: Record<string, EntityConfig> = {
     groupKey: 'docetra.navigation.meeting',
     views: ['table'],
     defaultView: 'table',
-    canCreate: true,
+    canCreate: false,
+    createLabelKey: 'docetra.meetingBoard.createMeeting',
     canComment: true,
     titleField: 'title',
     columns: [
@@ -220,7 +225,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
     ],
     filters: [statusFilter],
     tabs: masterDataTabs([
-      { key: 'title', labelKey: 'docetra.fields.title', type: 'text', required: true, colSpan: 2 },
+      { key: 'title', labelKey: 'docetra.fields.title', type: 'text', required: true },
       { key: 'meetingDate', labelKey: 'docetra.fields.meetingDate', type: 'date', required: true },
       { key: 'location', labelKey: 'docetra.fields.location', type: 'text' },
       { key: 'attendeesCount', labelKey: 'docetra.fields.attendees', type: 'number' },
@@ -321,7 +326,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
     columns: [
       { key: 'referenceNumber', labelKey: 'docetra.fields.referenceNumber', sortable: true, priority: 'high' },
       { key: 'title', labelKey: 'docetra.fields.title', sortable: true, priority: 'high' },
-      { key: 'documentType', labelKey: 'docetra.fields.documentType' },
+      { key: 'recordTypeName', labelKey: 'docetra.fields.recordType' },
       { key: 'stage', labelKey: 'docetra.fields.stage' },
       { key: 'status', labelKey: 'docetra.fields.status' },
       { key: 'updatedAt', labelKey: 'docetra.fields.updatedAt', sortable: true },
@@ -758,38 +763,27 @@ export const entityConfigs: Record<string, EntityConfig> = {
     tabs: masterDataTabs([
       { key: 'code', labelKey: 'docetra.fields.code', type: 'text', required: true },
       { key: 'name', labelKey: 'docetra.fields.name', type: 'text', required: true },
-      { key: 'fieldType', labelKey: 'docetra.fields.fieldType', type: 'text' },
+      {
+        key: 'fieldType',
+        labelKey: 'docetra.fields.fieldType',
+        type: 'select',
+        options: [
+          { label: 'Short text', value: 'short_text', labelKey: 'docetra.config.dataType.short_text' },
+          { label: 'Long text', value: 'long_text', labelKey: 'docetra.config.dataType.long_text' },
+          { label: 'Rich text', value: 'rich_text', labelKey: 'docetra.config.dataType.rich_text' },
+          { label: 'Integer', value: 'integer', labelKey: 'docetra.config.dataType.integer' },
+          { label: 'Decimal', value: 'decimal', labelKey: 'docetra.config.dataType.decimal' },
+          { label: 'Boolean', value: 'boolean', labelKey: 'docetra.config.dataType.boolean' },
+          { label: 'Date', value: 'date', labelKey: 'docetra.config.dataType.date' },
+          { label: 'Date time', value: 'datetime', labelKey: 'docetra.config.dataType.datetime' },
+          { label: 'Select', value: 'select', labelKey: 'docetra.config.dataType.select' },
+          { label: 'Email', value: 'email', labelKey: 'docetra.config.dataType.email' },
+          { label: 'Phone', value: 'phone', labelKey: 'docetra.config.dataType.phone' },
+          { label: 'URL', value: 'url', labelKey: 'docetra.config.dataType.url' },
+          { label: 'File', value: 'file', labelKey: 'docetra.config.dataType.file' },
+        ],
+      },
       { key: 'required', labelKey: 'docetra.fields.required', type: 'boolean' },
-      { key: 'status', labelKey: 'docetra.fields.status', type: 'select', options: statusFilter.options },
-    ]),
-  },
-
-  documentTypes: {
-    key: 'documentTypes',
-    routeBase: '/configuration/document-types',
-    titleKey: 'docetra.pages.documentType',
-    descriptionKey: 'docetra.descriptions.documentType',
-    permission: 'configuration.document_types.view',
-    icon: 'i-lucide-files',
-    groupKey: 'docetra.navigation.configuration',
-    views: ['table'],
-    defaultView: 'table',
-    canCreate: true,
-    canComment: false,
-    titleField: 'name',
-    columns: [
-      { key: 'code', labelKey: 'docetra.fields.code', sortable: true },
-      { key: 'name', labelKey: 'docetra.fields.name', sortable: true },
-      { key: 'usageCount', labelKey: 'docetra.fields.usage' },
-      { key: 'status', labelKey: 'docetra.fields.status' },
-      { key: 'updatedAt', labelKey: 'docetra.fields.updatedAt' },
-    ],
-    filters: [statusFilter],
-    tabs: masterDataTabs([
-      { key: 'code', labelKey: 'docetra.fields.code', type: 'text', required: true },
-      { key: 'name', labelKey: 'docetra.fields.name', type: 'text', required: true },
-      { key: 'description', labelKey: 'docetra.fields.description', type: 'textarea', colSpan: 2 },
-      { key: 'allowedMimeTypes', labelKey: 'docetra.fields.mimeTypes', type: 'text' },
       { key: 'status', labelKey: 'docetra.fields.status', type: 'select', options: statusFilter.options },
     ]),
   },

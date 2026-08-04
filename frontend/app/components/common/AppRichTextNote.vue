@@ -310,8 +310,8 @@ function onImagePicked(event: Event) {
   reader.readAsDataURL(file)
 }
 
-function onEditorCreate({ editor }: { editor: Editor }) {
-  editorRef.value = editor
+function onEditorCreate({ editor }: { editor: unknown }) {
+  editorRef.value = editor as Editor
 }
 
 onMounted(() => {

@@ -1,39 +1,59 @@
 <script setup lang="ts">
 import type { DocumentTabSchema } from '~/types/docetra/common'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   tabs: DocumentTabSchema[]
   activeTab: string
   fieldValue: (key: string) => unknown
   setFieldValue: (key: string, value: unknown) => void
   readOnly?: boolean
-}>()
+  /** Force wider shell even without dense field types. */
+  wide?: boolean
+}>(), {
+  readOnly: false,
+  wide: false,
+})
 
 const emit = defineEmits<{
   'update:activeTab': [string]
 }>()
 
 const wideForm = computed(() =>
-  props.tabs.some(tab =>
+  props.wide
+  || props.tabs.some(tab =>
     tab.sections.some(section =>
       section.fields.some(field =>
-        field.type === 'permission-matrix'
-        || field.type === 'telegram-destinations'
-        || field.type === 'notification-rules'
-        || field.type === 'assigned-attributes'
-        || field.type === 'workflow-builder'
-        || field.type === 'validation-builder'
-        || field.type === 'options-builder'
-        || field.type === 'visibility-builder',
+        field.type === 'telegram-destinations'
+        || field.type === 'notification-rules',
       ),
     ),
   ),
 )
+
+function isFullWidthField(field: DocumentTabSchema['sections'][0]['fields'][0]) {
+  return field.colSpan === 2
+    || field.type === 'textarea'
+    || field.type === 'image'
+    || field.type === 'permission-matrix'
+    || field.type === 'telegram-destinations'
+    || field.type === 'notification-rules'
+    || field.type === 'connection-status'
+    || field.type === 'alert'
+    || field.type === 'assigned-attributes'
+    || field.type === 'workflow-builder'
+    || field.type === 'numbering-preview'
+    || field.type === 'validation-builder'
+    || field.type === 'options-builder'
+    || field.type === 'visibility-builder'
+}
 </script>
 
 <template>
   <div class="min-w-0 w-full flex-1">
-    <div class="sticky top-0 z-10 w-full border-b border-default bg-default">
+    <div
+      v-if="tabs.length > 1"
+      class="sticky top-0 z-10 w-full border-b border-default bg-default"
+    >
       <UTabs
         :model-value="activeTab"
         :items="tabs.map(tab => ({ label: $t(tab.labelKey), value: tab.id }))"
@@ -44,7 +64,7 @@ const wideForm = computed(() =>
         class="w-full"
         :ui="{
           root: 'w-full gap-0',
-          list: 'w-full gap-0 rounded-none bg-transparent border-b-0 px-4 sm:px-6',
+          list: 'w-full gap-0 rounded-none bg-transparent border-b-0 px-4 sm:px-6 lg:px-10',
           trigger: [
             'grow-0 shrink-0 justify-center rounded-none px-4 pb-2.5 pt-2.5',
             'font-normal text-muted',
@@ -56,12 +76,9 @@ const wideForm = computed(() =>
       />
     </div>
 
-    <div
-      class="mx-auto w-full px-4 sm:px-6"
-      :class="wideForm ? 'max-w-6xl xl:max-w-7xl' : 'max-w-3xl xl:max-w-4xl'"
-    >
+    <DocumentAppDocumentContentShell :wide="wideForm">
       <template v-for="tab in tabs" :key="tab.id">
-        <div v-show="activeTab === tab.id" class="space-y-8 py-6">
+        <div v-show="activeTab === tab.id || tabs.length === 1" class="space-y-8 py-6">
           <section
             v-for="(section, sectionIndex) in tab.sections"
             :key="section.id"
@@ -69,7 +86,7 @@ const wideForm = computed(() =>
             :class="sectionIndex > 0 ? 'border-t border-default pt-6' : ''"
           >
             <div v-if="section.titleKey || section.descriptionKey">
-              <h3 class="text-sm font-medium text-highlighted">
+              <h3 v-if="section.titleKey" class="text-sm font-medium text-highlighted">
                 {{ $t(section.titleKey) }}
               </h3>
               <p v-if="section.descriptionKey" class="mt-1 text-xs text-muted">
@@ -77,27 +94,11 @@ const wideForm = computed(() =>
               </p>
             </div>
 
-            <div class="grid grid-cols-1 gap-x-8 gap-y-5 md:grid-cols-2">
+            <div class="grid grid-cols-1 gap-x-5 gap-y-5 sm:grid-cols-2">
               <div
                 v-for="field in section.fields"
                 :key="field.key"
-                :class="[
-                  field.colSpan === 2
-                    || field.type === 'textarea'
-                    || field.type === 'permission-matrix'
-                    || field.type === 'telegram-destinations'
-                    || field.type === 'notification-rules'
-                    || field.type === 'connection-status'
-                    || field.type === 'alert'
-                    || field.type === 'assigned-attributes'
-                    || field.type === 'workflow-builder'
-                    || field.type === 'numbering-preview'
-                    || field.type === 'validation-builder'
-                    || field.type === 'options-builder'
-                    || field.type === 'visibility-builder'
-                    ? 'md:col-span-2'
-                    : '',
-                ]"
+                :class="isFullWidthField(field) ? 'sm:col-span-2' : ''"
               >
                 <DocumentAppDynamicFieldRenderer
                   :field="field"
@@ -110,6 +111,6 @@ const wideForm = computed(() =>
           </section>
         </div>
       </template>
-    </div>
+    </DocumentAppDocumentContentShell>
   </div>
 </template>

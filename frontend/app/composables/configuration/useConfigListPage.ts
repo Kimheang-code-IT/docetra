@@ -1,6 +1,7 @@
 import type { TableColumnDef } from '~/types/docetra/common'
 import type { RowActionItem } from '~/types/docetra/row-actions'
 import { useDebounceFn } from '@vueuse/core'
+import { useConfirm } from '~/composables/common/useConfirm'
 
 export const CONFIG_ROW_ACTIONS: RowActionItem[] = [
   { key: 'detail', labelKey: 'docetra.rowActions.detail', icon: 'i-lucide-eye' },
@@ -24,6 +25,7 @@ export function useConfigListPage(options: {
   const { t } = useI18n()
   const toast = useToast()
   const router = useRouter()
+  const { confirm, setLoading } = useConfirm()
 
   const q = ref('')
   const page = ref(1)
@@ -35,8 +37,6 @@ export function useConfigListPage(options: {
   const pending = ref(false)
   const error = ref<string | null>(null)
   const selectedIds = ref<string[]>([])
-  const confirmOpen = ref(false)
-  const pendingDeleteIds = ref<string[]>([])
   const deleting = ref(false)
 
   async function refresh() {
@@ -69,14 +69,18 @@ export function useConfigListPage(options: {
     void refresh()
   }, 300)
 
-  function setFilter(key: string, value: string) {
-    if (!value) {
+  function setFilter(key: string, value: string | string[] | undefined) {
+    const nextValue = Array.isArray(value)
+      ? (value.length ? value.join(',') : undefined)
+      : (value || undefined)
+
+    if (!nextValue) {
       const next = { ...filters.value }
       delete next[key]
       filters.value = next
     }
     else {
-      filters.value = { ...filters.value, [key]: value }
+      filters.value = { ...filters.value, [key]: nextValue }
     }
     page.value = 1
     void refresh()
@@ -112,25 +116,19 @@ export function useConfigListPage(options: {
     return String(value)
   }
 
-  function requestDelete(ids: string[]) {
-    pendingDeleteIds.value = ids
-    confirmOpen.value = true
-  }
+  async function requestDelete(ids: string[]) {
+    if (!options.remove || !ids.length) return
+    const ok = await confirm({ kind: 'delete', count: ids.length })
+    if (!ok) return
 
-  async function confirmDelete() {
-    if (!options.remove || !pendingDeleteIds.value.length) {
-      confirmOpen.value = false
-      return
-    }
     deleting.value = true
+    setLoading(true)
     try {
-      for (const id of pendingDeleteIds.value) {
+      for (const id of ids) {
         await options.remove(id)
       }
-      toast.add({ title: t('docetra.actions.deletedItems', { n: pendingDeleteIds.value.length }), color: 'success' })
+      toast.add({ title: t('docetra.actions.deletedItems', { n: ids.length }), color: 'success' })
       selectedIds.value = []
-      confirmOpen.value = false
-      pendingDeleteIds.value = []
       await refresh()
     }
     catch (e: any) {
@@ -138,6 +136,7 @@ export function useConfigListPage(options: {
     }
     finally {
       deleting.value = false
+      setLoading(false)
     }
   }
 
@@ -201,7 +200,6 @@ export function useConfigListPage(options: {
     pending,
     error,
     selectedIds,
-    confirmOpen,
     deleting,
     refresh,
     debouncedSearch,
@@ -211,7 +209,6 @@ export function useConfigListPage(options: {
     openRow,
     defaultCellValue,
     requestDelete,
-    confirmDelete,
     onRowAction,
   })
 }

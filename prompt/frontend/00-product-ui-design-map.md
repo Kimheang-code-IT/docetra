@@ -1,5 +1,7 @@
 # Docetra Product UI Design Map
 
+> **Status:** Implemented — architecture reference only (not a build ticket).
+
 ## What the product data means for the UI
 
 Docetra is a record-centered operational system. Business pages reuse four concepts:

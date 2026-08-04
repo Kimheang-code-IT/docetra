@@ -26,19 +26,19 @@ type ApiFetchError = Error & {
  * Standard API Fetching Composable
  * ───────────────────────────────────────
  * Use this for all backend requests. It automatically:
- * 1. Attaches the Bearer token (if user is logged in)
+ * 1. Attaches the auth token (if user is logged in)
  * 2. Handles global error notifications
  * 3. Supports standard REST methods
  */
 export function useApi() {
     const toast = useToast()
+    const { t } = useI18n()
     const config = useRuntimeConfig()
     const pending = ref(false)
     const error = ref<string | null>(null)
-    
+
     // Base URL from nuxt.config (fallback to localhost for dev)
     const baseURL = config.public.apiBase || 'http://localhost:8000/api'
-    const useMockData = config.public.useMockData !== false
     const controllers = new Map<string, AbortController>()
 
     function getRequestKey(url: string, options: ApiRequestOptions): string {
@@ -86,27 +86,34 @@ export function useApi() {
 
                     if (!options.suppressErrorToast) {
                         toast.add({
-                            title: `API Error: ${response.status}`,
-                            description: response._data?.message || 'Something went wrong',
+                            title: t('api.errorTitle', { status: response.status }),
+                            description: response._data?.message || t('api.somethingWentWrong'),
                             color: 'error'
                         })
                     }
                 }
             })
-        } catch (err: unknown) {
+        }
+        catch (err: unknown) {
             // Network or parsing errors
             const fetchError = err as ApiFetchError
             if (fetchError.name === 'AbortError') {
                 return Promise.reject(err)
             }
-            error.value = fetchError?.message || 'Request failed'
-            if (fetchError.name === 'FetchError') {
-                 if (!options.suppressErrorToast) {
-                    toast.add({ title: 'Connection Error', description: 'Could not reach the server', color: 'error' })
-                 }
+
+            error.value = fetchError?.message || t('api.requestFailed')
+
+            if (fetchError.name === 'FetchError' && !options.suppressErrorToast) {
+                toast.add({
+                    title: t('api.connectionErrorTitle'),
+                    description: t('api.connectionErrorDescription'),
+                    color: 'error'
+                })
             }
+
             throw err
-        } finally {
+        }
+        finally {
             if (controllers.get(requestKey) === controller) {
                 controllers.delete(requestKey)
             }
@@ -115,7 +122,6 @@ export function useApi() {
     }
 
     return {
-        useMockData,
         pending,
         error,
         cancelRequest,
@@ -127,4 +133,3 @@ export function useApi() {
         request: fetch,
     }
 }
-

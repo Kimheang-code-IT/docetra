@@ -21,7 +21,7 @@ const filters: FilterDef[] = [
   {
     key: 'status',
     labelKey: 'docetra.fields.status',
-    type: 'select',
+    type: 'multiselect',
     options: [
       { label: 'Active', value: 'active', labelKey: 'docetra.status.active' },
       { label: 'Disabled', value: 'disabled', labelKey: 'docetra.status.disabled' },
@@ -30,7 +30,7 @@ const filters: FilterDef[] = [
   {
     key: 'dataType',
     labelKey: 'docetra.config.dataTypeLabel',
-    type: 'select',
+    type: 'multiselect',
     options: [
       { label: 'Short text', value: 'short_text' },
       { label: 'Select', value: 'select' },
@@ -87,6 +87,7 @@ watch(() => list.q, v => { searchInput.value = v })
     :title-key="list.titleKey"
     :description-key="list.descriptionKey"
     :icon="list.icon"
+    create-label-key="docetra.config.createRecordAttribute"
     :columns="list.columns"
     :rows="list.items"
     :total="list.total"
@@ -113,13 +114,5 @@ watch(() => list.q, v => { searchInput.value = v })
     @row-action="list.onRowAction"
     @delete-selected="list.requestDelete"
     @retry="list.refresh"
-  />
-
-  <CommonAppConfirmDialog
-    v-model:open="list.confirmOpen"
-    :title="t('docetra.common.confirmTitle')"
-    :description="t('docetra.actions.deleteConfirm', { n: 1 })"
-    :loading="list.deleting"
-    @confirm="list.confirmDelete"
   />
 </template>

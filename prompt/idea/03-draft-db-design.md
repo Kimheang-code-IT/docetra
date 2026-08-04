@@ -1,7 +1,7 @@
 ## DB
 
-
 ### `role`
+
 - `id [uuid]`: use as `primary key`
 - `created_at [timestamp with time zone]`: by default is `now()`
 - `updated_at [timestamp with time zone]`: by default is `now()`
@@ -12,8 +12,8 @@
 - `description [text]`: describe the thing
 - `is_active [smallint]`: by default it's `0`
 
-
 ### menu
+
 - `id [uuid]`: use as `primary key`
 - `created_at [timestamp with time zone]`: by default is `now()`
 - `updated_at [timestamp with time zone]`: by default is `now()`
@@ -27,7 +27,9 @@
 - `is_menu [smallint]`: 1 for item in navigation, 0 for action (create, edit, delete...)
 
 
+
 ## permission
+
 - `id [uuid]`: use as `primary key`
 - `created_at [timestamp with time zone]`: by default is `now()`
 - `updated_at [timestamp with time zone]`: by default is `now()`
@@ -38,7 +40,9 @@
 - `is_enable [smallint]`: by default is `0`, while `0` for not allow and `1` is allow
 
 
+
 ## organization
+
 - `id [uuid]`: use as `primary key`
 - `created_at [timestamp with time zone]`: by default is `now()`
 - `updated_at [timestamp with time zone]`: by default is `now()`
@@ -61,7 +65,9 @@
 - `child_ids [text]`: for store child id(s), store `organization.id` in text, separated by comma
 
 
+
 ## organization_sector
+
 - `id [uuid]`: use as `primary key`
 - `created_at [timestamp with time zone]`: by default is `now()`
 - `updated_at [timestamp with time zone]`: by default is `now()`
@@ -73,7 +79,9 @@
 - `is_active [smallint]`: by default it's `0`, while `0` is inactive, `1` is active
 
 
+
 ## organization_purpose
+
 - `id [uuid]`: use as `primary key`
 - `created_at [timestamp with time zone]`: by default is `now()`
 - `updated_at [timestamp with time zone]`: by default is `now()`
@@ -84,7 +92,9 @@
 - `description [text]`: info
 
 
+
 ## officer
+
 - `id [uuid]`: use as `primary key`
 - `created_at [timestamp with time zone]`: by default is `now()`
 - `updated_at [timestamp with time zone]`: by default is `now()`
@@ -98,7 +108,9 @@
 - `profile_url [character varying]`: to store url, default is a placeholder image
 
 
+
 ## record_type
+
 - `id [uuid]`: use as `primary key`
 - `created_at [timestamp with time zone]`: by default is `now()`
 - `updated_at [timestamp with time zone]`: by default is `now()`
@@ -110,7 +122,9 @@
 - `deletable [smallint]`: by default it's `1`, while `1` is deletable, `0` is not
 
 
+
 ## record_attribute
+
 - `id [uuid]`: use as `primary key`
 - `created_at [timestamp with time zone]`: by default is `now()`
 - `updated_at [timestamp with time zone]`: by default is `now()`
@@ -120,7 +134,9 @@
 - `data_type [character varying]`: the data type of the attribute
 
 
+
 ## record_template
+
 - `id [uuid]`: use as `primary key`
 - `created_at [timestamp with time zone]`: by default is `now()`
 - `updated_at [timestamp with time zone]`: by default is `now()`
@@ -132,27 +148,31 @@
 - `is_require [smallint]`: `1` for required, `0` for optional
 
 
+
 ## record
+
 - `id [uuid]`: use as `primary key`
 - `created_at [timestamp with time zone]`: by default is `now()`
 - `updated_at [timestamp with time zone]`: by default is `now()`
 - `created_by [uuid]`: the fkey, reference `officer.id`
 - `updated_by [uuid]`: the fkey, reference `officer.id`
-- `record_type_id [uuid]`: the fkey, reference `record_type.id`
-- `title [character varying]`: the record title
+- `record_type_id [uuid]`: the fkey, reference `record_type.id {join }`
+- `title [character varying]`: the record title​ ១
 - `status [smallint]`: the record status
-- `record_stage_id [uuid]`: the fkey, reference `record_stage_template.id`
+- `record_stage_id [uuid]`: the fkey, reference `record_stage_template.id​ ២`
 - `record_type_code [character varying]`: store the record type code, from `record.code`
-- `record_content [text]`: the main content
+- `record_content [text]`: the main content ៥
 - `record_metadata [text]`: metadata as text
-- `record_time [timestamp with time zone]`: the record timestamp
-- `record_tag [text]`: tags as text
+- `record_time [timestamp with time zone]`: the record timestamp ៤
+- `record_tag [text]`: tags as text ៣
 - `parent_record [uuid]`: the fkey, reference `record.id`, for self-join
 - `record_additional_info [text]`: additional info
 - `record_flow_code [character varying]`: by default it's `normal`
 
 
+
 ## record_attachment
+
 - `id [uuid]`: use as `primary key`
 - `created_at [timestamp with time zone]`: by default is `now()`
 - `updated_at [timestamp with time zone]`: by default is `now()`
@@ -162,7 +182,9 @@
 - `reference_id [uuid]`: the fkey, reference `record.id`, for referencing another record
 
 
+
 ## record_detail
+
 - `id [uuid]`: use as `primary key`
 - `created_at [timestamp with time zone]`: by default is `now()`
 - `updated_at [timestamp with time zone]`: by default is `now()`
@@ -178,7 +200,9 @@
 - `value_id [uuid]`: for reference id values
 
 
+
 ## file
+
 - `id [uuid]`: use as `primary key`
 - `created_at [timestamp with time zone]`: by default is `now()`
 - `updated_at [timestamp with time zone]`: by default is `now()`
@@ -194,7 +218,9 @@
 - `status [character varying]`: by default it's `active`, enum `[active, trash]`
 
 
+
 ## record_organization
+
 - `id [uuid]`: use as `primary key`
 - `created_at [timestamp with time zone]`: by default is `now()`
 - `updated_at [timestamp with time zone]`: by default is `now()`
@@ -205,7 +231,9 @@
 - `role_type [character varying]`: the role type of the organization in the record, enum `[owner, contributor, reviewer, participant, observer, cc]`
 
 
+
 ## record_stage_template
+
 - `id [uuid]`: use as `primary key`
 - `created_at [timestamp with time zone]`: by default is `now()`
 - `updated_at [timestamp with time zone]`: by default is `now()`
@@ -217,7 +245,9 @@
 - `is_final [smallint]`: by default it's `0`, while `0` is not final, `1` is final stage
 
 
+
 ## audit_log
+
 - `id [bigint]`: use as `primary key`, `GENERATED ALWAYS AS IDENTITY`
 - `created_at [timestamp with time zone]`: by default is `now()`
 - `created_by [uuid]`: the fkey, reference `officer.id`
@@ -232,7 +262,9 @@
 - `message [text]`: message
 
 
+
 ## setting
+
 - `id [uuid]`: use as `primary key`
 - `created_at [timestamp with time zone]`: by default is `now()`
 - `updated_at [timestamp with time zone]`: by default is `now()`
@@ -248,7 +280,9 @@
 - `key_value [character varying]`: the setting value
 
 
+
 ## notification_audit_log
+
 - `id [bigint]`: use as `primary key`, `GENERATED ALWAYS AS IDENTITY`
 - `created_at [timestamp with time zone]`: by default is `now()`
 - `log_id [bigint]`: reference to audit_log
@@ -256,7 +290,9 @@
 - `proccessed [boolean]`: by default is `false`
 
 
+
 ## users (need to change)
+
 - `id [uuid]`: use as `primary key`
 - `created_at [timestamp with time zone]`: by default is `now()`
 - `updated_at [timestamp with time zone]`: by default is `now()`
@@ -275,7 +311,9 @@
 - `phone_confirmed_at [timestamp with time zone]`: phone confirmation timestamp
 
 
+
 ## enum
+
 - `id [bigint]`: use as `primary key`, auto-number
 - `created_at [timestamp with time zone]`: by default is `now()`
 - `updated_at [timestamp with time zone]`: by default is `now()`
@@ -286,7 +324,9 @@
 - `description [text]`: info
 
 
+
 ## document_type
+
 - `id [uuid]`: use as `primary key`
 - `created_at [timestamp with time zone]`: by default is `now()`
 - `updated_at [timestamp with time zone]`: by default is `now()`
@@ -298,7 +338,9 @@
 - `color_code [character varying]`: the color code for display
 
 
+
 ## officer_identifier
+
 - `id [uuid]`: use as `primary key`
 - `created_at [timestamp with time zone]`: by default is `now()`
 - `updated_at [timestamp with time zone]`: by default is `now()`
@@ -308,3 +350,4 @@
 - `identifier_type [text]`: the type of identifier
 - `identifier [text]`: the identifier value
 - `key1 [text]`: additional key
+

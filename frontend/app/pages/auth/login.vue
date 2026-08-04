@@ -2,9 +2,9 @@
 import * as z from 'zod'
 import type { FormSubmitEvent, AuthFormField } from '@nuxt/ui'
 import { useAuthSession } from '~/utils/auth/session'
-import { readRememberMe, writeRememberMe } from '~/utils/auth/remember-me'
-import { MOCK_LOGIN_ACCOUNTS } from '~/utils/auth/mock-login'
+import { readRememberMe } from '~/utils/auth/remember-me'
 import { loginWithCredentials } from '~/adapters/auth'
+import { MOCK_LOGIN_ACCOUNTS } from '~/utils/auth/mock-login'
 
 definePageMeta({
   layout: 'auth',
@@ -15,6 +15,9 @@ const router = useRouter()
 const toast = useToast()
 const authSession = useAuthSession()
 const submitting = ref(false)
+const googleLoading = ref(false)
+const termsOpen = ref(false)
+const acceptTerms = ref(false)
 const loginForm = useTemplateRef<{ state?: Record<string, unknown> }>('loginForm')
 
 useSeoMeta({
@@ -46,12 +49,6 @@ function buildFields(): AuthFormField[] {
       autocomplete: 'current-password',
       defaultValue: '',
     },
-    {
-      name: 'remember',
-      type: 'checkbox',
-      label: t('pages.auth.remember'),
-      defaultValue: remembered.enabled,
-    },
   ]
 }
 
@@ -64,24 +61,42 @@ watch(locale, () => {
 const schema = computed(() => z.object({
   email: z.email({ error: t('pages.auth.emailRequired') }),
   password: z.string().min(6, { error: t('pages.auth.passwordRequired') }),
-  remember: z.boolean().optional(),
 }))
 
 type Schema = {
   email: string
   password: string
-  remember?: boolean
+}
+
+async function completeLogin(token: string, user: { name: string }) {
+  authSession.login(token, user as any)
+  toast.add({
+    title: t('pages.auth.loginSuccess'),
+    description: t('pages.auth.loginSuccessDesc', { name: user.name }),
+    color: 'success',
+  })
+  await router.push('/')
+}
+
+function ensureTermsAccepted(): boolean {
+  if (acceptTerms.value) return true
+  toast.add({
+    title: t('pages.auth.termsRequired'),
+    description: t('pages.auth.termsRequiredDesc'),
+    color: 'warning',
+  })
+  return false
 }
 
 async function onSubmit(payload: FormSubmitEvent<Schema>) {
   if (submitting.value) return
-  submitting.value = true
+  if (!ensureTermsAccepted()) return
 
+  submitting.value = true
   try {
     const formState = loginForm.value?.state || {}
     const email = String(payload.data?.email ?? formState.email ?? '').trim()
     const password = String(payload.data?.password ?? formState.password ?? '')
-    const remember = Boolean(payload.data?.remember ?? formState.remember)
 
     const result = await loginWithCredentials(email, password)
     const payloadData = (result as { data?: { user?: { name: string }, token?: string } }).data
@@ -96,16 +111,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
       return
     }
 
-    writeRememberMe(email, remember)
-    authSession.login(payloadData.token, user as any)
-
-    toast.add({
-      title: t('pages.auth.loginSuccess'),
-      description: t('pages.auth.loginSuccessDesc', { name: user.name }),
-      color: 'success',
-    })
-
-    await router.push('/')
+    await completeLogin(payloadData.token, user)
   }
   catch {
     toast.add({
@@ -118,6 +124,36 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
     submitting.value = false
   }
 }
+
+async function onGoogleLogin() {
+  if (googleLoading.value) return
+  if (!ensureTermsAccepted()) return
+
+  googleLoading.value = true
+  try {
+    // OAuth provider wiring comes later — mock success keeps the UI flow usable.
+    await new Promise(resolve => setTimeout(resolve, 600))
+    toast.add({
+      title: t('pages.auth.googleComingSoon'),
+      description: t('pages.auth.googleComingSoonDesc'),
+      color: 'neutral',
+    })
+  }
+  finally {
+    googleLoading.value = false
+  }
+}
+
+const googleProvider = computed(() => ({
+  label: t('pages.auth.loginWithGoogle'),
+  icon: 'i-simple-icons-google',
+  color: 'neutral' as const,
+  variant: 'outline' as const,
+  block: true,
+  size: 'lg' as const,
+  loading: googleLoading.value,
+  disabled: submitting.value,
+}))
 </script>
 
 <template>
@@ -140,21 +176,52 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
         <img src="/assets/images/logo.png" alt="Logo" class="mx-auto h-20 w-auto rounded-full shadow">
       </template>
 
+      <template #validation>
+        <div class="flex items-center gap-1.5 text-left">
+          <UCheckbox
+            v-model="acceptTerms"
+            size="xs"
+          />
+          <p class="text-xs leading-tight text-muted">
+            <button
+              type="button"
+              class="font-medium text-toned underline underline-offset-2 hover:text-primary"
+              @click="termsOpen = true"
+            >
+              {{ t('pages.auth.termsLink') }}
+            </button>
+          </p>
+        </div>
+      </template>
+
       <template #footer>
-        <div class="space-y-2 text-center">
+        <div class="space-y-3">
+          <USeparator :label="t('pages.auth.orContinueWith')" />
+
           <UButton
-            variant="link"
-            size="sm"
-            to="/auth/forget-password"
-            class="text-muted-foreground underline"
-          >
-            {{ t('pages.auth.forgotPassword') }}
-          </UButton>
-          <div>
+            v-bind="googleProvider"
+            class="w-full"
+            @click="onGoogleLogin"
+          />
+
+          <div class="text-center">
+            <UButton
+              variant="link"
+              size="sm"
+              to="/auth/forget-password"
+              class="text-muted-foreground underline"
+            >
+              {{ t('pages.auth.forgotPassword') }}
+            </UButton>
+          </div>
+
+          <div class="text-center">
             <span class="text-sm font-normal text-muted">{{ $t('settings.aboutCopyright') }}</span>
           </div>
         </div>
       </template>
     </UAuthForm>
+
+    <AuthAppAuthTermsDialog v-model:open="termsOpen" />
   </div>
 </template>

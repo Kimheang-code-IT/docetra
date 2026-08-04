@@ -7,12 +7,13 @@ import type {
   EntityComment,
   PersonSummary,
 } from '~/types/docetra/common'
+import { useConfirm } from '~/composables/common/useConfirm'
 
 const props = withDefaults(defineProps<{
   tabs: DocumentTabSchema[]
   activeTab: string
   fieldValue: (key: string) => unknown
-  setFieldValue: (key: string, value: unknown) => void
+  setFieldValue: (key: string, value: unknown) => void | Promise<void>
   pending?: boolean
   saving?: boolean
   error?: string | null
@@ -26,6 +27,8 @@ const props = withDefaults(defineProps<{
   showListNav?: boolean
   listTo?: string
   isCreate?: boolean
+  /** Force the wider document content shell (matches App Config settings width). */
+  contentWide?: boolean
   canComment?: boolean
   comments?: EntityComment[]
   activity?: ActivityEvent[]
@@ -55,6 +58,7 @@ const props = withDefaults(defineProps<{
   showMetaRail: false,
   showListNav: false,
   isCreate: false,
+  contentWide: false,
   canComment: true,
   comments: () => [],
   activity: () => [],
@@ -83,6 +87,26 @@ const localAttachments = computed({
 const showForm = computed(() =>
   !props.notFound && !props.error && (!props.pending || props.tabs.length > 0),
 )
+
+const { confirm } = useConfirm()
+
+const scrollEl = ref<HTMLElement | null>(null)
+const showScrollTop = ref(false)
+
+function onFormScroll() {
+  showScrollTop.value = (scrollEl.value?.scrollTop ?? 0) > 240
+}
+
+function scrollToTop() {
+  scrollEl.value?.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+async function onSaveClick() {
+  const ok = await confirm({
+    kind: props.isCreate ? 'submit' : 'save',
+  })
+  if (ok) emit('save')
+}
 </script>
 
 <template>
@@ -135,7 +159,7 @@ const showForm = computed(() =>
         icon="i-lucide-save"
         :label="saveLabel || t('actions.save')"
         class="rounded-md"
-        @click="emit('save')"
+        @click="onSaveClick"
       />
     </LayoutAppHeaderPageActions>
 
@@ -148,69 +172,95 @@ const showForm = computed(() =>
       </div>
 
       <div class="flex min-h-0 w-full min-w-0 flex-1 overflow-hidden bg-default">
-        <div class="min-h-0 min-w-0 flex-1 overflow-auto">
-          <UAlert
-            v-if="notFound"
-            class="mx-auto mt-6 w-full max-w-3xl xl:max-w-4xl"
-            color="error"
-            :title="t('docetra.states.notFound')"
-          />
-          <UAlert
-            v-else-if="error"
-            class="mx-auto mt-6 w-full max-w-3xl xl:max-w-4xl"
-            color="error"
-            :title="error"
-          />
+        <div class="relative min-h-0 min-w-0 flex-1 overflow-hidden">
+          <div
+            ref="scrollEl"
+            class="h-full min-h-0 min-w-0 overflow-auto"
+            @scroll.passive="onFormScroll"
+          >
+            <UAlert
+              v-if="notFound"
+              class="mx-auto mt-6 w-full px-4 sm:px-6 lg:px-10"
+              :class="contentWide
+                ? 'max-w-4xl lg:max-w-5xl xl:max-w-6xl'
+                : 'max-w-xl sm:max-w-2xl lg:max-w-3xl'"
+              color="error"
+              :title="t('docetra.states.notFound')"
+            />
+            <UAlert
+              v-else-if="error"
+              class="mx-auto mt-6 w-full px-4 sm:px-6 lg:px-10"
+              :class="contentWide
+                ? 'max-w-4xl lg:max-w-5xl xl:max-w-6xl'
+                : 'max-w-xl sm:max-w-2xl lg:max-w-3xl'"
+              color="error"
+              :title="error"
+            />
 
-          <template v-else-if="showForm">
-            <slot name="before-form" />
+            <template v-else-if="showForm">
+              <slot name="before-form" />
 
-            <div
-              class="flex min-h-0 w-full"
-              :class="$slots.aside && !showMetaRail ? 'flex-col xl:flex-row' : 'flex-col'"
-            >
-              <div class="min-w-0 flex-1">
-                <DocumentAppDocumentForm
-                  :tabs="tabs"
-                  :active-tab="activeTab"
-                  :field-value="fieldValue"
-                  :set-field-value="setFieldValue"
-                  :read-only="readOnly"
-                  @update:active-tab="emit('update:activeTab', $event)"
-                />
-
-                <div
-                  v-if="showComments && !isCreate"
-                  class="mx-auto w-full max-w-3xl px-6 xl:max-w-4xl"
-                >
-                  <DocumentAppCommentsActivity
-                    :comments="comments"
-                    :activity="activity"
-                    :comment-body="commentBody"
-                    :submitting="submittingComment"
-                    :can-comment="canComment"
-                    :current-user="currentUser"
-                    @update:comment-body="emit('update:commentBody', $event)"
-                    @submit="emit('submitComment')"
-                  />
-                </div>
-
-                <div
-                  v-if="$slots['after-form']"
-                  class="mx-auto w-full max-w-3xl space-y-3 px-4 pb-6 sm:px-6 xl:max-w-4xl"
-                >
-                  <slot name="after-form" />
-                </div>
-              </div>
-
-              <aside
-                v-if="$slots.aside && !showMetaRail"
-                class="w-full shrink-0 border-t border-default px-4 py-6 sm:px-6 xl:w-80 xl:border-t-0 xl:border-l xl:overflow-y-auto"
+              <div
+                class="flex min-h-0 w-full"
+                :class="$slots.aside && !showMetaRail ? 'flex-col xl:flex-row' : 'flex-col'"
               >
-                <slot name="aside" />
-              </aside>
-            </div>
-          </template>
+                <div class="min-w-0 flex-1">
+                  <DocumentAppDocumentForm
+                    :tabs="tabs"
+                    :active-tab="activeTab"
+                    :field-value="fieldValue"
+                    :set-field-value="setFieldValue"
+                    :read-only="readOnly"
+                    :wide="contentWide"
+                    @update:active-tab="emit('update:activeTab', $event)"
+                  />
+
+                  <DocumentAppDocumentContentShell
+                    v-if="showComments && !isCreate"
+                    :wide="contentWide"
+                  >
+                    <DocumentAppCommentsActivity
+                      :comments="comments"
+                      :activity="activity"
+                      :comment-body="commentBody"
+                      :submitting="submittingComment"
+                      :can-comment="canComment"
+                      :current-user="currentUser"
+                      @update:comment-body="emit('update:commentBody', $event)"
+                      @submit="emit('submitComment')"
+                    />
+                  </DocumentAppDocumentContentShell>
+
+                  <DocumentAppDocumentContentShell
+                    v-if="$slots['after-form']"
+                    :wide="contentWide"
+                    class="space-y-3 pb-6"
+                  >
+                    <slot name="after-form" />
+                  </DocumentAppDocumentContentShell>
+                </div>
+
+                <aside
+                  v-if="$slots.aside && !showMetaRail"
+                  class="w-full shrink-0 border-t border-default px-4 py-6 sm:px-6 xl:w-80 xl:border-t-0 xl:border-l xl:overflow-y-auto"
+                >
+                  <slot name="aside" />
+                </aside>
+              </div>
+            </template>
+          </div>
+
+          <UButton
+            v-show="showScrollTop && showForm"
+            icon="i-lucide-chevron-up"
+            color="neutral"
+            variant="soft"
+            size="sm"
+            square
+            class="absolute bottom-4 right-4 z-20 border border-default shadow-sm"
+            :aria-label="t('docetra.document.scrollToTop')"
+            @click="scrollToTop"
+          />
         </div>
 
         <DocumentAppDocumentMetaRail

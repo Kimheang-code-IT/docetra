@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useAppHeader } from '~/composables/layout/useAppHeader'
 
-const { displayTitle, breadcrumbs, badges, hasBreadcrumbs } = useAppHeader()
+const { displayTitle, breadcrumbs, badges, hasBreadcrumbs, actions } = useAppHeader()
 </script>
 
 <template>
@@ -39,7 +39,67 @@ const { displayTitle, breadcrumbs, badges, hasBreadcrumbs } = useAppHeader()
     <div class="min-w-0 flex-1" />
 
     <template #right>
-      <div id="app-header-right" class="flex min-w-0 flex-wrap items-center justify-end gap-1.5 sm:gap-2" />
+      <div class="flex shrink-0 flex-wrap items-center justify-end gap-1.5 sm:gap-2">
+        <div
+          id="app-header-leading"
+          class="flex shrink-0 flex-wrap items-center justify-end gap-1.5 sm:gap-2"
+        />
+
+        <template v-if="actions">
+          <UButton
+            color="neutral"
+            variant="soft"
+            icon="i-lucide-refresh-cw"
+            square
+            :loading="actions.refreshing"
+            class="rounded-md"
+            :aria-label="$t('docetra.actions.refresh')"
+            @click="actions.onRefresh?.()"
+          />
+
+          <UDropdownMenu
+            v-if="actions.moreItems?.length"
+            :items="actions.moreItems"
+            :content="{ align: 'end' }"
+          >
+            <UButton
+              color="neutral"
+              variant="soft"
+              icon="i-lucide-ellipsis"
+              square
+              class="rounded-md"
+              :aria-label="$t('common.actions')"
+            />
+          </UDropdownMenu>
+        </template>
+
+        <div
+          id="app-header-trailing"
+          class="flex shrink-0 flex-wrap items-center justify-end gap-1.5 sm:gap-2"
+        />
+
+        <template v-if="actions?.createButtons?.length">
+          <UButton
+            v-for="(button, index) in actions.createButtons"
+            :key="`${button.label}-${index}`"
+            color="neutral"
+            variant="solid"
+            :icon="button.icon || 'i-lucide-plus'"
+            :label="button.label"
+            class="rounded-md"
+            @click="button.onClick()"
+          />
+        </template>
+        <UButton
+          v-else-if="actions?.canCreate"
+          color="neutral"
+          variant="solid"
+          :icon="actions.createIcon || 'i-lucide-plus'"
+          :label="actions.createLabel"
+          class="rounded-md"
+          @click="actions.onCreate?.()"
+        />
+      </div>
     </template>
   </UDashboardNavbar>
 </template>

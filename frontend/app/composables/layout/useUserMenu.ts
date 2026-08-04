@@ -1,6 +1,14 @@
 import type { DropdownMenuItem } from '@nuxt/ui'
 import { usePreferencesStore } from '~/stores/preferences'
 import type { AppLocale } from '~/stores/preferences'
+import type { AppFontSize } from '~/types/docetra/settings'
+
+const FONT_SIZE_OPTIONS: Array<{ value: AppFontSize, labelKey: string, icon: string }> = [
+  { value: 'sm', labelKey: 'docetra.settings.fontSizeSm', icon: 'i-lucide-a-arrow-down' },
+  { value: 'md', labelKey: 'docetra.settings.fontSizeMd', icon: 'i-lucide-type' },
+  { value: 'lg', labelKey: 'docetra.settings.fontSizeLg', icon: 'i-lucide-a-arrow-up' },
+  { value: 'xl', labelKey: 'docetra.settings.fontSizeXl', icon: 'i-lucide-fullscreen' },
+]
 
 export function useUserMenu() {
   const auth = useAuthStore()
@@ -45,7 +53,7 @@ export function useUserMenu() {
       {
         label: t('settings.language'),
         icon: 'i-lucide-languages',
-        children: (i18n.locales.value || []).map((loc: { name?: string; icon?: string; code?: string }) => ({
+        children: (i18n.locales.value || []).map((loc: { name?: string, icon?: string, code?: string }) => ({
           label: loc.name,
           icon: loc.icon,
           type: 'checkbox',
@@ -55,6 +63,20 @@ export function useUserMenu() {
             if (loc.code === 'en' || loc.code === 'km') {
               preferences.setLocale(loc.code as AppLocale)
             }
+          },
+        })),
+      },
+      {
+        label: t('docetra.settings.fontSize'),
+        icon: 'i-lucide-a-large-small',
+        children: FONT_SIZE_OPTIONS.map(option => ({
+          label: t(option.labelKey),
+          icon: option.icon,
+          type: 'checkbox',
+          checked: preferences.fontSize === option.value,
+          onSelect: (e: Event) => {
+            e.preventDefault()
+            preferences.setFontSize(option.value)
           },
         })),
       },

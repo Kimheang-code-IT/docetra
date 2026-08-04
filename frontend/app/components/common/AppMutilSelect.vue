@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { normalizeToMenuRows } from '~/utils/filter/menu-items'
+import { getFilterSelectUi, isFilterValueActive } from '~/utils/filter/select-ui'
 
 /** Sentinel value for “no filter” — only used when showNoneOption is enabled */
 const MULTISELECT_FILTER_NONE = '__app_multiselect_none__'
@@ -23,7 +24,6 @@ const props = withDefaults(
   {
     showNoneOption: false,
     searchable: true,
-    icon: 'i-lucide-funnel',
   },
 )
 
@@ -50,8 +50,8 @@ const displayLabel = computed(() => {
     .map(value => menuItems.value.find(item => item.value === value)?.label)
     .filter(Boolean) as string[]
   if (!labels.length) return undefined
-  if (labels.length === 1) return labels[0]
-  return `${labels[0]} +${labels.length - 1}`
+  const joined = labels.join(', ')
+  return props.label ? `${props.label}: ${joined}` : joined
 })
 
 const { widthStyle, rootClass } = useFilterAutoWidth(
@@ -68,6 +68,8 @@ const searchInput = computed(() => {
   }
 })
 
+const selectUi = computed(() => getFilterSelectUi(isFilterValueActive(modelValue.value)))
+
 const internalValue = computed<any[]>({
   get: () => {
     if (modelValue.value == null) {
@@ -77,7 +79,7 @@ const internalValue = computed<any[]>({
   },
   set: (value) => {
     const raw = Array.isArray(value) ? value : []
-    const rest = raw.filter((v) => v !== MULTISELECT_FILTER_NONE)
+    const rest = raw.filter(v => v !== MULTISELECT_FILTER_NONE)
 
     if (props.showNoneOption && raw.includes(MULTISELECT_FILTER_NONE)) {
       if (rest.length === 0) {
@@ -102,16 +104,11 @@ const internalValue = computed<any[]>({
       :placeholder="selectPlaceholder"
       value-key="value"
       :icon="icon"
-      class="w-full font-normal"
-      size="md"
+      class="w-full"
+      size="sm"
       :search-input="searchInput"
       :filter-fields="['label']"
-      :ui="{
-        base: 'rounded-md bg-default ring-1 ring-default',
-        value: 'truncate',
-        trailingIcon: 'text-muted',
-        content: 'max-h-60 min-w-(--reka-combobox-trigger-width)',
-      }"
+      :ui="selectUi"
       v-bind="$attrs"
     />
   </div>

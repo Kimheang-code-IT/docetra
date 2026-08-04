@@ -1,13 +1,29 @@
-# Prompt 17 — Google Drive Sync
+# Prompt 17 — Google Drive Sync (remaining)
 
-## Copy/paste prompt
+> **Status:** Partial — list/detail shell exists via generic `EntityWorkspaceView`. Dedicated sync UI below is still open.
 
-Implement `/portal/google-drive-sync` as a sync-source and job workspace.
+## Current code
 
-Use source status cards plus a server-paginated job table; do not use Kanban. Show connection state, folder/source, last/next run, current job, imported/skipped/failed counts, and error summary. Filters: source, status, trigger, actor, and date.
+| Piece | Location |
+| --- | --- |
+| List | `frontend/app/pages/portal/google-drive-sync/index.vue` |
+| Create / detail | `…/new.vue`, `…/[id].vue` |
+| Entity config | `config/entities` → `googleDriveSync` |
+| Adapter | `adapters` mock entity adapter |
 
-Source Add navigates to `/portal/google-drive-sync/sources/new`; source and job rows navigate to their canonical detail routes. Use Nuxt UI document pages for permitted source configuration and read-only job details. Tabs include Configuration, Recent Files, Errors, and immutable Activity. Manual Sync creates an asynchronous backend job and uses bounded polling or server events with cleanup. Never expose provider secrets or access tokens.
+## Remaining work
 
-### Acceptance
+Replace the generic workspace with a sync-source + job workspace:
 
-Long-running jobs do not block the browser, status refresh is bounded, secrets are protected, and checks pass.
+- Source **status cards** + server-paginated **job table** (no Kanban).
+- Show connection state, folder/source, last/next run, current job, imported/skipped/failed counts, error summary.
+- Filters: source, status, trigger, actor, date.
+- Source Add → `/portal/google-drive-sync/sources/new`.
+- Source and job rows → their detail routes.
+- Detail tabs: Configuration, Recent Files, Errors, immutable Activity.
+- Manual Sync creates an async job with bounded polling (or server events) and cleanup.
+- Never expose provider secrets or access tokens.
+
+## Acceptance
+
+Long-running jobs do not block the browser, status refresh is bounded, secrets stay protected, and typecheck/build pass.

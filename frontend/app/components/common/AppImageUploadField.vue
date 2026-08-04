@@ -77,7 +77,7 @@ function onDrop(event: DragEvent) {
 <template>
   <UFormField :label="labelText" :hint="helpText">
     <div
-      class="relative flex min-h-28 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-default bg-elevated/40 p-4 transition"
+      class="relative flex min-h-28 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-default bg-elevated/40 p-4 transition"
       :class="[
         dragOver ? 'border-primary bg-primary/5' : '',
         disabled ? 'pointer-events-none opacity-60' : 'hover:border-primary/50',
@@ -99,8 +99,10 @@ function onDrop(event: DragEvent) {
         </div>
       </template>
       <template v-else>
-        <UIcon name="i-lucide-image-up" class="size-6 text-muted" />
-        <p class="text-sm text-muted">
+        <div class="grid size-12 place-items-center rounded-2xl bg-primary/10 ring ring-primary/20">
+          <UIcon name="i-lucide-image-up" class="size-6 text-primary" />
+        </div>
+        <p class="text-sm font-medium text-highlighted">
           {{ t('docetra.common.dropImage') }}
         </p>
       </template>

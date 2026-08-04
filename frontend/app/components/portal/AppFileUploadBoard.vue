@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import type { AttachmentMeta } from '~/types/docetra/common'
 import { getEntityConfig } from '~/config/entities'
-import { adapters } from '~/adapters'
+import { useConfirm } from '~/composables/common/useConfirm'
 import { useEntityWorkspace } from '~/composables/workspace/useEntityWorkspace'
-import { createId, nowIso, person } from '~/mocks/seed'
+import { ApiEndpoints } from '~/utils/constants/api-endpoints'
+import { adapters } from '~/adapters'
+import { useAuthStore } from '~/stores/auth'
 
 const config = getEntityConfig('fileUploads')
 
@@ -26,6 +28,9 @@ const {
 
 const toast = useToast()
 const { t } = useI18n()
+const { confirm } = useConfirm()
+const runtimeConfig = useRuntimeConfig()
+const authStore = useAuthStore()
 
 const leftCollapsed = useState('file-upload-left-collapsed', () => false)
 const searchInput = ref(q.value)
@@ -66,20 +71,21 @@ async function onUploadComplete(metas: AttachmentMeta[]) {
   if (!metas.length) return
   uploading.value = true
   try {
-    for (const meta of metas) {
-      await adapters.fileUploads.create({
-        id: createId('fu'),
-        fileName: meta.name,
-        name: meta.name,
-        mimeType: meta.mimeType,
-        sizeBytes: meta.sizeBytes,
-        status: 'completed',
-        uploader: person(0),
-        storageSource: meta.storageSource || 'local',
-        progress: 100,
-        createdAt: nowIso(),
-        updatedAt: nowIso(),
-      } as any)
+    if (runtimeConfig.public.useMockData !== false) {
+      for (const meta of metas) {
+        await adapters.fileUploads.create({
+          fileName: meta.name,
+          name: meta.name,
+          mimeType: meta.mimeType,
+          sizeBytes: meta.sizeBytes,
+          status: 'completed',
+          storageSource: meta.storageSource || 'local',
+          progress: 100,
+          uploader: authStore.user
+            ? { id: String(authStore.user.id), name: authStore.user.name, email: authStore.user.email }
+            : undefined,
+        } as any)
+      }
     }
     toast.add({ title: t('docetra.attachments.uploaded'), color: 'success' })
     await refresh()
@@ -94,10 +100,8 @@ async function onUploadComplete(metas: AttachmentMeta[]) {
 
 async function onDeleteSelected(ids = selectedIds.value) {
   if (!ids.length) return
-  const confirmed = window.confirm(
-    t('docetra.actions.deleteConfirm', { n: ids.length }),
-  )
-  if (!confirmed) return
+  const ok = await confirm({ kind: 'delete', count: ids.length })
+  if (!ok) return
 
   deleting.value = true
   try {
@@ -213,6 +217,7 @@ onMounted(() => {
             <CommonAppUppyUploader
               class="flex h-full min-h-0 flex-col [&_.uppy-host]:min-h-0 [&_.uppy-host]:flex-1"
               entity-id="portal-file-upload"
+              :endpoint="ApiEndpoints.FILE_UPLOADS"
               fill
               :note="$t('docetra.fileUploadBoard.uploadHint')"
               :disabled="uploading"
@@ -269,10 +274,8 @@ onMounted(() => {
                 :model-value="statusFilterValue"
                 @update:model-value="onStatusFilterChange"
               />
-              <UInput
+              <CommonAppLiveSearch
                 v-model="searchInput"
-                icon="i-lucide-search"
-                size="sm"
                 class="w-48 lg:w-56"
                 :placeholder="$t('docetra.fileUploadBoard.search')"
               />

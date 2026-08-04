@@ -8,8 +8,6 @@ import { DEFAULT_ROW_ACTIONS } from '~/types/docetra/row-actions'
 
 type DataRow = Record<string, unknown>
 
-const ALL_LIMIT = 9999
-
 const props = withDefaults(defineProps<{
   columns: TableColumnDef[]
   rows: DataRow[]
@@ -67,19 +65,11 @@ const pageSizeItems = computed(() => [
   { label: '20', value: '20' },
   { label: '50', value: '50' },
   { label: '100', value: '100' },
-  { label: t('docetra.actions.all'), value: 'all' },
 ])
 
-const pageSizeModel = computed(() => {
-  if (props.limit >= ALL_LIMIT || (props.total > 0 && props.limit >= props.total && props.limit > 100)) {
-    return 'all'
-  }
-  return String(props.limit)
-})
+const pageSizeModel = computed(() => String(Math.min(props.limit, 100)))
 
-const effectiveItemsPerPage = computed(() =>
-  pageSizeModel.value === 'all' ? Math.max(props.total, 1) : props.limit,
-)
+const effectiveItemsPerPage = computed(() => Math.min(props.limit, 100))
 
 const metaHeaderLabel = computed(() => {
   const assigned = props.rows.filter(row => asPerson(row.assignee) || asPerson(row.owner)).length
@@ -104,7 +94,7 @@ watch(() => [props.page, props.limit, props.rows], () => {
 })
 
 function onLimitChange(value: string) {
-  emit('update:limit', value === 'all' ? ALL_LIMIT : Number(value))
+  emit('update:limit', Math.min(Number(value), 100))
   emit('update:page', 1)
 }
 
