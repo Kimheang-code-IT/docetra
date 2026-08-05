@@ -179,12 +179,19 @@ function entityTotalCount(entityKey: CardDisplayEntityKey) {
 }
 
 const footerAlignMapForPreview = computed(() => model.value.cardFooterAlign || {})
+
+const entityMenuOpen = ref(false)
+
+function selectEntity(key: CardDisplayEntityKey) {
+  selectedEntity.value = key
+  entityMenuOpen.value = false
+}
 </script>
 
 <template>
   <div class="flex h-[min(70vh,36rem)] min-h-88 overflow-hidden rounded-lg border border-default">
-    <div class="grid min-h-0 min-w-0 flex-1 grid-cols-1 lg:grid-cols-12">
-      <aside class="min-h-0 overflow-y-auto border-b border-default lg:col-span-3 lg:border-b-0 lg:border-r">
+    <div class="grid min-h-0 min-w-0 flex-1 grid-cols-2 lg:grid-cols-12">
+      <aside class="col-span-2 hidden min-h-0 overflow-y-auto border-b border-default lg:col-span-3 lg:block lg:border-b-0 lg:border-r">
         <ul class="divide-y divide-default">
           <li
             v-for="entity in CARD_DISPLAY_ENTITIES"
@@ -196,7 +203,7 @@ const footerAlignMapForPreview = computed(() => model.value.cardFooterAlign || {
               :class="selectedEntity === entity.key
                 ? 'bg-primary/5 font-medium text-highlighted ring-inset ring-1 ring-primary/20'
                 : 'text-muted hover:bg-elevated/60 hover:text-highlighted'"
-              @click="selectedEntity = entity.key"
+              @click="selectEntity(entity.key)"
             >
               <span class="min-w-0 truncate">{{ entityLabel(entity.key) }}</span>
               <span class="shrink-0 tabular-nums text-[11px] text-muted">
@@ -207,9 +214,45 @@ const footerAlignMapForPreview = computed(() => model.value.cardFooterAlign || {
         </ul>
       </aside>
 
-      <section class="flex min-h-0 min-w-0 flex-col border-b border-default lg:col-span-5 lg:border-b-0 lg:border-r">
-        <div class="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-default px-3 py-2">
-          <h3 class="min-w-0 truncate text-sm font-semibold text-highlighted">
+      <section class="col-span-1 flex min-h-0 min-w-0 flex-col border-r border-default lg:col-span-5 lg:border-r">
+        <div class="flex shrink-0 flex-wrap items-center gap-2 border-b border-default px-2 py-2 lg:px-3">
+          <UPopover
+            v-model:open="entityMenuOpen"
+            class="shrink-0 lg:hidden"
+          >
+            <UButton
+              icon="i-lucide-list"
+              color="neutral"
+              variant="outline"
+              size="sm"
+              square
+              :aria-label="$t('docetra.settings.cardFieldsSelectEntity')"
+            />
+            <template #content>
+              <ul class="max-h-[min(50vh,20rem)] w-64 max-w-[calc(100vw-2rem)] divide-y divide-default overflow-y-auto">
+                <li
+                  v-for="entity in CARD_DISPLAY_ENTITIES"
+                  :key="entity.key"
+                >
+                  <button
+                    type="button"
+                    class="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left text-sm transition"
+                    :class="selectedEntity === entity.key
+                      ? 'bg-primary/5 font-medium text-highlighted'
+                      : 'text-muted hover:bg-elevated/60 hover:text-highlighted'"
+                    @click="selectEntity(entity.key)"
+                  >
+                    <span class="min-w-0 truncate">{{ entityLabel(entity.key) }}</span>
+                    <span class="shrink-0 tabular-nums text-[11px] text-muted">
+                      {{ entitySelectedCount(entity.key) }}/{{ entityTotalCount(entity.key) }}
+                    </span>
+                  </button>
+                </li>
+              </ul>
+            </template>
+          </UPopover>
+
+          <h3 class="min-w-0 flex-1 truncate text-sm font-semibold text-highlighted">
             {{ entityLabel(selectedEntity) }}
           </h3>
           <div class="flex flex-wrap gap-1">
@@ -240,7 +283,7 @@ const footerAlignMapForPreview = computed(() => model.value.cardFooterAlign || {
           </div>
         </div>
 
-        <div class="min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
+        <div class="min-h-0 flex-1 space-y-3 overflow-y-auto p-2 lg:space-y-4 lg:p-3">
           <p class="text-xs text-muted">
             {{ $t('docetra.settings.cardFieldsTitleAlways') }}
           </p>
@@ -248,7 +291,7 @@ const footerAlignMapForPreview = computed(() => model.value.cardFooterAlign || {
           <div
             v-for="block in blocks"
             :key="block.id"
-            class="rounded-lg border border-default p-3"
+            class="rounded-lg border border-default p-2 lg:p-3"
           >
             <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
               {{ blockLabel(block.labelKey) }}
@@ -272,10 +315,10 @@ const footerAlignMapForPreview = computed(() => model.value.cardFooterAlign || {
               <div
                 v-for="slot in block.slots"
                 :key="slot"
-                class="flex items-center gap-2 rounded-md px-1 py-1.5 hover:bg-elevated/50"
+                class="flex flex-wrap items-center gap-1.5 rounded-md px-1 py-1 lg:gap-2 lg:py-1.5 hover:bg-elevated/50"
                 :class="disabled ? 'pointer-events-none opacity-60' : ''"
               >
-                <label class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-sm text-highlighted">
+                <label class="flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 text-xs text-highlighted lg:gap-2 lg:text-sm">
                   <UCheckbox
                     :model-value="isChecked(slot)"
                     :disabled="disabled"
@@ -317,7 +360,7 @@ const footerAlignMapForPreview = computed(() => model.value.cardFooterAlign || {
             </div>
           </div>
 
-          <div class="rounded-lg border border-default p-3">
+          <div class="rounded-lg border border-default p-2 lg:p-3">
             <p class="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">
               {{ $t('docetra.settings.cardFieldsDisplayOrder') }}
             </p>
@@ -374,8 +417,8 @@ const footerAlignMapForPreview = computed(() => model.value.cardFooterAlign || {
         </div>
       </section>
 
-      <section class="min-h-0 overflow-y-auto bg-elevated/30 p-3 lg:col-span-4">
-        <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
+      <section class="col-span-1 min-h-0 overflow-y-auto bg-elevated/30 p-2 lg:col-span-4 lg:p-3">
+        <p class="mb-2 text-[10px] font-semibold uppercase tracking-wide text-muted lg:text-xs">
           {{ $t('docetra.settings.cardFieldsPreview') }}
         </p>
         <SettingsAppCardFieldPreview
@@ -383,7 +426,7 @@ const footerAlignMapForPreview = computed(() => model.value.cardFooterAlign || {
           :visible-slots="visibleForPreview"
           :footer-align-map="footerAlignMapForPreview"
         />
-        <p class="mt-3 text-xs text-muted">
+        <p class="mt-2 hidden text-xs text-muted lg:mt-3 lg:block">
           {{ $t('docetra.settings.cardFieldsPreviewHint') }}
         </p>
       </section>

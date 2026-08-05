@@ -92,6 +92,7 @@ const { confirm } = useConfirm()
 
 const scrollEl = ref<HTMLElement | null>(null)
 const showScrollTop = ref(false)
+const metaRailOpen = ref(false)
 
 function onFormScroll() {
   showScrollTop.value = (scrollEl.value?.scrollTop ?? 0) > 240
@@ -154,6 +155,18 @@ async function onSaveClick() {
       <slot name="actions" />
 
       <UButton
+        v-if="showMetaRail && !notFound && !error && showForm"
+        icon="i-lucide-menu"
+        color="neutral"
+        variant="soft"
+        square
+        class="rounded-md lg:hidden"
+        :aria-label="t('docetra.tabs.details')"
+        :aria-expanded="metaRailOpen"
+        @click="metaRailOpen = !metaRailOpen"
+      />
+
+      <UButton
         v-if="showSave && canSave && !readOnly"
         :loading="saving"
         icon="i-lucide-save"
@@ -171,7 +184,15 @@ async function onSaveClick() {
         <UIcon name="i-lucide-loader-circle" class="size-6 animate-spin text-primary" />
       </div>
 
-      <div class="flex min-h-0 w-full min-w-0 flex-1 overflow-hidden bg-default">
+      <div class="relative flex min-h-0 w-full min-w-0 flex-1 overflow-hidden bg-default">
+        <button
+          v-if="metaRailOpen"
+          type="button"
+          class="absolute inset-0 z-20 bg-black/25 lg:hidden"
+          :aria-label="t('actions.close')"
+          @click="metaRailOpen = false"
+        />
+
         <div class="relative min-h-0 min-w-0 flex-1 overflow-hidden">
           <div
             ref="scrollEl"
@@ -263,24 +284,39 @@ async function onSaveClick() {
           />
         </div>
 
-        <DocumentAppDocumentMetaRail
+        <aside
           v-if="showMetaRail && !notFound && !error && showForm"
-          class="hidden min-h-0 overflow-y-auto lg:flex"
-          :title="metaTitle"
-          :subtitle="metaSubtitle"
-          :status="metaStatus"
-          :stage="metaStage"
-          :owner="metaOwner || undefined"
-          :assignee="metaAssignee || undefined"
-          :attachments="localAttachments"
-          :tags="metaTags"
-          :created-at="metaCreatedAt"
-          :updated-at="metaUpdatedAt"
-          :read-only="readOnly"
-          @update:tags="setFieldValue('tags', $event)"
-          @update:attachments="localAttachments = $event"
-          @update:assignees="setFieldValue('assignee', $event[0] || null)"
-        />
+          class="absolute inset-y-0 end-0 z-30 w-[min(22rem,calc(100%-3rem))] bg-default shadow-xl transition-transform duration-200 lg:static lg:z-auto lg:w-64 lg:translate-x-0 lg:shadow-none xl:w-72"
+          :class="metaRailOpen ? 'translate-x-0' : 'translate-x-full rtl:-translate-x-full'"
+        >
+          <UButton
+            icon="i-lucide-x"
+            color="neutral"
+            variant="ghost"
+            size="sm"
+            square
+            class="absolute end-2 top-2 z-10 lg:hidden"
+            :aria-label="t('actions.close')"
+            @click="metaRailOpen = false"
+          />
+          <DocumentAppDocumentMetaRail
+            class="h-full min-h-0 overflow-y-auto"
+            :title="metaTitle"
+            :subtitle="metaSubtitle"
+            :status="metaStatus"
+            :stage="metaStage"
+            :owner="metaOwner || undefined"
+            :assignee="metaAssignee || undefined"
+            :attachments="localAttachments"
+            :tags="metaTags"
+            :created-at="metaCreatedAt"
+            :updated-at="metaUpdatedAt"
+            :read-only="readOnly"
+            @update:tags="setFieldValue('tags', $event)"
+            @update:attachments="localAttachments = $event"
+            @update:assignees="setFieldValue('assignee', $event[0] || null)"
+          />
+        </aside>
       </div>
     </div>
   </div>

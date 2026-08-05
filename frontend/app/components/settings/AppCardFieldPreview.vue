@@ -80,7 +80,7 @@ function previewText(slot: string): string {
 </script>
 
 <template>
-  <article class="rounded-lg border border-default bg-default p-3 text-left shadow-xs">
+  <article class="flex min-h-[7.5rem] flex-col rounded-lg border border-default bg-default p-3 text-left shadow-xs">
     <div class="flex items-start gap-2">
       <span
         v-if="showSortOrder"
@@ -119,7 +119,8 @@ function previewText(slot: string): string {
       />
     </div>
 
-    <template v-for="slot in bodySlots" :key="slot">
+    <div class="min-h-0 flex-1">
+      <template v-for="slot in bodySlots" :key="slot">
       <p
         v-if="slot === 'referenceNumber' || slot === 'recordType' || slot === 'description' || slot === 'notes'"
         class="mt-1.5 truncate text-xs text-muted"
@@ -151,10 +152,11 @@ function previewText(slot: string): string {
         <span class="truncate">{{ previewText(slot) }}</span>
       </div>
     </template>
+    </div>
 
     <div
       v-if="footerSlots.length"
-      class="mt-2 flex items-center justify-between gap-2 border-t border-default pt-2 text-xs text-muted"
+      class="mt-auto flex items-center justify-between gap-2 border-t border-default pt-2 text-xs text-muted"
     >
       <div class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
         <span

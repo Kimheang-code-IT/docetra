@@ -11,7 +11,26 @@ const { displayTitle, breadcrumbs, badges, hasBreadcrumbs, actions } = useAppHea
     </template>
 
     <template #title>
-      <div v-if="hasBreadcrumbs" class="flex min-w-0 max-w-full items-center gap-2 overflow-hidden">
+      <nav
+        class="flex min-w-0 max-w-full items-center gap-1 overflow-hidden text-sm lg:hidden"
+        :aria-label="$t('common.pages')"
+      >
+        <NuxtLink
+          to="/"
+          class="grid size-6 shrink-0 place-items-center rounded text-muted hover:bg-elevated hover:text-highlighted"
+          :aria-label="$t('common.home')"
+        >
+          <UIcon name="i-lucide-house" class="size-4" />
+        </NuxtLink>
+        <UIcon name="i-lucide-chevron-right" class="size-3.5 shrink-0 text-dimmed rtl:rotate-180" />
+        <span class="shrink-0 text-muted" aria-hidden="true">&hellip;</span>
+        <UIcon name="i-lucide-chevron-right" class="size-3.5 shrink-0 text-dimmed rtl:rotate-180" />
+        <span class="min-w-0 truncate font-medium text-highlighted">
+          {{ displayTitle || 'Docetra' }}
+        </span>
+      </nav>
+
+      <div v-if="hasBreadcrumbs" class="hidden min-w-0 max-w-full items-center gap-2 overflow-hidden lg:flex">
         <UBreadcrumb
           :items="breadcrumbs"
           color="neutral"
@@ -33,7 +52,7 @@ const { displayTitle, breadcrumbs, badges, hasBreadcrumbs, actions } = useAppHea
           {{ badge.label }}
         </UBadge>
       </div>
-      <span v-else class="truncate text-highlighted">{{ displayTitle || 'Docetra' }}</span>
+      <span v-else class="hidden truncate text-highlighted lg:block">{{ displayTitle || 'Docetra' }}</span>
     </template>
 
     <div class="min-w-0 flex-1" />

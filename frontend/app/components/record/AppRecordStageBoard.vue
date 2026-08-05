@@ -17,6 +17,7 @@ const { t } = useI18n()
 const { confirm } = useConfirm()
 const adapter = getEntityAdapter(props.config.key)
 const cardEntityKey = computed(() => props.config.key as CardDisplayEntityKey)
+const mobileStagesOpen = ref(false)
 
 const {
   filteredStages,
@@ -49,6 +50,14 @@ const {
   subtitleField: props.subtitleField,
   stateKey: props.stateKey,
 })
+
+const showStageDetails = computed(() => mobileStagesOpen.value || !leftCollapsed.value)
+const hasDateFilter = computed(() => Boolean(dateStart.value.trim() || dateEnd.value.trim()))
+
+function selectStageFromPanel(code: string | null) {
+  selectStage(code)
+  mobileStagesOpen.value = false
+}
 
 onMounted(() => {
   refresh()
@@ -139,17 +148,28 @@ async function onDelete(row: Record<string, unknown>) {
       />
 
       <div class="flex min-h-0 flex-1 flex-row overflow-hidden">
+        <button
+          v-if="mobileStagesOpen"
+          type="button"
+          class="absolute inset-0 z-20 bg-black/25 lg:hidden"
+          :aria-label="$t('actions.close')"
+          @click="mobileStagesOpen = false"
+        />
+
         <!-- Left: stages (topic-style) -->
         <aside
-          class="flex h-full min-h-0 shrink-0 flex-col overflow-hidden border-e border-default bg-default transition-[width] duration-200"
-          :style="{ width: leftCollapsed ? '3.5rem' : '22rem' }"
+          class="absolute inset-y-0 start-0 z-30 flex h-full min-h-0 w-[min(22rem,calc(100%-3rem))] shrink-0 flex-col overflow-hidden border-e border-default bg-default shadow-xl transition-all duration-200 lg:static lg:z-auto lg:translate-x-0 lg:shadow-none"
+          :class="[
+            mobileStagesOpen ? 'translate-x-0' : '-translate-x-full rtl:translate-x-full',
+            leftCollapsed ? 'lg:w-14' : 'lg:w-[22rem]',
+          ]"
         >
           <div
             class="shrink-0 space-y-2 border-b border-default"
-            :class="leftCollapsed ? 'px-1.5 py-3.5' : 'px-3 py-2.5'"
+            :class="showStageDetails ? 'px-3 py-2.5' : 'px-1.5 py-3.5'"
           >
             <h2
-              v-if="!leftCollapsed"
+              v-if="showStageDetails"
               class="text-sm font-semibold text-highlighted"
             >
               {{ $t('docetra.recordStageBoard.stagesTitle') }}
@@ -159,7 +179,7 @@ async function onDelete(row: Record<string, unknown>) {
             </div>
 
             <CommonAppLiveSearch
-              v-if="!leftCollapsed"
+              v-if="showStageDetails"
               v-model="stageSearch"
               class="w-full"
               :placeholder="$t('docetra.recordStageBoard.searchStages')"
@@ -167,13 +187,13 @@ async function onDelete(row: Record<string, unknown>) {
 
             <UTooltip
               :text="$t('docetra.recordStageBoard.allRecords')"
-              :disabled="!leftCollapsed"
+              :disabled="showStageDetails"
               :content="{ side: 'right', sideOffset: 8 }"
             >
               <button
                 type="button"
                 class="w-full transition"
-                :class="leftCollapsed
+                :class="!showStageDetails
                   ? [
                       'flex justify-center rounded-md p-2',
                       selectedStage == null
@@ -187,9 +207,9 @@ async function onDelete(row: Record<string, unknown>) {
                         : 'border-default text-muted hover:border-primary/30',
                     ]"
                 :aria-label="$t('docetra.recordStageBoard.allRecords')"
-                @click="selectStage(null)"
+                @click="selectStageFromPanel(null)"
               >
-                <template v-if="leftCollapsed">
+                <template v-if="!showStageDetails">
                   <UIcon name="i-lucide-layout-grid" class="size-4" />
                 </template>
                 <template v-else>
@@ -202,7 +222,7 @@ async function onDelete(row: Record<string, unknown>) {
 
           <div
             class="min-h-0 flex-1 overflow-y-auto overflow-x-hidden"
-            :class="leftCollapsed ? 'space-y-1 p-1.5' : 'space-y-2 p-3'"
+            :class="showStageDetails ? 'space-y-2 p-3' : 'space-y-1 p-1.5'"
           >
             <RecordAppRecordStageSideCard
               v-for="stage in filteredStages"
@@ -210,16 +230,16 @@ async function onDelete(row: Record<string, unknown>) {
               :stage="stage"
               :count="stageCounts[stage.code] || 0"
               :selected="selectedStage === stage.code"
-              :collapsed="leftCollapsed"
+              :collapsed="!showStageDetails"
               :drop-active="dropStageCode === stage.code"
-              @select="selectStage(stage.code)"
+              @select="selectStageFromPanel(stage.code)"
               @drag-over="dropStageCode = stage.code"
               @drag-leave="dropStageCode = dropStageCode === stage.code ? null : dropStageCode"
               @drop-record="(id) => onDropRecord(stage.code, id)"
             />
 
             <p
-              v-if="!filteredStages.length && !pending && !leftCollapsed"
+              v-if="!filteredStages.length && !pending && showStageDetails"
               class="py-8 text-center text-xs text-muted"
             >
               {{ $t('docetra.states.empty') }}
@@ -229,14 +249,26 @@ async function onDelete(row: Record<string, unknown>) {
 
         <!-- Right: record cards -->
         <section class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-          <div class="flex shrink-0 flex-col gap-2 border-b border-default px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between">
-            <div class="flex min-w-0 items-center gap-1.5">
+          <div class="flex shrink-0 items-center gap-2 border-b border-default px-3 py-2.5 sm:px-4 sm:py-3.5">
+            <div class="flex min-w-0 flex-1 items-center gap-1.5">
+              <UButton
+                icon="i-lucide-menu"
+                color="neutral"
+                variant="ghost"
+                size="sm"
+                square
+                class="shrink-0 lg:hidden"
+                :aria-label="$t('docetra.recordStageBoard.stagesTitle')"
+                :aria-expanded="mobileStagesOpen"
+                @click="mobileStagesOpen = !mobileStagesOpen"
+              />
               <UButton
                 :icon="leftCollapsed ? 'i-lucide-panel-left-open' : 'i-lucide-panel-left-close'"
                 color="neutral"
                 variant="ghost"
                 size="sm"
                 square
+                class="hidden shrink-0 lg:inline-flex"
                 :aria-label="leftCollapsed
                   ? $t('docetra.recordStageBoard.expandStages')
                   : $t('docetra.recordStageBoard.collapseStages')"
@@ -250,22 +282,41 @@ async function onDelete(row: Record<string, unknown>) {
               </h2>
             </div>
 
-            <div class="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
+            <div class="hidden shrink-0 items-center gap-2 lg:flex">
               <CommonAppInputDateRange
                 v-model:start="dateStart"
                 v-model:end="dateEnd"
                 size="sm"
               />
-              <CommonAppLiveSearch
-                v-model="recordSearch"
-                class="w-full sm:w-56"
-                :placeholder="$t('docetra.recordStageBoard.searchRecords')"
-              />
             </div>
+            <UPopover class="shrink-0 lg:hidden">
+              <UButton
+                icon="i-lucide-filter"
+                :color="hasDateFilter ? 'primary' : 'neutral'"
+                :variant="hasDateFilter ? 'soft' : 'ghost'"
+                size="sm"
+                square
+                :aria-label="$t('docetra.actions.filter')"
+              />
+              <template #content>
+                <div class="max-w-[calc(100vw-2rem)] p-3">
+                  <CommonAppInputDateRange
+                    v-model:start="dateStart"
+                    v-model:end="dateEnd"
+                    size="sm"
+                  />
+                </div>
+              </template>
+            </UPopover>
+            <CommonAppLiveSearch
+              v-model="recordSearch"
+              class="min-w-0 w-28 shrink sm:w-56"
+              :placeholder="$t('docetra.recordStageBoard.searchRecords')"
+            />
           </div>
 
           <div class="min-h-0 flex-1 overflow-y-auto p-3">
-            <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+            <div class="grid grid-cols-1 items-stretch gap-2 sm:grid-cols-2 xl:grid-cols-3">
               <RecordAppRecordBoardCard
                 v-for="row in filteredItems"
                 :key="String(row.id)"

@@ -201,6 +201,7 @@
     "actions": {
       "addItem": "Add Item",
       "refresh": "Refresh",
+      "filter": "Filter",
       "retry": "Retry",
       "clearFilters": "Clear filters",
       "all": "All",
@@ -453,6 +454,7 @@
       "cardFieldsSection": "Board card fields",
       "cardFieldsHelp": "Choose which fields appear on board cards. The title is always shown. Applies to all users.",
       "cardFieldsTitleAlways": "Card title is always visible and cannot be turned off.",
+      "cardFieldsSelectEntity": "Select card type",
       "cardFieldsPreview": "Preview",
       "cardFieldsPreviewHint": "Sample card — matches what users will see on the board.",
       "cardFieldsSelectAll": "Select all",
@@ -1031,6 +1033,7 @@
   },
   "common": {
     "actions": "Actions",
+    "home": "Home",
     "search": "Search....",
     "pages": "Pages",
     "rowsPerPage": "Rows per page"

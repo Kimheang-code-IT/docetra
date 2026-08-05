@@ -92,6 +92,7 @@
     "actions": {
       "addItem": "បន្ថែមធាតុ",
       "refresh": "ផ្ទុកឡើងវិញ",
+      "filter": "តម្រង",
       "retry": "ព្យាយាមម្តងទៀត",
       "clearFilters": "សម្អាតតម្រង",
       "all": "ទាំងអស់",
@@ -344,6 +345,7 @@
       "cardFieldsSection": "វាលលើកាតផ្ទាំង",
       "cardFieldsHelp": "ជ្រើសវាលដែលបង្ហាញលើកាតផ្ទាំង។ ចំណងជើងតែងតែបង្ហាញ។ អនុវត្តសម្រាប់អ្នកប្រើទាំងអស់។",
       "cardFieldsTitleAlways": "ចំណងជើងកាតតែងតែបង្ហាញ និងមិនអាចបិទបាន។",
+      "cardFieldsSelectEntity": "ជ្រើសប្រភេទកាត",
       "cardFieldsPreview": "មើលជាមុន",
       "cardFieldsPreviewHint": "កាតគំរូ — ដូចអ្វីដែលអ្នកប្រើនឹងឃើញលើផ្ទាំង។",
       "cardFieldsSelectAll": "ជ្រើសទាំងអស់",
@@ -922,6 +924,7 @@
   },
   "common": {
     "actions": "សកម្មភាព",
+    "home": "ទំព័រដើម",
     "search": "ស្វែងរក....",
     "pages": "ទំព័រ",
     "rowsPerPage": "ជួរក្នុងមួយទំព័រ"

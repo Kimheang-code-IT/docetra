@@ -2,7 +2,7 @@
 import type { WorkflowStage } from '~/types/docetra/common'
 import type { CardDisplayEntityKey } from '~/types/docetra/settings'
 import { useCardFields } from '~/composables/settings/useCardFields'
-import { splitCardSlots } from '~/utils/card-fields'
+import { isCardFooterSlot, splitCardSlots } from '~/utils/card-fields'
 
 const props = withDefaults(defineProps<{
   row: Record<string, unknown>
@@ -107,6 +107,7 @@ const partyLabel = computed(() => {
 
 const orderedSlots = computed(() =>
   visibleSlots.value.filter((slot) => {
+    if (isCardFooterSlot(props.entityKey, slot)) return true
     if (slot === 'referenceNumber') return Boolean(referenceNumber.value)
     if (slot === 'recordType') return Boolean(recordTypeLabel.value)
     if (slot === 'description') return Boolean(description.value)
@@ -117,14 +118,6 @@ const orderedSlots = computed(() =>
     if (slot === 'stage') return Boolean(props.stageLabel)
     if (slot === 'waiting') return waiting.value
     if (slot === 'tags') return tags.value.length > 0
-    if (slot === 'recordTime') return Boolean(recordTime.value)
-    if (slot === 'dateRange') return Boolean(dateLabel.value)
-    if (slot === 'receivedDate') return Boolean(day(props.row.receivedDate))
-    if (slot === 'sentDate') return Boolean(day(props.row.sentDate))
-    if (slot === 'createdAt') return Boolean(day(props.row.createdAt))
-    if (slot === 'updatedAt') return Boolean(day(props.row.updatedAt))
-    if (slot === 'attachmentCount') return attachmentCount.value > 0
-    if (slot === 'commentCount') return commentCount.value > 0
     return show(slot)
   }),
 )
@@ -187,7 +180,7 @@ function onDragStart(event: DragEvent) {
 <template>
   <article
     draggable="true"
-    class="group relative cursor-grab rounded-lg border border-default bg-default p-3 text-left shadow-xs transition active:cursor-grabbing"
+    class="group relative flex h-full min-h-[7.5rem] cursor-grab flex-col rounded-lg border border-default bg-default p-3 text-left shadow-xs transition active:cursor-grabbing"
     :class="dragging ? 'opacity-40 ring-2 ring-primary/30' : 'hover:border-primary/35 hover:shadow-sm'"
     tabindex="0"
     role="button"
@@ -225,7 +218,8 @@ function onDragStart(event: DragEvent) {
       </UDropdownMenu>
     </div>
 
-    <template v-for="slot in bodySlots" :key="slot">
+    <div class="min-h-0 flex-1">
+      <template v-for="slot in bodySlots" :key="slot">
       <p
         v-if="slot === 'referenceNumber' || slot === 'recordType' || slot === 'description'"
         class="mt-1.5 truncate text-xs text-muted"
@@ -276,10 +270,11 @@ function onDragStart(event: DragEvent) {
         </UBadge>
       </div>
     </template>
+    </div>
 
     <div
       v-if="footerSlots.length"
-      class="mt-2 flex items-center justify-between gap-2 border-t border-default pt-2 text-xs text-muted"
+      class="mt-auto flex items-center justify-between gap-2 border-t border-default pt-2 text-xs text-muted"
     >
       <div class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
         <template v-for="slot in footerLeft" :key="`L-${slot}`">
@@ -303,12 +298,12 @@ function onDragStart(event: DragEvent) {
           >
             <UIcon name="i-lucide-calendar" class="size-3 shrink-0" />
             <span class="truncate">
-              <template v-if="slot === 'recordTime'">{{ recordTime }}</template>
-              <template v-else-if="slot === 'dateRange'">{{ dateLabel }}</template>
-              <template v-else-if="slot === 'receivedDate'">{{ day(row.receivedDate) }}</template>
-              <template v-else-if="slot === 'sentDate'">{{ day(row.sentDate) }}</template>
-              <template v-else-if="slot === 'createdAt'">{{ day(row.createdAt) }}</template>
-              <template v-else>{{ day(row.updatedAt) }}</template>
+              <template v-if="slot === 'recordTime'">{{ recordTime || '—' }}</template>
+              <template v-else-if="slot === 'dateRange'">{{ dateLabel || '—' }}</template>
+              <template v-else-if="slot === 'receivedDate'">{{ day(row.receivedDate) || '—' }}</template>
+              <template v-else-if="slot === 'sentDate'">{{ day(row.sentDate) || '—' }}</template>
+              <template v-else-if="slot === 'createdAt'">{{ day(row.createdAt) || '—' }}</template>
+              <template v-else>{{ day(row.updatedAt) || '—' }}</template>
             </span>
           </span>
         </template>
@@ -335,12 +330,12 @@ function onDragStart(event: DragEvent) {
           >
             <UIcon name="i-lucide-calendar" class="size-3 shrink-0" />
             <span class="truncate">
-              <template v-if="slot === 'recordTime'">{{ recordTime }}</template>
-              <template v-else-if="slot === 'dateRange'">{{ dateLabel }}</template>
-              <template v-else-if="slot === 'receivedDate'">{{ day(row.receivedDate) }}</template>
-              <template v-else-if="slot === 'sentDate'">{{ day(row.sentDate) }}</template>
-              <template v-else-if="slot === 'createdAt'">{{ day(row.createdAt) }}</template>
-              <template v-else>{{ day(row.updatedAt) }}</template>
+              <template v-if="slot === 'recordTime'">{{ recordTime || '—' }}</template>
+              <template v-else-if="slot === 'dateRange'">{{ dateLabel || '—' }}</template>
+              <template v-else-if="slot === 'receivedDate'">{{ day(row.receivedDate) || '—' }}</template>
+              <template v-else-if="slot === 'sentDate'">{{ day(row.sentDate) || '—' }}</template>
+              <template v-else-if="slot === 'createdAt'">{{ day(row.createdAt) || '—' }}</template>
+              <template v-else>{{ day(row.updatedAt) || '—' }}</template>
             </span>
           </span>
         </template>

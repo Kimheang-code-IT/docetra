@@ -25,6 +25,7 @@ const meeting = ref<MeetingHistory | null>(null)
 const notes = ref('')
 const attachments = ref<AttachmentMeta[]>([])
 const dirty = ref(false)
+const filePanelOpen = ref(false)
 
 async function load() {
   if (!props.meetingId) return
@@ -57,6 +58,7 @@ watch(
       notes.value = ''
       attachments.value = []
       dirty.value = false
+      filePanelOpen.value = false
     }
   },
   { immediate: true },
@@ -155,6 +157,17 @@ async function onClose(value: boolean) {
           {{ meeting?.title || $t('docetra.meetingNotes.title') }}
         </h2>
         <div class="flex shrink-0 items-center gap-2">
+          <UButton
+            icon="i-lucide-menu"
+            color="neutral"
+            variant="ghost"
+            size="sm"
+            square
+            class="lg:hidden"
+            :aria-label="$t('docetra.meta.attachments')"
+            :aria-expanded="filePanelOpen"
+            @click="filePanelOpen = !filePanelOpen"
+          />
           <span
             v-if="meeting?.meetingDate"
             class="inline-flex items-center gap-1.5 text-sm text-muted"
@@ -181,10 +194,18 @@ async function onClose(value: boolean) {
 
       <div
         v-else
-        class="grid h-full min-h-0 grid-cols-1 divide-y divide-default lg:grid-cols-4 lg:divide-x lg:divide-y-0"
+        class="relative flex h-full min-h-0 overflow-hidden"
       >
+        <button
+          v-if="filePanelOpen"
+          type="button"
+          class="absolute inset-0 z-20 bg-black/25 lg:hidden"
+          :aria-label="$t('actions.close')"
+          @click="filePanelOpen = false"
+        />
+
         <!-- Editor: 3 cols -->
-        <section class="flex h-full min-h-0 flex-col p-4 lg:col-span-3">
+        <section class="flex h-full min-h-0 min-w-0 flex-1 flex-col p-4">
           <LazyCommonAppRichTextNote
             :key="`note-${meetingId}`"
             v-model="notes"
@@ -194,7 +215,24 @@ async function onClose(value: boolean) {
         </section>
 
         <!-- Files: 1 col -->
-        <section class="flex h-full min-h-0 flex-col gap-3 overflow-y-auto p-4 lg:col-span-1">
+        <section
+          class="absolute inset-y-0 end-0 z-30 flex h-full min-h-0 w-[min(22rem,calc(100%-3rem))] flex-col gap-3 overflow-y-auto border-s border-default bg-default p-4 shadow-xl transition-transform duration-200 lg:static lg:z-auto lg:w-1/4 lg:translate-x-0 lg:shadow-none"
+          :class="filePanelOpen ? 'translate-x-0' : 'translate-x-full rtl:-translate-x-full'"
+        >
+          <div class="flex shrink-0 items-center justify-between lg:hidden">
+            <h3 class="text-sm font-semibold text-highlighted">
+              {{ $t('docetra.meta.attachments') }}
+            </h3>
+            <UButton
+              icon="i-lucide-x"
+              color="neutral"
+              variant="ghost"
+              size="sm"
+              square
+              :aria-label="$t('actions.close')"
+              @click="filePanelOpen = false"
+            />
+          </div>
           <LazyCommonAppUppyUploader
             v-if="meetingId && !pending"
             :key="`uppy-${meetingId}`"

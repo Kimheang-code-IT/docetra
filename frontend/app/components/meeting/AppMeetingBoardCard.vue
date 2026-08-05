@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { MeetingHistory, MeetingTopic } from '~/types/docetra/entities'
 import { useCardFields } from '~/composables/settings/useCardFields'
-import { splitCardSlots } from '~/utils/card-fields'
+import { isCardFooterSlot, splitCardSlots } from '~/utils/card-fields'
 
 const props = defineProps<{
   meeting: MeetingHistory
@@ -57,18 +57,13 @@ const recordTimeLabel = computed(() =>
 
 const orderedSlots = computed(() => {
   return visibleSlots.value.filter((slot) => {
+    if (isCardFooterSlot('meetingHistory', slot)) return true
     if (slot === 'topicTitle') return Boolean(props.showTopic)
     if (slot === 'status') return Boolean(statusLabel.value)
     if (slot === 'sortOrder') return props.meeting.sortOrder != null
     if (slot === 'stage') return Boolean(stageLabel.value)
     if (slot === 'tags') return tags.value.length > 0
-    if (slot === 'meetingDate') return Boolean(props.meeting.meetingDate)
-    if (slot === 'recordTime') return Boolean(recordTimeLabel.value)
-    if (slot === 'location') return Boolean(props.meeting.location)
-    if (slot === 'attendeesCount') return props.meeting.attendeesCount != null
     if (slot === 'notes') return Boolean(notesSnippet.value)
-    if (slot === 'createdAt') return Boolean(props.meeting.createdAt)
-    if (slot === 'updatedAt') return Boolean(props.meeting.updatedAt)
     return show(slot)
   })
 })
@@ -159,7 +154,7 @@ function onDrop(event: DragEvent) {
 <template>
   <article
     draggable="true"
-    class="group relative cursor-grab rounded-lg border border-default bg-default p-3 text-left shadow-xs transition active:cursor-grabbing"
+    class="group relative flex h-full min-h-[7.5rem] cursor-grab flex-col rounded-lg border border-default bg-default p-3 text-left shadow-xs transition active:cursor-grabbing"
     :class="dragging ? 'opacity-40 ring-2 ring-primary/30' : 'hover:border-primary/35 hover:shadow-sm'"
     tabindex="0"
     role="button"
@@ -211,7 +206,8 @@ function onDrop(event: DragEvent) {
       </UDropdownMenu>
     </div>
 
-    <template v-for="slot in bodySlots" :key="slot">
+    <div class="min-h-0 flex-1">
+      <template v-for="slot in bodySlots" :key="slot">
       <p
         v-if="slot === 'notes'"
         class="mt-1.5 line-clamp-2 text-xs text-muted"
@@ -236,10 +232,11 @@ function onDrop(event: DragEvent) {
         </UBadge>
       </div>
     </template>
+    </div>
 
     <div
       v-if="footerSlots.length"
-      class="mt-2 flex items-center justify-between gap-2 border-t border-default pt-2 text-xs text-muted"
+      class="mt-auto flex items-center justify-between gap-2 border-t border-default pt-2 text-xs text-muted"
     >
       <div class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
         <template v-for="slot in footerLeft" :key="slot">
@@ -249,7 +246,7 @@ function onDrop(event: DragEvent) {
           >
             <UIcon name="i-lucide-calendar" class="size-3 shrink-0" />
             <span class="truncate">
-              {{ slot === 'meetingDate' ? meeting.meetingDate : recordTimeLabel }}
+              {{ (slot === 'meetingDate' ? meeting.meetingDate : recordTimeLabel) || '—' }}
             </span>
           </span>
           <span
@@ -257,7 +254,7 @@ function onDrop(event: DragEvent) {
             class="inline-flex min-w-0 items-center gap-1 truncate"
           >
             <UIcon name="i-lucide-map-pin" class="size-3 shrink-0" />
-            <span class="truncate">{{ meeting.location }}</span>
+            <span class="truncate">{{ meeting.location || '—' }}</span>
           </span>
           <span
             v-else-if="slot === 'attendeesCount'"
@@ -271,7 +268,7 @@ function onDrop(event: DragEvent) {
             class="inline-flex min-w-0 items-center gap-1 truncate"
           >
             <UIcon name="i-lucide-clock" class="size-3 shrink-0" />
-            <span class="truncate">{{ day(slot === 'createdAt' ? meeting.createdAt : meeting.updatedAt) }}</span>
+            <span class="truncate">{{ day(slot === 'createdAt' ? meeting.createdAt : meeting.updatedAt) || '—' }}</span>
           </span>
         </template>
       </div>
@@ -283,7 +280,7 @@ function onDrop(event: DragEvent) {
           >
             <UIcon name="i-lucide-calendar" class="size-3 shrink-0" />
             <span class="truncate">
-              {{ slot === 'meetingDate' ? meeting.meetingDate : recordTimeLabel }}
+              {{ (slot === 'meetingDate' ? meeting.meetingDate : recordTimeLabel) || '—' }}
             </span>
           </span>
           <span
@@ -291,7 +288,7 @@ function onDrop(event: DragEvent) {
             class="inline-flex min-w-0 items-center gap-1 truncate"
           >
             <UIcon name="i-lucide-map-pin" class="size-3 shrink-0" />
-            <span class="truncate">{{ meeting.location }}</span>
+            <span class="truncate">{{ meeting.location || '—' }}</span>
           </span>
           <span
             v-else-if="slot === 'attendeesCount'"
@@ -305,7 +302,7 @@ function onDrop(event: DragEvent) {
             class="inline-flex min-w-0 items-center gap-1 truncate"
           >
             <UIcon name="i-lucide-clock" class="size-3 shrink-0" />
-            <span class="truncate">{{ day(slot === 'createdAt' ? meeting.createdAt : meeting.updatedAt) }}</span>
+            <span class="truncate">{{ day(slot === 'createdAt' ? meeting.createdAt : meeting.updatedAt) || '—' }}</span>
           </span>
         </template>
       </div>

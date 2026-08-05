@@ -97,7 +97,7 @@ function buildSeedDocuments(): IndexedDocument[] {
 
   for (const row of mockFileUploads) {
     const text = extractText({
-      fileName: row.fileName || row.name,
+      fileName: row.fileName,
       mimeType: row.mimeType,
       contextTitle: row.linkedRecordTitle || row.name,
     })
@@ -105,7 +105,7 @@ function buildSeedDocuments(): IndexedDocument[] {
       id: `idx:file:${row.id}`,
       entityType: 'file',
       entityId: row.id,
-      title: row.fileName || row.name,
+      title: row.fileName,
       text,
       url: `/portal/file-upload/${row.id}`,
       permission: 'portal.file_upload.view',

@@ -48,6 +48,13 @@ const viewItems = computed(() =>
   })),
 )
 
+const hasActiveFilters = computed(() =>
+  selectFilters.value.some(filter => {
+    const value = props.filterValues[filter.key]
+    return Boolean(value && value.length)
+  }),
+)
+
 function filterModelValue(filter: FilterDef): string | string[] | null {
   const raw = props.filterValues[filter.key]
   if (!raw) return null
@@ -69,15 +76,46 @@ function onFilterChange(filter: FilterDef, value: string | string[] | null) {
 
 <template>
   <div class="shrink-0 border-b border-default bg-default px-3 py-2.5">
-    <div class="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
+    <div class="flex items-center gap-2 xl:justify-between">
       <CommonAppLiveSearch
         v-model="searchModel"
         :placeholder="$t('common.search')"
         size="md"
-        class="w-full xl:max-w-[16rem]"
+        class="min-w-0 flex-1 xl:max-w-[16rem]"
       />
 
-      <div class="flex min-w-0 flex-1 flex-wrap items-center gap-2 xl:justify-end">
+      <UPopover class="shrink-0 sm:hidden">
+        <UButton
+          icon="i-lucide-filter"
+          :color="hasActiveFilters ? 'primary' : 'neutral'"
+          :variant="hasActiveFilters ? 'soft' : 'outline'"
+          size="sm"
+          square
+          :aria-label="$t('docetra.actions.filter')"
+        />
+        <template #content>
+          <div class="flex w-72 max-w-[calc(100vw-2rem)] flex-col gap-2 p-3">
+            <CommonAppFilterSelect
+              v-for="filter in selectFilters"
+              :key="filter.key"
+              :filter="filter"
+              :model-value="filterModelValue(filter)"
+              class="w-full"
+              @update:model-value="(v) => onFilterChange(filter, v)"
+            />
+            <CommonAppSingleFilterSelect
+              v-model="sortModel"
+              :items="sortItems"
+              :label="$t('docetra.sort.label')"
+              :placeholder="$t('docetra.sort.label')"
+              :searchable="false"
+              class="w-full"
+            />
+          </div>
+        </template>
+      </UPopover>
+
+      <div class="hidden min-w-0 flex-1 flex-wrap items-center gap-2 sm:flex xl:justify-end">
         <CommonAppFilterSelect
           v-for="filter in selectFilters"
           :key="filter.key"
@@ -94,7 +132,9 @@ function onFilterChange(filter: FilterDef, value: string | string[] | null) {
           :searchable="false"
         />
 
-        <UTabs
+      </div>
+
+      <UTabs
           v-if="views.length > 1"
           :model-value="view"
           :items="viewItems"
@@ -103,7 +143,6 @@ function onFilterChange(filter: FilterDef, value: string | string[] | null) {
           class="shrink-0"
           @update:model-value="(v: string | number) => emit('update:view', String(v))"
         />
-      </div>
     </div>
   </div>
 </template>
