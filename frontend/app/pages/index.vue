@@ -186,7 +186,7 @@ const summaryCards = computed(() => (summary.value?.kpis || []).slice(0, SUMMARY
               />
             </div>
             <div class="h-64">
-              <CommonAppEchart :option="stageChartOption" height="100%" />
+              <LazyCommonAppEchart :option="stageChartOption" height="100%" />
             </div>
           </section>
           <section class="rounded-lg border border-default bg-default p-4">
@@ -199,12 +199,12 @@ const summaryCards = computed(() => (summary.value?.kpis || []).slice(0, SUMMARY
               />
             </div>
             <div class="h-64">
-              <CommonAppEchart :option="trendChartOption" height="100%" />
+              <LazyCommonAppEchart :option="trendChartOption" height="100%" />
             </div>
           </section>
         </div>
 
-        <CommonAppEventCalendar :events="summary.events || []" />
+        <LazyCommonAppEventCalendar :events="summary.events || []" />
       </template>
     </div>
   </div>

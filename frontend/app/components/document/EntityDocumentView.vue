@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import type { EntityConfig } from '~/config/entities'
 import { useDocumentPage } from '~/composables/workspace/useDocumentPage'
+import { useRecordTypeDrivenTabs } from '~/composables/record/useRecordTypeDrivenTabs'
 import { useAppHeader } from '~/composables/layout/useAppHeader'
+import { getByPath, setByPath } from '~/utils/object-path'
 
 const props = defineProps<{
   config: EntityConfig
@@ -28,6 +30,31 @@ const {
   save,
   submitComment,
 } = useDocumentPage(props.config)
+
+const { tabs: documentTabs } = useRecordTypeDrivenTabs({
+  entityKey: props.config.key,
+  baseTabs: props.config.tabs,
+  getRecordTypeId: () => {
+    const id = model.value.recordTypeId
+    return id == null || id === '' ? undefined : String(id)
+  },
+  getDetails: () => {
+    const raw = model.value.details
+    return raw && typeof raw === 'object' && !Array.isArray(raw)
+      ? { ...(raw as Record<string, unknown>) }
+      : {}
+  },
+  setDetails: (details) => {
+    const next = { ...model.value }
+    setByPath(next, 'details', details)
+    model.value = next
+  },
+  setStageIfEmpty: (stage) => {
+    if (!getByPath(model.value, 'stage')) {
+      setFieldValue('stage', stage)
+    }
+  },
+})
 
 const { t, te } = useI18n()
 const auth = useAuthStore()
@@ -103,7 +130,7 @@ const currentUser = computed(() => ({
 
 <template>
   <DocumentAppDocumentPage
-    :tabs="config.tabs"
+    :tabs="documentTabs"
     v-model:active-tab="activeTab"
     :field-value="fieldValue"
     :set-field-value="setFieldValue"

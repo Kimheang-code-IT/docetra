@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { CalendarDate, CalendarDateTime, parseDate, parseDateTime } from '@internationalized/date'
 import type { DateValue } from '@internationalized/date'
+import { getFilterDateUi, isFilterValueActive } from '~/utils/filter/select-ui'
 
 const props = withDefaults(defineProps<{
   modelValue?: string | null
@@ -25,6 +26,9 @@ const emit = defineEmits<{
 const inputDate = useTemplateRef<{ inputsRef?: Array<{ $el?: HTMLElement }> } | null>('inputDate')
 
 const isDateTime = computed(() => props.granularity !== 'day')
+
+const isActive = computed(() => isFilterValueActive(props.modelValue))
+const dateUi = computed(() => getFilterDateUi(isActive.value))
 
 const hourItems = Array.from({ length: 24 }, (_, i) => ({
   label: String(i).padStart(2, '0'),
@@ -165,6 +169,7 @@ const trailingReference = computed(() => {
     :variant="variant"
     :size="size"
     :class="props.class || 'w-full'"
+    :ui="dateUi"
   >
     <template #trailing>
       <UPopover :reference="trailingReference">

@@ -14,6 +14,7 @@ import type {
 } from '~/types/docetra/settings'
 import type { NotificationChannel } from '~/types/docetra/settings'
 import { DEFAULT_TELEGRAM_TEMPLATE, NOTIFICATION_EVENTS } from '~/types/docetra/settings'
+import { DEFAULT_CARD_FIELDS } from '~/utils/card-fields'
 
 const INFO_KEY = 'docetra:settings:app-info'
 const CONFIG_KEY = 'docetra:settings:app-config'
@@ -47,8 +48,8 @@ function seedAppInfo(): AppInfo {
     website: 'https://docetra.local',
     address: 'Phnom Penh, Cambodia',
     branding: {
-      primaryColor: 'brand',
-      secondaryColor: 'zinc',
+      primaryColor: '#e8472a',
+      secondaryColor: '#1b2b5e',
     },
     footer: {
       copyrightText: `© ${new Date().getFullYear()} Docetra`,
@@ -141,7 +142,49 @@ function seedAppConfig(): AppConfig {
       cacheStatus: 'healthy',
       backgroundJobStatus: 'idle',
     },
+    display: {
+      cardFields: {
+        meetingHistory: [...DEFAULT_CARD_FIELDS.meetingHistory],
+        incomingDocuments: [...DEFAULT_CARD_FIELDS.incomingDocuments],
+        outgoingDocuments: [...DEFAULT_CARD_FIELDS.outgoingDocuments],
+        documents: [...DEFAULT_CARD_FIELDS.documents],
+        masterListRequests: [...DEFAULT_CARD_FIELDS.masterListRequests],
+      },
+      cardFooterAlign: {
+        meetingHistory: {
+          meetingDate: 'left',
+          location: 'right',
+        },
+      },
+    },
     updatedAt: nowIso(),
+  }
+}
+
+/** Patch older localStorage payloads that lack `display`. */
+function normalizeAppConfig(raw: AppConfig): AppConfig {
+  const seed = seedAppConfig()
+  return {
+    ...seed,
+    ...raw,
+    general: { ...seed.general, ...raw.general },
+    localization: { ...seed.localization, ...raw.localization },
+    email: { ...seed.email, ...raw.email },
+    telegram: { ...seed.telegram, ...raw.telegram },
+    notifications: { ...seed.notifications, ...raw.notifications },
+    security: { ...seed.security, ...raw.security },
+    system: { ...seed.system, ...raw.system },
+    display: {
+      cardFields: {
+        ...seed.display.cardFields,
+        ...raw.display?.cardFields,
+      },
+      cardFooterAlign: {
+        ...seed.display.cardFooterAlign,
+        ...raw.display?.cardFooterAlign,
+      },
+    },
+    updatedAt: raw.updatedAt || seed.updatedAt,
   }
 }
 
@@ -239,7 +282,7 @@ function seedStorage(): StorageProvider[] {
 }
 
 async function simulateConnection(forceFail = false): Promise<{ status: ConnectionStatus, message: string }> {
-  await mockLatency(null, 600)
+  await mockLatency(null, 350)
   if (forceFail) {
     return { status: 'failed', message: 'Mock connection failed (simulated).' }
   }
@@ -275,14 +318,15 @@ export function createMockAppInfoRepository(): AppInfoRepository {
 }
 
 export function createMockAppConfigRepository(): AppConfigRepository {
-  let value = readJson(CONFIG_KEY, seedAppConfig())
+  let value = normalizeAppConfig(readJson(CONFIG_KEY, seedAppConfig()))
 
   return {
     async get() {
+      value = normalizeAppConfig(value)
       return mockLatency(structuredClone(value))
     },
     async update(input) {
-      value = {
+      value = normalizeAppConfig({
         ...value,
         ...input,
         general: { ...value.general, ...input.general },
@@ -292,8 +336,18 @@ export function createMockAppConfigRepository(): AppConfigRepository {
         notifications: { ...value.notifications, ...input.notifications },
         security: { ...value.security, ...input.security },
         system: { ...value.system, ...input.system },
+        display: {
+          cardFields: {
+            ...value.display?.cardFields,
+            ...input.display?.cardFields,
+          },
+          cardFooterAlign: {
+            ...value.display?.cardFooterAlign,
+            ...input.display?.cardFooterAlign,
+          },
+        },
         updatedAt: nowIso(),
-      }
+      })
       writeJson(CONFIG_KEY, value)
       return mockLatency(structuredClone(value))
     },

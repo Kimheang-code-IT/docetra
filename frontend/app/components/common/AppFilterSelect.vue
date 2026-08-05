@@ -60,7 +60,7 @@ const multiValue = computed({
 </script>
 
 <template>
-  <CommonAppMutilSelect
+  <CommonAppMultiSelect
     v-if="isMultiple"
     v-model="multiValue"
     :items="items"

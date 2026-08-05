@@ -175,6 +175,27 @@ export interface AppConfigSystem {
   backgroundJobStatus: 'idle' | 'running' | 'failed' | 'unknown'
 }
 
+/** Entity keys that support admin-configurable board card fields. */
+export type CardDisplayEntityKey =
+  | 'meetingHistory'
+  | 'incomingDocuments'
+  | 'outgoingDocuments'
+  | 'documents'
+  | 'masterListRequests'
+
+export interface AppConfigDisplay {
+  /**
+   * Ordered slot ids shown on board cards (shared for all users).
+   * Missing / empty list → catalog defaults. Title is always shown (not configurable).
+   */
+  cardFields: Partial<Record<CardDisplayEntityKey, string[]>>
+  /**
+   * Per-slot footer alignment (left | right) for footer fields.
+   * Missing → sensible defaults (dates left, counts right).
+   */
+  cardFooterAlign: Partial<Record<CardDisplayEntityKey, Partial<Record<string, 'left' | 'right'>>>>
+}
+
 export interface AppConfig {
   general: AppConfigGeneral
   localization: AppConfigLocalization
@@ -183,6 +204,7 @@ export interface AppConfig {
   notifications: AppConfigNotifications
   security: AppConfigSecurity
   system: AppConfigSystem
+  display: AppConfigDisplay
   updatedAt: string
 }
 

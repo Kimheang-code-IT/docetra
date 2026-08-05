@@ -3,6 +3,7 @@ import type {
   CreateRecordTypeInput,
   RecordType,
   RecordAttribute,
+  RecordTypeAttribute,
 } from '~/types/docetra/configuration'
 import {
   defaultRecordTypeFeatures,
@@ -14,6 +15,10 @@ import { useConfirm } from '~/composables/common/useConfirm'
 import { useAppHeader } from '~/composables/layout/useAppHeader'
 import { toConfigCode } from '~/utils/config-code'
 import { getByPath, setByPath } from '~/utils/object-path'
+import {
+  clearPendingTypeAttributeIds,
+  readPendingTypeAttributeIds,
+} from '~/utils/pending-type-attributes'
 
 const props = defineProps<{
   recordTypeId?: string
@@ -24,6 +29,7 @@ const { recordTypes, attributes } = useConfigurationRepositories()
 const { t } = useI18n()
 const toast = useToast()
 const router = useRouter()
+const route = useRoute()
 const { confirm } = useConfirm()
 const { setBreadcrumbs, clear } = useAppHeader()
 
@@ -51,6 +57,7 @@ const tabs = computed(() => {
     attributeCatalog: catalog.value,
     availableAttributeOptions: availableAttributeOptions.value,
     enableWorkflow: model.value.features.enableWorkflow,
+    typeId: isCreate.value ? 'new' : (props.recordTypeId || model.value.id),
   })
   if (!model.value.features.enableWorkflow && activeTab.value === 'workflow') {
     activeTab.value = 'general'
@@ -80,6 +87,73 @@ function emptyType(): RecordType {
   }
 }
 
+function toAssignment(attr: RecordAttribute, order: number): RecordTypeAttribute {
+  return {
+    attributeId: attr.id,
+    attributeCode: attr.code,
+    attributeLabel: attr.label,
+    dataType: attr.dataType,
+    required: attr.required,
+    readOnly: attr.readOnly,
+    visible: true,
+    searchable: attr.searchable,
+    filterable: attr.filterable,
+    showInList: attr.showInList,
+    section: 'General',
+    order,
+  }
+}
+
+async function assignAttributeIds(ids: string[]) {
+  const unique = [...new Set(ids.filter(Boolean))]
+  if (!unique.length) return
+  const used = new Set(model.value.attributes.map(a => a.attributeId))
+  const additions: RecordTypeAttribute[] = []
+  for (const id of unique) {
+    if (used.has(id)) continue
+    let attr = catalog.value.find(a => a.id === id)
+    if (!attr) {
+      try {
+        attr = await attributes.getById(id)
+        catalog.value = [...catalog.value, attr]
+      }
+      catch {
+        continue
+      }
+    }
+    additions.push(toAssignment(attr, model.value.attributes.length + additions.length))
+    used.add(id)
+  }
+  if (additions.length) {
+    model.value.attributes = [...model.value.attributes, ...additions]
+    dirty.value = true
+  }
+}
+
+async function consumeAssignQueryAndPending() {
+  if (route.query.tab === 'attributes') {
+    activeTab.value = 'attributes'
+  }
+  const fromQuery = route.query.assignAttribute
+  const queryIds = Array.isArray(fromQuery)
+    ? fromQuery.map(String)
+    : fromQuery
+      ? [String(fromQuery)]
+      : []
+  const pendingIds = readPendingTypeAttributeIds()
+  const ids = [...queryIds, ...pendingIds]
+  if (ids.length) {
+    await assignAttributeIds(ids)
+    clearPendingTypeAttributeIds()
+  }
+  if (queryIds.length || route.query.tab === 'attributes') {
+    const nextQuery = { ...route.query }
+    delete nextQuery.assignAttribute
+    delete nextQuery.tab
+    void router.replace({ query: nextQuery })
+  }
+}
+
 async function load() {
   pending.value = true
   hydrating.value = true
@@ -94,6 +168,7 @@ async function load() {
       model.value = await recordTypes.getById(props.recordTypeId!)
     }
     dirty.value = false
+    await consumeAssignQueryAndPending()
   }
   catch (e: any) {
     toast.add({ title: e?.message || t('docetra.common.loadFailed'), color: 'error' })
@@ -215,6 +290,13 @@ watch(model, () => {
 onBeforeUnmount(clear)
 onMounted(() => void load())
 watch(() => props.recordTypeId, () => void load())
+watch(
+  () => [route.query.assignAttribute, route.query.tab] as const,
+  () => {
+    if (pending.value || hydrating.value) return
+    void consumeAssignQueryAndPending()
+  },
+)
 
 useHead(() => ({
   title: `${isCreate.value ? t('docetra.config.createRecordType') : model.value.name} · ${t('docetra.pages.recordType')}`,

@@ -17,8 +17,13 @@ export interface MeetingHistory extends BaseEntity {
   attendeesCount: number
   /** Order within a topic (lower first). */
   sortOrder?: number
-  /** TipTap HTML meeting notes. */
+  /** TipTap HTML / record content (`record_content`). */
   notes?: string
+  recordContent?: string
+  /** Business timestamp (`record_time`); falls back to `meetingDate` in UI. */
+  recordTime?: string
+  /** Tags as comma text (`record_tag`); arrays also on `tags`. */
+  recordTag?: string
 }
 
 export interface RecordDocument extends BaseEntity {
@@ -33,9 +38,17 @@ export interface RecordDocument extends BaseEntity {
   recipientOrganization?: OrganizationSummary
   receivedDate?: string
   sentDate?: string
+  /** Record business timestamp (`record_time`). */
+  recordTime?: string
   ownerDepartment?: OrganizationSummary
   waiting?: boolean
+  /** Main content (`record_content`); falls back from `description` in UI. */
+  recordContent?: string
   description?: string
+  /** Tags as comma text (`record_tag`); arrays also accepted. */
+  recordTag?: string
+  /** Dynamic attribute values keyed by attribute code (`record_detail`). */
+  details?: Record<string, unknown>
 }
 
 export interface RecordLog extends BaseEntity {

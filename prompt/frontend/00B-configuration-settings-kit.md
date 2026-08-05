@@ -2,6 +2,7 @@
 
 > **Status:** Implemented — architecture reference only (not a build ticket).
 > Key code: `config/configuration-schemas.ts`, `config/settings-schemas.ts` (`storageSettingsTabs`), `repositories/*` (mock now / HTTP when `useMockData=false`), list/editor components under `components/configuration/` and settings pages.
+> Developer inventory: `frontend/docs/reusable-components-guide.md`.
 
 ## Reference (was copy/paste prompt)
 
@@ -32,8 +33,7 @@ Use `useConfigurationRepositories()` and `useSettingsRepositories()` from `app/r
 
 | Component | Purpose |
 | --- | --- |
-| `AppConfirmDialog` | Destructive / mode-change confirmation |
-| `AppUnsavedChangesDialog` | Leave-with-dirty-form warning |
+| `AppConfirmDialog` + `AppConfirmHost` / `useConfirm` | Destructive / save / leave confirms |
 | `AppSecretInput` | Masked secret with reveal toggle |
 | `AppConnectionStatusCard` | Mock connection status + disclaimer |
 | `AppConnectionTestButton` | Trigger simulated test |
@@ -41,8 +41,9 @@ Use `useConfigurationRepositories()` and `useSettingsRepositories()` from `app/r
 | `AppColorPicker` | Color input + presets |
 | `AppImageUploadField` | Drag-drop image with preview/replace/remove |
 | `AppSortableList` | HTML5 drag-and-drop reorder |
-| `AppFormSection` | Labeled form section grid |
-| `AppStatusBadge` | Status chip |
+| `AppLiveSearch` / `AppFilterSelect` / `AppMultiSelect` | Toolbar search & filters |
+
+Do **not** recreate removed stubs: `AppFormSection`, `AppStatusBadge`, `AppUnsavedChangesDialog`, `AppSettingCard`, `AppSettingsPlaceholder`.
 
 ### Configuration builders (`app/components/configuration/`)
 
@@ -52,16 +53,16 @@ Use `useConfigurationRepositories()` and `useSettingsRepositories()` from `app/r
 | `AppValidationRuleBuilder` | Type-aware validation controls |
 | `AppVisibilityRuleBuilder` | Field / operator / value rule |
 | `AppWorkflowStageBuilder` | Stages + transitions list |
-| `AppDynamicFieldPreview` | Single-field live preview |
-| `AppRecordFormPreview` | Full dynamic form preview from assigned attributes |
 | `AppNumberingPreview` | e.g. `DOC-2026-000001` |
+| `AppConfigEntityList` | Shared config index shell |
+| `AppRecordTypeList` / `AppRecordAttributeList` | Config indexes |
+| `AppRecordTypeEditor` / `AppRecordAttributeEditor` | Config editors via `AppDocumentPage` |
 
-### Settings shells (`app/components/settings/`)
+Field rendering uses `AppDynamicFieldRenderer` (no separate Field/Form Preview panels).
 
-| Component | Purpose |
-| --- | --- |
-| `AppSettingCard` | Settings card with icon/title/description |
-| `AppSettingsPlaceholder` | Remove once real Settings pages ship |
+### Settings pages
+
+Compose with `AppDocumentPage` + schemas in `settings-schemas.ts`. No dedicated settings card kit.
 
 ### Navigation
 

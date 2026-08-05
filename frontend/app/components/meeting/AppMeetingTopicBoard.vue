@@ -1,5 +1,8 @@
 <script setup lang="ts">
-import { useMeetingTopicBoard } from '~/composables/meeting/useMeetingTopicBoard'
+import {
+  MEETING_BOARD_UNASSIGNED,
+  useMeetingTopicBoard,
+} from '~/composables/meeting/useMeetingTopicBoard'
 
 const {
   pending,
@@ -12,8 +15,12 @@ const {
   meetingDateEnd,
   selectedTopicId,
   selectedTopic,
+  isAllMeetings,
+  isUnassigned,
+  isPoolView,
   filteredTopics,
   filteredMeetings,
+  allMeetingCount,
   unassignedMeetingCount,
   topicMeetingCounts,
   draggingMeetingId,
@@ -28,18 +35,26 @@ const {
   openCreateMeeting,
 } = useMeetingTopicBoard()
 
+const { t } = useI18n()
+
 const notesOpen = ref(false)
 const notesMeetingId = ref<string | null>(null)
 
-/** Add Topic always; Add Meeting only on standalone (All meetings) view. */
+/** Add Topic always; Add Meeting on All / Unassigned pool views. */
 const createButtons = computed(() => {
   const buttons = [
     { labelKey: 'docetra.meetingBoard.createTopic', icon: 'i-lucide-messages-square' },
   ]
-  if (selectedTopicId.value == null) {
+  if (isPoolView.value) {
     buttons.push({ labelKey: 'docetra.meetingBoard.createMeeting', icon: 'i-lucide-calendar-plus' })
   }
   return buttons
+})
+
+const meetingsPanelTitle = computed(() => {
+  if (selectedTopic.value) return selectedTopic.value.title
+  if (isUnassigned.value) return t('docetra.meetingBoard.unassigned')
+  return t('docetra.meetingBoard.allMeetings')
 })
 
 function onCreateButton(index: number) {
@@ -77,15 +92,22 @@ function onTopicDrop(topicId: string, meetingId: string) {
   assignMeetingToTopic(meetingId, topicId)
 }
 
+function onUnassignedDrop(event: DragEvent) {
+  event.preventDefault()
+  dropTopicId.value = null
+  if (!draggingMeetingId.value) return
+  assignMeetingToTopic(draggingMeetingId.value, null)
+}
+
 async function onReorderBefore(beforeId: string | null) {
-  if (!draggingMeetingId.value || !selectedTopicId.value) return
+  if (!draggingMeetingId.value || isPoolView.value) return
   await reorderMeeting(draggingMeetingId.value, beforeId)
   draggingMeetingId.value = null
 }
 
 function onMeetingsPanelDrop(event: DragEvent) {
   event.preventDefault()
-  if (!selectedTopicId.value || !draggingMeetingId.value) return
+  if (isPoolView.value || !draggingMeetingId.value) return
   onReorderBefore(null)
 }
 </script>
@@ -130,10 +152,27 @@ function onMeetingsPanelDrop(event: DragEvent) {
             <button
               type="button"
               class="w-full rounded-lg border px-3 py-2 text-left text-sm transition"
-              :class="selectedTopicId == null
+              :class="isAllMeetings
                 ? 'border-primary bg-primary/5 font-medium text-highlighted ring-1 ring-primary/25'
                 : 'border-default text-muted hover:border-primary/30'"
               @click="selectTopic(null)"
+            >
+              {{ $t('docetra.meetingBoard.allMeetings') }}
+              <span class="ml-1 tabular-nums text-xs">({{ allMeetingCount }})</span>
+            </button>
+            <button
+              type="button"
+              class="w-full rounded-lg border px-3 py-2 text-left text-sm transition"
+              :class="[
+                isUnassigned
+                  ? 'border-primary bg-primary/5 font-medium text-highlighted ring-1 ring-primary/25'
+                  : 'border-default text-muted hover:border-primary/30',
+                dropTopicId === MEETING_BOARD_UNASSIGNED ? 'ring-2 ring-primary/40' : '',
+              ]"
+              @click="selectTopic(MEETING_BOARD_UNASSIGNED)"
+              @dragover.prevent="dropTopicId = MEETING_BOARD_UNASSIGNED"
+              @dragleave="dropTopicId = dropTopicId === MEETING_BOARD_UNASSIGNED ? null : dropTopicId"
+              @drop="onUnassignedDrop"
             >
               {{ $t('docetra.meetingBoard.unassigned') }}
               <span class="ml-1 tabular-nums text-xs">({{ unassignedMeetingCount }})</span>
@@ -165,7 +204,7 @@ function onMeetingsPanelDrop(event: DragEvent) {
         <section class="flex min-h-0 flex-col lg:col-span-3">
           <div class="flex shrink-0 flex-col gap-2 border-b border-default px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
             <h2 class="min-w-0 truncate text-sm font-semibold text-highlighted">
-              {{ selectedTopic?.title || $t('docetra.meetingBoard.allMeetings') }}
+              {{ meetingsPanelTitle }}
             </h2>
             <div class="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
               <CommonAppInputDateRange
@@ -193,7 +232,7 @@ function onMeetingsPanelDrop(event: DragEvent) {
                 :meeting="meeting"
                 :topics="topics"
                 :dragging="draggingMeetingId === meeting.id"
-                :show-topic="!selectedTopicId"
+                :show-topic="isPoolView"
                 @open="openMeeting(meeting.id)"
                 @open-notes="openMeetingNotes(meeting.id)"
                 @drag-start="onMeetingDragStart"

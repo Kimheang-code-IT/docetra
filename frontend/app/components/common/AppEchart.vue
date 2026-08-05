@@ -1,35 +1,7 @@
 <script setup lang="ts">
-import { use } from 'echarts/core'
-import { CanvasRenderer } from 'echarts/renderers'
-import { PieChart, LineChart, BarChart, MapChart } from 'echarts/charts'
-import {
-  TitleComponent,
-  TooltipComponent,
-  LegendComponent,
-  GridComponent,
-  DatasetComponent,
-  VisualMapComponent,
-  GeoComponent,
-  ToolboxComponent,
-} from 'echarts/components'
-import VChart from 'vue-echarts'
-
-use([
-  CanvasRenderer,
-  PieChart,
-  LineChart,
-  BarChart,
-  MapChart,
-  TitleComponent,
-  TooltipComponent,
-  LegendComponent,
-  GridComponent,
-  DatasetComponent,
-  VisualMapComponent,
-  GeoComponent,
-  ToolboxComponent,
-])
-
+/**
+ * ECharts wrapper — loads echarts only when the chart mounts (keeps first paint light).
+ */
 const props = withDefaults(defineProps<{
   option: Record<string, unknown>
   autoresize?: boolean
@@ -40,7 +12,13 @@ const props = withDefaults(defineProps<{
   height: '100%',
 })
 
-const chartRef = ref<InstanceType<typeof VChart> | null>(null)
+const chartRef = ref<{
+  getEchartsInstance?: () => { getDataURL: (opts: Record<string, unknown>) => string }
+  chart?: { getDataURL: (opts: Record<string, unknown>) => string }
+} | null>(null)
+
+const VChart = shallowRef<Component | null>(null)
+const ready = ref(false)
 
 const chartStyle = computed(() => ({
   width: props.width
@@ -50,11 +28,38 @@ const chartStyle = computed(() => ({
   minHeight: 0,
 }))
 
+onMounted(async () => {
+  const [
+    { use },
+    { CanvasRenderer },
+    { LineChart, BarChart },
+    {
+      TooltipComponent,
+      GridComponent,
+    },
+    { default: VueEcharts },
+  ] = await Promise.all([
+    import('echarts/core'),
+    import('echarts/renderers'),
+    import('echarts/charts'),
+    import('echarts/components'),
+    import('vue-echarts'),
+  ])
+
+  use([
+    CanvasRenderer,
+    LineChart,
+    BarChart,
+    TooltipComponent,
+    GridComponent,
+  ])
+
+  VChart.value = VueEcharts as Component
+  ready.value = true
+})
+
 function getInstance() {
-  const el = chartRef.value as {
-    getEchartsInstance?: () => { getDataURL: (opts: Record<string, unknown>) => string }
-    chart?: { getDataURL: (opts: Record<string, unknown>) => string }
-  } | null
+  const el = chartRef.value
   if (!el) return null
   if (typeof el.getEchartsInstance === 'function') return el.getEchartsInstance()
   return el.chart ?? null
@@ -81,16 +86,24 @@ defineExpose({ downloadChart })
 
 <template>
   <div
-    class="relative flex flex-col w-full h-full min-h-0"
+    class="relative flex h-full min-h-0 w-full flex-col"
     :style="chartStyle"
   >
     <ClientOnly>
-      <VChart
+      <component
+        :is="VChart"
+        v-if="ready && VChart"
         ref="chartRef"
         :option="option"
         :autoresize="autoresize !== false"
-        class="w-full h-full min-h-0"
+        class="h-full min-h-0 w-full"
       />
+      <div
+        v-else
+        class="flex h-full min-h-48 items-center justify-center"
+      >
+        <UIcon name="i-lucide-loader-circle" class="size-5 animate-spin text-muted" />
+      </div>
     </ClientOnly>
   </div>
 </template>

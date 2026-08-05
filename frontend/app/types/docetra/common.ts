@@ -116,6 +116,7 @@ export type FieldType =
   | 'validation-builder'
   | 'options-builder'
   | 'visibility-builder'
+  | 'card-fields-editor'
 
 export interface FieldOption {
   label: string
@@ -132,7 +133,10 @@ export interface ConnectionStatusFieldValue {
 
 export interface DocumentFieldSchema {
   key: string
+  /** i18n key for the label. Prefer `label` for dynamic/config-driven fields. */
   labelKey: string
+  /** Literal label (used when the text is not an i18n key, e.g. attribute catalog). */
+  label?: string
   type: FieldType
   required?: boolean
   readOnly?: boolean
@@ -142,9 +146,13 @@ export interface DocumentFieldSchema {
   optionsEndpoint?: string
   /** Help text shown below the input (ERPNext-style field description). */
   helpKey?: string
+  /** Literal help text for dynamic fields. */
+  help?: string
   /** Hint shown via info icon (especially useful for checkboxes). Falls back to helpKey. */
   hintKey?: string
   placeholderKey?: string
+  /** Literal placeholder for dynamic fields. */
+  placeholder?: string
   /** Textarea row count (defaults to 4). */
   rows?: number
   /** Alert color when type is `alert`. */
@@ -156,7 +164,10 @@ export interface DocumentFieldSchema {
 export interface DocumentSectionSchema {
   id: string
   titleKey?: string
+  /** Literal section title for dynamic sections. */
+  title?: string
   descriptionKey?: string
+  description?: string
   fields: DocumentFieldSchema[]
 }
 

@@ -70,11 +70,6 @@ type Schema = {
 
 async function completeLogin(token: string, user: { name: string }) {
   authSession.login(token, user as any)
-  toast.add({
-    title: t('pages.auth.loginSuccess'),
-    description: t('pages.auth.loginSuccessDesc', { name: user.name }),
-    color: 'success',
-  })
   await router.push('/')
 }
 

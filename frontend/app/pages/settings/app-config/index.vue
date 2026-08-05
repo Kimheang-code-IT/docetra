@@ -111,6 +111,8 @@ async function save() {
   saving.value = true
   try {
     model.value = await appConfig.update(model.value)
+    const { invalidateCardFieldsCache } = await import('~/composables/settings/useCardFields')
+    invalidateCardFieldsCache()
     toast.add({ title: t('docetra.common.saved'), color: 'success' })
     dirty.value = false
   }

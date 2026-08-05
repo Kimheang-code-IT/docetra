@@ -3,6 +3,7 @@ import type { EntityConfig } from '~/config/entities'
 import { getEntityAdapter } from '~/config/entities'
 import { useConfirm } from '~/composables/common/useConfirm'
 import { useRecordStageBoard } from '~/composables/record/useRecordStageBoard'
+import type { CardDisplayEntityKey } from '~/types/docetra/settings'
 
 const props = defineProps<{
   config: EntityConfig
@@ -15,6 +16,7 @@ const toast = useToast()
 const { t } = useI18n()
 const { confirm } = useConfirm()
 const adapter = getEntityAdapter(props.config.key)
+const cardEntityKey = computed(() => props.config.key as CardDisplayEntityKey)
 
 const {
   filteredStages,
@@ -273,6 +275,7 @@ async function onDelete(row: Record<string, unknown>) {
                 :stage-label="stageLabel(row.stage)"
                 :stages="stages"
                 :dragging="draggingId === row.id"
+                :entity-key="cardEntityKey"
                 @open="openRow(row)"
                 @drag-start="draggingId = $event"
                 @drag-end="draggingId = null; dropStageCode = null"

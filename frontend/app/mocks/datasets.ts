@@ -72,15 +72,22 @@ export const mockMeetingHistory: MeetingHistory[] = Array.from({ length: 30 }, (
   id: `mh_${i + 1}`,
   title: `Meeting ${i + 1}`,
   status: status(i),
+  stage: meetingStage(i),
   topicId: i % 3 === 0 ? undefined : `mt_${(i % 12) + 1}`,
   topicTitle: i % 3 === 0 ? undefined : `Topic ${(i % 12) + 1}: Quarterly coordination`,
   meetingDate: dateOnly(i % 25),
+  recordTime: dateOnly(i % 25),
   location: i % 2 === 0 ? 'Room A' : 'Online',
   attendeesCount: 4 + (i % 8),
   sortOrder: i % 3 === 0 ? undefined : (i % 5),
   notes: i % 4 === 0
     ? `<h2>Agenda</h2><p>Review progress for meeting ${i + 1}.</p><ul><li>Status updates</li><li>Open actions</li></ul>`
     : '',
+  recordContent: i % 4 === 0
+    ? `Review progress for meeting ${i + 1}.`
+    : undefined,
+  tags: i % 2 === 0 ? ['urgent'] : ['follow-up'],
+  recordTag: i % 2 === 0 ? 'urgent' : 'follow-up',
   attachmentCount: i % 4,
   owner: person(i),
   createdAt: daysAgo(40 - i),
@@ -88,11 +95,25 @@ export const mockMeetingHistory: MeetingHistory[] = Array.from({ length: 30 }, (
 }))
 
 function makeRecord(kind: RecordDocument['recordKind'], count: number, prefix: string): RecordDocument[] {
+  const typeIdByKind: Record<RecordDocument['recordKind'], string> = {
+    incoming: 'rt_incoming',
+    outgoing: 'rt_outgoing',
+    document: 'rt_document',
+    master_list_request: 'rt_master_list',
+  }
+  const typeNameByKind: Record<RecordDocument['recordKind'], string> = {
+    incoming: 'Incoming Document',
+    outgoing: 'Outgoing Document',
+    document: 'Document',
+    master_list_request: 'Master List Request',
+  }
   return Array.from({ length: count }, (_, i) => ({
     id: `${prefix}_${i + 1}`,
     referenceNumber: `${prefix.toUpperCase()}-${2026}-${String(i + 1).padStart(4, '0')}`,
     title: `${kind.replace('_', ' ')} record ${i + 1}`,
     recordKind: kind,
+    recordTypeId: typeIdByKind[kind],
+    recordTypeName: typeNameByKind[kind],
     status: status(i),
     stage: recordStage(i),
     documentType: ['Letter', 'Report', 'Contract', 'Memo'][i % 4],
@@ -105,9 +126,24 @@ function makeRecord(kind: RecordDocument['recordKind'], count: number, prefix: s
     assignee: person(i + 1),
     waiting: i % 5 === 0,
     description: 'Operational record managed in Docetra.',
+    recordContent: 'Operational record managed in Docetra.',
+    recordTime: kind === 'incoming'
+      ? dateOnly(i % 18)
+      : kind === 'outgoing'
+        ? dateOnly(i % 18)
+        : dateOnly(i % 20),
+    details: {
+      priority: (['low', 'medium', 'high'] as const)[i % 3],
+      external_ref: `EXT-${1000 + i}`,
+      due_date: dateOnly((i + 3) % 20),
+      notes: i % 3 === 0 ? `Follow-up notes for ${kind} ${i + 1}` : '',
+      confidential: i % 4 === 0,
+      amount: kind === 'document' || kind === 'master_list_request' ? 1000 + i * 25 : undefined,
+    },
     createdAt: daysAgo(50 - i),
     updatedAt: daysAgo(i % 12),
     tags: i % 2 === 0 ? ['urgent'] : ['routine'],
+    recordTag: i % 2 === 0 ? 'urgent' : 'routine',
     attachmentCount: i % 4,
     commentCount: i % 5,
   }))

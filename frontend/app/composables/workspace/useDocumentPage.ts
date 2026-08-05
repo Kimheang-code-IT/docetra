@@ -60,6 +60,7 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
         model.value = {
           status: 'draft',
           stage: config.stages?.[0]?.code || undefined,
+          details: {},
           ...(config.key === 'roles' ? { permissionRows: [] as AppRolePermissionRow[] } : {}),
         }
         initialSnapshot.value = JSON.stringify(model.value)
@@ -69,7 +70,13 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
         return
       }
       const res = await adapter.get(id.value)
-      model.value = { ...(res.data as Record<string, unknown>) }
+      model.value = {
+        details: {},
+        ...(res.data as Record<string, unknown>),
+      }
+      if (!model.value.details || typeof model.value.details !== 'object') {
+        model.value.details = {}
+      }
       initialSnapshot.value = JSON.stringify(model.value)
       const [c, a, f] = await Promise.all([
         adapter.listComments?.(id.value, { page: 1, limit: 20 }),
@@ -117,6 +124,23 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
       const res = await adapter.update(id.value, payload as any)
       model.value = { ...(res.data as Record<string, unknown>) }
       initialSnapshot.value = JSON.stringify(model.value)
+      if (adapter.replaceAttachments) {
+        await adapter.replaceAttachments(id.value, attachments.value)
+        const { indexFileForSearch } = await import('~/utils/search/index-hooks')
+        const title = String(model.value[config.titleField] || '')
+        for (const file of attachments.value) {
+          indexFileForSearch({
+            entityId: id.value,
+            indexId: `idx:att:${config.key}:${id.value}:${file.id}`,
+            fileName: file.name,
+            mimeType: file.mimeType,
+            url: `${config.routeBase}/${id.value}`,
+            permission: config.permission,
+            contextTitle: title,
+            entityType: 'attachment',
+          })
+        }
+      }
       toast.add({ title: t('docetra.document.saved'), color: 'success' })
     }
     catch (e: any) {

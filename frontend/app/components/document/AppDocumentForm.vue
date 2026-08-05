@@ -24,7 +24,8 @@ const wideForm = computed(() =>
     tab.sections.some(section =>
       section.fields.some(field =>
         field.type === 'telegram-destinations'
-        || field.type === 'notification-rules',
+        || field.type === 'notification-rules'
+        || field.type === 'card-fields-editor',
       ),
     ),
   ),
@@ -45,6 +46,7 @@ function isFullWidthField(field: DocumentTabSchema['sections'][0]['fields'][0]) 
     || field.type === 'validation-builder'
     || field.type === 'options-builder'
     || field.type === 'visibility-builder'
+    || field.type === 'card-fields-editor'
 }
 </script>
 
@@ -85,12 +87,12 @@ function isFullWidthField(field: DocumentTabSchema['sections'][0]['fields'][0]) 
             class="space-y-4"
             :class="sectionIndex > 0 ? 'border-t border-default pt-6' : ''"
           >
-            <div v-if="section.titleKey || section.descriptionKey">
-              <h3 v-if="section.titleKey" class="text-sm font-medium text-highlighted">
-                {{ $t(section.titleKey) }}
+            <div v-if="section.title || section.titleKey || section.description || section.descriptionKey">
+              <h3 v-if="section.title || section.titleKey" class="text-sm font-medium text-highlighted">
+                {{ section.title || $t(section.titleKey!) }}
               </h3>
-              <p v-if="section.descriptionKey" class="mt-1 text-xs text-muted">
-                {{ $t(section.descriptionKey) }}
+              <p v-if="section.description || section.descriptionKey" class="mt-1 text-xs text-muted">
+                {{ section.description || $t(section.descriptionKey!) }}
               </p>
             </div>
 

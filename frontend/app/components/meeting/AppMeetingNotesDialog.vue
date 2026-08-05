@@ -97,6 +97,24 @@ async function save() {
     meeting.value = res.data as MeetingHistory
     dirty.value = false
     emit('saved', meeting.value)
+    const { indexMeetingNotesForSearch, indexFileForSearch } = await import('~/utils/search/index-hooks')
+    indexMeetingNotesForSearch({
+      meetingId: props.meetingId,
+      title: meeting.value.title,
+      notes: notes.value,
+    })
+    for (const file of attachments.value) {
+      indexFileForSearch({
+        entityId: props.meetingId,
+        indexId: `idx:att:meeting:${props.meetingId}:${file.id}`,
+        fileName: file.name,
+        mimeType: file.mimeType,
+        url: `/meetings/history/${props.meetingId}`,
+        permission: 'meetings.history.view',
+        contextTitle: meeting.value.title,
+        entityType: 'attachment',
+      })
+    }
     toast.add({ title: t('docetra.meetingNotes.saved'), color: 'success' })
   }
   catch (e: any) {
@@ -167,7 +185,7 @@ async function onClose(value: boolean) {
       >
         <!-- Editor: 3 cols -->
         <section class="flex h-full min-h-0 flex-col p-4 lg:col-span-3">
-          <CommonAppRichTextNote
+          <LazyCommonAppRichTextNote
             :key="`note-${meetingId}`"
             v-model="notes"
             fill
@@ -177,7 +195,7 @@ async function onClose(value: boolean) {
 
         <!-- Files: 1 col -->
         <section class="flex h-full min-h-0 flex-col gap-3 overflow-y-auto p-4 lg:col-span-1">
-          <CommonAppUppyUploader
+          <LazyCommonAppUppyUploader
             v-if="meetingId && !pending"
             :key="`uppy-${meetingId}`"
             :entity-id="meetingId"

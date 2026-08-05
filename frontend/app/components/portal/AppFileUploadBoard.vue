@@ -72,8 +72,9 @@ async function onUploadComplete(metas: AttachmentMeta[]) {
   uploading.value = true
   try {
     if (runtimeConfig.public.useMockData !== false) {
+      const { indexFileForSearch } = await import('~/utils/search/index-hooks')
       for (const meta of metas) {
-        await adapters.fileUploads.create({
+        const created = await adapters.fileUploads.create({
           fileName: meta.name,
           name: meta.name,
           mimeType: meta.mimeType,
@@ -85,6 +86,16 @@ async function onUploadComplete(metas: AttachmentMeta[]) {
             ? { id: String(authStore.user.id), name: authStore.user.name, email: authStore.user.email }
             : undefined,
         } as any)
+        const row = (created as { data?: { id?: string } })?.data
+        const id = row?.id || meta.id
+        indexFileForSearch({
+          entityId: String(id),
+          fileName: meta.name,
+          mimeType: meta.mimeType,
+          url: `/portal/file-upload/${id}`,
+          permission: 'portal.file_upload.view',
+          contextTitle: meta.name,
+        })
       }
     }
     toast.add({ title: t('docetra.attachments.uploaded'), color: 'success' })
@@ -214,7 +225,7 @@ onMounted(() => {
             >
               <UIcon name="i-lucide-loader-circle" class="size-5 animate-spin text-primary" />
             </div>
-            <CommonAppUppyUploader
+            <LazyCommonAppUppyUploader
               class="flex h-full min-h-0 flex-col [&_.uppy-host]:min-h-0 [&_.uppy-host]:flex-1"
               entity-id="portal-file-upload"
               :endpoint="ApiEndpoints.FILE_UPLOADS"

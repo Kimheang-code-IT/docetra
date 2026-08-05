@@ -1,0 +1,34 @@
+---
+description: Docetra product source of truth — idea brief + engineering specification
+alwaysApply: true
+---
+
+# Docetra product source of truth
+
+When designing or implementing product behavior, treat these as the main idea and contracts — not ad-hoc UI assumptions:
+
+1. **Product idea / business intent** — `prompt/idea/`
+   - `01-docetra-project-brief.md`
+   - `02-docetra-business-requirements.md`
+   - `03-draft-db-design.md` (column-level draft; prefer formal data model when they conflict)
+
+2. **Engineering specification** — `prompt/specification/`
+   - Start with `00-overview.md`, `02-domain-model.md`, `07-data-model.md`
+   - Record behavior: `modules/record.md`
+   - Full reading order: `prompt/specification/README.md`
+
+3. **Frontend UI map** — `prompt/frontend/` (presentation/layout only; must not contradict idea + specification)
+
+## Core product principles (must follow)
+
+- **Unified record model**: meetings, documents, topics, files, URLs, and similar items are records differentiated by `record_type` — not separate product domains.
+- Cards/lists show **summary + important scan fields** driven by type config where possible.
+- Core record identity fields to prefer on cards: `title`, `status`, `record_stage` / stage, `record_tag` / tags, `record_time`, `record_content` (see draft DB + data model).
+- Meeting is a **special record type** with topic-container board behavior (`modules/record.md`), not a disconnected entity.
+- Prefer configuration over hardcoded per-screen field lists when behavior differs by type.
+
+## Conflict resolution
+
+1. `prompt/specification/` wins for architecture, domains, APIs, and module boundaries.
+2. `prompt/idea/` wins for business goals and draft schema intent when the spec is silent.
+3. Existing frontend code wins only for already-shipped mock/UI patterns until deliberately migrated to the unified model.

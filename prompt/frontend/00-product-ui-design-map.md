@@ -4,7 +4,9 @@
 
 ## What the product data means for the UI
 
-Docetra is a record-centered operational system. Business pages reuse four concepts:
+Docetra is a record-centered operational system. **Product source of truth:** `prompt/idea/` (business intent + draft DB) and `prompt/specification/` (engineering contracts). This UI map only covers presentation.
+
+Business pages reuse four concepts:
 
 1. **Entity workspace** — searchable, filterable, server-paginated table data.
 2. **Workflow board** — the same records grouped by stage with controlled movement.

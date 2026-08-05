@@ -2,6 +2,7 @@
 
 > **Status:** Implemented — architecture reference only (not a build ticket).
 > Key code: `EntityWorkspaceView`, `AppServerTable`, `AppKanban*`, `AppDocumentPage`, `EntityDocumentView`, boards under `components/{meeting,record,portal}/`.
+> Developer inventory: `frontend/docs/reusable-components-guide.md`.
 
 ## Reference (was copy/paste prompt)
 
@@ -17,7 +18,7 @@ Provide breadcrumb, localized title/description, result count, primary create ac
 
 ### `AppWorkspaceToolbar`
 
-Provide debounced search, filters, active-filter chips, date range, sort, column visibility, refresh, export, and table/Kanban toggle. Synchronize supported state with URL query parameters.
+Provide debounced live search (`AppLiveSearch`), select/multiselect filters (`AppFilterSelect`), sort, and table/Kanban/hierarchy view toggle. Selected filters show an active grey border on the control (no filter chip row). Synchronize supported state with URL query parameters via `useEntityWorkspace`.
 
 ### `AppServerTable`
 
@@ -133,9 +134,9 @@ interface ActivityEvent {
 
 Activity is immutable. Escape untrusted content, redact sensitive metadata, cursor-paginate long timelines, and never expose backend-only audit payloads.
 
-### `AppAttachmentsPanel`
+### Attachments (document meta rail)
 
-Support files and URL attachments using storage metadata plus record-attachment links. Include upload progress, retry, safe preview/download, association state, and permissions. Do not store binary content in Pinia.
+Attachments live on `AppDocumentMetaRail` (upload list + metadata), not a standalone panel. Pair with adapter `listAttachments` / `replaceAttachments`. Do not store binary content in Pinia.
 
 ### `AppRichTextNote`
 

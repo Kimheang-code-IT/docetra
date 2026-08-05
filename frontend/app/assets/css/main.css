@@ -1,10 +1,10 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;1,14..32,400&family=Noto+Sans+Khmer:wght@400;500;600;700&display=swap");
 @import "tailwindcss";
 @import "@nuxt/ui";
 @import "./scrollbar.css";
 
 @theme static {
-  --font-sans: "Noto Sans Khmer", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+  --font-sans: "Inter", "Noto Sans Khmer", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+
 
   /* Logo coral-red primary palette — must be @theme static for Nuxt UI */
   --color-brand-50: #fff2ef;
@@ -37,7 +37,7 @@
 
 @layer base {
   html {
-    font-size: var(--app-font-size, 15px);
+    font-size: var(--app-font-size, 16px);
   }
 
   html,

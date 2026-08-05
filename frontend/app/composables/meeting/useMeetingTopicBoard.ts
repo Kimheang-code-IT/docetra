@@ -2,6 +2,9 @@ import type { MeetingHistory, MeetingTopic } from '~/types/docetra/entities'
 import { getEntityAdapter } from '~/config/entities'
 import { isWithinDateTimeRange } from '~/utils/date-time-range'
 
+/** Sentinel for the Unassigned row on the topic rail (not a real topic id). */
+export const MEETING_BOARD_UNASSIGNED = '__unassigned__'
+
 export function useMeetingTopicBoard() {
   const { t } = useI18n()
   const toast = useToast()
@@ -12,7 +15,11 @@ export function useMeetingTopicBoard() {
   const error = ref<string | null>(null)
   const topics = ref<MeetingTopic[]>([])
   const meetings = ref<MeetingHistory[]>([])
-  /** null = standalone / unassigned meetings pool */
+  /**
+   * null = All meetings (full card list + search/date)
+   * MEETING_BOARD_UNASSIGNED = meetings with no topicId
+   * otherwise = topic id
+   */
   const selectedTopicId = ref<string | null>(null)
   const draggingMeetingId = ref<string | null>(null)
   const dropTopicId = ref<string | null>(null)
@@ -22,11 +29,16 @@ export function useMeetingTopicBoard() {
   const meetingDateStart = ref('')
   const meetingDateEnd = ref('')
 
-  const selectedTopic = computed(() =>
-    selectedTopicId.value
-      ? topics.value.find(t => t.id === selectedTopicId.value) || null
-      : null,
-  )
+  const isAllMeetings = computed(() => selectedTopicId.value == null)
+  const isUnassigned = computed(() => selectedTopicId.value === MEETING_BOARD_UNASSIGNED)
+  /** True when viewing All or Unassigned (not a specific topic). */
+  const isPoolView = computed(() => isAllMeetings.value || isUnassigned.value)
+
+  const selectedTopic = computed(() => {
+    const id = selectedTopicId.value
+    if (!id || id === MEETING_BOARD_UNASSIGNED) return null
+    return topics.value.find(t => t.id === id) || null
+  })
 
   const filteredTopics = computed(() => {
     const q = topicSearch.value.trim().toLowerCase()
@@ -42,12 +54,20 @@ export function useMeetingTopicBoard() {
   )
 
   const unassignedMeetingCount = computed(() => unassignedMeetings.value.length)
+  const allMeetingCount = computed(() => meetings.value.length)
 
   const filteredMeetings = computed(() => {
     const q = meetingSearch.value.trim().toLowerCase()
-    let list = selectedTopicId.value
-      ? meetings.value.filter(m => m.topicId === selectedTopicId.value)
-      : unassignedMeetings.value
+    let list: MeetingHistory[]
+    if (isAllMeetings.value) {
+      list = meetings.value
+    }
+    else if (isUnassigned.value) {
+      list = unassignedMeetings.value
+    }
+    else {
+      list = meetings.value.filter(m => m.topicId === selectedTopicId.value)
+    }
     if (meetingDateStart.value || meetingDateEnd.value) {
       list = list.filter(m =>
         isWithinDateTimeRange(m.meetingDate, meetingDateStart.value, meetingDateEnd.value),
@@ -157,7 +177,7 @@ export function useMeetingTopicBoard() {
   }
 
   async function reorderMeeting(meetingId: string, beforeId: string | null) {
-    if (!selectedTopicId.value) return
+    if (!selectedTopicId.value || selectedTopicId.value === MEETING_BOARD_UNASSIGNED) return
     const topicId = selectedTopicId.value
     const list = filteredMeetings.value.filter(m => m.topicId === topicId)
     const fromIndex = list.findIndex(m => m.id === meetingId)
@@ -211,8 +231,12 @@ export function useMeetingTopicBoard() {
     meetingDateEnd,
     selectedTopicId,
     selectedTopic,
+    isAllMeetings,
+    isUnassigned,
+    isPoolView,
     filteredTopics,
     filteredMeetings,
+    allMeetingCount,
     unassignedMeetingCount,
     topicMeetingCounts,
     draggingMeetingId,

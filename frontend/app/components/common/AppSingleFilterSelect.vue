@@ -40,6 +40,12 @@ const { widthStyle, rootClass } = useFilterAutoWidth(
   () => displayLabel.value,
 )
 
+const open = ref(false)
+
+const isActive = computed(() => open.value || isFilterValueActive(modelValue.value))
+
+const selectUi = computed(() => getFilterSelectUi(isActive.value))
+
 const searchInput = computed(() => {
   if (!props.searchable) return false
   return {
@@ -47,20 +53,20 @@ const searchInput = computed(() => {
     icon: 'i-lucide-search',
   }
 })
-
-const selectUi = computed(() => getFilterSelectUi(isFilterValueActive(modelValue.value)))
 </script>
 
 <template>
   <div :class="rootClass" :style="widthStyle">
     <USelectMenu
       v-model="modelValue"
+      v-model:open="open"
       :items="menuItems"
       :placeholder="selectPlaceholder"
       value-key="value"
       :icon="icon"
       class="w-full"
       size="sm"
+      color="neutral"
       :search-input="searchInput"
       :filter-fields="['label']"
       :ui="selectUi"

@@ -6,6 +6,21 @@ export default defineAppConfig({
       neutral: 'zinc',
     },
 
+    /** Route top-bar / toast progress / loaders follow brand primary. */
+    progress: {
+      defaultVariants: {
+        color: 'primary',
+        size: 'sm',
+        animation: 'carousel',
+      },
+    },
+
+    toast: {
+      defaultVariants: {
+        color: 'primary',
+      },
+    },
+
     /**
      * Global form control look (matches Docetra document forms):
      * soft elevated fill, no hard ring, rounded-md.
@@ -24,7 +39,7 @@ export default defineAppConfig({
     input: {
       variants: {
         variant: {
-          soft: 'text-highlighted bg-elevated/70 hover:bg-elevated focus:bg-elevated disabled:bg-elevated/50 ring-0',
+          soft: 'text-highlighted bg-elevated/70 hover:bg-elevated focus:bg-elevated disabled:bg-elevated/50',
         },
       },
       defaultVariants: {
@@ -37,7 +52,7 @@ export default defineAppConfig({
     textarea: {
       variants: {
         variant: {
-          soft: 'text-highlighted bg-elevated/70 hover:bg-elevated focus:bg-elevated disabled:bg-elevated/50 ring-0',
+          soft: 'text-highlighted bg-elevated/70 hover:bg-elevated focus:bg-elevated disabled:bg-elevated/50',
         },
       },
       defaultVariants: {
@@ -50,7 +65,7 @@ export default defineAppConfig({
     select: {
       variants: {
         variant: {
-          soft: 'text-highlighted bg-elevated/70 hover:bg-elevated focus:bg-elevated disabled:bg-elevated/50 ring-0',
+          soft: 'text-highlighted bg-elevated/70 hover:bg-elevated focus:bg-elevated disabled:bg-elevated/50',
         },
       },
       defaultVariants: {
@@ -63,7 +78,7 @@ export default defineAppConfig({
     selectMenu: {
       variants: {
         variant: {
-          soft: 'text-highlighted bg-elevated/70 hover:bg-elevated focus:bg-elevated disabled:bg-elevated/50 ring-0',
+          soft: 'text-highlighted bg-elevated/70 hover:bg-elevated focus:bg-elevated disabled:bg-elevated/50',
         },
       },
       defaultVariants: {
@@ -76,7 +91,7 @@ export default defineAppConfig({
     inputMenu: {
       variants: {
         variant: {
-          soft: 'text-highlighted bg-elevated/70 hover:bg-elevated focus:bg-elevated disabled:bg-elevated/50 ring-0',
+          soft: 'text-highlighted bg-elevated/70 hover:bg-elevated focus:bg-elevated disabled:bg-elevated/50',
         },
       },
       defaultVariants: {
@@ -89,7 +104,7 @@ export default defineAppConfig({
     inputNumber: {
       variants: {
         variant: {
-          soft: 'text-highlighted bg-elevated/70 hover:bg-elevated focus:bg-elevated disabled:bg-elevated/50 ring-0',
+          soft: 'text-highlighted bg-elevated/70 hover:bg-elevated focus:bg-elevated disabled:bg-elevated/50',
         },
       },
       defaultVariants: {
@@ -102,7 +117,7 @@ export default defineAppConfig({
     inputDate: {
       variants: {
         variant: {
-          soft: 'text-highlighted bg-elevated/70 hover:bg-elevated has-focus:bg-elevated disabled:bg-elevated/50 ring-0',
+          soft: 'text-highlighted bg-elevated/70 hover:bg-elevated has-focus:bg-elevated disabled:bg-elevated/50',
         },
       },
       defaultVariants: {
@@ -115,7 +130,7 @@ export default defineAppConfig({
     inputTime: {
       variants: {
         variant: {
-          soft: 'text-highlighted bg-elevated/70 hover:bg-elevated has-focus:bg-elevated disabled:bg-elevated/50 ring-0',
+          soft: 'text-highlighted bg-elevated/70 hover:bg-elevated has-focus:bg-elevated disabled:bg-elevated/50',
         },
       },
       defaultVariants: {
@@ -128,7 +143,7 @@ export default defineAppConfig({
     pinInput: {
       variants: {
         variant: {
-          soft: 'text-highlighted bg-elevated/70 hover:bg-elevated focus:bg-elevated disabled:bg-elevated/50 ring-0',
+          soft: 'text-highlighted bg-elevated/70 hover:bg-elevated focus:bg-elevated disabled:bg-elevated/50',
         },
       },
       defaultVariants: {

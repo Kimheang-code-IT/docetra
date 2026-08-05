@@ -12,6 +12,8 @@ export function recordTypeTabs(ctx: {
   availableAttributeOptions: FieldOption[]
   /** When false, workflow builder tab is omitted (follows features.enableWorkflow). */
   enableWorkflow?: boolean
+  /** Current record type id (or `new`) for create-attribute return flow. */
+  typeId?: string
 }): DocumentTabSchema[] {
   const tabs: DocumentTabSchema[] = [
     {
@@ -77,7 +79,7 @@ export function recordTypeTabs(ctx: {
             type: 'assigned-attributes',
             colSpan: 2,
             options: ctx.availableAttributeOptions,
-            meta: { catalog: ctx.attributeCatalog },
+            meta: { catalog: ctx.attributeCatalog, typeId: ctx.typeId },
           },
         ],
       }],

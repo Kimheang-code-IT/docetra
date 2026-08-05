@@ -89,8 +89,8 @@ function onFilterChange(filter: FilterDef, value: string | string[] | null) {
         <CommonAppSingleFilterSelect
           v-model="sortModel"
           :items="sortItems"
-          :label="$t('docetra.sort.updatedDesc')"
-          :placeholder="$t('docetra.sort.updatedDesc')"
+          :label="$t('docetra.sort.label')"
+          :placeholder="$t('docetra.sort.label')"
           :searchable="false"
         />
 

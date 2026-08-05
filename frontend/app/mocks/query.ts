@@ -1,6 +1,6 @@
 import type { ApiMeta, ApiResponse, ListQuery } from '~/types/docetra/common'
 
-function delay(ms = 180) {
+function delay(ms = 40) {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
@@ -17,8 +17,9 @@ export function ok<T>(data: T, meta?: ApiMeta): ApiResponse<T> {
   return { data, meta }
 }
 
-export async function mockLatency<T>(value: T, ms = 180): Promise<T> {
-  await delay(ms)
+/** Artificial mock network delay. Keep low so UI feels snappy in mock mode. */
+export async function mockLatency<T>(value: T, ms = 40): Promise<T> {
+  if (ms > 0) await delay(ms)
   return value
 }
 

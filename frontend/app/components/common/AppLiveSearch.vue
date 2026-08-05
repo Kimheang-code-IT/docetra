@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * Debounced-friendly live search input with active border when non-empty.
+ * Debounced-friendly live search input with grey default border when non-empty.
  */
 import { getFilterSearchUi, isFilterValueActive } from '~/utils/filter/select-ui'
 
@@ -25,6 +25,7 @@ const ui = computed(() => getFilterSearchUi(isFilterValueActive(modelValue.value
     icon="i-lucide-search"
     :placeholder="placeholder"
     :size="size"
+    color="neutral"
     :ui="ui"
     v-bind="$attrs"
   />

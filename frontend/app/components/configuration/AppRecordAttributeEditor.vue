@@ -11,6 +11,7 @@ import { useConfirm } from '~/composables/common/useConfirm'
 import { useAppHeader } from '~/composables/layout/useAppHeader'
 import { toConfigCode } from '~/utils/config-code'
 import { getByPath, setByPath } from '~/utils/object-path'
+import { pushPendingTypeAttributeId } from '~/utils/pending-type-attributes'
 
 const props = defineProps<{
   attributeId?: string
@@ -22,8 +23,21 @@ const { attributes } = useConfigurationRepositories()
 const { t } = useI18n()
 const toast = useToast()
 const router = useRouter()
+const route = useRoute()
 const { confirm } = useConfirm()
 const { setBreadcrumbs, clear } = useAppHeader()
+
+const returnToType = computed(() => route.query.returnTo === 'type')
+const returnTypeId = computed(() => String(route.query.typeId || 'new'))
+
+function listPath() {
+  if (returnToType.value) {
+    return returnTypeId.value === 'new'
+      ? '/configuration/record-types/new'
+      : `/configuration/record-types/${returnTypeId.value}`
+  }
+  return '/configuration/record-attributes'
+}
 
 const pending = ref(true)
 const saving = ref(false)
@@ -156,6 +170,22 @@ async function save() {
       const created = await attributes.create(toInput())
       toast.add({ title: t('docetra.common.saved'), color: 'success' })
       dirty.value = false
+      if (returnToType.value) {
+        if (returnTypeId.value === 'new') {
+          pushPendingTypeAttributeId(created.id)
+          void router.replace({
+            path: '/configuration/record-types/new',
+            query: { tab: 'attributes' },
+          })
+        }
+        else {
+          void router.replace({
+            path: `/configuration/record-types/${returnTypeId.value}`,
+            query: { tab: 'attributes', assignAttribute: created.id },
+          })
+        }
+        return
+      }
       void router.replace(`/configuration/record-attributes/${created.id}`)
     }
     else {
@@ -179,16 +209,28 @@ async function goBack() {
     if (!ok) return
     dirty.value = false
   }
-  void router.push('/configuration/record-attributes')
+  void router.push(listPath())
 }
 
 watch(
-  () => [isCreate.value, model.value.label, model.value.code] as const,
+  () => [isCreate.value, model.value.label, model.value.code, returnToType.value, returnTypeId.value] as const,
   () => {
-    setBreadcrumbs([
-      { label: t('docetra.pages.recordAttribute'), to: '/configuration/record-attributes' },
-      { label: isCreate.value ? t('docetra.config.createRecordAttribute') : (model.value.label || model.value.code || '…') },
-    ])
+    const crumbs = returnToType.value
+      ? [
+          { label: t('docetra.pages.recordType'), to: '/configuration/record-types' },
+          {
+            label: returnTypeId.value === 'new'
+              ? t('docetra.config.createRecordType')
+              : t('docetra.pages.recordType'),
+            to: listPath(),
+          },
+          { label: isCreate.value ? t('docetra.config.createRecordAttribute') : (model.value.label || model.value.code || '…') },
+        ]
+      : [
+          { label: t('docetra.pages.recordAttribute'), to: '/configuration/record-attributes' },
+          { label: isCreate.value ? t('docetra.config.createRecordAttribute') : (model.value.label || model.value.code || '…') },
+        ]
+    setBreadcrumbs(crumbs)
   },
   { immediate: true },
 )
@@ -219,7 +261,7 @@ useHead(() => ({
     :show-comments="false"
     :show-meta-rail="false"
     :show-list-nav="true"
-    list-to="/configuration/record-attributes"
+    :list-to="listPath()"
     content-wide
     @save="save"
     @refresh="load"

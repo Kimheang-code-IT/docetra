@@ -1,11 +1,11 @@
 /**
  * Shared Nuxt UI styles for toolbar / dashboard filter pills and live search.
- * Idle: subtle ring. Active (has value): primary ring so selection is visible.
+ * Active border uses default grey (`ring-default`), not inverted/black.
  */
 
-const selectChrome = 'rounded-lg bg-elevated font-medium text-highlighted'
-const selectIdle = `${selectChrome} ring-1 ring-default`
-const selectActive = `${selectChrome} ring-1 ring-primary bg-primary/5`
+const selectChrome = 'rounded-lg bg-elevated/70 font-medium text-highlighted'
+const selectIdle = `${selectChrome} ring-0`
+const selectActive = `${selectChrome} ring-1 ring-inset ring-default`
 
 export const filterSelectUi = {
   base: selectIdle,
@@ -21,12 +21,19 @@ export function getFilterSelectUi(active: boolean) {
   }
 }
 
-const searchIdle = 'rounded-md bg-default ring-1 ring-default focus-visible:ring-2 focus-visible:ring-primary/30'
-const searchActive = 'rounded-md bg-default ring-1 ring-primary bg-primary/5 focus-visible:ring-2 focus-visible:ring-primary/30'
-
 export function getFilterSearchUi(active: boolean) {
   return {
-    base: active ? searchActive : searchIdle,
+    base: active
+      ? 'rounded-md bg-elevated/70 ring-1 ring-inset ring-default'
+      : 'rounded-md bg-elevated/70 ring-0 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-default',
+  }
+}
+
+export function getFilterDateUi(active: boolean) {
+  return {
+    base: active
+      ? 'rounded-md bg-elevated/70 ring-1 ring-inset ring-default'
+      : 'rounded-md bg-elevated/70 ring-0 has-focus:ring-1 has-focus:ring-inset has-focus:ring-default',
   }
 }
 

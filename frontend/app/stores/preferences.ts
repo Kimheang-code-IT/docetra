@@ -13,9 +13,9 @@ type UiColorConfig = { primary?: string; neutral?: string }
 
 const FONT_SIZE_PX: Record<AppFontSize, string> = {
   sm: '14px',
-  md: '15px',
-  lg: '16px',
-  xl: '18px',
+  md: '16px',
+  lg: '18px',
+  xl: '20px',
 }
 
 const DEFAULT_FONT_SIZE: AppFontSize = 'md'

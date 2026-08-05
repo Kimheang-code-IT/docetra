@@ -16,6 +16,7 @@ import type {
   WorkflowTransition,
 } from '~/types/docetra/configuration'
 import type { ConnectionStatus, NotificationRule, TelegramDestination } from '~/types/docetra/settings'
+import type { CardDisplayEntityKey } from '~/types/docetra/settings'
 import { TELEGRAM_TEMPLATE_VARIABLES } from '~/types/docetra/settings'
 import { createClientId } from '~/utils/client-id'
 import { resolveFieldHelp } from '~/utils/field-help'
@@ -151,16 +152,21 @@ const selectItems = computed(() =>
   [...(props.field.options || []), ...remoteOptions.value]
     .filter(o => o.value !== '')
     .map(o => ({
-      label: t(o.labelKey || o.label),
+      label: o.labelKey ? t(o.labelKey) : o.label,
       value: o.value,
     })),
 )
 
-const labelText = computed(() => t(props.field.labelKey))
+const labelText = computed(() => {
+  if (props.field.label) return props.field.label
+  if (props.field.labelKey && te(props.field.labelKey)) return t(props.field.labelKey)
+  return props.field.labelKey || ''
+})
 
-const helpText = computed(() =>
-  resolveFieldHelp(props.field, labelText.value, t, te),
-)
+const helpText = computed(() => {
+  if (props.field.help) return props.field.help
+  return resolveFieldHelp(props.field, labelText.value, t, te)
+})
 
 const hintText = computed(() => {
   if (props.field.hintKey && te(props.field.hintKey)) return t(props.field.hintKey)
@@ -168,6 +174,7 @@ const hintText = computed(() => {
 })
 
 const placeholderText = computed(() => {
+  if (props.field.placeholder) return props.field.placeholder
   if (props.field.placeholderKey && te(props.field.placeholderKey)) {
     return t(props.field.placeholderKey)
   }
@@ -190,6 +197,37 @@ const isNumberingPreview = computed(() => props.field.type === 'numbering-previe
 const isValidationBuilder = computed(() => props.field.type === 'validation-builder')
 const isOptionsBuilder = computed(() => props.field.type === 'options-builder')
 const isVisibilityBuilder = computed(() => props.field.type === 'visibility-builder')
+const isCardFieldsEditor = computed(() => props.field.type === 'card-fields-editor')
+
+const cardFieldsValue = computed({
+  get: () => {
+    const raw = props.modelValue
+    if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+      const display = raw as {
+        cardFields?: Partial<Record<CardDisplayEntityKey, string[]>>
+        cardFooterAlign?: Partial<Record<CardDisplayEntityKey, Partial<Record<string, 'left' | 'right'>>>>
+      }
+      return {
+        cardFields: display.cardFields || {},
+        cardFooterAlign: display.cardFooterAlign || {},
+      }
+    }
+    return { cardFields: {}, cardFooterAlign: {} }
+  },
+  set: (v: {
+    cardFields?: Partial<Record<CardDisplayEntityKey, string[]>>
+    cardFooterAlign?: Partial<Record<CardDisplayEntityKey, Partial<Record<string, 'left' | 'right'>>>>
+  }) => {
+    const prev = (props.modelValue && typeof props.modelValue === 'object' && !Array.isArray(props.modelValue))
+      ? props.modelValue as Record<string, unknown>
+      : {}
+    emit('update:modelValue', {
+      ...prev,
+      cardFields: v.cardFields || {},
+      cardFooterAlign: v.cardFooterAlign || {},
+    })
+  },
+})
 
 const iconValue = computed({
   get: () => String(props.modelValue ?? ''),
@@ -205,7 +243,24 @@ const attributeCatalog = computed(() =>
   (Array.isArray(props.field.meta?.catalog) ? props.field.meta!.catalog as RecordAttribute[] : []),
 )
 
+const recordTypeIdForAssign = computed(() => String(props.field.meta?.typeId || ''))
+
 const selectedAttributeId = ref<string>()
+
+function goCreateAttribute() {
+  const typeId = recordTypeIdForAssign.value || 'new'
+  void navigateTo({
+    path: '/configuration/record-attributes/new',
+    query: {
+      returnTo: 'type',
+      typeId,
+    },
+  })
+}
+
+function goOpenAttribute(attributeId: string) {
+  void navigateTo(`/configuration/record-attributes/${attributeId}`)
+}
 
 const workflowValue = computed({
   get: () => {
@@ -369,6 +424,12 @@ function removeDestination(id: string) {
     :disabled="disabled || field.readOnly"
   />
 
+  <SettingsAppCardFieldsEditor
+    v-else-if="isCardFieldsEditor"
+    v-model="cardFieldsValue"
+    :disabled="disabled || field.readOnly"
+  />
+
   <UAlert
     v-else-if="isAlert"
     class="md:col-span-2"
@@ -465,6 +526,15 @@ function removeDestination(id: string) {
       >
         {{ t('docetra.config.addAttribute') }}
       </UButton>
+      <UButton
+        icon="i-lucide-list-plus"
+        color="neutral"
+        variant="outline"
+        :disabled="disabled || field.readOnly"
+        @click="goCreateAttribute"
+      >
+        {{ t('docetra.config.createAttribute') }}
+      </UButton>
     </div>
 
     <CommonAppSortableList
@@ -482,14 +552,24 @@ function removeDestination(id: string) {
                 {{ item.attributeCode }} · {{ item.dataType }}
               </p>
             </div>
-            <UButton
-              icon="i-lucide-trash-2"
-              color="error"
-              variant="ghost"
-              size="xs"
-              :disabled="disabled || field.readOnly"
-              @click="removeAssigned(item.attributeId)"
-            />
+            <div class="flex items-center gap-1">
+              <UButton
+                icon="i-lucide-external-link"
+                color="neutral"
+                variant="ghost"
+                size="xs"
+                :aria-label="t('docetra.config.openAttribute')"
+                @click="goOpenAttribute(item.attributeId)"
+              />
+              <UButton
+                icon="i-lucide-trash-2"
+                color="error"
+                variant="ghost"
+                size="xs"
+                :disabled="disabled || field.readOnly"
+                @click="removeAssigned(item.attributeId)"
+              />
+            </div>
           </div>
           <div class="grid gap-2 sm:grid-cols-3">
             <UCheckbox

@@ -39,6 +39,15 @@ const filters: FilterDef[] = [
       { label: 'Boolean', value: 'boolean' },
     ],
   },
+  {
+    key: 'unused',
+    labelKey: 'docetra.config.usageFilter',
+    type: 'select',
+    options: [
+      { label: 'All', value: '', labelKey: 'docetra.common.all' },
+      { label: 'Unused only', value: 'true', labelKey: 'docetra.config.unusedOnly' },
+    ],
+  },
 ]
 
 const list = useConfigListPage({

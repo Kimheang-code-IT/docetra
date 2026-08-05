@@ -38,14 +38,31 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/main.css'],
 
-  // Menu icons live in .ts files — include them in the client icon scan
+  // Optimized font loading (no blocking CSS @import from Google)
+  fonts: {
+    families: [
+      { name: 'Inter', provider: 'google', weights: [400, 500, 600, 700] },
+      { name: 'Noto Sans Khmer', provider: 'google', weights: [400, 500, 600, 700] },
+    ],
+    defaults: {
+      weights: [400, 500, 600, 700],
+      styles: ['normal'],
+    },
+  },
+
+  // Menu icons live in .ts/.vue — keep the scan tight for a smaller first client bundle
   icon: {
     serverBundle: 'local',
     clientBundle: {
       scan: {
-        globInclude: ['**/*.{vue,jsx,tsx,md,mdc,mdx,ts,js}'],
+        globInclude: [
+          'app/components/**/*.{vue,ts}',
+          'app/composables/**/*.ts',
+          'app/layouts/**/*.vue',
+          'app/pages/**/*.vue',
+        ],
       },
-      sizeLimitKb: 512,
+      sizeLimitKb: 256,
     },
   },
 
@@ -71,7 +88,7 @@ export default defineNuxtConfig({
   routeRules: {
     '/api/**': {
       cors: true
-    }
+    },
   },
 
   nitro: {
@@ -82,19 +99,22 @@ export default defineNuxtConfig({
 
   vite: {
     build: {
-      chunkSizeWarningLimit: 1000
+      chunkSizeWarningLimit: 1000,
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes('node_modules/echarts') || id.includes('vue-echarts')) return 'echarts'
+            if (id.includes('@tiptap') || id.includes('prosemirror')) return 'tiptap'
+            if (id.includes('@uppy')) return 'uppy'
+          },
+        },
+      },
     },
-    // TipTap/ProseMirror must share one instance (avoids blank editor / duplicate cell ID)
+    // Pre-bundle common deps only; TipTap/Uppy/ECharts load when their pages mount
     optimizeDeps: {
       include: [
-        '@tiptap/core',
-        '@tiptap/vue-3',
-        '@tiptap/starter-kit',
-        '@tiptap/extension-text-align',
-        '@tiptap/extension-underline',
-        '@tiptap/extension-highlight',
-        '@tiptap/extension-text-style',
-        '@tiptap/extension-table',
+        '@vueuse/core',
+        '@internationalized/date',
       ],
     },
     css: {
