@@ -103,6 +103,16 @@ export default defineNuxtConfig({
       rollupOptions: {
         output: {
           manualChunks(id) {
+            // CSS/virtual style modules must stay with Vite's CSS pipeline or Nitro
+            // fails with UNRESOLVED_IMPORT on `*-styles-*.mjs-!~{…}~.js`.
+            if (
+              id.includes('.css')
+              || id.includes('?vue&type=style')
+              || id.includes('&lang.css')
+              || id.includes('type=style')
+            ) {
+              return
+            }
             if (id.includes('node_modules/echarts') || id.includes('vue-echarts')) return 'echarts'
             if (id.includes('@tiptap') || id.includes('prosemirror')) return 'tiptap'
             if (id.includes('@uppy')) return 'uppy'

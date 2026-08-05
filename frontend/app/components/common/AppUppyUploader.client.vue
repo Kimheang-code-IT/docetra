@@ -6,8 +6,7 @@ import type { ApiResponse, AttachmentMeta } from '~/types/docetra/common'
 import { useAuthStore } from '~/stores/auth'
 import { createClientId } from '~/utils/client-id'
 
-import '@uppy/core/css/style.min.css'
-import '@uppy/dashboard/css/style.min.css'
+import '~/assets/css/uppy.css'
 
 const props = withDefaults(defineProps<{
   entityId: string
