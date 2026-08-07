@@ -70,7 +70,7 @@ const uploadDateEnd = computed({
 })
 
 const hasUploadFilters = computed(() => Boolean(
-  searchInput.value.trim() || hasStatusFilter.value || uploadDateStart.value.trim() || uploadDateEnd.value.trim(),
+  hasStatusFilter.value || uploadDateStart.value.trim() || uploadDateEnd.value.trim(),
 ))
 
 watch(q, (v) => { searchInput.value = v })
@@ -296,7 +296,7 @@ onMounted(() => {
         <!-- Right: uploaded files table -->
         <section class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           <div class="flex shrink-0 items-center gap-3 border-b border-default px-4 py-3.5">
-            <div class="flex min-w-0 flex-1 items-center gap-1.5">
+            <div class="flex min-w-0 shrink-0 items-center gap-1.5">
               <UButton
                 :icon="uploadPanelCollapsed ? 'i-lucide-panel-left-open' : 'i-lucide-panel-left-close'"
                 color="neutral"
@@ -309,14 +309,14 @@ onMounted(() => {
                 :aria-expanded="!uploadPanelCollapsed"
                 @click="toggleUploadPanel"
               />
-              <h2 class="min-w-0 truncate text-sm font-semibold text-highlighted">
+              <h2 class="hidden min-w-0 max-w-40 truncate text-sm font-semibold text-highlighted sm:block">
                 {{ $t('docetra.fileUploadBoard.tableTitle') }}
               </h2>
             </div>
 
             <CommonAppLiveSearch
               v-model="searchInput"
-              class="hidden min-w-0 w-full max-w-[18.75rem] flex-1 lg:flex"
+              class="min-w-0 w-full max-w-[18.75rem] flex-1"
               :placeholder="$t('docetra.fileUploadBoard.search')"
             />
 
@@ -347,11 +347,6 @@ onMounted(() => {
                 />
                 <template #content>
                   <div class="flex w-[calc(100vw-2rem)] max-w-3xl flex-nowrap items-center gap-2 overflow-x-auto p-3">
-                    <CommonAppLiveSearch
-                      v-model="searchInput"
-                      class="w-[18.75rem] shrink-0"
-                      :placeholder="$t('docetra.fileUploadBoard.search')"
-                    />
                     <CommonAppFilterSelect
                       v-if="statusFilter"
                       :filter="statusFilter"

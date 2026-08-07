@@ -82,7 +82,7 @@ const hasActiveFilters = computed(() => {
     const end = getDateEnd(filter)
     return Boolean(start || end)
   })
-  return Boolean(props.search.trim()) || hasSelect || hasDate
+  return hasSelect || hasDate
 })
 
 function filterModelValue(filter: FilterDef): string | string[] | null {
@@ -111,7 +111,7 @@ function onFilterChange(filter: FilterDef, value: string | string[] | null) {
         v-model="searchModel"
         :placeholder="$t('common.search')"
         size="md"
-        class="hidden min-w-0 w-full max-w-[18.75rem] flex-1 lg:flex lg:flex-none"
+        class="min-w-0 w-full max-w-[18.75rem] flex-1 lg:flex-none"
       />
 
       <UTabs
@@ -135,12 +135,6 @@ function onFilterChange(filter: FilterDef, value: string | string[] | null) {
         />
         <template #content>
           <div class="flex w-[calc(100vw-2rem)] max-w-4xl flex-nowrap items-center gap-2 overflow-x-auto p-3">
-            <CommonAppLiveSearch
-              v-model="searchModel"
-              :placeholder="$t('common.search')"
-              size="sm"
-              class="w-[18.75rem] shrink-0"
-            />
             <CommonAppFilterSelect
               v-for="filter in selectFilters"
               :key="filter.key"

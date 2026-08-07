@@ -57,9 +57,6 @@ const stagePanelCollapsed = computed(() =>
   isSmallScreen.value ? !mobileStagesOpen.value : leftCollapsed.value,
 )
 const showStageDetails = computed(() => !stagePanelCollapsed.value)
-const hasDateFilter = computed(() => Boolean(dateStart.value.trim() || dateEnd.value.trim()))
-const hasRecordFilters = computed(() => Boolean(recordSearch.value.trim()) || hasDateFilter.value)
-
 function selectStageFromPanel(code: string | null) {
   selectStage(code)
 }
@@ -253,7 +250,7 @@ async function onDelete(row: Record<string, unknown>) {
         <!-- Right: record cards -->
         <section class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           <div class="flex shrink-0 items-center gap-2 border-b border-default px-3 py-2.5 sm:px-4 sm:py-3.5">
-            <div class="flex min-w-0 flex-1 items-center gap-1.5">
+            <div class="flex min-w-0 shrink-0 items-center gap-1.5">
               <UButton
                 :icon="stagePanelCollapsed ? 'i-lucide-panel-left-open' : 'i-lucide-panel-left-close'"
                 color="neutral"
@@ -278,50 +275,24 @@ async function onDelete(row: Record<string, unknown>) {
                 :aria-expanded="!leftCollapsed"
                 @click="toggleLeftPanel"
               />
-              <h2 class="min-w-0 truncate text-sm font-semibold text-highlighted">
+              <h2 class="hidden min-w-0 max-w-40 truncate text-sm font-semibold text-highlighted sm:block">
                 {{ selectedStageMeta
                   ? $t(selectedStageMeta.labelKey)
                   : $t('docetra.recordStageBoard.allRecords') }}
               </h2>
             </div>
 
-            <div class="hidden min-w-0 flex-1 items-center justify-end gap-2 lg:flex">
-              <CommonAppLiveSearch
-                v-model="recordSearch"
-                class="min-w-0 w-full max-w-[18.75rem] flex-1"
-                :placeholder="$t('docetra.recordStageBoard.searchRecords')"
-              />
-              <CommonAppDateRangeFilter
-                v-model:start="dateStart"
-                v-model:end="dateEnd"
-                size="sm"
-              />
-            </div>
-            <UPopover class="ms-auto shrink-0 lg:hidden">
-              <UButton
-                icon="i-lucide-filter"
-                :color="hasRecordFilters ? 'primary' : 'neutral'"
-                :variant="hasRecordFilters ? 'soft' : 'outline'"
-                size="sm"
-                square
-                :aria-label="$t('docetra.actions.filter')"
-              />
-              <template #content>
-                <div class="flex w-[calc(100vw-2rem)] flex-nowrap items-center gap-2 overflow-x-auto p-3">
-                  <CommonAppLiveSearch
-                    v-model="recordSearch"
-                    class="w-[18.75rem] shrink-0"
-                    :placeholder="$t('docetra.recordStageBoard.searchRecords')"
-                  />
-                  <CommonAppDateRangeFilter
-                    v-model:start="dateStart"
-                    v-model:end="dateEnd"
-                    size="sm"
-                    inline
-                  />
-                </div>
-              </template>
-            </UPopover>
+            <CommonAppLiveSearch
+              v-model="recordSearch"
+              class="min-w-0 w-full max-w-[18.75rem] flex-1"
+              :placeholder="$t('docetra.recordStageBoard.searchRecords')"
+            />
+            <CommonAppDateRangeFilter
+              v-model:start="dateStart"
+              v-model:end="dateEnd"
+              class="ms-auto shrink-0"
+              size="sm"
+            />
           </div>
 
           <div class="min-h-0 flex-1 overflow-y-auto p-3">

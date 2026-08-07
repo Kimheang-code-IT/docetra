@@ -44,10 +44,6 @@ const topicPanelOpen = ref(false)
 const isSmallScreen = useMediaQuery('(max-width: 1023px)')
 const topicPanelCollapsed = computed(() => isSmallScreen.value && !topicPanelOpen.value)
 
-const hasMeetingDateFilter = computed(() => Boolean(
-  meetingSearch.value.trim() || meetingDateStart.value.trim() || meetingDateEnd.value.trim(),
-))
-
 /** Add Topic always; Add Meeting on All / Unassigned pool views. */
 const createButtons = computed(() => {
   const buttons = [
@@ -280,46 +276,20 @@ function onMeetingsPanelDrop(event: DragEvent) {
               :aria-expanded="!topicPanelCollapsed"
               @click="topicPanelOpen = !topicPanelOpen"
             />
-            <h2 class="min-w-0 flex-1 truncate text-sm font-semibold text-highlighted">
+            <h2 class="hidden min-w-0 max-w-40 truncate text-sm font-semibold text-highlighted sm:block">
               {{ meetingsPanelTitle }}
             </h2>
-            <div class="hidden min-w-0 flex-1 items-center justify-end gap-2 lg:flex">
-              <CommonAppLiveSearch
-                v-model="meetingSearch"
-                class="min-w-0 w-full max-w-[18.75rem] flex-1"
-                :placeholder="$t('docetra.meetingBoard.searchMeetings')"
-              />
-              <CommonAppDateRangeFilter
-                v-model:start="meetingDateStart"
-                v-model:end="meetingDateEnd"
-                size="sm"
-              />
-            </div>
-            <UPopover class="ms-auto shrink-0 lg:hidden">
-              <UButton
-                icon="i-lucide-filter"
-                :color="hasMeetingDateFilter ? 'primary' : 'neutral'"
-                :variant="hasMeetingDateFilter ? 'soft' : 'outline'"
-                size="sm"
-                square
-                :aria-label="$t('docetra.actions.filter')"
-              />
-              <template #content>
-                <div class="flex w-[calc(100vw-2rem)] flex-nowrap items-center gap-2 overflow-x-auto p-3">
-                  <CommonAppLiveSearch
-                    v-model="meetingSearch"
-                    class="w-[18.75rem] shrink-0"
-                    :placeholder="$t('docetra.meetingBoard.searchMeetings')"
-                  />
-                  <CommonAppDateRangeFilter
-                    v-model:start="meetingDateStart"
-                    v-model:end="meetingDateEnd"
-                    size="sm"
-                    inline
-                  />
-                </div>
-              </template>
-            </UPopover>
+            <CommonAppLiveSearch
+              v-model="meetingSearch"
+              class="min-w-0 w-full max-w-[18.75rem] flex-1"
+              :placeholder="$t('docetra.meetingBoard.searchMeetings')"
+            />
+            <CommonAppDateRangeFilter
+              v-model:start="meetingDateStart"
+              v-model:end="meetingDateEnd"
+              class="ms-auto shrink-0"
+              size="sm"
+            />
           </div>
 
           <div

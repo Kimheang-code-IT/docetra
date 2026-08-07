@@ -25,7 +25,7 @@ const {
 const leftCollapsed = useState('record-log-left-collapsed', () => false)
 const mobileLogListOpen = ref(false)
 const hasLogFilters = computed(() => Boolean(
-  search.value.trim() || dateStart.value.trim() || dateEnd.value.trim(),
+  dateStart.value.trim() || dateEnd.value.trim(),
 ))
 
 function toggleLeftPanel() {
@@ -222,14 +222,14 @@ function selectLogTab(id: string) {
                 :aria-expanded="!leftCollapsed"
                 @click="toggleLeftPanel"
               />
-              <h2 class="min-w-0 truncate text-sm font-semibold text-highlighted">
+              <h2 class="hidden min-w-0 max-w-40 truncate text-sm font-semibold text-highlighted sm:block">
                 {{ $t(selectedTab.labelKey) }}
               </h2>
             </div>
 
             <CommonAppLiveSearch
               v-model="search"
-              class="hidden min-w-0 w-full max-w-[18.75rem] flex-1 lg:flex"
+              class="min-w-0 w-full max-w-[18.75rem] flex-1"
               :placeholder="$t('docetra.recordLogBoard.search')"
             />
 
@@ -252,11 +252,6 @@ function selectLogTab(id: string) {
               />
               <template #content>
                 <div class="flex w-[calc(100vw-2rem)] flex-nowrap items-center gap-2 overflow-x-auto p-3">
-                  <CommonAppLiveSearch
-                    v-model="search"
-                    class="w-[18.75rem] shrink-0"
-                    :placeholder="$t('docetra.recordLogBoard.search')"
-                  />
                   <CommonAppDateRangeFilter
                     v-model:start="dateStart"
                     v-model:end="dateEnd"
