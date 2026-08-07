@@ -82,6 +82,24 @@ const recordStageFilter: FilterDef = {
   options: recordWorkflowStages.map(s => ({ label: s.code, value: s.code, labelKey: s.labelKey })),
 }
 
+const updatedAtDateFilter: FilterDef = {
+  key: 'updatedAt',
+  labelKey: 'docetra.fields.updatedAt',
+  type: 'daterange',
+}
+
+const createdAtDateFilter: FilterDef = {
+  key: 'createdAt',
+  labelKey: 'docetra.fields.createdAt',
+  type: 'daterange',
+}
+
+const occurredAtDateFilter: FilterDef = {
+  key: 'occurredAt',
+  labelKey: 'docetra.fields.occurredAt',
+  type: 'daterange',
+}
+
 function recordTabs(extraFields: DocumentTabSchema['sections'][0]['fields'] = []): DocumentTabSchema[] {
   return [
     {
@@ -223,7 +241,10 @@ export const entityConfigs: Record<string, EntityConfig> = {
       { key: 'attendeesCount', labelKey: 'docetra.fields.attendees' },
       { key: 'status', labelKey: 'docetra.fields.status' },
     ],
-    filters: [statusFilter],
+    filters: [
+      statusFilter,
+      { key: 'meetingDate', labelKey: 'docetra.fields.meetingDate', type: 'daterange' },
+    ],
     tabs: masterDataTabs([
       { key: 'title', labelKey: 'docetra.fields.title', type: 'text', required: true },
       { key: 'meetingDate', labelKey: 'docetra.fields.meetingDate', type: 'date', required: true },
@@ -262,6 +283,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
     filters: [
       statusFilter,
       recordStageFilter,
+      { key: 'receivedDate', labelKey: 'docetra.fields.receivedDate', type: 'daterange' },
       { key: 'waiting', labelKey: 'docetra.fields.waiting', type: 'boolean' },
     ],
     tabs: recordTabs([
@@ -303,7 +325,11 @@ export const entityConfigs: Record<string, EntityConfig> = {
       { key: 'stage', labelKey: 'docetra.fields.stage' },
       { key: 'status', labelKey: 'docetra.fields.status' },
     ],
-    filters: [statusFilter, recordStageFilter],
+    filters: [
+      statusFilter,
+      recordStageFilter,
+      { key: 'sentDate', labelKey: 'docetra.fields.sentDate', type: 'daterange' },
+    ],
     tabs: recordTabs([
       { key: 'sentDate', labelKey: 'docetra.fields.sentDate', type: 'date' },
     ]),
@@ -331,7 +357,11 @@ export const entityConfigs: Record<string, EntityConfig> = {
       { key: 'status', labelKey: 'docetra.fields.status' },
       { key: 'updatedAt', labelKey: 'docetra.fields.updatedAt', sortable: true },
     ],
-    filters: [statusFilter, recordStageFilter],
+    filters: [
+      statusFilter,
+      recordStageFilter,
+      { key: 'updatedAt', labelKey: 'docetra.fields.updatedAt', type: 'daterange' },
+    ],
     tabs: recordTabs(),
   },
 
@@ -357,7 +387,11 @@ export const entityConfigs: Record<string, EntityConfig> = {
       { key: 'owner.name', labelKey: 'docetra.fields.owner' },
       { key: 'updatedAt', labelKey: 'docetra.fields.updatedAt' },
     ],
-    filters: [statusFilter, recordStageFilter],
+    filters: [
+      statusFilter,
+      recordStageFilter,
+      { key: 'updatedAt', labelKey: 'docetra.fields.updatedAt', type: 'daterange' },
+    ],
     tabs: recordTabs(),
   },
 
@@ -477,7 +511,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
     permission: 'organizations.departments.view',
     icon: 'i-lucide-network',
     groupKey: 'docetra.navigation.organization',
-    views: ['table', 'hierarchy'],
+    views: ['table'],
     defaultView: 'table',
     canCreate: true,
     canComment: true,
@@ -491,7 +525,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
       { key: 'relatedRecordCount', labelKey: 'docetra.fields.relatedRecords' },
       { key: 'updatedAt', labelKey: 'docetra.fields.updatedAt', sortable: true },
     ],
-    filters: [statusFilter],
+    filters: [statusFilter, updatedAtDateFilter],
     tabs: masterDataTabs([
       { key: 'code', labelKey: 'docetra.fields.code', type: 'text', required: true },
       { key: 'name', labelKey: 'docetra.fields.name', type: 'text', required: true },
@@ -522,7 +556,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
       { key: 'status', labelKey: 'docetra.fields.status' },
       { key: 'relatedRecordCount', labelKey: 'docetra.fields.relatedRecords' },
     ],
-    filters: [statusFilter],
+    filters: [statusFilter, updatedAtDateFilter],
     tabs: masterDataTabs([
       { key: 'code', labelKey: 'docetra.fields.code', type: 'text', required: true },
       { key: 'name', labelKey: 'docetra.fields.name', type: 'text', required: true },
@@ -553,7 +587,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
       { key: 'status', labelKey: 'docetra.fields.status' },
       { key: 'updatedAt', labelKey: 'docetra.fields.updatedAt' },
     ],
-    filters: [statusFilter],
+    filters: [statusFilter, updatedAtDateFilter],
     tabs: masterDataTabs([
       { key: 'code', labelKey: 'docetra.fields.code', type: 'text', required: true },
       { key: 'name', labelKey: 'docetra.fields.name', type: 'text', required: true },
@@ -581,7 +615,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
       { key: 'usageCount', labelKey: 'docetra.fields.usage' },
       { key: 'status', labelKey: 'docetra.fields.status' },
     ],
-    filters: [statusFilter],
+    filters: [statusFilter, updatedAtDateFilter],
     tabs: masterDataTabs([
       { key: 'code', labelKey: 'docetra.fields.code', type: 'text', required: true },
       { key: 'name', labelKey: 'docetra.fields.name', type: 'text', required: true },
@@ -611,7 +645,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
       { key: 'titleRole', labelKey: 'docetra.fields.titleRole' },
       { key: 'status', labelKey: 'docetra.fields.status' },
     ],
-    filters: [statusFilter],
+    filters: [statusFilter, updatedAtDateFilter],
     tabs: masterDataTabs([
       { key: 'code', labelKey: 'docetra.fields.code', type: 'text', required: true },
       { key: 'name', labelKey: 'docetra.fields.name', type: 'text', required: true },
@@ -642,7 +676,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
       { key: 'permissionCount', labelKey: 'docetra.fields.permissions', priority: 'high' },
       { key: 'status', labelKey: 'docetra.fields.status', priority: 'high' },
     ],
-    filters: [statusFilter],
+    filters: [statusFilter, updatedAtDateFilter],
     tabs: [
       {
         id: 'details',
@@ -696,7 +730,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
       { key: 'status', labelKey: 'docetra.fields.status' },
       { key: 'lastLoginAt', labelKey: 'docetra.fields.lastLogin' },
     ],
-    filters: [statusFilter],
+    filters: [statusFilter, updatedAtDateFilter],
     tabs: masterDataTabs([
       { key: 'name', labelKey: 'docetra.fields.name', type: 'text', required: true },
       { key: 'email', labelKey: 'docetra.fields.email', type: 'text', required: true },
@@ -728,7 +762,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
       { key: 'usageCount', labelKey: 'docetra.fields.usage' },
       { key: 'status', labelKey: 'docetra.fields.status' },
     ],
-    filters: [statusFilter],
+    filters: [statusFilter, updatedAtDateFilter],
     tabs: masterDataTabs([
       { key: 'code', labelKey: 'docetra.fields.code', type: 'text', required: true },
       { key: 'name', labelKey: 'docetra.fields.name', type: 'text', required: true },
@@ -759,7 +793,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
       { key: 'usageCount', labelKey: 'docetra.fields.usage' },
       { key: 'status', labelKey: 'docetra.fields.status' },
     ],
-    filters: [statusFilter],
+    filters: [statusFilter, updatedAtDateFilter],
     tabs: masterDataTabs([
       { key: 'code', labelKey: 'docetra.fields.code', type: 'text', required: true },
       { key: 'name', labelKey: 'docetra.fields.name', type: 'text', required: true },
@@ -811,7 +845,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
       { key: 'linkedRecordTitle', labelKey: 'docetra.fields.linkedRecord' },
       { key: 'createdAt', labelKey: 'docetra.fields.uploadedAt', sortable: true },
     ],
-    filters: [statusFilter],
+    filters: [statusFilter, createdAtDateFilter],
     tabs: masterDataTabs([
       { key: 'fileName', labelKey: 'docetra.fields.fileName', type: 'text', readOnly: true },
       { key: 'mimeType', labelKey: 'docetra.fields.mimeType', type: 'text', readOnly: true },
@@ -842,7 +876,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
       { key: 'filesSynced', labelKey: 'docetra.fields.filesSynced' },
       { key: 'lastSyncAt', labelKey: 'docetra.fields.lastSync' },
     ],
-    filters: [statusFilter],
+    filters: [statusFilter, updatedAtDateFilter],
     tabs: masterDataTabs([
       { key: 'name', labelKey: 'docetra.fields.name', type: 'text', required: true },
       { key: 'folderName', labelKey: 'docetra.fields.folder', type: 'text' },
@@ -873,7 +907,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
       { key: 'target', labelKey: 'docetra.fields.target' },
       { key: 'summary', labelKey: 'docetra.fields.summary' },
     ],
-    filters: [],
+    filters: [occurredAtDateFilter],
     tabs: masterDataTabs([
       { key: 'action', labelKey: 'docetra.fields.action', type: 'text', readOnly: true },
       { key: 'summary', labelKey: 'docetra.fields.summary', type: 'textarea', readOnly: true, colSpan: 2 },
@@ -903,17 +937,20 @@ export const entityConfigs: Record<string, EntityConfig> = {
       { key: 'message', labelKey: 'docetra.fields.message' },
       { key: 'correlationId', labelKey: 'docetra.fields.correlationId', priority: 'low' },
     ],
-    filters: [{
-      key: 'level',
-      labelKey: 'docetra.fields.level',
-      type: 'select',
-      options: [
-        { label: 'Info', value: 'info' },
-        { label: 'Warn', value: 'warn' },
-        { label: 'Error', value: 'error' },
-        { label: 'Debug', value: 'debug' },
-      ],
-    }],
+    filters: [
+      {
+        key: 'level',
+        labelKey: 'docetra.fields.level',
+        type: 'select',
+        options: [
+          { label: 'Info', value: 'info' },
+          { label: 'Warn', value: 'warn' },
+          { label: 'Error', value: 'error' },
+          { label: 'Debug', value: 'debug' },
+        ],
+      },
+      occurredAtDateFilter,
+    ],
     tabs: masterDataTabs([
       { key: 'level', labelKey: 'docetra.fields.level', type: 'text', readOnly: true },
       { key: 'source', labelKey: 'docetra.fields.source', type: 'text', readOnly: true },

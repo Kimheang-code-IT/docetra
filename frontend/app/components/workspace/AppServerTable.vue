@@ -379,16 +379,17 @@ defineExpose({
 
     <div
       v-if="!error"
-      class="flex shrink-0 flex-col gap-3 border-t border-default bg-default px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
+      class="flex shrink-0 items-center justify-between gap-1.5 border-t border-default bg-default px-2 py-1.5 sm:gap-3 sm:px-3 sm:py-2"
     >
-      <div class="flex items-center gap-2 text-sm text-toned">
-        <span>{{ $t('common.rowsPerPage') }}</span>
+      <div class="flex shrink-0 items-center gap-1.5 text-sm text-toned sm:gap-2">
+        <span class="hidden sm:inline">{{ $t('common.rowsPerPage') }}</span>
         <USelect
           :model-value="pageSizeModel"
           :items="pageSizeItems"
           value-key="value"
           size="sm"
-          class="w-[4.75rem]"
+          class="w-14 sm:w-[4.75rem]"
+          :aria-label="$t('common.rowsPerPage')"
           :ui="{ base: 'rounded-md bg-default ring-1 ring-default' }"
           @update:model-value="onLimitChange"
         />
@@ -410,12 +411,12 @@ defineExpose({
         next-icon="i-lucide-chevron-right"
         last-icon="i-lucide-chevrons-right"
         :ui="{
-          list: 'gap-1',
-          item: 'min-w-8 h-8 justify-center rounded-md',
-          first: 'rounded-md',
+          list: 'gap-0.5 sm:gap-1',
+          item: 'min-w-7 h-7 justify-center rounded-md sm:min-w-8 sm:h-8',
+          first: 'hidden rounded-md sm:inline-flex',
           prev: 'rounded-md',
           next: 'rounded-md',
-          last: 'rounded-md',
+          last: 'hidden rounded-md sm:inline-flex',
         }"
         @update:page="(v: number) => emit('update:page', v)"
       />

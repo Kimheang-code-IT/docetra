@@ -19,6 +19,21 @@ const pending = ref(false)
 const error = ref<string | null>(null)
 const summary = ref<DashboardSummary | null>(null)
 
+type DownloadableChart = {
+  downloadChart: (filename?: string) => void
+}
+
+const stageChartRef = ref<DownloadableChart | null>(null)
+const trendChartRef = ref<DownloadableChart | null>(null)
+
+function downloadStageChart() {
+  stageChartRef.value?.downloadChart('work-by-stage')
+}
+
+function downloadTrendChart() {
+  trendChartRef.value?.downloadChart('records-over-time')
+}
+
 const chartYear = computed({
   get: () => String(route.query.chartYear || 'this'),
   set: (value: string) => {
@@ -183,10 +198,11 @@ const summaryCards = computed(() => (summary.value?.kpis || []).slice(0, SUMMARY
                 v-model:year="chartYear"
                 v-model:period="chartPeriod"
                 @refresh="load"
+                @download="downloadStageChart"
               />
             </div>
             <div class="h-64">
-              <LazyCommonAppEchart :option="stageChartOption" height="100%" />
+              <LazyCommonAppEchart ref="stageChartRef" :option="stageChartOption" height="100%" />
             </div>
           </section>
           <section class="rounded-lg border border-default bg-default p-4">
@@ -196,10 +212,11 @@ const summaryCards = computed(() => (summary.value?.kpis || []).slice(0, SUMMARY
                 v-model:year="chartYear"
                 v-model:period="chartPeriod"
                 @refresh="load"
+                @download="downloadTrendChart"
               />
             </div>
             <div class="h-64">
-              <LazyCommonAppEchart :option="trendChartOption" height="100%" />
+              <LazyCommonAppEchart ref="trendChartRef" :option="trendChartOption" height="100%" />
             </div>
           </section>
         </div>

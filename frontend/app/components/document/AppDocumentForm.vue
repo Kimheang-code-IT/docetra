@@ -18,6 +18,12 @@ const emit = defineEmits<{
   'update:activeTab': [string]
 }>()
 
+const { t } = useI18n()
+
+const tabItems = computed(() =>
+  props.tabs.map(tab => ({ label: t(tab.labelKey), value: tab.id })),
+)
+
 const wideForm = computed(() =>
   props.wide
   || props.tabs.some(tab =>
@@ -51,31 +57,33 @@ function isFullWidthField(field: DocumentTabSchema['sections'][0]['fields'][0]) 
 </script>
 
 <template>
-  <div class="min-w-0 w-full flex-1">
+  <div class="min-w-0 w-full flex-1 overflow-x-hidden">
     <div
       v-if="tabs.length > 1"
       class="sticky top-0 z-10 w-full border-b border-default bg-default"
     >
-      <UTabs
-        :model-value="activeTab"
-        :items="tabs.map(tab => ({ label: $t(tab.labelKey), value: tab.id }))"
-        :content="false"
-        color="neutral"
-        variant="link"
-        size="md"
-        class="w-full"
-        :ui="{
-          root: 'w-full gap-0',
-          list: 'w-full gap-0 rounded-none bg-transparent border-b-0 px-4 sm:px-6 lg:px-10',
-          trigger: [
-            'grow-0 shrink-0 justify-center rounded-none px-4 pb-2.5 pt-2.5',
-            'font-normal text-muted',
-            'data-[state=active]:font-medium data-[state=active]:text-highlighted',
-          ].join(' '),
-          indicator: 'h-0.5 rounded-none bg-highlighted',
-        }"
-        @update:model-value="(v: string | number) => emit('update:activeTab', String(v))"
-      />
+      <div class="w-full touch-pan-x overflow-x-auto overflow-y-hidden overscroll-x-contain overscroll-y-none [scrollbar-width:thin]">
+        <UTabs
+          :model-value="activeTab"
+          :items="tabItems"
+          :content="false"
+          color="neutral"
+          variant="link"
+          size="md"
+          class="min-w-max"
+          :ui="{
+            root: 'min-w-max gap-0',
+            list: 'min-w-max w-max gap-0 rounded-none bg-transparent border-b-0 px-4 sm:px-6 lg:px-10',
+            trigger: [
+              'grow-0 shrink-0 justify-center whitespace-nowrap rounded-none px-4 pb-2.5 pt-2.5',
+              'font-normal text-muted',
+              'data-[state=active]:font-medium data-[state=active]:text-highlighted',
+            ].join(' '),
+            indicator: 'h-0.5 rounded-none bg-highlighted',
+          }"
+          @update:model-value="(v: string | number) => emit('update:activeTab', String(v))"
+        />
+      </div>
     </div>
 
     <DocumentAppDocumentContentShell :wide="wideForm">
@@ -96,10 +104,11 @@ function isFullWidthField(field: DocumentTabSchema['sections'][0]['fields'][0]) 
               </p>
             </div>
 
-            <div class="grid grid-cols-1 gap-x-5 gap-y-5 sm:grid-cols-2">
+            <div class="grid min-w-0 grid-cols-1 gap-x-5 gap-y-5 sm:grid-cols-2">
               <div
                 v-for="field in section.fields"
                 :key="field.key"
+                class="min-w-0 max-w-full"
                 :class="isFullWidthField(field) ? 'sm:col-span-2' : ''"
               >
                 <DocumentAppDynamicFieldRenderer

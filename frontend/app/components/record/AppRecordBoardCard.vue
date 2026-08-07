@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { usePointerDrop } from '~/composables/common/usePointerDrop'
 import type { WorkflowStage } from '~/types/docetra/common'
 import type { CardDisplayEntityKey } from '~/types/docetra/settings'
 import { useCardFields } from '~/composables/settings/useCardFields'
@@ -175,18 +176,34 @@ function onDragStart(event: DragEvent) {
   if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move'
   emit('dragStart', id)
 }
+
+const pointerDrop = usePointerDrop({
+  selector: '[data-record-stage-drop]',
+  dataKey: 'recordStageDrop',
+  onDragStart: () => emit('dragStart', String(props.row.id || '')),
+  onDrop: stage => emit('moveStage', stage),
+  onDragEnd: () => emit('dragEnd'),
+})
+
+function onCardClick(event: MouseEvent) {
+  if (!pointerDrop.onClick(event)) emit('open')
+}
 </script>
 
 <template>
   <article
     draggable="true"
-    class="group relative flex h-full min-h-[7.5rem] cursor-grab flex-col rounded-lg border border-default bg-default p-3 text-left shadow-xs transition active:cursor-grabbing"
+    class="group relative flex h-full min-h-[7.5rem] cursor-grab touch-pan-y flex-col rounded-lg border border-default bg-default p-3 text-left shadow-xs transition active:cursor-grabbing"
     :class="dragging ? 'opacity-40 ring-2 ring-primary/30' : 'hover:border-primary/35 hover:shadow-sm'"
     tabindex="0"
     role="button"
     @dragstart="onDragStart"
     @dragend="emit('dragEnd')"
-    @click="emit('open')"
+    @pointerdown="pointerDrop.onPointerDown"
+    @pointermove="pointerDrop.onPointerMove"
+    @pointerup="pointerDrop.onPointerUp"
+    @pointercancel="pointerDrop.onPointerCancel"
+    @click="onCardClick"
     @keydown.enter.prevent="emit('open')"
   >
     <div class="flex items-start gap-2">

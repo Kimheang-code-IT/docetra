@@ -6,6 +6,7 @@ const props = defineProps<{
   meetingCount: number
   selected?: boolean
   dropActive?: boolean
+  collapsed?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -53,15 +54,27 @@ function onDrop(event: DragEvent) {
 
 <template>
   <article
+    :data-meeting-topic-drop="topic.id"
     role="button"
     tabindex="0"
-    class="group cursor-pointer rounded-lg border p-3 text-left transition"
-    :class="[
-      selected
-        ? 'border-primary bg-primary/5 ring-1 ring-primary/30'
-        : 'border-default bg-default hover:border-primary/35',
-      dropActive ? 'border-primary bg-primary/10 ring-2 ring-primary/25' : '',
-    ]"
+    class="group cursor-pointer transition"
+    :class="collapsed
+      ? [
+          'flex justify-center rounded-md p-2',
+          selected
+            ? 'bg-primary/10 text-primary ring-1 ring-primary/30'
+            : 'text-muted hover:bg-elevated hover:text-highlighted',
+          dropActive ? 'bg-primary/15 ring-2 ring-primary/25' : '',
+        ]
+      : [
+          'rounded-lg border p-3 text-left',
+          selected
+            ? 'border-primary bg-primary/5 ring-1 ring-primary/30'
+            : 'border-default bg-default hover:border-primary/35',
+          dropActive ? 'border-primary bg-primary/10 ring-2 ring-primary/25' : '',
+        ]"
+    :aria-label="topic.title"
+    :title="collapsed ? topic.title : undefined"
     @click="emit('select')"
     @keydown.enter.prevent="emit('select')"
     @dblclick="emit('open')"
@@ -69,7 +82,8 @@ function onDrop(event: DragEvent) {
     @dragleave="emit('dragLeave')"
     @drop="onDrop"
   >
-    <div class="flex items-start gap-2">
+    <UIcon v-if="collapsed" name="i-lucide-message-square" class="size-4" />
+    <div v-else class="flex items-start gap-2">
       <div class="min-w-0 flex-1">
         <h3 class="text-sm font-semibold text-highlighted wrap-break-word">
           {{ topic.title }}
@@ -94,7 +108,7 @@ function onDrop(event: DragEvent) {
         />
       </UDropdownMenu>
     </div>
-    <div class="mt-2 flex flex-wrap gap-1">
+    <div v-if="!collapsed" class="mt-2 flex flex-wrap gap-1">
       <UBadge v-if="topic.stage" size="sm" color="neutral" variant="subtle">
         {{ stageLabel }}
       </UBadge>

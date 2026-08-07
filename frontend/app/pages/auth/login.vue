@@ -16,8 +16,6 @@ const toast = useToast()
 const authSession = useAuthSession()
 const submitting = ref(false)
 const googleLoading = ref(false)
-const termsOpen = ref(false)
-const acceptTerms = ref(false)
 const loginForm = useTemplateRef<{ state?: Record<string, unknown> }>('loginForm')
 
 useSeoMeta({
@@ -73,19 +71,8 @@ async function completeLogin(token: string, user: { name: string }) {
   await router.push('/')
 }
 
-function ensureTermsAccepted(): boolean {
-  if (acceptTerms.value) return true
-  toast.add({
-    title: t('pages.auth.termsRequired'),
-    description: t('pages.auth.termsRequiredDesc'),
-    color: 'warning',
-  })
-  return false
-}
-
 async function onSubmit(payload: FormSubmitEvent<Schema>) {
   if (submitting.value) return
-  if (!ensureTermsAccepted()) return
 
   submitting.value = true
   try {
@@ -122,7 +109,6 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
 
 async function onGoogleLogin() {
   if (googleLoading.value) return
-  if (!ensureTermsAccepted()) return
 
   googleLoading.value = true
   try {
@@ -171,24 +157,6 @@ const googleProvider = computed(() => ({
         <img src="/assets/images/logo.png" alt="Logo" class="mx-auto h-20 w-auto rounded-full shadow">
       </template>
 
-      <template #validation>
-        <div class="flex items-center gap-1.5 text-left">
-          <UCheckbox
-            v-model="acceptTerms"
-            size="xs"
-          />
-          <p class="text-xs leading-tight text-muted">
-            <button
-              type="button"
-              class="font-medium text-toned underline underline-offset-2 hover:text-primary"
-              @click="termsOpen = true"
-            >
-              {{ t('pages.auth.termsLink') }}
-            </button>
-          </p>
-        </div>
-      </template>
-
       <template #footer>
         <div class="space-y-3">
           <USeparator :label="t('pages.auth.orContinueWith')" />
@@ -216,7 +184,5 @@ const googleProvider = computed(() => ({
         </div>
       </template>
     </UAuthForm>
-
-    <AuthAppAuthTermsDialog v-model:open="termsOpen" />
   </div>
 </template>

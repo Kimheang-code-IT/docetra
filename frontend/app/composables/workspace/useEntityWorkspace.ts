@@ -16,7 +16,10 @@ export function useEntityWorkspace(config: EntityConfig) {
   const adapter = getEntityAdapter(config.key)
 
   const view = computed({
-    get: () => (String(route.query.view || config.defaultView) as 'table' | 'kanban' | 'hierarchy'),
+    get: () => {
+      const requested = String(route.query.view || config.defaultView) as 'table' | 'kanban' | 'hierarchy'
+      return config.views.includes(requested) ? requested : config.defaultView
+    },
     set: (value) => {
       router.replace({ query: { ...route.query, view: value === config.defaultView ? undefined : value } })
     },
@@ -54,13 +57,23 @@ export function useEntityWorkspace(config: EntityConfig) {
   const filters = computed(() => {
     const result: Record<string, string> = {}
     for (const filter of config.filters) {
-      const value = route.query[filter.key]
-      if (Array.isArray(value)) {
-        const joined = value.filter((v): v is string => typeof v === 'string' && Boolean(v)).join(',')
-        if (joined) result[filter.key] = joined
+      if (filter.type === 'daterange') {
+        const startKey = filter.startKey || 'startDate'
+        const endKey = filter.endKey || 'endDate'
+        const start = route.query[startKey] || route.query.startDate || route.query[`${filter.key}Start`]
+        const end = route.query[endKey] || route.query.endDate || route.query[`${filter.key}End`]
+        if (typeof start === 'string' && start) result[startKey] = start
+        if (typeof end === 'string' && end) result[endKey] = end
       }
-      else if (typeof value === 'string' && value) {
-        result[filter.key] = value
+      else {
+        const value = route.query[filter.key]
+        if (Array.isArray(value)) {
+          const joined = value.filter((v): v is string => typeof v === 'string' && Boolean(v)).join(',')
+          if (joined) result[filter.key] = joined
+        }
+        else if (typeof value === 'string' && value) {
+          result[filter.key] = value
+        }
       }
     }
     return result
@@ -82,7 +95,19 @@ export function useEntityWorkspace(config: EntityConfig) {
 
   function clearFilters() {
     const next = { ...route.query }
-    for (const filter of config.filters) delete next[filter.key]
+    for (const filter of config.filters) {
+      delete next[filter.key]
+      if (filter.type === 'daterange') {
+        const startKey = filter.startKey || 'startDate'
+        const endKey = filter.endKey || 'endDate'
+        delete next[startKey]
+        delete next[endKey]
+        delete next.startDate
+        delete next.endDate
+        delete next[`${filter.key}Start`]
+        delete next[`${filter.key}End`]
+      }
+    }
     delete next.q
     delete next.page
     router.replace({ query: next })

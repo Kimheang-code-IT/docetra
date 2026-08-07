@@ -126,6 +126,8 @@ const currentUser = computed(() => ({
   name: auth.user?.name || 'You',
   email: auth.user?.email,
 }))
+
+const showMetaRail = computed(() => !['users', 'roles'].includes(props.config.key))
 </script>
 
 <template>
@@ -140,7 +142,7 @@ const currentUser = computed(() => ({
     :not-found="notFound"
     :read-only="config.readOnly"
     :show-comments="!isCreate"
-    :show-meta-rail="true"
+    :show-meta-rail="showMetaRail"
     :show-list-nav="true"
     :list-to="config.routeBase"
     :is-create="isCreate"

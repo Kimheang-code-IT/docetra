@@ -90,6 +90,8 @@ export function useRecordStageBoard(
     await Promise.all(stages.value.map(async (stage) => {
       const res = await adapter.list({
         stage: stage.code,
+        startDate: dateStart.value || undefined,
+        endDate: dateEnd.value || undefined,
         page: 1,
         limit: 1,
         q: recordSearch.value || undefined,
@@ -108,8 +110,10 @@ export function useRecordStageBoard(
         adapter.list({
           q: recordSearch.value || undefined,
           stage: selectedStage.value || undefined,
+          startDate: dateStart.value || undefined,
+          endDate: dateEnd.value || undefined,
           page: 1,
-          limit: 48,
+          limit: 100,
           sort: '-updatedAt',
         }),
         refreshCounts(),
@@ -140,6 +144,18 @@ export function useRecordStageBoard(
 
   watch(recordSearch, (value) => {
     debouncedRecordSearch(value)
+  })
+
+  watch([dateStart, dateEnd], ([start, end]) => {
+    router.replace({
+      query: {
+        ...route.query,
+        startDate: start || undefined,
+        endDate: end || undefined,
+        page: undefined,
+      },
+    })
+    refresh()
   })
 
   watch(selectedStage, () => {

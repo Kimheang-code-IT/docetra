@@ -201,6 +201,7 @@
     "actions": {
       "addItem": "Add Item",
       "refresh": "Refresh",
+      "downloadPng": "Download PNG",
       "filter": "Filter",
       "retry": "Retry",
       "clearFilters": "Clear filters",

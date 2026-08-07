@@ -40,6 +40,10 @@ const selectFilters = computed(() =>
   props.filters.filter(f => f.type === 'select' || f.type === 'multiselect'),
 )
 
+const dateFilters = computed(() =>
+  props.filters.filter(f => f.type === 'daterange'),
+)
+
 const viewItems = computed(() =>
   props.views.map(v => ({
     label: t(`docetra.views.${v}`),
@@ -48,12 +52,38 @@ const viewItems = computed(() =>
   })),
 )
 
-const hasActiveFilters = computed(() =>
-  selectFilters.value.some(filter => {
+function getDateStart(filter: FilterDef): string {
+  const key = filter.startKey || 'startDate'
+  return props.filterValues[key] || props.filterValues.startDate || props.filterValues[`${filter.key}Start`] || ''
+}
+
+function setDateStart(filter: FilterDef, val: string) {
+  const key = filter.startKey || 'startDate'
+  emit('setFilter', key, val || undefined)
+}
+
+function getDateEnd(filter: FilterDef): string {
+  const key = filter.endKey || 'endDate'
+  return props.filterValues[key] || props.filterValues.endDate || props.filterValues[`${filter.key}End`] || ''
+}
+
+function setDateEnd(filter: FilterDef, val: string) {
+  const key = filter.endKey || 'endDate'
+  emit('setFilter', key, val || undefined)
+}
+
+const hasActiveFilters = computed(() => {
+  const hasSelect = selectFilters.value.some(filter => {
     const value = props.filterValues[filter.key]
     return Boolean(value && value.length)
-  }),
-)
+  })
+  const hasDate = dateFilters.value.some(filter => {
+    const start = getDateStart(filter)
+    const end = getDateEnd(filter)
+    return Boolean(start || end)
+  })
+  return Boolean(props.search.trim()) || hasSelect || hasDate
+})
 
 function filterModelValue(filter: FilterDef): string | string[] | null {
   const raw = props.filterValues[filter.key]
@@ -76,15 +106,25 @@ function onFilterChange(filter: FilterDef, value: string | string[] | null) {
 
 <template>
   <div class="shrink-0 border-b border-default bg-default px-3 py-2.5">
-    <div class="flex items-center gap-2 xl:justify-between">
+    <div class="flex items-center gap-2 lg:justify-between">
       <CommonAppLiveSearch
         v-model="searchModel"
         :placeholder="$t('common.search')"
         size="md"
-        class="min-w-0 flex-1 xl:max-w-[16rem]"
+        class="hidden min-w-0 w-full max-w-[18.75rem] flex-1 lg:flex lg:flex-none"
       />
 
-      <UPopover class="shrink-0 sm:hidden">
+      <UTabs
+        v-if="views.length > 1"
+        :model-value="view"
+        :items="viewItems"
+        :content="false"
+        size="sm"
+        class="shrink-0"
+        @update:model-value="(v: string | number) => emit('update:view', String(v))"
+      />
+
+      <UPopover class="ms-auto shrink-0 lg:hidden">
         <UButton
           icon="i-lucide-filter"
           :color="hasActiveFilters ? 'primary' : 'neutral'"
@@ -94,28 +134,47 @@ function onFilterChange(filter: FilterDef, value: string | string[] | null) {
           :aria-label="$t('docetra.actions.filter')"
         />
         <template #content>
-          <div class="flex w-72 max-w-[calc(100vw-2rem)] flex-col gap-2 p-3">
+          <div class="flex w-[calc(100vw-2rem)] max-w-4xl flex-nowrap items-center gap-2 overflow-x-auto p-3">
+            <CommonAppLiveSearch
+              v-model="searchModel"
+              :placeholder="$t('common.search')"
+              size="sm"
+              class="w-[18.75rem] shrink-0"
+            />
             <CommonAppFilterSelect
               v-for="filter in selectFilters"
               :key="filter.key"
               :filter="filter"
               :model-value="filterModelValue(filter)"
-              class="w-full"
+              class="shrink-0"
               @update:model-value="(v) => onFilterChange(filter, v)"
             />
+            <template v-for="filter in dateFilters" :key="filter.key">
+              <div class="shrink-0">
+                <CommonAppDateRangeFilter
+                  :start="getDateStart(filter)"
+                  :end="getDateEnd(filter)"
+                  :label="t(filter.labelKey)"
+                  size="sm"
+                  inline
+                  @update:start="(v) => setDateStart(filter, v)"
+                  @update:end="(v) => setDateEnd(filter, v)"
+                />
+              </div>
+            </template>
             <CommonAppSingleFilterSelect
               v-model="sortModel"
               :items="sortItems"
               :label="$t('docetra.sort.label')"
               :placeholder="$t('docetra.sort.label')"
               :searchable="false"
-              class="w-full"
+              class="shrink-0"
             />
           </div>
         </template>
       </UPopover>
 
-      <div class="hidden min-w-0 flex-1 flex-wrap items-center gap-2 sm:flex xl:justify-end">
+      <div class="hidden min-w-0 flex-1 flex-nowrap items-center justify-end gap-2 overflow-x-auto lg:flex">
         <CommonAppFilterSelect
           v-for="filter in selectFilters"
           :key="filter.key"
@@ -124,6 +183,17 @@ function onFilterChange(filter: FilterDef, value: string | string[] | null) {
           @update:model-value="(v) => onFilterChange(filter, v)"
         />
 
+        <template v-for="filter in dateFilters" :key="filter.key">
+          <CommonAppDateRangeFilter
+            :start="getDateStart(filter)"
+            :end="getDateEnd(filter)"
+            :label="t(filter.labelKey)"
+            size="sm"
+            @update:start="(v) => setDateStart(filter, v)"
+            @update:end="(v) => setDateEnd(filter, v)"
+          />
+        </template>
+
         <CommonAppSingleFilterSelect
           v-model="sortModel"
           :items="sortItems"
@@ -131,18 +201,8 @@ function onFilterChange(filter: FilterDef, value: string | string[] | null) {
           :placeholder="$t('docetra.sort.label')"
           :searchable="false"
         />
-
       </div>
 
-      <UTabs
-          v-if="views.length > 1"
-          :model-value="view"
-          :items="viewItems"
-          :content="false"
-          size="sm"
-          class="shrink-0"
-          @update:model-value="(v: string | number) => emit('update:view', String(v))"
-        />
     </div>
   </div>
 </template>

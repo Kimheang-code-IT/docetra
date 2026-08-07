@@ -116,7 +116,8 @@ export function useRecordLogBoard() {
   const total = ref(0)
   const tabCounts = ref(new Map<string, number>())
   const search = ref('')
-  const dateFilter = ref('')
+  const dateStart = ref(typeof route.query.startDate === 'string' ? route.query.startDate : '')
+  const dateEnd = ref(typeof route.query.endDate === 'string' ? route.query.endDate : '')
   let requestToken = 0
 
   const selectedTabId = computed({
@@ -205,8 +206,8 @@ export function useRecordLogBoard() {
     pending.value = true
     error.value = null
     try {
-      const startDate = toComparableDateTime(dateFilter.value, 'start') || undefined
-      const endDate = startDate ? `${startDate.slice(0, 10)}T23:59` : undefined
+      const startDate = toComparableDateTime(dateStart.value, 'start') || undefined
+      const endDate = toComparableDateTime(dateEnd.value, 'end') || undefined
       const res = await adapter.list({
         page: page.value,
         limit: limit.value,
@@ -232,7 +233,15 @@ export function useRecordLogBoard() {
     }
   }
 
-  watch([selectedTabId, dateFilter], () => {
+  watch([selectedTabId, dateStart, dateEnd], () => {
+    router.replace({
+      query: {
+        ...route.query,
+        startDate: dateStart.value || undefined,
+        endDate: dateEnd.value || undefined,
+        page: undefined,
+      },
+    })
     if (page.value !== 1) page.value = 1
     else void refresh()
   })
@@ -246,7 +255,8 @@ export function useRecordLogBoard() {
     pending,
     error,
     search,
-    dateFilter,
+    dateStart,
+    dateEnd,
     tabs: RECORD_LOG_TABS,
     selectedTabId,
     selectedTab,

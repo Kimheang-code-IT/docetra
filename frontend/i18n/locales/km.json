@@ -92,6 +92,7 @@
     "actions": {
       "addItem": "បន្ថែមធាតុ",
       "refresh": "ផ្ទុកឡើងវិញ",
+      "downloadPng": "ទាញយក PNG",
       "filter": "តម្រង",
       "retry": "ព្យាយាមម្តងទៀត",
       "clearFilters": "សម្អាតតម្រង",

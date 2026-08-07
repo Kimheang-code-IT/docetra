@@ -170,6 +170,14 @@ export default defineAppConfig({
       },
     },
 
+    /** Keep every horizontal tab group anchored to the left. */
+    tabs: {
+      slots: {
+        root: 'items-start',
+        list: 'justify-start',
+      },
+    },
+
     dashboardPanel: {
       slots: {
         // Keep main content inset consistent (reload + navigate)

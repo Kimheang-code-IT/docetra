@@ -192,6 +192,10 @@ export interface FilterDef {
   labelKey: string
   type: 'select' | 'multiselect' | 'boolean' | 'date' | 'daterange'
   options?: FieldOption[]
+  /** Custom start query key for daterange type (defaults to 'startDate'). */
+  startKey?: string
+  /** Custom end query key for daterange type (defaults to 'endDate'). */
+  endKey?: string
 }
 
 export type EntityStatus = 'draft' | 'active' | 'archived' | 'disabled' | 'pending' | 'completed' | 'failed'

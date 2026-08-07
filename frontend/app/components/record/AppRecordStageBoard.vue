@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useMediaQuery } from '@vueuse/core'
 import type { EntityConfig } from '~/config/entities'
 import { getEntityAdapter } from '~/config/entities'
 import { useConfirm } from '~/composables/common/useConfirm'
@@ -18,6 +19,7 @@ const { confirm } = useConfirm()
 const adapter = getEntityAdapter(props.config.key)
 const cardEntityKey = computed(() => props.config.key as CardDisplayEntityKey)
 const mobileStagesOpen = ref(false)
+const isSmallScreen = useMediaQuery('(max-width: 1023px)')
 
 const {
   filteredStages,
@@ -51,12 +53,15 @@ const {
   stateKey: props.stateKey,
 })
 
-const showStageDetails = computed(() => mobileStagesOpen.value || !leftCollapsed.value)
+const stagePanelCollapsed = computed(() =>
+  isSmallScreen.value ? !mobileStagesOpen.value : leftCollapsed.value,
+)
+const showStageDetails = computed(() => !stagePanelCollapsed.value)
 const hasDateFilter = computed(() => Boolean(dateStart.value.trim() || dateEnd.value.trim()))
+const hasRecordFilters = computed(() => Boolean(recordSearch.value.trim()) || hasDateFilter.value)
 
 function selectStageFromPanel(code: string | null) {
   selectStage(code)
-  mobileStagesOpen.value = false
 }
 
 onMounted(() => {
@@ -148,32 +153,30 @@ async function onDelete(row: Record<string, unknown>) {
       />
 
       <div class="flex min-h-0 flex-1 flex-row overflow-hidden">
-        <button
-          v-if="mobileStagesOpen"
-          type="button"
-          class="absolute inset-0 z-20 bg-black/25 lg:hidden"
-          :aria-label="$t('actions.close')"
-          @click="mobileStagesOpen = false"
-        />
-
         <!-- Left: stages (topic-style) -->
         <aside
-          class="absolute inset-y-0 start-0 z-30 flex h-full min-h-0 w-[min(22rem,calc(100%-3rem))] shrink-0 flex-col overflow-hidden border-e border-default bg-default shadow-xl transition-all duration-200 lg:static lg:z-auto lg:translate-x-0 lg:shadow-none"
-          :class="[
-            mobileStagesOpen ? 'translate-x-0' : '-translate-x-full rtl:translate-x-full',
-            leftCollapsed ? 'lg:w-14' : 'lg:w-[22rem]',
-          ]"
+          class="flex h-full min-h-0 shrink-0 flex-col overflow-hidden border-e border-default bg-default transition-[width] duration-200"
+          :style="{ width: stagePanelCollapsed ? '3.5rem' : 'min(22rem, calc(100% - 3rem))' }"
         >
           <div
             class="shrink-0 space-y-2 border-b border-default"
             :class="showStageDetails ? 'px-3 py-2.5' : 'px-1.5 py-3.5'"
           >
-            <h2
-              v-if="showStageDetails"
-              class="text-sm font-semibold text-highlighted"
-            >
-              {{ $t('docetra.recordStageBoard.stagesTitle') }}
-            </h2>
+            <div v-if="showStageDetails" class="flex items-center justify-between gap-2">
+              <h2 class="min-w-0 truncate text-sm font-semibold text-highlighted">
+                {{ $t('docetra.recordStageBoard.stagesTitle') }}
+              </h2>
+              <UButton
+                icon="i-lucide-panel-left-close"
+                color="neutral"
+                variant="ghost"
+                size="sm"
+                square
+                class="shrink-0 lg:hidden"
+                :aria-label="$t('docetra.recordStageBoard.collapseStages')"
+                @click="mobileStagesOpen = false"
+              />
+            </div>
             <div v-else class="flex justify-center">
               <UIcon name="i-lucide-layers" class="size-4 text-muted" />
             </div>
@@ -252,14 +255,14 @@ async function onDelete(row: Record<string, unknown>) {
           <div class="flex shrink-0 items-center gap-2 border-b border-default px-3 py-2.5 sm:px-4 sm:py-3.5">
             <div class="flex min-w-0 flex-1 items-center gap-1.5">
               <UButton
-                icon="i-lucide-menu"
+                :icon="stagePanelCollapsed ? 'i-lucide-panel-left-open' : 'i-lucide-panel-left-close'"
                 color="neutral"
                 variant="ghost"
                 size="sm"
                 square
                 class="shrink-0 lg:hidden"
                 :aria-label="$t('docetra.recordStageBoard.stagesTitle')"
-                :aria-expanded="mobileStagesOpen"
+                :aria-expanded="!stagePanelCollapsed"
                 @click="mobileStagesOpen = !mobileStagesOpen"
               />
               <UButton
@@ -282,41 +285,50 @@ async function onDelete(row: Record<string, unknown>) {
               </h2>
             </div>
 
-            <div class="hidden shrink-0 items-center gap-2 lg:flex">
-              <CommonAppInputDateRange
+            <div class="hidden min-w-0 flex-1 items-center justify-end gap-2 lg:flex">
+              <CommonAppLiveSearch
+                v-model="recordSearch"
+                class="min-w-0 w-full max-w-[18.75rem] flex-1"
+                :placeholder="$t('docetra.recordStageBoard.searchRecords')"
+              />
+              <CommonAppDateRangeFilter
                 v-model:start="dateStart"
                 v-model:end="dateEnd"
                 size="sm"
               />
             </div>
-            <UPopover class="shrink-0 lg:hidden">
+            <UPopover class="ms-auto shrink-0 lg:hidden">
               <UButton
                 icon="i-lucide-filter"
-                :color="hasDateFilter ? 'primary' : 'neutral'"
-                :variant="hasDateFilter ? 'soft' : 'ghost'"
+                :color="hasRecordFilters ? 'primary' : 'neutral'"
+                :variant="hasRecordFilters ? 'soft' : 'outline'"
                 size="sm"
                 square
                 :aria-label="$t('docetra.actions.filter')"
               />
               <template #content>
-                <div class="max-w-[calc(100vw-2rem)] p-3">
-                  <CommonAppInputDateRange
+                <div class="flex w-[calc(100vw-2rem)] flex-nowrap items-center gap-2 overflow-x-auto p-3">
+                  <CommonAppLiveSearch
+                    v-model="recordSearch"
+                    class="w-[18.75rem] shrink-0"
+                    :placeholder="$t('docetra.recordStageBoard.searchRecords')"
+                  />
+                  <CommonAppDateRangeFilter
                     v-model:start="dateStart"
                     v-model:end="dateEnd"
                     size="sm"
+                    inline
                   />
                 </div>
               </template>
             </UPopover>
-            <CommonAppLiveSearch
-              v-model="recordSearch"
-              class="min-w-0 w-28 shrink sm:w-56"
-              :placeholder="$t('docetra.recordStageBoard.searchRecords')"
-            />
           </div>
 
           <div class="min-h-0 flex-1 overflow-y-auto p-3">
-            <div class="grid grid-cols-1 items-stretch gap-2 sm:grid-cols-2 xl:grid-cols-3">
+            <div
+              class="grid items-stretch gap-2"
+              style="grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));"
+            >
               <RecordAppRecordBoardCard
                 v-for="row in filteredItems"
                 :key="String(row.id)"

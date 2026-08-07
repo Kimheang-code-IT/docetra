@@ -6,6 +6,7 @@ const period = defineModel<string>('period', { default: 'monthly' })
 
 const emit = defineEmits<{
   refresh: []
+  download: []
 }>()
 
 const { t, locale } = useI18n()
@@ -36,6 +37,11 @@ const moreItems = computed(() => [[
     label: t('docetra.actions.refresh'),
     icon: 'i-lucide-refresh-cw',
     onSelect: () => emit('refresh'),
+  },
+  {
+    label: t('docetra.actions.downloadPng'),
+    icon: 'i-lucide-download',
+    onSelect: () => emit('download'),
   },
 ]])
 </script>

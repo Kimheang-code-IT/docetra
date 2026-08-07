@@ -36,6 +36,7 @@ function onDrop(event: DragEvent) {
     :content="{ side: 'right', sideOffset: 8 }"
   >
     <article
+      :data-record-stage-drop="stage.code"
       role="button"
       tabindex="0"
       class="group cursor-pointer transition"

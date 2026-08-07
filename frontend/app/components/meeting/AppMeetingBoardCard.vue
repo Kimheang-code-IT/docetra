@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import type { MeetingHistory, MeetingTopic } from '~/types/docetra/entities'
+import { MEETING_BOARD_UNASSIGNED } from '~/composables/meeting/useMeetingTopicBoard'
+import { usePointerDrop } from '~/composables/common/usePointerDrop'
 import { useCardFields } from '~/composables/settings/useCardFields'
 import { isCardFooterSlot, splitCardSlots } from '~/utils/card-fields'
 
@@ -137,6 +139,18 @@ function onDragStart(event: DragEvent) {
   emit('dragStart', props.meeting.id)
 }
 
+const pointerDrop = usePointerDrop({
+  selector: '[data-meeting-topic-drop]',
+  dataKey: 'meetingTopicDrop',
+  onDragStart: () => emit('dragStart', props.meeting.id),
+  onDrop: topicId => emit('assign', topicId === MEETING_BOARD_UNASSIGNED ? null : topicId),
+  onDragEnd: () => emit('dragEnd'),
+})
+
+function onCardClick(event: MouseEvent) {
+  if (!pointerDrop.onClick(event)) emit('open')
+}
+
 function onDragOver(event: DragEvent) {
   event.preventDefault()
   if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
@@ -154,15 +168,19 @@ function onDrop(event: DragEvent) {
 <template>
   <article
     draggable="true"
-    class="group relative flex h-full min-h-[7.5rem] cursor-grab flex-col rounded-lg border border-default bg-default p-3 text-left shadow-xs transition active:cursor-grabbing"
+    class="group relative flex h-full min-h-[7.5rem] cursor-grab touch-pan-y flex-col rounded-lg border border-default bg-default p-3 text-left shadow-xs transition active:cursor-grabbing"
     :class="dragging ? 'opacity-40 ring-2 ring-primary/30' : 'hover:border-primary/35 hover:shadow-sm'"
     tabindex="0"
     role="button"
     @dragstart="onDragStart"
     @dragend="emit('dragEnd')"
+    @pointerdown="pointerDrop.onPointerDown"
+    @pointermove="pointerDrop.onPointerMove"
+    @pointerup="pointerDrop.onPointerUp"
+    @pointercancel="pointerDrop.onPointerCancel"
     @dragover="onDragOver"
     @drop="onDrop"
-    @click="emit('open')"
+    @click="onCardClick"
     @keydown.enter.prevent="emit('open')"
   >
     <div class="flex items-start gap-2">
