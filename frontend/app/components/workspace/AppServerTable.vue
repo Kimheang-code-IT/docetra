@@ -72,7 +72,14 @@ const pageSizeModel = computed(() => String(Math.min(props.limit, 100)))
 const effectiveItemsPerPage = computed(() => Math.min(props.limit, 100))
 
 const metaHeaderLabel = computed(() => {
-  const assigned = props.rows.filter(row => asPerson(row.assignee) || asPerson(row.owner)).length
+  const assigned = props.rows.filter(row =>
+    asPerson(row.assignee)
+    || asPerson(row.owner)
+    || asPerson(row.updatedBy)
+    || asPerson(row.createdBy)
+    || asPerson(row.actor)
+    || asPerson(row.uploader),
+  ).length
   const total = props.rows.length || 0
   return `${assigned} of ${total}`
 })
@@ -137,13 +144,16 @@ function badgeColor(key: string, raw: unknown): 'primary' | 'secondary' | 'succe
     if (value.includes('master')) return 'warning'
     return 'primary'
   }
+  if (key === 'isActive' || key === 'authenticationEnabled') {
+    return value === 'true' ? 'success' : 'error'
+  }
   if (key === 'status') {
     if (value === 'completed' || value === 'active') return 'success'
     if (value === 'pending' || value === 'draft') return 'warning'
     if (value === 'failed' || value === 'disabled') return 'error'
     return 'neutral'
   }
-  if (key === 'stage') {
+  if (key === 'stage' || key === 'recordStage') {
     if (value === 'completed') return 'success'
     if (value === 'approval') return 'primary'
     if (value === 'review') return 'warning'
@@ -262,7 +272,12 @@ const tableColumns = computed<TableColumn<DataRow>[]>(() => {
         },
       },
       cell: ({ row }) => {
-        const owner = asPerson(row.original.owner) || asPerson(row.original.assignee) || asPerson(row.original.updatedBy)
+        const owner = asPerson(row.original.owner)
+          || asPerson(row.original.assignee)
+          || asPerson(row.original.updatedBy)
+          || asPerson(row.original.createdBy)
+          || asPerson(row.original.actor)
+          || asPerson(row.original.uploader)
         return h(AppTableRowMeta, {
           owner,
           updatedAt: row.original.updatedAt ? String(row.original.updatedAt) : undefined,

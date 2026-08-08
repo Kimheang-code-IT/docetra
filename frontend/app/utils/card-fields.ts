@@ -11,6 +11,13 @@
 import type { FieldOption } from '~/types/docetra/common'
 import type { CardDisplayEntityKey } from '~/types/docetra/settings'
 
+export const TOPIC_CARD_SLOTS = [
+  'status',
+  'stage',
+  'tags',
+  'recordTime',
+] as const
+
 export const MEETING_CARD_SLOTS = [
   'topicTitle',
   'status',
@@ -49,8 +56,22 @@ export const RECORD_CARD_SLOTS = [
   'updatedAt',
   'attachmentCount',
   'commentCount',
+  'recordFlowCode',
+  'recordContent',
+  'documentType',
+  'letterNumber',
+  'letterSubject',
+  'documentDate',
+  'letterDate',
+  'directorGeneralDate',
+  'directorDate',
+  'involvedOfficers',
+  'externalUnits',
+  'officeInCharge',
+  'officerInCharge',
 ] as const
 
+export type TopicCardSlot = (typeof TOPIC_CARD_SLOTS)[number]
 export type MeetingCardSlot = (typeof MEETING_CARD_SLOTS)[number]
 export type RecordCardSlot = (typeof RECORD_CARD_SLOTS)[number]
 export type CardFooterAlign = 'left' | 'right'
@@ -82,11 +103,12 @@ export const DEFAULT_RECORD_CARD_FIELDS: string[] = [
 ]
 
 export const DEFAULT_CARD_FIELDS: Record<CardDisplayEntityKey, string[]> = {
+  meetingTopics: [...TOPIC_CARD_SLOTS],
   meetingHistory: DEFAULT_MEETING_CARD_FIELDS,
-  incomingDocuments: DEFAULT_RECORD_CARD_FIELDS,
-  outgoingDocuments: DEFAULT_RECORD_CARD_FIELDS,
-  documents: DEFAULT_RECORD_CARD_FIELDS,
-  masterListRequests: DEFAULT_RECORD_CARD_FIELDS,
+  incomingDocuments: [...DEFAULT_RECORD_CARD_FIELDS, 'recordFlowCode', 'letterSubject', 'involvedOfficers', 'externalUnits'],
+  outgoingDocuments: [...DEFAULT_RECORD_CARD_FIELDS, 'recordFlowCode', 'letterSubject', 'involvedOfficers', 'externalUnits'],
+  documents: [...DEFAULT_RECORD_CARD_FIELDS, 'recordFlowCode', 'letterSubject', 'involvedOfficers', 'externalUnits'],
+  masterListRequests: ['status', 'stage', 'tags', 'letterNumber', 'letterSubject', 'officeInCharge', 'officerInCharge', 'externalUnits', 'letterDate'],
 }
 
 export const CARD_DISPLAY_ENTITIES: Array<{
@@ -94,11 +116,18 @@ export const CARD_DISPLAY_ENTITIES: Array<{
   labelKey: string
   kind: 'meeting' | 'record'
 }> = [
+  { key: 'meetingTopics', labelKey: 'docetra.settings.cardFields.meetingTopics', kind: 'meeting' },
   { key: 'meetingHistory', labelKey: 'docetra.settings.cardFields.meetingHistory', kind: 'meeting' },
   { key: 'incomingDocuments', labelKey: 'docetra.settings.cardFields.incomingDocuments', kind: 'record' },
   { key: 'outgoingDocuments', labelKey: 'docetra.settings.cardFields.outgoingDocuments', kind: 'record' },
   { key: 'documents', labelKey: 'docetra.settings.cardFields.documents', kind: 'record' },
   { key: 'masterListRequests', labelKey: 'docetra.settings.cardFields.masterListRequests', kind: 'record' },
+]
+
+export const TOPIC_CARD_BLOCKS: CardSlotBlock[] = [
+  { id: 'titleRow', labelKey: 'docetra.cardSlotBlocks.titleRow', slots: ['status'] },
+  { id: 'context', labelKey: 'docetra.cardSlotBlocks.context', slots: ['stage', 'tags'] },
+  { id: 'footer', labelKey: 'docetra.cardSlotBlocks.footer', slots: ['recordTime'] },
 ]
 
 export interface CardSlotBlock {
@@ -124,9 +153,26 @@ export const MEETING_CARD_BLOCKS: CardSlotBlock[] = [
 
 export const RECORD_CARD_BLOCKS: CardSlotBlock[] = [
   { id: 'titleRow', labelKey: 'docetra.cardSlotBlocks.titleRow', slots: ['status'] },
-  { id: 'identity', labelKey: 'docetra.cardSlotBlocks.identity', slots: ['referenceNumber', 'recordType', 'description'] },
+  {
+    id: 'identity',
+    labelKey: 'docetra.cardSlotBlocks.identity',
+    slots: [
+      'referenceNumber',
+      'recordType',
+      'description',
+      'recordFlowCode',
+      'recordContent',
+      'documentType',
+      'letterNumber',
+      'letterSubject',
+    ],
+  },
   { id: 'party', labelKey: 'docetra.cardSlotBlocks.party', slots: ['party'] },
-  { id: 'people', labelKey: 'docetra.cardSlotBlocks.people', slots: ['owner', 'assignee'] },
+  {
+    id: 'people',
+    labelKey: 'docetra.cardSlotBlocks.people',
+    slots: ['owner', 'assignee', 'involvedOfficers', 'externalUnits', 'officeInCharge', 'officerInCharge'],
+  },
   { id: 'extra', labelKey: 'docetra.cardSlotBlocks.extra', slots: ['stage', 'waiting', 'tags'] },
   {
     id: 'footer',
@@ -136,6 +182,10 @@ export const RECORD_CARD_BLOCKS: CardSlotBlock[] = [
       'dateRange',
       'receivedDate',
       'sentDate',
+      'documentDate',
+      'letterDate',
+      'directorGeneralDate',
+      'directorDate',
       'createdAt',
       'updatedAt',
       'attachmentCount',
@@ -156,10 +206,12 @@ export const MEETING_CARD_FIELD_OPTIONS: FieldOption[] = MEETING_CARD_SLOTS.map(
 export const RECORD_CARD_FIELD_OPTIONS: FieldOption[] = RECORD_CARD_SLOTS.map(slotOption)
 
 export function catalogForEntity(entityKey: CardDisplayEntityKey): readonly string[] {
+  if (entityKey === 'meetingTopics') return TOPIC_CARD_SLOTS
   return entityKey === 'meetingHistory' ? MEETING_CARD_SLOTS : RECORD_CARD_SLOTS
 }
 
 export function blocksForEntity(entityKey: CardDisplayEntityKey): CardSlotBlock[] {
+  if (entityKey === 'meetingTopics') return TOPIC_CARD_BLOCKS
   return entityKey === 'meetingHistory' ? MEETING_CARD_BLOCKS : RECORD_CARD_BLOCKS
 }
 
@@ -180,11 +232,17 @@ export const MEETING_FOOTER_SLOTS = new Set([
   'updatedAt',
 ])
 
+export const TOPIC_FOOTER_SLOTS = new Set(['recordTime'])
+
 export const RECORD_FOOTER_SLOTS = new Set([
   'recordTime',
   'dateRange',
   'receivedDate',
   'sentDate',
+  'documentDate',
+  'letterDate',
+  'directorGeneralDate',
+  'directorDate',
   'createdAt',
   'updatedAt',
   'attachmentCount',
@@ -192,6 +250,7 @@ export const RECORD_FOOTER_SLOTS = new Set([
 ])
 
 export function isCardFooterSlot(entityKey: CardDisplayEntityKey, slot: string): boolean {
+  if (entityKey === 'meetingTopics') return TOPIC_FOOTER_SLOTS.has(slot)
   return entityKey === 'meetingHistory'
     ? MEETING_FOOTER_SLOTS.has(slot)
     : RECORD_FOOTER_SLOTS.has(slot)

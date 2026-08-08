@@ -144,6 +144,7 @@ function seedAppConfig(): AppConfig {
     },
     display: {
       cardFields: {
+        meetingTopics: [...DEFAULT_CARD_FIELDS.meetingTopics],
         meetingHistory: [...DEFAULT_CARD_FIELDS.meetingHistory],
         incomingDocuments: [...DEFAULT_CARD_FIELDS.incomingDocuments],
         outgoingDocuments: [...DEFAULT_CARD_FIELDS.outgoingDocuments],

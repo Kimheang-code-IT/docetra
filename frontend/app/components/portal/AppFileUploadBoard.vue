@@ -381,7 +381,7 @@ onMounted(() => {
             :cell-value="cellValue"
             :can-delete="true"
             :selectable="true"
-            :show-meta="false"
+            :show-meta="true"
             @update:page="page = $event"
             @update:limit="limit = $event"
             @update:selection="selectedIds = $event"

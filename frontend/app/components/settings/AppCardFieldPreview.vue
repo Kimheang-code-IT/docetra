@@ -15,9 +15,12 @@ const props = defineProps<{
 const { t } = useI18n()
 
 const isMeeting = computed(() => props.entityKey === 'meetingHistory')
+const isTopic = computed(() => props.entityKey === 'meetingTopics')
 
 const previewTitle = computed(() =>
-  isMeeting.value
+  isTopic.value
+    ? t('docetra.cardPreview.topic')
+    : isMeeting.value
     ? t('docetra.cardPreview.meetingTitle')
     : t('docetra.cardPreview.recordTitle'),
 )
@@ -25,14 +28,7 @@ const previewTitle = computed(() =>
 const split = computed(() => splitCardSlots(props.entityKey, props.visibleSlots))
 const showSortOrder = computed(() => split.value.titleChrome.includes('sortOrder'))
 const showStatus = computed(() => split.value.titleChrome.includes('status'))
-const bodySlots = computed(() => {
-  let slots = split.value.body
-  // Document/meeting sample: one status on title — hide stage badge when status is shown
-  if (showStatus.value) {
-    slots = slots.filter(s => s !== 'stage')
-  }
-  return slots
-})
+const bodySlots = computed(() => split.value.body)
 const footerSlots = computed(() => {
   const slots = split.value.footer
   if (isMeeting.value && slots.includes('meetingDate') && slots.includes('recordTime')) {
@@ -52,7 +48,7 @@ function previewText(slot: string): string {
   const map: Record<string, string> = {
     topicTitle: t('docetra.cardPreview.topic'),
     status: t('docetra.status.active'),
-    sortOrder: '#1',
+    sortOrder: '1',
     letterNumber: 'MTG-2026-0001',
     letterDate: t('docetra.cardPreview.date'),
     meetingDate: t('docetra.cardPreview.date'),
@@ -78,6 +74,16 @@ function previewText(slot: string): string {
     updatedAt: t('docetra.cardPreview.date'),
     attachmentCount: '2',
     commentCount: '3',
+    recordFlowCode: 'normal',
+    recordContent: t('docetra.cardPreview.description'),
+    documentType: t('docetra.cardPreview.recordType'),
+    letterSubject: t('docetra.cardPreview.recordTitle'),
+    documentDate: t('docetra.cardPreview.date'),
+    directorGeneralDate: t('docetra.cardPreview.date'),
+    directorDate: t('docetra.cardPreview.date'),
+    involvedOfficers: t('docetra.cardPreview.participants'),
+    officeInCharge: t('docetra.cardPreview.internalUnits'),
+    officerInCharge: t('docetra.cardPreview.owner'),
   }
   return map[slot] || slot
 }
@@ -90,7 +96,7 @@ function previewText(slot: string): string {
         v-if="showSortOrder"
         class="mt-0.5 shrink-0 tabular-nums text-[11px] text-muted"
       >
-        #1
+        1
       </span>
       <div class="min-w-0 flex-1">
         <div class="flex flex-wrap items-center gap-1.5">
@@ -155,6 +161,13 @@ function previewText(slot: string): string {
               : 'i-lucide-user'"
           class="size-3 shrink-0"
         />
+        <span class="truncate">{{ previewText(slot) }}</span>
+      </div>
+      <div
+        v-else
+        class="mt-1.5 flex min-w-0 items-center gap-1.5 truncate text-xs text-muted"
+      >
+        <span class="shrink-0 font-medium text-toned">{{ $t(`docetra.cardSlots.${slot}`) }}:</span>
         <span class="truncate">{{ previewText(slot) }}</span>
       </div>
     </template>

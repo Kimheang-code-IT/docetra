@@ -276,7 +276,7 @@ function selectLogTab(id: string) {
             :cell-value="cellValue"
             :can-delete="false"
             :selectable="false"
-            :show-meta="false"
+            :show-meta="true"
             :row-actions="[
               { key: 'detail', labelKey: 'docetra.rowActions.detail', icon: 'i-lucide-eye' },
               { key: 'logs', labelKey: 'docetra.rowActions.logs', icon: 'i-lucide-scroll-text' },

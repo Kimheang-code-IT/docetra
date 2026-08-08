@@ -46,6 +46,12 @@ function day(value: unknown) {
   return String(value).slice(0, 10)
 }
 
+function listText(value: unknown) {
+  return Array.isArray(value)
+    ? value.map(String).map(item => item.trim()).filter(Boolean).join(', ')
+    : String(value || '')
+}
+
 const referenceNumber = computed(() => String(props.row.referenceNumber || ''))
 const recordTypeLabel = computed(() =>
   String(props.row.recordTypeName || props.row.recordTypeId || ''),
@@ -77,6 +83,36 @@ const assignee = computed(() => personName(props.row.assignee))
 const waiting = computed(() => Boolean(props.row.waiting))
 const attachmentCount = computed(() => Number(props.row.attachmentCount || 0))
 const commentCount = computed(() => Number(props.row.commentCount || 0))
+
+function bodySlotText(slot: string) {
+  const values: Record<string, unknown> = {
+    recordFlowCode: props.row.recordFlowCode,
+    recordContent: props.row.recordContent || props.row.description,
+    documentType: props.row.recordTypeName || props.row.recordTypeId,
+    letterNumber: props.row.referenceNumber,
+    letterSubject: props.row.letterSubject,
+    involvedOfficers: listText(props.row.involvedOfficers),
+    externalUnits: listText(props.row.externalUnits),
+    officeInCharge: props.row.officeInCharge,
+    officerInCharge: props.row.officerInCharge,
+  }
+  return String(values[slot] || '').trim()
+}
+
+function footerDate(slot: string) {
+  const values: Record<string, unknown> = {
+    recordTime: props.row.recordTime,
+    receivedDate: props.row.receivedDate,
+    sentDate: props.row.sentDate,
+    documentDate: props.row.documentDate,
+    letterDate: props.row.letterDate,
+    directorGeneralDate: props.row.directorGeneralDate,
+    directorDate: props.row.directorDate,
+    createdAt: props.row.createdAt,
+    updatedAt: props.row.updatedAt,
+  }
+  return day(values[slot])
+}
 
 const startDate = computed(() =>
   day(props.row.receivedDate)
@@ -119,6 +155,7 @@ const orderedSlots = computed(() =>
     if (slot === 'stage') return Boolean(props.stageLabel)
     if (slot === 'waiting') return waiting.value
     if (slot === 'tags') return tags.value.length > 0
+    if (bodySlotText(slot)) return true
     return show(slot)
   }),
 )
@@ -132,12 +169,7 @@ const titleStatusText = computed(() => {
   return ''
 })
 const bodySlots = computed(() => {
-  let slots = split.value.body
-  // If title already shows status, do not also show stage as a second status badge
-  if (titleStatusText.value) {
-    slots = slots.filter(s => s !== 'stage')
-  }
-  return slots
+  return split.value.body
 })
 const footerSlots = computed(() => split.value.footer)
 const footerLeft = computed(() => footerSlots.value.filter(s => footerAlign(s) === 'left'))
@@ -286,6 +318,21 @@ function onCardClick(event: MouseEvent) {
           {{ tag }}
         </UBadge>
       </div>
+      <div
+        v-else-if="bodySlotText(slot)"
+        class="mt-1.5 flex min-w-0 items-center gap-1.5 text-xs text-muted"
+      >
+        <UIcon
+          :name="slot === 'involvedOfficers' || slot === 'officerInCharge'
+            ? 'i-lucide-user-round'
+            : slot === 'externalUnits' || slot === 'officeInCharge'
+              ? 'i-lucide-building-2'
+              : 'i-lucide-file-text'"
+          class="size-3 shrink-0"
+        />
+        <span class="shrink-0 font-medium text-toned">{{ $t(`docetra.cardSlots.${slot}`) }}:</span>
+        <span class="min-w-0 truncate">{{ bodySlotText(slot) }}</span>
+      </div>
     </template>
     </div>
 
@@ -317,10 +364,7 @@ function onCardClick(event: MouseEvent) {
             <span class="truncate">
               <template v-if="slot === 'recordTime'">{{ recordTime || '—' }}</template>
               <template v-else-if="slot === 'dateRange'">{{ dateLabel || '—' }}</template>
-              <template v-else-if="slot === 'receivedDate'">{{ day(row.receivedDate) || '—' }}</template>
-              <template v-else-if="slot === 'sentDate'">{{ day(row.sentDate) || '—' }}</template>
-              <template v-else-if="slot === 'createdAt'">{{ day(row.createdAt) || '—' }}</template>
-              <template v-else>{{ day(row.updatedAt) || '—' }}</template>
+              <template v-else>{{ footerDate(slot) || '—' }}</template>
             </span>
           </span>
         </template>
@@ -349,10 +393,7 @@ function onCardClick(event: MouseEvent) {
             <span class="truncate">
               <template v-if="slot === 'recordTime'">{{ recordTime || '—' }}</template>
               <template v-else-if="slot === 'dateRange'">{{ dateLabel || '—' }}</template>
-              <template v-else-if="slot === 'receivedDate'">{{ day(row.receivedDate) || '—' }}</template>
-              <template v-else-if="slot === 'sentDate'">{{ day(row.sentDate) || '—' }}</template>
-              <template v-else-if="slot === 'createdAt'">{{ day(row.createdAt) || '—' }}</template>
-              <template v-else>{{ day(row.updatedAt) || '—' }}</template>
+              <template v-else>{{ footerDate(slot) || '—' }}</template>
             </span>
           </span>
         </template>

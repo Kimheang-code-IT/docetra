@@ -177,6 +177,7 @@ export interface AppConfigSystem {
 
 /** Entity keys that support admin-configurable board card fields. */
 export type CardDisplayEntityKey =
+  | 'meetingTopics'
   | 'meetingHistory'
   | 'incomingDocuments'
   | 'outgoingDocuments'

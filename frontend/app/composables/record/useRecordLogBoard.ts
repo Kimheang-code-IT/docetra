@@ -14,11 +14,15 @@ export interface RecordLogTab {
 }
 
 const baseColumns = {
+  rowNumber: { key: 'rowNumber', labelKey: 'docetra.fields.number', priority: 'high' },
   occurredAt: { key: 'occurredAt', labelKey: 'docetra.fields.occurredAt', sortable: true, priority: 'high', cell: 'datetime' },
   action: { key: 'action', labelKey: 'docetra.fields.action', priority: 'high', cell: 'badge' },
-  entityType: { key: 'entityType', labelKey: 'docetra.fields.recordType', priority: 'medium', cell: 'badge' },
-  entityTitle: { key: 'entityTitle', labelKey: 'docetra.fields.entity', priority: 'high' },
-  actor: { key: 'actor.name', labelKey: 'docetra.fields.actor', priority: 'medium', cell: 'person' },
+  entityType: { key: 'entityType', labelKey: 'docetra.fields.recordType', priority: 'high', cell: 'badge' },
+  entityTitle: { key: 'entityTitle', labelKey: 'docetra.fields.title', priority: 'high' },
+  recordStage: { key: 'recordStage', labelKey: 'docetra.fields.recordStage', priority: 'high', cell: 'badge' },
+  parentRecord: { key: 'parentRecord', labelKey: 'docetra.fields.parentRecord', priority: 'high' },
+  updatedAt: { key: 'updatedAt', labelKey: 'docetra.fields.updatedAt', sortable: true, priority: 'high', cell: 'datetime' },
+  actor: { key: 'actor.name', labelKey: 'docetra.fields.updater', priority: 'high', cell: 'person' },
   organization: { key: 'organization.name', labelKey: 'docetra.fields.organization', priority: 'low' },
   severity: { key: 'severity', labelKey: 'docetra.fields.severity', priority: 'medium', cell: 'badge' },
   summary: { key: 'summary', labelKey: 'docetra.fields.summary', priority: 'high' },
@@ -31,70 +35,42 @@ function pickColumns(...keys: Array<keyof typeof baseColumns>): TableColumnDef[]
   return keys.map(key => baseColumns[key])
 }
 
+const recordLogColumns = pickColumns(
+  'rowNumber',
+  'entityType',
+  'entityTitle',
+  'recordStage',
+  'parentRecord',
+  'updatedAt',
+  'actor',
+)
+
 export const RECORD_LOG_TABS: RecordLogTab[] = [
   {
     id: 'all',
     labelKey: 'docetra.recordLogBoard.tabs.all',
     descriptionKey: 'docetra.recordLogBoard.tabs.allHint',
     icon: 'i-lucide-list',
-    columns: pickColumns('occurredAt', 'action', 'entityType', 'entityTitle', 'actor', 'severity', 'summary'),
+    columns: recordLogColumns,
   },
-  {
-    id: 'created',
-    labelKey: 'docetra.logActions.created',
-    descriptionKey: 'docetra.recordLogBoard.tabs.createdHint',
-    icon: 'i-lucide-plus-circle',
-    filter: { action: 'created' },
-    columns: pickColumns('occurredAt', 'entityType', 'entityTitle', 'actor', 'organization', 'summary'),
-  },
-  {
-    id: 'updated',
-    labelKey: 'docetra.logActions.updated',
-    descriptionKey: 'docetra.recordLogBoard.tabs.updatedHint',
-    icon: 'i-lucide-pencil',
-    filter: { action: 'updated' },
-    columns: pickColumns('occurredAt', 'entityType', 'entityTitle', 'changes', 'actor', 'summary'),
-  },
-  {
-    id: 'stage_changed',
-    labelKey: 'docetra.logActions.stage_changed',
-    descriptionKey: 'docetra.recordLogBoard.tabs.stageHint',
-    icon: 'i-lucide-git-branch',
-    filter: { action: 'stage_changed' },
-    columns: pickColumns('occurredAt', 'entityTitle', 'severity', 'actor', 'summary', 'correlationId'),
-  },
-  {
-    id: 'shared',
-    labelKey: 'docetra.logActions.shared',
-    descriptionKey: 'docetra.recordLogBoard.tabs.sharedHint',
-    icon: 'i-lucide-share-2',
-    filter: { action: 'shared' },
-    columns: pickColumns('occurredAt', 'entityTitle', 'actor', 'organization', 'summary', 'correlationId'),
-  },
-  {
-    id: 'incoming',
-    labelKey: 'docetra.entityTypes.incoming_document',
-    descriptionKey: 'docetra.recordLogBoard.tabs.incomingHint',
-    icon: 'i-lucide-inbox',
-    filter: { entityType: 'incoming_document' },
-    columns: pickColumns('occurredAt', 'action', 'entityTitle', 'actor', 'severity', 'summary'),
-  },
-  {
-    id: 'outgoing',
-    labelKey: 'docetra.entityTypes.outgoing_document',
-    descriptionKey: 'docetra.recordLogBoard.tabs.outgoingHint',
-    icon: 'i-lucide-send',
-    filter: { entityType: 'outgoing_document' },
-    columns: pickColumns('occurredAt', 'action', 'entityTitle', 'actor', 'organization', 'summary'),
-  },
-  {
-    id: 'errors',
-    labelKey: 'docetra.recordLogBoard.tabs.errors',
-    descriptionKey: 'docetra.recordLogBoard.tabs.errorsHint',
-    icon: 'i-lucide-triangle-alert',
-    filter: { severity: 'error' },
-    columns: pickColumns('occurredAt', 'action', 'entityTitle', 'severity', 'summary', 'correlationId'),
-  },
+  ...[
+    ['document', 'i-lucide-file-text'],
+    ['file', 'i-lucide-paperclip'],
+    ['master_list_request', 'i-lucide-list-checks'],
+    ['meeting', 'i-lucide-calendar-days'],
+    ['meeting_topic', 'i-lucide-messages-square'],
+    ['url', 'i-lucide-link'],
+    ['approved_master_list', 'i-lucide-badge-check'],
+    ['extension_of_validity', 'i-lucide-clock-3'],
+    ['physical_inspection', 'i-lucide-search-check'],
+    ['tax_incentive', 'i-lucide-landmark'],
+  ].map(([entityType, icon]) => ({
+    id: entityType!,
+    labelKey: `docetra.entityTypes.${entityType}`,
+    icon: icon!,
+    filter: { entityType },
+    columns: recordLogColumns,
+  } satisfies RecordLogTab)),
 ]
 
 function getByPath(obj: Record<string, unknown>, path: string): unknown {
@@ -177,6 +153,10 @@ export function useRecordLogBoard() {
       const typeKey = `docetra.entityTypes.${text}`
       return te(typeKey) ? t(typeKey) : text.replaceAll('_', ' ')
     }
+    if (key === 'recordStage') {
+      const stageKey = `docetra.stages.${text}`
+      return te(stageKey) ? t(stageKey) : text.replaceAll('_', ' ')
+    }
     if (key === 'severity') {
       const severityKey = `docetra.severity.${text}`
       return te(severityKey) ? t(severityKey) : text
@@ -218,7 +198,10 @@ export function useRecordLogBoard() {
         ...(selectedTab.value.filter || {}),
       })
       if (token !== requestToken) return
-      pageItems.value = (res.data || []) as RecordLog[]
+      pageItems.value = ((res.data || []) as RecordLog[]).map((item, index) => ({
+        ...item,
+        rowNumber: (page.value - 1) * limit.value + index + 1,
+      }))
       total.value = res.meta?.total || 0
 
       const counts = (res.meta as (typeof res.meta & { counts?: Record<string, number> }))?.counts

@@ -80,14 +80,7 @@ const orderedSlots = computed(() => {
 const split = computed(() => splitCardSlots('meetingHistory', orderedSlots.value))
 const showSortOrder = computed(() => split.value.titleChrome.includes('sortOrder'))
 const showStatus = computed(() => split.value.titleChrome.includes('status'))
-const bodySlots = computed(() => {
-  let slots = split.value.body
-  // One status chrome on title — do not also show stage as a second badge
-  if (showStatus.value) {
-    slots = slots.filter(s => s !== 'stage')
-  }
-  return slots
-})
+const bodySlots = computed(() => split.value.body)
 const footerSlots = computed(() => {
   const slots = split.value.footer
   // Prefer meetingDate when both time slots are enabled

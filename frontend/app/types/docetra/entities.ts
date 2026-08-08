@@ -37,6 +37,7 @@ export interface RecordDocument extends BaseEntity {
   referenceNumber: string
   title: string
   recordKind: 'incoming' | 'outgoing' | 'document' | 'master_list_request'
+  recordFlowCode?: string
   /** Configured Record Type id (Configuration → Record Types). */
   recordTypeId?: string
   /** Denormalized Record Type name for list/board display. */
@@ -45,6 +46,15 @@ export interface RecordDocument extends BaseEntity {
   recipientOrganization?: OrganizationSummary
   receivedDate?: string
   sentDate?: string
+  documentDate?: string
+  letterDate?: string
+  letterSubject?: string
+  directorGeneralDate?: string
+  directorDate?: string
+  involvedOfficers?: string[]
+  externalUnits?: string[]
+  officeInCharge?: string
+  officerInCharge?: string
   /** Record business timestamp (`record_time`). */
   recordTime?: string
   ownerDepartment?: OrganizationSummary
@@ -59,10 +69,14 @@ export interface RecordDocument extends BaseEntity {
 }
 
 export interface RecordLog extends BaseEntity {
+  /** Sequential number assigned for the current paginated table. */
+  rowNumber?: number
   action: string
   entityType: string
   entityId: string
   entityTitle: string
+  recordStage?: string
+  parentRecord?: string
   actor?: PersonSummary
   organization?: OrganizationSummary
   occurredAt: string
@@ -75,10 +89,17 @@ export interface RecordLog extends BaseEntity {
 }
 
 export interface Department extends BaseEntity {
-  code: string
+  rowNumber?: number
+  code?: string
   name: string
   parentId?: string | null
   parentName?: string
+  isActive?: boolean
+  taxId?: string
+  description?: string
+  address?: string
+  contactInfo?: string
+  logoUrl?: string
   officerCount: number
   relatedRecordCount: number
   contactEmail?: string
@@ -86,32 +107,48 @@ export interface Department extends BaseEntity {
 }
 
 export interface Company extends BaseEntity {
-  code: string
+  rowNumber?: number
+  code?: string
   name: string
   purposeId?: string
   purposeName?: string
   sectorId?: string
   sectorName?: string
+  taxId?: string
   registrationNumber?: string
+  isActive?: boolean
+  contactEmail?: string
+  contactPhone?: string
+  description?: string
+  address?: string
+  contactInfo?: string
+  logoUrl?: string
   relatedRecordCount: number
 }
 
 export interface CompanyPurpose extends BaseEntity {
-  code: string
+  rowNumber?: number
+  code?: string
   name: string
   description?: string
-  usageCount: number
+  isActive?: boolean
+  usageCount?: number
 }
 
 export interface CompanySector extends BaseEntity {
-  code: string
+  rowNumber?: number
+  code?: string
   name: string
   description?: string
-  usageCount: number
+  isActive?: boolean
+  parentId?: string | null
+  parentName?: string
+  usageCount?: number
 }
 
 export interface Officer extends BaseEntity {
-  code: string
+  rowNumber?: number
+  code?: string
   name: string
   email?: string
   phone?: string
@@ -119,6 +156,12 @@ export interface Officer extends BaseEntity {
   departmentName?: string
   titleRole?: string
   userId?: string
+  organizationId?: string
+  organizationName?: string
+  roleId?: string
+  roleName?: string
+  isActive?: boolean
+  authenticationEnabled?: boolean
 }
 
 export interface AppRolePermissionRow {
@@ -199,8 +242,14 @@ export interface PortalLog extends BaseEntity {
 }
 
 export interface SystemLog extends BaseEntity {
+  rowNumber?: number
   level: 'info' | 'warn' | 'error' | 'debug'
   source: string
+  actionCode?: string
+  tableName?: string
+  statusCode?: number
+  sourceLog?: string
+  ipAddress?: string
   message: string
   occurredAt: string
   correlationId?: string

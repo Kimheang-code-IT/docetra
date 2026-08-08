@@ -64,6 +64,16 @@
       "portalLog": "Portal operation history.",
       "systemLog": "System and service diagnostics."
     },
+    "department": {
+      "cannotBeOwnAncestor": "A department cannot be its own ancestor."
+    },
+    "companySector": {
+      "cannotBeOwnParent": "A company sector cannot be its own parent."
+    },
+    "authentication": {
+      "enabled": "Enabled",
+      "notConfigured": "Not configured"
+    },
     "fieldHints": {
       "waiting": "Mark this record as waiting for an external response or follow-up before continuing the workflow.",
       "priorityScore": "Numeric priority used for sorting and triage. Higher values surface first in work queues. If not set, the default from Record Settings is used."
@@ -470,6 +480,7 @@
       "cardFieldsAlignRight": "Right",
       "cardFieldsTitleRowHint": "Title row",
       "cardFields": {
+        "meetingTopics": "Topic cards",
         "meetingHistory": "Meeting cards",
         "incomingDocuments": "Incoming document cards",
         "outgoingDocuments": "Outgoing document cards",
@@ -617,6 +628,14 @@
     "cardSlots": {
       "topicTitle": "Topic",
       "status": "Status",
+      "active": "Active",
+      "isActive": "Is Active",
+      "authentication": "Authentication",
+      "ancestor": "Ancestor",
+      "taxId": "Tax ID",
+      "address": "Address",
+      "contactInfo": "Contact Info",
+      "logo": "Logo",
       "sortOrder": "Sort order",
       "letterNumber": "Letter number",
       "letterDate": "Letter date",
@@ -642,7 +661,17 @@
       "createdAt": "Created date",
       "updatedAt": "Updated date",
       "attachmentCount": "Attachments",
-      "commentCount": "Comments"
+      "commentCount": "Comments",
+      "recordFlowCode": "Record flow",
+      "recordContent": "Content",
+      "documentType": "Document type",
+      "letterSubject": "Letter subject",
+      "documentDate": "Document date",
+      "directorGeneralDate": "Director General date",
+      "directorDate": "Director date",
+      "involvedOfficers": "Involved officers",
+      "officeInCharge": "Office in charge",
+      "officerInCharge": "Officer in charge"
     },
     "cardSlotBlocks": {
       "context": "Context",
@@ -744,13 +773,25 @@
       }
     },
     "fields": {
+      "number": "No.",
       "title": "Title",
       "name": "Name",
       "label": "Label",
       "value": "Value",
       "code": "Code",
       "status": "Status",
+      "active": "Active",
+      "isActive": "Is Active",
+      "authentication": "Authentication",
+      "ancestor": "Ancestor",
+      "taxId": "Tax ID",
+      "address": "Address",
+      "contactInfo": "Contact Info",
+      "logo": "Logo",
       "stage": "Stage",
+      "recordStage": "Record Stage",
+      "parentRecord": "Parent Record",
+      "updater": "Updater",
       "owner": "Owner",
       "assignee": "Assignee",
       "meetingDate": "Meeting date",
@@ -760,6 +801,17 @@
       "letterNumber": "Letter no.",
       "letterSubject": "Letter subject",
       "letterDate": "Letter date",
+      "date": "Date",
+      "recordFlow": "Record flow",
+      "incomingDocument": "Incoming document",
+      "outgoingDocument": "Outgoing document",
+      "document": "Document",
+      "documentType": "Document type",
+      "directorGeneralDate": "Director General date",
+      "directorDate": "Director date",
+      "involvedOfficers": "Involved officers",
+      "officeInCharge": "Office in charge",
+      "officerInCharge": "Officer in charge",
       "participants": "Participants",
       "internalUnits": "Internal units",
       "externalUnits": "External units",
@@ -783,6 +835,12 @@
       "priorityScore": "Priority score",
       "attachments": "Attachments",
       "action": "Action",
+      "actionCode": "Action Code",
+      "tableName": "Table Name",
+      "statusCode": "Status Code",
+      "sourceLog": "Source Log",
+      "ipAddress": "IP Address",
+      "creator": "Creator",
       "entity": "Entity",
       "actor": "Actor",
       "summary": "Summary",
@@ -868,7 +926,15 @@
       "incoming_document": "Incoming document",
       "outgoing_document": "Outgoing document",
       "document": "Document",
-      "master_list_request": "Master list request"
+      "file": "File",
+      "master_list_request": "Master List Request",
+      "meeting": "Meeting",
+      "meeting_topic": "Meeting Topic",
+      "url": "URL",
+      "approved_master_list": "Approved Master List",
+      "extension_of_validity": "Extension Of Validity",
+      "physical_inspection": "Physical Inspection",
+      "tax_incentive": "Tax Incentive"
     },
     "severity": {
       "info": "Info",
@@ -882,7 +948,7 @@
       "collapseTabs": "Collapse log views",
       "expandTabs": "Expand log views",
       "tabs": {
-        "all": "All events",
+        "all": "All",
         "allHint": "Every record change event",
         "createdHint": "New records only",
         "updatedHint": "Field and content updates",

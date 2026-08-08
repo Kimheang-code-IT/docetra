@@ -100,55 +100,48 @@ const occurredAtDateFilter: FilterDef = {
   type: 'daterange',
 }
 
-function recordTabs(extraFields: DocumentTabSchema['sections'][0]['fields'] = []): DocumentTabSchema[] {
-  return [
+interface WorkflowDocumentFormOptions {
+  contentLabelKey: string
+  dateKey: 'receivedDate' | 'sentDate' | 'documentDate'
+  documentTypeRequired?: boolean
+}
+
+function workflowDocumentTabs(options: WorkflowDocumentFormOptions): DocumentTabSchema[] {
+  return masterDataTabs([
+    { key: 'status', labelKey: 'docetra.fields.status', type: 'select', required: true, options: statusFilter.options },
+    { key: 'title', labelKey: 'docetra.fields.title', type: 'text', required: true },
+    { key: 'recordFlowCode', labelKey: 'docetra.fields.recordFlow', type: 'text', required: true },
+    { key: 'recordContent', labelKey: options.contentLabelKey, type: 'textarea', colSpan: 2 },
     {
-      id: 'details',
-      labelKey: 'docetra.tabs.details',
-      sections: [{
-        id: 'main',
-        titleKey: 'docetra.sections.main',
-        fields: [
-          { key: 'referenceNumber', labelKey: 'docetra.fields.referenceNumber', type: 'text', required: true },
-          { key: 'title', labelKey: 'docetra.fields.title', type: 'text', required: true, colSpan: 2 },
-          {
-            key: 'recordTypeId',
-            labelKey: 'docetra.fields.recordType',
-            type: 'select',
-            optionsEndpoint: `${ApiEndpoints.RECORD_TYPES}/options`,
-          },
-          { key: 'status', labelKey: 'docetra.fields.status', type: 'select', options: statusFilter.options },
-          { key: 'stage', labelKey: 'docetra.fields.stage', type: 'select', options: recordStageFilter.options },
-          { key: 'description', labelKey: 'docetra.fields.description', type: 'textarea', colSpan: 2 },
-          ...extraFields,
-        ],
-      }],
+      key: 'recordTypeId',
+      labelKey: 'docetra.fields.documentType',
+      type: 'select',
+      required: options.documentTypeRequired,
+      optionsEndpoint: `${ApiEndpoints.RECORD_TYPES}/options`,
     },
-    {
-      id: 'organizations',
-      labelKey: 'docetra.tabs.organizations',
-      sections: [{
-        id: 'orgs',
-        titleKey: 'docetra.sections.organizations',
-        fields: [
-          { key: 'senderOrganization.name', labelKey: 'docetra.fields.sender', type: 'text' },
-          { key: 'recipientOrganization.name', labelKey: 'docetra.fields.recipient', type: 'text' },
-          { key: 'ownerDepartment.name', labelKey: 'docetra.fields.ownerDepartment', type: 'text' },
-        ],
-      }],
-    },
-    {
-      id: 'files',
-      labelKey: 'docetra.tabs.files',
-      sections: [{
-        id: 'files',
-        titleKey: 'docetra.sections.files',
-        fields: [
-          { key: 'attachmentCount', labelKey: 'docetra.fields.attachments', type: 'number', readOnly: true },
-        ],
-      }],
-    },
-  ]
+    { key: 'referenceNumber', labelKey: 'docetra.fields.letterNumber', type: 'text', required: true },
+    { key: 'letterSubject', labelKey: 'docetra.fields.letterSubject', type: 'text', required: true, colSpan: 2 },
+    { key: options.dateKey, labelKey: 'docetra.fields.date', type: 'date', required: true },
+    { key: 'directorGeneralDate', labelKey: 'docetra.fields.directorGeneralDate', type: 'date' },
+    { key: 'directorDate', labelKey: 'docetra.fields.directorDate', type: 'date' },
+    { key: 'involvedOfficers', labelKey: 'docetra.fields.involvedOfficers', type: 'csv-list', colSpan: 2 },
+    { key: 'externalUnits', labelKey: 'docetra.fields.externalUnits', type: 'csv-list', colSpan: 2 },
+    { key: 'tags', labelKey: 'docetra.fields.recordTag', type: 'csv-list', colSpan: 2 },
+  ])
+}
+
+function masterListRequestTabs(): DocumentTabSchema[] {
+  return masterDataTabs([
+    { key: 'status', labelKey: 'docetra.fields.status', type: 'select', required: true, options: statusFilter.options },
+    { key: 'title', labelKey: 'docetra.fields.title', type: 'text', required: true },
+    { key: 'referenceNumber', labelKey: 'docetra.fields.letterNumber', type: 'text', required: true },
+    { key: 'letterDate', labelKey: 'docetra.fields.letterDate', type: 'date', required: true },
+    { key: 'letterSubject', labelKey: 'docetra.fields.letterSubject', type: 'text', required: true, colSpan: 2 },
+    { key: 'officeInCharge', labelKey: 'docetra.fields.officeInCharge', type: 'text' },
+    { key: 'officerInCharge', labelKey: 'docetra.fields.officerInCharge', type: 'text' },
+    { key: 'externalUnits', labelKey: 'docetra.fields.externalUnits', type: 'csv-list', colSpan: 2 },
+    { key: 'tags', labelKey: 'docetra.fields.recordTag', type: 'csv-list', colSpan: 2 },
+  ])
 }
 
 function masterDataTabs(fields: DocumentTabSchema['sections'][0]['fields']): DocumentTabSchema[] {
@@ -260,7 +253,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
     stages: recordWorkflowStages,
     titleField: 'title',
     columns: [
-      { key: 'referenceNumber', labelKey: 'docetra.fields.referenceNumber', sortable: true, priority: 'high' },
+      { key: 'referenceNumber', labelKey: 'docetra.fields.letterNumber', sortable: true, priority: 'high' },
       { key: 'title', labelKey: 'docetra.fields.title', sortable: true, priority: 'high' },
       { key: 'senderOrganization.name', labelKey: 'docetra.fields.sender' },
       { key: 'receivedDate', labelKey: 'docetra.fields.receivedDate', sortable: true },
@@ -276,21 +269,11 @@ export const entityConfigs: Record<string, EntityConfig> = {
       { key: 'receivedDate', labelKey: 'docetra.fields.receivedDate', type: 'daterange' },
       { key: 'waiting', labelKey: 'docetra.fields.waiting', type: 'boolean' },
     ],
-    tabs: recordTabs([
-      { key: 'receivedDate', labelKey: 'docetra.fields.receivedDate', type: 'date' },
-      {
-        key: 'waiting',
-        labelKey: 'docetra.fields.waiting',
-        type: 'boolean',
-        hintKey: 'docetra.fieldHints.waiting',
-      },
-      {
-        key: 'priorityScore',
-        labelKey: 'docetra.fields.priorityScore',
-        type: 'number',
-        helpKey: 'docetra.fieldHints.priorityScore',
-      },
-    ]),
+    tabs: workflowDocumentTabs({
+      contentLabelKey: 'docetra.fields.incomingDocument',
+      dateKey: 'receivedDate',
+      documentTypeRequired: true,
+    }),
   },
 
   outgoingDocuments: {
@@ -308,7 +291,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
     stages: recordWorkflowStages,
     titleField: 'title',
     columns: [
-      { key: 'referenceNumber', labelKey: 'docetra.fields.referenceNumber', sortable: true, priority: 'high' },
+      { key: 'referenceNumber', labelKey: 'docetra.fields.letterNumber', sortable: true, priority: 'high' },
       { key: 'title', labelKey: 'docetra.fields.title', sortable: true, priority: 'high' },
       { key: 'recipientOrganization.name', labelKey: 'docetra.fields.recipient' },
       { key: 'sentDate', labelKey: 'docetra.fields.sentDate', sortable: true },
@@ -320,9 +303,10 @@ export const entityConfigs: Record<string, EntityConfig> = {
       recordStageFilter,
       { key: 'sentDate', labelKey: 'docetra.fields.sentDate', type: 'daterange' },
     ],
-    tabs: recordTabs([
-      { key: 'sentDate', labelKey: 'docetra.fields.sentDate', type: 'date' },
-    ]),
+    tabs: workflowDocumentTabs({
+      contentLabelKey: 'docetra.fields.outgoingDocument',
+      dateKey: 'sentDate',
+    }),
   },
 
   documents: {
@@ -340,9 +324,10 @@ export const entityConfigs: Record<string, EntityConfig> = {
     stages: recordWorkflowStages,
     titleField: 'title',
     columns: [
-      { key: 'referenceNumber', labelKey: 'docetra.fields.referenceNumber', sortable: true, priority: 'high' },
+      { key: 'referenceNumber', labelKey: 'docetra.fields.letterNumber', sortable: true, priority: 'high' },
       { key: 'title', labelKey: 'docetra.fields.title', sortable: true, priority: 'high' },
       { key: 'recordTypeName', labelKey: 'docetra.fields.recordType' },
+      { key: 'documentDate', labelKey: 'docetra.fields.date', sortable: true },
       { key: 'stage', labelKey: 'docetra.fields.stage' },
       { key: 'status', labelKey: 'docetra.fields.status' },
       { key: 'updatedAt', labelKey: 'docetra.fields.updatedAt', sortable: true },
@@ -350,9 +335,13 @@ export const entityConfigs: Record<string, EntityConfig> = {
     filters: [
       statusFilter,
       recordStageFilter,
-      { key: 'updatedAt', labelKey: 'docetra.fields.updatedAt', type: 'daterange' },
+      { key: 'documentDate', labelKey: 'docetra.fields.date', type: 'daterange' },
     ],
-    tabs: recordTabs(),
+    tabs: workflowDocumentTabs({
+      contentLabelKey: 'docetra.fields.document',
+      dateKey: 'documentDate',
+      documentTypeRequired: true,
+    }),
   },
 
   masterListRequests: {
@@ -370,8 +359,9 @@ export const entityConfigs: Record<string, EntityConfig> = {
     stages: recordWorkflowStages,
     titleField: 'title',
     columns: [
-      { key: 'referenceNumber', labelKey: 'docetra.fields.referenceNumber', sortable: true },
+      { key: 'referenceNumber', labelKey: 'docetra.fields.letterNumber', sortable: true },
       { key: 'title', labelKey: 'docetra.fields.title', sortable: true },
+      { key: 'letterDate', labelKey: 'docetra.fields.letterDate', sortable: true },
       { key: 'stage', labelKey: 'docetra.fields.stage' },
       { key: 'status', labelKey: 'docetra.fields.status' },
       { key: 'owner.name', labelKey: 'docetra.fields.owner' },
@@ -380,9 +370,9 @@ export const entityConfigs: Record<string, EntityConfig> = {
     filters: [
       statusFilter,
       recordStageFilter,
-      { key: 'updatedAt', labelKey: 'docetra.fields.updatedAt', type: 'daterange' },
+      { key: 'letterDate', labelKey: 'docetra.fields.letterDate', type: 'daterange' },
     ],
-    tabs: recordTabs(),
+    tabs: masterListRequestTabs(),
   },
 
   recordLogs: {
@@ -401,15 +391,13 @@ export const entityConfigs: Record<string, EntityConfig> = {
     canComment: false,
     titleField: 'summary',
     columns: [
-      { key: 'occurredAt', labelKey: 'docetra.fields.occurredAt', sortable: true, priority: 'high', cell: 'datetime' },
-      { key: 'action', labelKey: 'docetra.fields.action', priority: 'high', cell: 'badge' },
-      { key: 'entityType', labelKey: 'docetra.fields.recordType', priority: 'medium', cell: 'badge' },
-      { key: 'entityTitle', labelKey: 'docetra.fields.entity', priority: 'high' },
-      { key: 'actor.name', labelKey: 'docetra.fields.actor', priority: 'medium', cell: 'person' },
-      { key: 'organization.name', labelKey: 'docetra.fields.organization', priority: 'low' },
-      { key: 'severity', labelKey: 'docetra.fields.severity', priority: 'medium', cell: 'badge' },
-      { key: 'summary', labelKey: 'docetra.fields.summary', priority: 'high' },
-      { key: 'correlationId', labelKey: 'docetra.fields.correlationId', priority: 'low' },
+      { key: 'rowNumber', labelKey: 'docetra.fields.number', priority: 'high' },
+      { key: 'entityType', labelKey: 'docetra.fields.recordType', priority: 'high', cell: 'badge' },
+      { key: 'entityTitle', labelKey: 'docetra.fields.title', priority: 'high' },
+      { key: 'recordStage', labelKey: 'docetra.fields.recordStage', priority: 'high', cell: 'badge' },
+      { key: 'parentRecord', labelKey: 'docetra.fields.parentRecord', priority: 'high' },
+      { key: 'updatedAt', labelKey: 'docetra.fields.updatedAt', sortable: true, priority: 'high', cell: 'datetime' },
+      { key: 'actor.name', labelKey: 'docetra.fields.updater', priority: 'high', cell: 'person' },
     ],
     filters: [
       {
@@ -428,10 +416,16 @@ export const entityConfigs: Record<string, EntityConfig> = {
         labelKey: 'docetra.fields.recordType',
         type: 'select',
         options: [
-          { label: 'Incoming', value: 'incoming_document', labelKey: 'docetra.entityTypes.incoming_document' },
-          { label: 'Outgoing', value: 'outgoing_document', labelKey: 'docetra.entityTypes.outgoing_document' },
           { label: 'Document', value: 'document', labelKey: 'docetra.entityTypes.document' },
-          { label: 'Master list', value: 'master_list_request', labelKey: 'docetra.entityTypes.master_list_request' },
+          { label: 'File', value: 'file', labelKey: 'docetra.entityTypes.file' },
+          { label: 'Master List Request', value: 'master_list_request', labelKey: 'docetra.entityTypes.master_list_request' },
+          { label: 'Meeting', value: 'meeting', labelKey: 'docetra.entityTypes.meeting' },
+          { label: 'Meeting Topic', value: 'meeting_topic', labelKey: 'docetra.entityTypes.meeting_topic' },
+          { label: 'URL', value: 'url', labelKey: 'docetra.entityTypes.url' },
+          { label: 'Approved Master List', value: 'approved_master_list', labelKey: 'docetra.entityTypes.approved_master_list' },
+          { label: 'Extension Of Validity', value: 'extension_of_validity', labelKey: 'docetra.entityTypes.extension_of_validity' },
+          { label: 'Physical Inspection', value: 'physical_inspection', labelKey: 'docetra.entityTypes.physical_inspection' },
+          { label: 'Tax Incentive', value: 'tax_incentive', labelKey: 'docetra.entityTypes.tax_incentive' },
         ],
       },
       {
@@ -507,21 +501,34 @@ export const entityConfigs: Record<string, EntityConfig> = {
     canComment: true,
     titleField: 'name',
     columns: [
-      { key: 'code', labelKey: 'docetra.fields.code', sortable: true, priority: 'high' },
+      { key: 'rowNumber', labelKey: 'docetra.fields.number', priority: 'high' },
       { key: 'name', labelKey: 'docetra.fields.name', sortable: true, priority: 'high' },
-      { key: 'parentName', labelKey: 'docetra.fields.parent' },
-      { key: 'status', labelKey: 'docetra.fields.status' },
-      { key: 'officerCount', labelKey: 'docetra.fields.officerCount' },
-      { key: 'relatedRecordCount', labelKey: 'docetra.fields.relatedRecords' },
-      { key: 'updatedAt', labelKey: 'docetra.fields.updatedAt', sortable: true },
+      { key: 'isActive', labelKey: 'docetra.fields.active', priority: 'high', cell: 'badge' },
+      { key: 'parentName', labelKey: 'docetra.fields.parent', priority: 'high' },
+      { key: 'updatedAt', labelKey: 'docetra.fields.updatedAt', sortable: true, priority: 'high', cell: 'datetime' },
+      { key: 'updatedBy.name', labelKey: 'docetra.fields.updater', priority: 'high', cell: 'person' },
     ],
-    filters: [statusFilter, updatedAtDateFilter],
+    filters: [
+      { key: 'isActive', labelKey: 'docetra.fields.active', type: 'boolean' },
+      updatedAtDateFilter,
+    ],
     tabs: masterDataTabs([
-      { key: 'code', labelKey: 'docetra.fields.code', type: 'text', required: true },
+      {
+        key: 'parentId',
+        labelKey: 'docetra.fields.ancestor',
+        type: 'select',
+        placeholder: 'Choose option ...',
+        optionsEndpoint: `${ApiEndpoints.DEPARTMENTS}/options`,
+      },
       { key: 'name', labelKey: 'docetra.fields.name', type: 'text', required: true },
-      { key: 'parentName', labelKey: 'docetra.fields.parent', type: 'text' },
-      { key: 'status', labelKey: 'docetra.fields.status', type: 'select', options: statusFilter.options },
+      { key: 'taxId', labelKey: 'docetra.fields.taxId', type: 'text' },
       { key: 'contactEmail', labelKey: 'docetra.fields.email', type: 'text' },
+      { key: 'contactPhone', labelKey: 'docetra.fields.phone', type: 'text' },
+      { key: 'description', labelKey: 'docetra.fields.description', type: 'textarea', colSpan: 2 },
+      { key: 'address', labelKey: 'docetra.fields.address', type: 'textarea', colSpan: 2 },
+      { key: 'contactInfo', labelKey: 'docetra.fields.contactInfo', type: 'textarea', colSpan: 2 },
+      { key: 'logoUrl', labelKey: 'docetra.fields.logo', type: 'image', colSpan: 2 },
+      { key: 'isActive', labelKey: 'docetra.fields.isActive', type: 'boolean' },
     ]),
   },
 
@@ -539,21 +546,43 @@ export const entityConfigs: Record<string, EntityConfig> = {
     canComment: true,
     titleField: 'name',
     columns: [
-      { key: 'code', labelKey: 'docetra.fields.code', sortable: true },
-      { key: 'name', labelKey: 'docetra.fields.name', sortable: true },
-      { key: 'purposeName', labelKey: 'docetra.fields.purpose' },
-      { key: 'sectorName', labelKey: 'docetra.fields.sector' },
-      { key: 'status', labelKey: 'docetra.fields.status' },
-      { key: 'relatedRecordCount', labelKey: 'docetra.fields.relatedRecords' },
+      { key: 'rowNumber', labelKey: 'docetra.fields.number', priority: 'high' },
+      { key: 'name', labelKey: 'docetra.fields.name', sortable: true, priority: 'high' },
+      { key: 'taxId', labelKey: 'docetra.fields.taxId', priority: 'high' },
+      { key: 'isActive', labelKey: 'docetra.fields.active', priority: 'high', cell: 'badge' },
+      { key: 'sectorName', labelKey: 'docetra.fields.sector', priority: 'high' },
+      { key: 'purposeName', labelKey: 'docetra.fields.purpose', priority: 'high' },
+      { key: 'updatedAt', labelKey: 'docetra.fields.updatedAt', sortable: true, priority: 'high', cell: 'datetime' },
+      { key: 'updatedBy.name', labelKey: 'docetra.fields.updater', priority: 'high', cell: 'person' },
     ],
-    filters: [statusFilter, updatedAtDateFilter],
+    filters: [
+      { key: 'isActive', labelKey: 'docetra.fields.active', type: 'boolean' },
+      updatedAtDateFilter,
+    ],
     tabs: masterDataTabs([
-      { key: 'code', labelKey: 'docetra.fields.code', type: 'text', required: true },
       { key: 'name', labelKey: 'docetra.fields.name', type: 'text', required: true },
-      { key: 'purposeName', labelKey: 'docetra.fields.purpose', type: 'text' },
-      { key: 'sectorName', labelKey: 'docetra.fields.sector', type: 'text' },
-      { key: 'registrationNumber', labelKey: 'docetra.fields.registrationNumber', type: 'text' },
-      { key: 'status', labelKey: 'docetra.fields.status', type: 'select', options: statusFilter.options },
+      { key: 'taxId', labelKey: 'docetra.fields.taxId', type: 'text' },
+      {
+        key: 'sectorId',
+        labelKey: 'docetra.fields.sector',
+        type: 'select',
+        placeholder: 'Choose option ...',
+        optionsEndpoint: `${ApiEndpoints.COMPANY_SECTORS}/options`,
+      },
+      {
+        key: 'purposeId',
+        labelKey: 'docetra.fields.purpose',
+        type: 'select',
+        placeholder: 'Choose option ...',
+        optionsEndpoint: `${ApiEndpoints.COMPANY_PURPOSES}/options`,
+      },
+      { key: 'contactEmail', labelKey: 'docetra.fields.email', type: 'text' },
+      { key: 'contactPhone', labelKey: 'docetra.fields.phone', type: 'text' },
+      { key: 'description', labelKey: 'docetra.fields.description', type: 'textarea', colSpan: 2 },
+      { key: 'address', labelKey: 'docetra.fields.address', type: 'textarea', colSpan: 2 },
+      { key: 'contactInfo', labelKey: 'docetra.fields.contactInfo', type: 'textarea', colSpan: 2 },
+      { key: 'logoUrl', labelKey: 'docetra.fields.logo', type: 'image', colSpan: 2 },
+      { key: 'isActive', labelKey: 'docetra.fields.isActive', type: 'boolean' },
     ]),
   },
 
@@ -571,18 +600,21 @@ export const entityConfigs: Record<string, EntityConfig> = {
     canComment: false,
     titleField: 'name',
     columns: [
-      { key: 'code', labelKey: 'docetra.fields.code', sortable: true },
-      { key: 'name', labelKey: 'docetra.fields.name', sortable: true },
-      { key: 'usageCount', labelKey: 'docetra.fields.usage' },
-      { key: 'status', labelKey: 'docetra.fields.status' },
-      { key: 'updatedAt', labelKey: 'docetra.fields.updatedAt' },
+      { key: 'rowNumber', labelKey: 'docetra.fields.number', priority: 'high' },
+      { key: 'name', labelKey: 'docetra.fields.name', sortable: true, priority: 'high' },
+      { key: 'description', labelKey: 'docetra.fields.description', priority: 'high' },
+      { key: 'isActive', labelKey: 'docetra.fields.active', priority: 'high', cell: 'badge' },
+      { key: 'updatedAt', labelKey: 'docetra.fields.updatedAt', sortable: true, priority: 'high', cell: 'datetime' },
+      { key: 'updatedBy.name', labelKey: 'docetra.fields.updater', priority: 'high', cell: 'person' },
     ],
-    filters: [statusFilter, updatedAtDateFilter],
+    filters: [
+      { key: 'isActive', labelKey: 'docetra.fields.active', type: 'boolean' },
+      updatedAtDateFilter,
+    ],
     tabs: masterDataTabs([
-      { key: 'code', labelKey: 'docetra.fields.code', type: 'text', required: true },
       { key: 'name', labelKey: 'docetra.fields.name', type: 'text', required: true },
       { key: 'description', labelKey: 'docetra.fields.description', type: 'textarea', colSpan: 2 },
-      { key: 'status', labelKey: 'docetra.fields.status', type: 'select', options: statusFilter.options },
+      { key: 'isActive', labelKey: 'docetra.fields.isActive', type: 'boolean' },
     ]),
   },
 
@@ -600,17 +632,29 @@ export const entityConfigs: Record<string, EntityConfig> = {
     canComment: false,
     titleField: 'name',
     columns: [
-      { key: 'code', labelKey: 'docetra.fields.code', sortable: true },
-      { key: 'name', labelKey: 'docetra.fields.name', sortable: true },
-      { key: 'usageCount', labelKey: 'docetra.fields.usage' },
-      { key: 'status', labelKey: 'docetra.fields.status' },
+      { key: 'rowNumber', labelKey: 'docetra.fields.number', priority: 'high' },
+      { key: 'name', labelKey: 'docetra.fields.name', sortable: true, priority: 'high' },
+      { key: 'description', labelKey: 'docetra.fields.description', priority: 'high' },
+      { key: 'isActive', labelKey: 'docetra.fields.active', priority: 'high', cell: 'badge' },
+      { key: 'parentName', labelKey: 'docetra.fields.parent', priority: 'high' },
+      { key: 'updatedAt', labelKey: 'docetra.fields.updatedAt', sortable: true, priority: 'high', cell: 'datetime' },
+      { key: 'updatedBy.name', labelKey: 'docetra.fields.updater', priority: 'high', cell: 'person' },
     ],
-    filters: [statusFilter, updatedAtDateFilter],
+    filters: [
+      { key: 'isActive', labelKey: 'docetra.fields.active', type: 'boolean' },
+      updatedAtDateFilter,
+    ],
     tabs: masterDataTabs([
-      { key: 'code', labelKey: 'docetra.fields.code', type: 'text', required: true },
       { key: 'name', labelKey: 'docetra.fields.name', type: 'text', required: true },
+      {
+        key: 'parentId',
+        labelKey: 'docetra.fields.parent',
+        type: 'select',
+        placeholder: 'Choose option ...',
+        optionsEndpoint: `${ApiEndpoints.COMPANY_SECTORS}/options`,
+      },
       { key: 'description', labelKey: 'docetra.fields.description', type: 'textarea', colSpan: 2 },
-      { key: 'status', labelKey: 'docetra.fields.status', type: 'select', options: statusFilter.options },
+      { key: 'isActive', labelKey: 'docetra.fields.isActive', type: 'boolean' },
     ]),
   },
 
@@ -628,22 +672,36 @@ export const entityConfigs: Record<string, EntityConfig> = {
     canComment: true,
     titleField: 'name',
     columns: [
-      { key: 'code', labelKey: 'docetra.fields.code', sortable: true },
-      { key: 'name', labelKey: 'docetra.fields.name', sortable: true },
-      { key: 'email', labelKey: 'docetra.fields.email' },
-      { key: 'departmentName', labelKey: 'docetra.fields.department' },
-      { key: 'titleRole', labelKey: 'docetra.fields.titleRole' },
-      { key: 'status', labelKey: 'docetra.fields.status' },
+      { key: 'rowNumber', labelKey: 'docetra.fields.number', priority: 'high' },
+      { key: 'name', labelKey: 'docetra.fields.name', sortable: true, priority: 'high' },
+      { key: 'organizationName', labelKey: 'docetra.fields.organization', priority: 'high' },
+      { key: 'roleName', labelKey: 'docetra.fields.role', priority: 'high' },
+      { key: 'isActive', labelKey: 'docetra.fields.active', priority: 'high', cell: 'badge' },
+      { key: 'authenticationEnabled', labelKey: 'docetra.fields.authentication', priority: 'high', cell: 'badge' },
+      { key: 'updatedAt', labelKey: 'docetra.fields.updatedAt', sortable: true, priority: 'high', cell: 'datetime' },
+      { key: 'updatedBy.name', labelKey: 'docetra.fields.updater', priority: 'high', cell: 'person' },
     ],
-    filters: [statusFilter, updatedAtDateFilter],
+    filters: [
+      { key: 'isActive', labelKey: 'docetra.fields.active', type: 'boolean' },
+      updatedAtDateFilter,
+    ],
     tabs: masterDataTabs([
-      { key: 'code', labelKey: 'docetra.fields.code', type: 'text', required: true },
       { key: 'name', labelKey: 'docetra.fields.name', type: 'text', required: true },
-      { key: 'email', labelKey: 'docetra.fields.email', type: 'text' },
-      { key: 'phone', labelKey: 'docetra.fields.phone', type: 'text' },
-      { key: 'departmentName', labelKey: 'docetra.fields.department', type: 'text' },
-      { key: 'titleRole', labelKey: 'docetra.fields.titleRole', type: 'text' },
-      { key: 'status', labelKey: 'docetra.fields.status', type: 'select', options: statusFilter.options },
+      {
+        key: 'organizationId',
+        labelKey: 'docetra.fields.organization',
+        type: 'select',
+        placeholder: 'Choose option ...',
+        optionsEndpoint: `${ApiEndpoints.DEPARTMENTS}/options`,
+      },
+      {
+        key: 'roleId',
+        labelKey: 'docetra.fields.role',
+        type: 'select',
+        placeholder: 'Choose option ...',
+        optionsEndpoint: `${ApiEndpoints.ROLES}/options`,
+      },
+      { key: 'isActive', labelKey: 'docetra.fields.isActive', type: 'boolean' },
     ]),
   },
 
@@ -921,11 +979,15 @@ export const entityConfigs: Record<string, EntityConfig> = {
     canComment: false,
     titleField: 'message',
     columns: [
-      { key: 'occurredAt', labelKey: 'docetra.fields.occurredAt', sortable: true },
-      { key: 'level', labelKey: 'docetra.fields.level' },
-      { key: 'source', labelKey: 'docetra.fields.source' },
-      { key: 'message', labelKey: 'docetra.fields.message' },
-      { key: 'correlationId', labelKey: 'docetra.fields.correlationId', priority: 'low' },
+      { key: 'rowNumber', labelKey: 'docetra.fields.number', priority: 'high' },
+      { key: 'message', labelKey: 'docetra.fields.message', priority: 'high' },
+      { key: 'actionCode', labelKey: 'docetra.fields.actionCode', priority: 'high' },
+      { key: 'tableName', labelKey: 'docetra.fields.tableName', priority: 'high' },
+      { key: 'statusCode', labelKey: 'docetra.fields.statusCode', priority: 'high' },
+      { key: 'sourceLog', labelKey: 'docetra.fields.sourceLog', priority: 'high' },
+      { key: 'ipAddress', labelKey: 'docetra.fields.ipAddress', priority: 'high' },
+      { key: 'createdAt', labelKey: 'docetra.fields.createdAt', sortable: true, priority: 'high', cell: 'datetime' },
+      { key: 'createdBy.name', labelKey: 'docetra.fields.creator', priority: 'high', cell: 'person' },
     ],
     filters: [
       {
@@ -939,7 +1001,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
           { label: 'Debug', value: 'debug' },
         ],
       },
-      occurredAtDateFilter,
+      createdAtDateFilter,
     ],
     tabs: masterDataTabs([
       { key: 'level', labelKey: 'docetra.fields.level', type: 'text', readOnly: true },

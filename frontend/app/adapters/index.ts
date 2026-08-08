@@ -44,16 +44,31 @@ export const adapters = {
     'externalUnits',
     'recordTag',
   ]),
-  incomingDocuments: adapter(ApiEndpoints.INCOMING_DOCUMENTS, mockIncomingDocuments, ['title', 'referenceNumber']),
-  outgoingDocuments: adapter(ApiEndpoints.OUTGOING_DOCUMENTS, mockOutgoingDocuments, ['title', 'referenceNumber']),
-  documents: adapter(ApiEndpoints.DOCUMENTS, mockDocuments, ['title', 'referenceNumber']),
-  masterListRequests: adapter(ApiEndpoints.MASTER_LIST_REQUESTS, mockMasterListRequests, ['title', 'referenceNumber']),
+  incomingDocuments: adapter(ApiEndpoints.INCOMING_DOCUMENTS, mockIncomingDocuments, [
+    'title', 'referenceNumber', 'letterSubject', 'involvedOfficers', 'externalUnits', 'recordTag',
+  ]),
+  outgoingDocuments: adapter(ApiEndpoints.OUTGOING_DOCUMENTS, mockOutgoingDocuments, [
+    'title', 'referenceNumber', 'letterSubject', 'involvedOfficers', 'externalUnits', 'recordTag',
+  ]),
+  documents: adapter(ApiEndpoints.DOCUMENTS, mockDocuments, [
+    'title', 'referenceNumber', 'letterSubject', 'involvedOfficers', 'externalUnits', 'recordTag',
+  ]),
+  masterListRequests: adapter(ApiEndpoints.MASTER_LIST_REQUESTS, mockMasterListRequests, [
+    'title', 'referenceNumber', 'letterSubject', 'officeInCharge', 'officerInCharge', 'externalUnits', 'recordTag',
+  ]),
   recordLogs: adapter(ApiEndpoints.RECORD_LOGS, mockRecordLogs, ['summary', 'entityTitle', 'action', 'correlationId']),
-  departments: adapter(ApiEndpoints.DEPARTMENTS, mockDepartments, ['name', 'code']),
-  companies: adapter(ApiEndpoints.COMPANIES, mockCompanies, ['name', 'code', 'registrationNumber']),
-  companyPurposes: adapter(ApiEndpoints.COMPANY_PURPOSES, mockCompanyPurposes, ['name', 'code']),
-  companySectors: adapter(ApiEndpoints.COMPANY_SECTORS, mockCompanySectors, ['name', 'code']),
-  officers: adapter(ApiEndpoints.OFFICERS, mockOfficers, ['name', 'code', 'email']),
+  departments: adapter(ApiEndpoints.DEPARTMENTS, mockDepartments, [
+    'name', 'code', 'taxId', 'contactEmail', 'contactPhone', 'address', 'contactInfo',
+  ]),
+  companies: adapter(ApiEndpoints.COMPANIES, mockCompanies, [
+    'name', 'code', 'taxId', 'registrationNumber', 'sectorName', 'purposeName',
+    'contactEmail', 'contactPhone', 'address', 'contactInfo',
+  ]),
+  companyPurposes: adapter(ApiEndpoints.COMPANY_PURPOSES, mockCompanyPurposes, ['name', 'code', 'description']),
+  companySectors: adapter(ApiEndpoints.COMPANY_SECTORS, mockCompanySectors, ['name', 'code', 'description', 'parentName']),
+  officers: adapter(ApiEndpoints.OFFICERS, mockOfficers, [
+    'name', 'code', 'email', 'organizationName', 'roleName',
+  ]),
   roles: adapter(ApiEndpoints.ROLES, mockRoles, ['name', 'code']),
   users: adapter(ApiEndpoints.USERS, mockUsers, ['name', 'email']),
   recordTypes: adapter(ApiEndpoints.RECORD_TYPES, mockRecordTypes, ['name', 'code']),
@@ -61,7 +76,9 @@ export const adapters = {
   fileUploads: adapter(ApiEndpoints.FILE_UPLOADS, mockFileUploads, ['fileName', 'name']),
   googleDriveSync: adapter(ApiEndpoints.GOOGLE_DRIVE_SYNC, mockGoogleDriveSync, ['name', 'folderName']),
   portalLogs: adapter(ApiEndpoints.PORTAL_LOGS, mockPortalLogs, ['summary', 'action', 'target']),
-  systemLogs: adapter(ApiEndpoints.SYSTEM_LOGS, mockSystemLogs, ['message', 'source', 'level']),
+  systemLogs: adapter(ApiEndpoints.SYSTEM_LOGS, mockSystemLogs, [
+    'message', 'source', 'level', 'actionCode', 'tableName', 'sourceLog', 'ipAddress',
+  ]),
 }
 
 export async function fetchDashboardSummary<T = ReturnType<typeof getDashboardSummary>>() {

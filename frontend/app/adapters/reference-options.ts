@@ -8,6 +8,34 @@ export async function loadReferenceOptions(endpoint: string): Promise<FieldOptio
     return response.data.map(row => ({ label: row.name, value: row.id }))
   }
 
+  if (useRuntimeConfig().public.useMockData !== false && endpoint === `${ApiEndpoints.DEPARTMENTS}/options`) {
+    const { mockDepartments } = await import('~/mocks/datasets')
+    return mockDepartments
+      .filter(department => department.isActive !== false)
+      .map(department => ({ label: department.name, value: department.id }))
+  }
+
+  if (useRuntimeConfig().public.useMockData !== false && endpoint === `${ApiEndpoints.COMPANY_SECTORS}/options`) {
+    const { mockCompanySectors } = await import('~/mocks/datasets')
+    return mockCompanySectors
+      .filter(sector => sector.status === 'active')
+      .map(sector => ({ label: sector.name, value: sector.id }))
+  }
+
+  if (useRuntimeConfig().public.useMockData !== false && endpoint === `${ApiEndpoints.COMPANY_PURPOSES}/options`) {
+    const { mockCompanyPurposes } = await import('~/mocks/datasets')
+    return mockCompanyPurposes
+      .filter(purpose => purpose.status === 'active')
+      .map(purpose => ({ label: purpose.name, value: purpose.id }))
+  }
+
+  if (useRuntimeConfig().public.useMockData !== false && endpoint === `${ApiEndpoints.ROLES}/options`) {
+    const { mockRoles } = await import('~/mocks/datasets')
+    return mockRoles
+      .filter(role => role.status === 'active')
+      .map(role => ({ label: role.name, value: role.id }))
+  }
+
   const response = await useApi().get<ApiResponse<FieldOption[]> | FieldOption[]>(endpoint, {
     query: { limit: 100, status: 'active' },
     suppressErrorToast: true,

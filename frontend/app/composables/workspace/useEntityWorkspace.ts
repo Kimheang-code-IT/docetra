@@ -158,7 +158,13 @@ export function useEntityWorkspace(config: EntityConfig) {
       else {
         const res = await adapter.list(listQuery.value)
         if (token !== requestToken) return
-        items.value = (res.data || []) as Record<string, unknown>[]
+        const rows = (res.data || []) as Record<string, unknown>[]
+        items.value = config.columns.some(column => column.key === 'rowNumber')
+          ? rows.map((row, index) => ({
+              ...row,
+              rowNumber: (page.value - 1) * limit.value + index + 1,
+            }))
+          : rows
         total.value = res.meta?.total || 0
       }
     }
@@ -227,6 +233,9 @@ export function useEntityWorkspace(config: EntityConfig) {
     const value = getByPath(row, key)
 
     if (typeof value === 'boolean') {
+      if (key === 'authenticationEnabled') {
+        return value ? t('docetra.authentication.enabled') : t('docetra.authentication.notConfigured')
+      }
       return value ? t('docetra.status.active') : t('docetra.status.disabled')
     }
     if (value == null || value === '') return '—'

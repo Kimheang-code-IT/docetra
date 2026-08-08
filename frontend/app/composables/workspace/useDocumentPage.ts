@@ -5,6 +5,8 @@ import type { ActivityEvent, AttachmentMeta, EntityComment } from '~/types/docet
 import type { AppRolePermissionRow } from '~/types/docetra/entities'
 import { permissionRowsToFlatKeys } from '~/utils/role/permissions'
 import { getByPath, setByPath } from '~/utils/object-path'
+import { loadReferenceOptions } from '~/adapters/reference-options'
+import { ApiEndpoints } from '~/utils/constants/api-endpoints'
 
 export function useDocumentPage(config: EntityConfig, idParam?: string) {
   const route = useRoute()
@@ -57,10 +59,20 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
     notFound.value = false
     try {
       if (isCreate.value) {
+        const recordKinds: Partial<Record<EntityConfig['key'], string>> = {
+          incomingDocuments: 'incoming',
+          outgoingDocuments: 'outgoing',
+          documents: 'document',
+          masterListRequests: 'master_list_request',
+        }
+        const recordKind = recordKinds[config.key]
         model.value = {
           status: 'draft',
           stage: config.stages?.[0]?.code || undefined,
           details: {},
+          ...(['departments', 'companies', 'companyPurposes', 'companySectors', 'officers'].includes(config.key) ? { status: 'active', isActive: true } : {}),
+          ...(recordKind ? { recordKind } : {}),
+          ...(recordKind && recordKind !== 'master_list_request' ? { recordFlowCode: 'normal' } : {}),
           ...(config.key === 'roles' ? { permissionRows: [] as AppRolePermissionRow[] } : {}),
         }
         initialSnapshot.value = JSON.stringify(model.value)
@@ -76,6 +88,12 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
       }
       if (!model.value.details || typeof model.value.details !== 'object') {
         model.value.details = {}
+      }
+      if (['departments', 'companies', 'companyPurposes', 'companySectors', 'officers'].includes(config.key) && typeof model.value.isActive !== 'boolean') {
+        model.value.isActive = model.value.status !== 'disabled'
+      }
+      if (config.key === 'officers' && typeof model.value.authenticationEnabled !== 'boolean') {
+        model.value.authenticationEnabled = Boolean(model.value.userId)
       }
       initialSnapshot.value = JSON.stringify(model.value)
       const [c, a, f] = await Promise.all([
@@ -98,12 +116,29 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
 
   function prepareModelForSave() {
     const payload = { ...model.value }
-    if (config.key === 'meetingTopics' || config.key === 'meetingHistory') {
+    const isRecordDocument = [
+      'incomingDocuments',
+      'outgoingDocuments',
+      'documents',
+      'masterListRequests',
+    ].includes(config.key)
+    if (config.key === 'meetingTopics' || config.key === 'meetingHistory' || isRecordDocument) {
       const tags = Array.isArray(payload.tags)
         ? payload.tags.map(String).map(tag => tag.trim()).filter(Boolean)
         : []
       payload.tags = tags
       payload.recordTag = tags.join(', ')
+    }
+    if (isRecordDocument) {
+      for (const key of ['involvedOfficers', 'externalUnits']) {
+        payload[key] = Array.isArray(payload[key])
+          ? payload[key].map(String).map(value => value.trim()).filter(Boolean)
+          : []
+      }
+    }
+    if (['departments', 'companies', 'companyPurposes', 'companySectors', 'officers'].includes(config.key)) {
+      payload.isActive = payload.isActive !== false
+      payload.status = payload.isActive ? 'active' : 'disabled'
     }
     if (config.key === 'meetingHistory') {
       const participants = Array.isArray(payload.participants)
@@ -156,9 +191,47 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
   async function save() {
     if (config.readOnly) return
     if (!validateRequiredFields()) return
+    if (config.key === 'departments' && !isCreate.value && model.value.parentId === id.value) {
+      toast.add({ title: t('docetra.department.cannotBeOwnAncestor'), color: 'error' })
+      return
+    }
+    if (config.key === 'companySectors' && !isCreate.value && model.value.parentId === id.value) {
+      toast.add({ title: t('docetra.companySector.cannotBeOwnParent'), color: 'error' })
+      return
+    }
     saving.value = true
     try {
       const payload = prepareModelForSave()
+      if (config.key === 'departments') {
+        const parentId = String(payload.parentId || '')
+        const departmentOptions = await loadReferenceOptions(`${ApiEndpoints.DEPARTMENTS}/options`)
+        payload.parentName = departmentOptions.find(option => option.value === parentId)?.label || ''
+      }
+      if (config.key === 'companies') {
+        const [sectorOptions, purposeOptions] = await Promise.all([
+          loadReferenceOptions(`${ApiEndpoints.COMPANY_SECTORS}/options`),
+          loadReferenceOptions(`${ApiEndpoints.COMPANY_PURPOSES}/options`),
+        ])
+        payload.sectorName = sectorOptions.find(option => option.value === String(payload.sectorId || ''))?.label || ''
+        payload.purposeName = purposeOptions.find(option => option.value === String(payload.purposeId || ''))?.label || ''
+      }
+      if (config.key === 'companySectors') {
+        const sectorOptions = await loadReferenceOptions(`${ApiEndpoints.COMPANY_SECTORS}/options`)
+        payload.parentName = sectorOptions.find(option => option.value === String(payload.parentId || ''))?.label || ''
+      }
+      if (config.key === 'officers') {
+        const [organizationOptions, roleOptions] = await Promise.all([
+          loadReferenceOptions(`${ApiEndpoints.DEPARTMENTS}/options`),
+          loadReferenceOptions(`${ApiEndpoints.ROLES}/options`),
+        ])
+        payload.organizationName = organizationOptions.find(option => option.value === String(payload.organizationId || ''))?.label || ''
+        payload.roleName = roleOptions.find(option => option.value === String(payload.roleId || ''))?.label || ''
+        payload.departmentId = payload.organizationId
+        payload.departmentName = payload.organizationName
+        if (typeof payload.authenticationEnabled !== 'boolean') {
+          payload.authenticationEnabled = Boolean(payload.userId)
+        }
+      }
       if (isCreate.value) {
         const res = await adapter.create(payload as any)
         const created = res.data as { id: string }

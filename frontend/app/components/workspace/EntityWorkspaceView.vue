@@ -7,6 +7,10 @@ const props = defineProps<{
   config: EntityConfig
 }>()
 
+const usesExactColumns = computed(() =>
+  ['departments', 'companies', 'companyPurposes', 'companySectors', 'officers', 'systemLogs'].includes(props.config.key),
+)
+
 const {
   view,
   q,
@@ -201,8 +205,8 @@ function onRowAction(payload: { key: string, row: Record<string, unknown> }) {
         :error="error"
         :cell-value="cellValue"
         :can-delete="canDelete"
-        :selectable="!config.readOnly && config.canDelete !== false"
-        :show-meta="!config.readOnly"
+        :selectable="usesExactColumns ? false : !config.readOnly && config.canDelete !== false"
+        :show-meta="true"
         :row-actions="tableRowActions"
         @update:page="page = $event"
         @update:limit="limit = $event"

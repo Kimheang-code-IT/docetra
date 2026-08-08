@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import type { MeetingTopic } from '~/types/docetra/entities'
+import { useCardFields } from '~/composables/settings/useCardFields'
+import { splitCardSlots } from '~/utils/card-fields'
 
 const props = defineProps<{
   topic: MeetingTopic
@@ -18,6 +20,7 @@ const emit = defineEmits<{
 }>()
 
 const { t, te } = useI18n()
+const { visibleSlots } = useCardFields('meetingTopics')
 
 const statusLabel = computed(() => {
   const key = `docetra.status.${props.topic.status}`
@@ -33,6 +36,12 @@ const stageLabel = computed(() => {
 const topicTags = computed(() =>
   Array.isArray(props.topic.tags) ? props.topic.tags.map(String).filter(Boolean) : [],
 )
+
+const cardSlots = computed(() => splitCardSlots('meetingTopics', visibleSlots.value))
+const showStatus = computed(() => cardSlots.value.titleChrome.includes('status'))
+const showStage = computed(() => cardSlots.value.body.includes('stage'))
+const showTags = computed(() => cardSlots.value.body.includes('tags'))
+const showRecordTime = computed(() => cardSlots.value.footer.includes('recordTime'))
 
 const menuItems = computed(() => [[
   {
@@ -89,13 +98,14 @@ function onDrop(event: DragEvent) {
     <UIcon v-if="collapsed" name="i-lucide-message-square" class="size-4" />
     <div v-else class="flex items-start gap-2">
       <div class="min-w-0 flex-1">
-        <h3 class="text-sm font-semibold text-highlighted wrap-break-word">
-          {{ topic.title }}
-        </h3>
-        <p class="mt-1.5 truncate text-xs text-muted">
-          {{ (topic.owner as any)?.name || statusLabel }}
-          <span v-if="topic.recordTime || topic.meetingDate"> · {{ topic.recordTime || topic.meetingDate }}</span>
-        </p>
+        <div class="flex flex-wrap items-center gap-1.5">
+          <h3 class="text-sm font-semibold text-highlighted wrap-break-word">
+            {{ topic.title }}
+          </h3>
+          <UBadge v-if="showStatus" color="neutral" variant="outline" size="sm">
+            {{ statusLabel }}
+          </UBadge>
+        </div>
       </div>
       <UBadge color="neutral" variant="subtle" size="sm" class="shrink-0 tabular-nums">
         {{ meetingCount }}
@@ -112,16 +122,20 @@ function onDrop(event: DragEvent) {
         />
       </UDropdownMenu>
     </div>
-    <div v-if="!collapsed" class="mt-2 flex flex-wrap gap-1">
-      <UBadge v-if="topic.stage" size="sm" color="neutral" variant="subtle">
+    <div v-if="!collapsed && (showStage || showTags)" class="mt-2 flex flex-wrap gap-1">
+      <UBadge v-if="showStage && topic.stage" size="sm" color="neutral" variant="subtle">
         {{ stageLabel }}
       </UBadge>
-      <UBadge size="sm" color="neutral" variant="outline">
-        {{ statusLabel }}
-      </UBadge>
-      <UBadge v-if="topicTags.length" size="sm" color="neutral" variant="subtle">
+      <UBadge v-if="showTags && topicTags.length" size="sm" color="neutral" variant="subtle">
         {{ topicTags[0] }}
       </UBadge>
+    </div>
+    <div
+      v-if="!collapsed && showRecordTime"
+      class="mt-2 flex items-center gap-1 border-t border-default pt-2 text-xs text-muted"
+    >
+      <UIcon name="i-lucide-calendar" class="size-3 shrink-0" />
+      <span class="truncate">{{ topic.recordTime || topic.meetingDate || '—' }}</span>
     </div>
   </article>
 </template>

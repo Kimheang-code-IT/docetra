@@ -64,6 +64,16 @@
       "portalLog": "ប្រវត្តិប្រតិបត្តិការផតថល។",
       "systemLog": "កំណត់ហេតុប្រព័ន្ធ និងសេវាកម្ម។"
     },
+    "department": {
+      "cannotBeOwnAncestor": "នាយកដ្ឋានមិនអាចជាអង្គភាពមេរបស់ខ្លួនឯងបានទេ។"
+    },
+    "companySector": {
+      "cannotBeOwnParent": "វិស័យក្រុមហ៊ុនមិនអាចជាមេរបស់ខ្លួនឯងបានទេ។"
+    },
+    "authentication": {
+      "enabled": "បានបើក",
+      "notConfigured": "មិនទាន់កំណត់"
+    },
     "fieldHints": {
       "waiting": "សម្គាល់កំណត់ត្រានេះថាកំពុងរង់ចាំការឆ្លើយតប ឬតាមដានពីខាងក្រៅ មុនបន្តដំណើរការការងារ។",
       "priorityScore": "ពិន្ទុអាទិភាពសម្រាប់តម្រៀប និងចាត់តាំងការងារ។ តម្លៃខ្ពស់ជាងនឹងបង្ហាញមុន។ បើមិនកំណត់ នឹងប្រើតម្លៃលំនាំដើមពីការកំណត់កំណត់ត្រា។"
@@ -361,6 +371,7 @@
       "cardFieldsAlignRight": "ស្តាំ",
       "cardFieldsTitleRowHint": "ជួរចំណងជើង",
       "cardFields": {
+        "meetingTopics": "កាតប្រធានបទ",
         "meetingHistory": "កាតកិច្ចប្រជុំ",
         "incomingDocuments": "កាតឯកសារចូល",
         "outgoingDocuments": "កាតឯកសារចេញ",
@@ -508,6 +519,14 @@
     "cardSlots": {
       "topicTitle": "ប្រធានបទ",
       "status": "ស្ថានភាព",
+      "active": "សកម្ម",
+      "isActive": "សកម្ម",
+      "authentication": "ការផ្ទៀងផ្ទាត់អត្តសញ្ញាណ",
+      "ancestor": "អង្គភាពមេ",
+      "taxId": "លេខអត្តសញ្ញាណពន្ធ",
+      "address": "អាសយដ្ឋាន",
+      "contactInfo": "ព័ត៌មានទំនាក់ទំនង",
+      "logo": "រូបសញ្ញា",
       "sortOrder": "លំដាប់",
       "letterNumber": "លេខលិខិត",
       "letterDate": "កាលបរិច្ឆេទលិខិត",
@@ -533,7 +552,17 @@
       "createdAt": "កាលបរិច្ឆេទបង្កើត",
       "updatedAt": "កាលបរិច្ឆេទធ្វើបច្ចុប្បន្នភាព",
       "attachmentCount": "ឯកសារភ្ជាប់",
-      "commentCount": "មតិ"
+      "commentCount": "មតិ",
+      "recordFlowCode": "លំហូរកំណត់ត្រា",
+      "recordContent": "មាតិកា",
+      "documentType": "ប្រភេទឯកសារ",
+      "letterSubject": "កម្មវត្ថុលិខិត",
+      "documentDate": "កាលបរិច្ឆេទឯកសារ",
+      "directorGeneralDate": "កាលបរិច្ឆេទអគ្គនាយក",
+      "directorDate": "កាលបរិច្ឆេទនាយក",
+      "involvedOfficers": "មន្ត្រីពាក់ព័ន្ធ",
+      "officeInCharge": "ការិយាល័យទទួលបន្ទុក",
+      "officerInCharge": "មន្ត្រីទទួលបន្ទុក"
     },
     "cardSlotBlocks": {
       "context": "បរិបទ",
@@ -635,13 +664,25 @@
       }
     },
     "fields": {
+      "number": "ល.រ.",
       "title": "ចំណងជើង",
       "name": "ឈ្មោះ",
       "label": "ស្លាក",
       "value": "តម្លៃ",
       "code": "លេខកូដ",
       "status": "ស្ថានភាព",
+      "active": "សកម្ម",
+      "isActive": "សកម្ម",
+      "authentication": "ការផ្ទៀងផ្ទាត់អត្តសញ្ញាណ",
+      "ancestor": "អង្គភាពមេ",
+      "taxId": "លេខអត្តសញ្ញាណពន្ធ",
+      "address": "អាសយដ្ឋាន",
+      "contactInfo": "ព័ត៌មានទំនាក់ទំនង",
+      "logo": "រូបសញ្ញា",
       "stage": "ដំណាក់កាល",
+      "recordStage": "ដំណាក់កាលកំណត់ត្រា",
+      "parentRecord": "កំណត់ត្រាមេ",
+      "updater": "អ្នកធ្វើបច្ចុប្បន្នភាព",
       "owner": "ម្ចាស់",
       "assignee": "អ្នកទទួលខុសត្រូវ",
       "meetingDate": "កាលបរិច្ឆេទប្រជុំ",
@@ -651,6 +692,17 @@
       "letterNumber": "លេខលិខិត",
       "letterSubject": "កម្មវត្ថុលិខិត",
       "letterDate": "កាលបរិច្ឆេទលិខិត",
+      "date": "កាលបរិច្ឆេទ",
+      "recordFlow": "លំហូរកំណត់ត្រា",
+      "incomingDocument": "ឯកសារចូល",
+      "outgoingDocument": "ឯកសារចេញ",
+      "document": "ឯកសារ",
+      "documentType": "ប្រភេទឯកសារ",
+      "directorGeneralDate": "កាលបរិច្ឆេទអគ្គនាយក",
+      "directorDate": "កាលបរិច្ឆេទនាយក",
+      "involvedOfficers": "មន្ត្រីពាក់ព័ន្ធ",
+      "officeInCharge": "ការិយាល័យទទួលបន្ទុក",
+      "officerInCharge": "មន្ត្រីទទួលបន្ទុក",
       "participants": "អ្នកចូលរួម",
       "internalUnits": "អង្គភាពផ្ទៃក្នុង",
       "externalUnits": "អង្គភាពខាងក្រៅ",
@@ -674,6 +726,12 @@
       "priorityScore": "ពិន្ទុអាទិភាព",
       "attachments": "ឯកសារភ្ជាប់",
       "action": "សកម្មភាព",
+      "actionCode": "កូដសកម្មភាព",
+      "tableName": "ឈ្មោះតារាង",
+      "statusCode": "កូដស្ថានភាព",
+      "sourceLog": "ប្រភពកំណត់ហេតុ",
+      "ipAddress": "អាសយដ្ឋាន IP",
+      "creator": "អ្នកបង្កើត",
       "entity": "អង្គភាពទិន្នន័យ",
       "actor": "អ្នកអនុវត្ត",
       "summary": "សង្ខេប",
@@ -759,7 +817,15 @@
       "incoming_document": "ឯកសារចូល",
       "outgoing_document": "ឯកសារចេញ",
       "document": "ឯកសារ",
-      "master_list_request": "សំណើបញ្ជីមេ"
+      "file": "ឯកសារ",
+      "master_list_request": "សំណើបញ្ជីមេ",
+      "meeting": "កិច្ចប្រជុំ",
+      "meeting_topic": "ប្រធានបទកិច្ចប្រជុំ",
+      "url": "តំណ URL",
+      "approved_master_list": "បញ្ជីមេដែលបានអនុម័ត",
+      "extension_of_validity": "ការពន្យារសុពលភាព",
+      "physical_inspection": "ការត្រួតពិនិត្យជាក់ស្តែង",
+      "tax_incentive": "ការលើកទឹកចិត្តពន្ធ"
     },
     "severity": {
       "info": "ព័ត៌មាន",
@@ -773,7 +839,7 @@
       "collapseTabs": "បង្រួមទិដ្ឋភាពកំណត់ហេតុ",
       "expandTabs": "ពង្រីកទិដ្ឋភាពកំណត់ហេតុ",
       "tabs": {
-        "all": "ព្រឹត្តិការណ៍ទាំងអស់",
+        "all": "ទាំងអស់",
         "allHint": "រាល់ព្រឹត្តិការណ៍ផ្លាស់ប្តូរកំណត់ត្រា",
         "createdHint": "កំណត់ត្រាថ្មីតែប៉ុណ្ណោះ",
         "updatedHint": "ការធ្វើបច្ចុប្បន្នភាពវាល និងមាតិកា",
