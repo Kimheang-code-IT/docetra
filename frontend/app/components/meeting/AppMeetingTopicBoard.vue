@@ -41,8 +41,19 @@ const { t } = useI18n()
 const notesOpen = ref(false)
 const notesMeetingId = ref<string | null>(null)
 const topicPanelOpen = ref(false)
+const topicListCollapsed = useState('meeting-topic-left-collapsed', () => false)
 const isSmallScreen = useMediaQuery('(max-width: 1023px)')
-const topicPanelCollapsed = computed(() => isSmallScreen.value && !topicPanelOpen.value)
+const topicPanelCollapsed = computed(() =>
+  isSmallScreen.value ? !topicPanelOpen.value : topicListCollapsed.value,
+)
+
+function toggleTopicPanel() {
+  if (isSmallScreen.value) {
+    topicPanelOpen.value = !topicPanelOpen.value
+    return
+  }
+  topicListCollapsed.value = !topicListCollapsed.value
+}
 
 /** Add Topic always; Add Meeting on All / Unassigned pool views. */
 const createButtons = computed(() => {
@@ -149,7 +160,7 @@ function onMeetingsPanelDrop(event: DragEvent) {
         <!-- 1 col: topics -->
         <aside
           class="flex min-h-0 shrink-0 flex-col overflow-hidden border-e border-default bg-default transition-[width] duration-200"
-          :style="{ width: topicPanelCollapsed ? '3.5rem' : (isSmallScreen ? 'min(22rem, calc(100% - 3rem))' : '25%') }"
+          :style="{ width: topicPanelCollapsed ? '3.5rem' : 'min(22rem, calc(100% - 3rem))' }"
         >
           <div
             class="shrink-0 border-b border-default"
@@ -274,7 +285,20 @@ function onMeetingsPanelDrop(event: DragEvent) {
               class="shrink-0 lg:hidden"
               :aria-label="$t('docetra.pages.meetingTopic')"
               :aria-expanded="!topicPanelCollapsed"
-              @click="topicPanelOpen = !topicPanelOpen"
+              @click="toggleTopicPanel"
+            />
+            <UButton
+              :icon="topicPanelCollapsed ? 'i-lucide-panel-left-open' : 'i-lucide-panel-left-close'"
+              color="neutral"
+              variant="ghost"
+              size="sm"
+              square
+              class="hidden shrink-0 lg:inline-flex"
+              :aria-label="topicPanelCollapsed
+                ? $t('docetra.meetingBoard.expandTopics')
+                : $t('docetra.meetingBoard.collapseTopics')"
+              :aria-expanded="!topicPanelCollapsed"
+              @click="toggleTopicPanel"
             />
             <h2 class="hidden min-w-0 max-w-40 truncate text-sm font-semibold text-highlighted sm:block">
               {{ meetingsPanelTitle }}

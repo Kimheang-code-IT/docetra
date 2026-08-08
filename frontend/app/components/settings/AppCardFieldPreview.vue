@@ -53,11 +53,15 @@ function previewText(slot: string): string {
     topicTitle: t('docetra.cardPreview.topic'),
     status: t('docetra.status.active'),
     sortOrder: '#1',
+    letterNumber: 'MTG-2026-0001',
+    letterDate: t('docetra.cardPreview.date'),
     meetingDate: t('docetra.cardPreview.date'),
     recordTime: t('docetra.cardPreview.date'),
     location: t('docetra.cardPreview.location'),
     attendeesCount: '12',
-    notes: t('docetra.cardPreview.notes'),
+    participants: t('docetra.cardPreview.participants'),
+    internalUnits: t('docetra.cardPreview.internalUnits'),
+    externalUnits: t('docetra.cardPreview.externalUnits'),
     referenceNumber: t('docetra.cardPreview.reference'),
     recordType: t('docetra.cardPreview.recordType'),
     party: t('docetra.cardPreview.party'),
@@ -122,7 +126,7 @@ function previewText(slot: string): string {
     <div class="min-h-0 flex-1">
       <template v-for="slot in bodySlots" :key="slot">
       <p
-        v-if="slot === 'referenceNumber' || slot === 'recordType' || slot === 'description' || slot === 'notes'"
+        v-if="slot === 'referenceNumber' || slot === 'recordType' || slot === 'description' || slot === 'letterNumber'"
         class="mt-1.5 truncate text-xs text-muted"
       >
         {{ previewText(slot) }}
@@ -140,11 +144,13 @@ function previewText(slot: string): string {
         </UBadge>
       </div>
       <div
-        v-else-if="slot === 'party' || slot === 'owner' || slot === 'assignee'"
+        v-else-if="slot === 'party' || slot === 'owner' || slot === 'assignee' || slot === 'participants' || slot === 'internalUnits' || slot === 'externalUnits'"
         class="mt-1.5 flex items-center gap-1.5 truncate text-xs text-muted"
       >
         <UIcon
-          :name="slot === 'party' ? 'i-lucide-building-2'
+          :name="slot === 'party' || slot === 'internalUnits' ? 'i-lucide-building-2'
+            : slot === 'externalUnits' ? 'i-lucide-landmark'
+              : slot === 'participants' ? 'i-lucide-users'
             : slot === 'assignee' ? 'i-lucide-user-check'
               : 'i-lucide-user'"
           class="size-3 shrink-0"

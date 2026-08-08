@@ -3,7 +3,7 @@
  *
  * Product source: prompt/idea + prompt/specification (unified record model).
  * Meetings are a special record type — share core record summary fields
- * (title, status, stage, tags, content, record_time) plus meeting extras.
+ * (title, status, stage, tags, record_time) plus meeting extras.
  *
  * Title is always shown. sortOrder + status render in the title row.
  * Footer slots render in the bordered footer with left/right alignment.
@@ -15,9 +15,13 @@ export const MEETING_CARD_SLOTS = [
   'topicTitle',
   'status',
   'sortOrder',
+  'letterNumber',
   'stage',
   'tags',
-  'notes',
+  'participants',
+  'internalUnits',
+  'externalUnits',
+  'letterDate',
   'meetingDate',
   'recordTime',
   'location',
@@ -58,7 +62,7 @@ export const DEFAULT_MEETING_CARD_FIELDS: string[] = [
   'stage',
   'tags',
   'topicTitle',
-  'notes',
+  'letterNumber',
   'meetingDate',
   'location',
 ]
@@ -105,11 +109,16 @@ export interface CardSlotBlock {
 
 export const MEETING_CARD_BLOCKS: CardSlotBlock[] = [
   { id: 'titleRow', labelKey: 'docetra.cardSlotBlocks.titleRow', slots: ['sortOrder', 'status'] },
-  { id: 'context', labelKey: 'docetra.cardSlotBlocks.context', slots: ['topicTitle', 'notes', 'stage', 'tags'] },
+  { id: 'identity', labelKey: 'docetra.cardSlotBlocks.identity', slots: ['letterNumber'] },
+  {
+    id: 'context',
+    labelKey: 'docetra.cardSlotBlocks.context',
+    slots: ['topicTitle', 'stage', 'tags', 'participants', 'internalUnits', 'externalUnits'],
+  },
   {
     id: 'footer',
     labelKey: 'docetra.cardSlotBlocks.footer',
-    slots: ['meetingDate', 'recordTime', 'location', 'attendeesCount', 'createdAt', 'updatedAt'],
+    slots: ['letterDate', 'meetingDate', 'recordTime', 'location', 'attendeesCount', 'createdAt', 'updatedAt'],
   },
 ]
 
@@ -162,6 +171,7 @@ export function isTitleChromeSlot(slot: string): boolean {
 }
 
 export const MEETING_FOOTER_SLOTS = new Set([
+  'letterDate',
   'meetingDate',
   'recordTime',
   'location',

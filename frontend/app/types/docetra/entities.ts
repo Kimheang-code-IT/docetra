@@ -2,6 +2,8 @@ import type { BaseEntity, EntityStatus, PersonSummary, OrganizationSummary } fro
 
 export interface MeetingTopic extends BaseEntity {
   title: string
+  /** Business timestamp for ordering and timeline views. */
+  recordTime?: string
   meetingDate?: string
   childMeetingCount: number
   childMeetings?: Array<{ id: string; title: string; meetingDate?: string; sortOrder?: number }>
@@ -10,11 +12,16 @@ export interface MeetingTopic extends BaseEntity {
 
 export interface MeetingHistory extends BaseEntity {
   title: string
+  letterNumber: string
+  letterDate: string
   topicId?: string
   topicTitle?: string
   meetingDate: string
   location?: string
-  attendeesCount: number
+  attendeesCount?: number
+  participants?: string[]
+  internalUnits?: string[]
+  externalUnits?: string[]
   /** Order within a topic (lower first). */
   sortOrder?: number
   /** TipTap HTML / record content (`record_content`). */

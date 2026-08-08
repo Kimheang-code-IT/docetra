@@ -36,6 +36,12 @@ const sortModel = computed({
   set: (value: string | number | boolean | null) => emit('update:sort', String(value || '-updatedAt')),
 })
 
+const sortMenuItems = computed(() => [sortItems.value.map(item => ({
+  label: item.label,
+  icon: sortModel.value === item.value ? 'i-lucide-check' : undefined,
+  onSelect: () => { sortModel.value = item.value },
+}))])
+
 const selectFilters = computed(() =>
   props.filters.filter(f => f.type === 'select' || f.type === 'multiselect'),
 )
@@ -188,13 +194,17 @@ function onFilterChange(filter: FilterDef, value: string | string[] | null) {
           />
         </template>
 
-        <CommonAppSingleFilterSelect
-          v-model="sortModel"
-          :items="sortItems"
-          :label="$t('docetra.sort.label')"
-          :placeholder="$t('docetra.sort.label')"
-          :searchable="false"
-        />
+        <UDropdownMenu :items="sortMenuItems" :content="{ align: 'end' }">
+          <UButton
+            icon="i-lucide-arrow-up-down"
+            color="neutral"
+            variant="outline"
+            size="sm"
+            square
+            class="shrink-0"
+            :aria-label="$t('docetra.sort.label')"
+          />
+        </UDropdownMenu>
       </div>
 
     </div>

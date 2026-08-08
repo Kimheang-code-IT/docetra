@@ -33,8 +33,17 @@ const adapter = <T extends { id: string; stage?: string; updatedAt?: string; cre
 ) => createEntityAdapter({ endpoint, store: createMockStore(seed), searchKeys })
 
 export const adapters = {
-  meetingTopics: adapter(ApiEndpoints.MEETING_TOPICS, mockMeetingTopics, ['title']),
-  meetingHistory: adapter(ApiEndpoints.MEETING_HISTORY, mockMeetingHistory, ['title', 'topicTitle', 'location']),
+  meetingTopics: adapter(ApiEndpoints.MEETING_TOPICS, mockMeetingTopics, ['title', 'recordTime', 'recordTag']),
+  meetingHistory: adapter(ApiEndpoints.MEETING_HISTORY, mockMeetingHistory, [
+    'title',
+    'letterNumber',
+    'topicTitle',
+    'location',
+    'participants',
+    'internalUnits',
+    'externalUnits',
+    'recordTag',
+  ]),
   incomingDocuments: adapter(ApiEndpoints.INCOMING_DOCUMENTS, mockIncomingDocuments, ['title', 'referenceNumber']),
   outgoingDocuments: adapter(ApiEndpoints.OUTGOING_DOCUMENTS, mockOutgoingDocuments, ['title', 'referenceNumber']),
   documents: adapter(ApiEndpoints.DOCUMENTS, mockDocuments, ['title', 'referenceNumber']),

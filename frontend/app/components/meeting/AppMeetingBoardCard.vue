@@ -35,13 +35,6 @@ const stageLabel = computed(() => {
   return te(key) ? t(key) : props.meeting.stage
 })
 
-const notesSnippet = computed(() => {
-  const html = String(props.meeting.notes || props.meeting.recordContent || '')
-  const raw = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
-  if (!raw) return ''
-  return raw.length > 80 ? `${raw.slice(0, 80)}…` : raw
-})
-
 const tags = computed(() => {
   if (Array.isArray(props.meeting.tags) && props.meeting.tags.length) {
     return props.meeting.tags.map(String).filter(Boolean)
@@ -57,15 +50,29 @@ const recordTimeLabel = computed(() =>
   day(props.meeting.recordTime) || day(props.meeting.meetingDate),
 )
 
+function listText(value: unknown) {
+  return Array.isArray(value) ? value.map(String).filter(Boolean).join(', ') : String(value || '')
+}
+
+function footerDate(slot: string) {
+  if (slot === 'letterDate') return day(props.meeting.letterDate)
+  if (slot === 'meetingDate') return day(props.meeting.meetingDate)
+  return recordTimeLabel.value
+}
+
 const orderedSlots = computed(() => {
   return visibleSlots.value.filter((slot) => {
     if (isCardFooterSlot('meetingHistory', slot)) return true
     if (slot === 'topicTitle') return Boolean(props.showTopic)
     if (slot === 'status') return Boolean(statusLabel.value)
     if (slot === 'sortOrder') return props.meeting.sortOrder != null
+    if (slot === 'letterNumber') return Boolean(props.meeting.letterNumber)
     if (slot === 'stage') return Boolean(stageLabel.value)
     if (slot === 'tags') return tags.value.length > 0
-    if (slot === 'notes') return Boolean(notesSnippet.value)
+    if (slot === 'participants') return Boolean(listText(props.meeting.participants))
+    if (slot === 'internalUnits') return Boolean(listText(props.meeting.internalUnits))
+    if (slot === 'externalUnits') return Boolean(listText(props.meeting.externalUnits))
+    if (slot === 'letterDate') return Boolean(props.meeting.letterDate)
     return show(slot)
   })
 })
@@ -183,13 +190,14 @@ function onDrop(event: DragEvent) {
     @click="onCardClick"
     @keydown.enter.prevent="emit('open')"
   >
-    <div class="flex items-start gap-2">
-      <span
-        v-if="showSortOrder"
-        class="mt-0.5 shrink-0 tabular-nums text-[11px] text-muted"
-      >
-        #{{ (meeting.sortOrder ?? 0) + 1 }}
-      </span>
+    <span
+      v-if="showSortOrder"
+      class="pointer-events-none absolute end-1 top-1 z-10 inline-flex size-5 items-center justify-center rounded-full border border-default bg-elevated text-[11px] font-medium tabular-nums text-toned shadow-xs"
+    >
+      {{ (meeting.sortOrder ?? 0) + 1 }}
+    </span>
+
+    <div class="flex items-start gap-2" :class="showSortOrder ? 'pe-6' : ''">
       <div class="min-w-0 flex-1">
         <div class="flex flex-wrap items-center gap-1.5">
           <p class="text-sm font-semibold text-highlighted wrap-break-word">
@@ -227,10 +235,10 @@ function onDrop(event: DragEvent) {
     <div class="min-h-0 flex-1">
       <template v-for="slot in bodySlots" :key="slot">
       <p
-        v-if="slot === 'notes'"
-        class="mt-1.5 line-clamp-2 text-xs text-muted"
+        v-if="slot === 'letterNumber'"
+        class="mt-1.5 truncate text-xs text-muted"
       >
-        {{ notesSnippet }}
+        {{ meeting.letterNumber }}
       </p>
       <div v-else-if="slot === 'stage'" class="mt-1.5">
         <UBadge size="sm" color="neutral" variant="outline">{{ stageLabel }}</UBadge>
@@ -249,6 +257,26 @@ function onDrop(event: DragEvent) {
           {{ tag }}
         </UBadge>
       </div>
+      <div
+        v-else-if="slot === 'participants' || slot === 'internalUnits' || slot === 'externalUnits'"
+        class="mt-1.5 flex min-w-0 items-center gap-1.5 truncate text-xs text-muted"
+      >
+        <UIcon
+          :name="slot === 'participants'
+            ? 'i-lucide-users'
+            : slot === 'internalUnits'
+              ? 'i-lucide-building-2'
+              : 'i-lucide-landmark'"
+          class="size-3 shrink-0"
+        />
+        <span class="truncate">
+          {{ listText(slot === 'participants'
+            ? meeting.participants
+            : slot === 'internalUnits'
+              ? meeting.internalUnits
+              : meeting.externalUnits) }}
+        </span>
+      </div>
     </template>
     </div>
 
@@ -259,12 +287,12 @@ function onDrop(event: DragEvent) {
       <div class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
         <template v-for="slot in footerLeft" :key="slot">
           <span
-            v-if="slot === 'meetingDate' || slot === 'recordTime'"
+            v-if="slot === 'letterDate' || slot === 'meetingDate' || slot === 'recordTime'"
             class="inline-flex min-w-0 items-center gap-1 truncate"
           >
             <UIcon name="i-lucide-calendar" class="size-3 shrink-0" />
             <span class="truncate">
-              {{ (slot === 'meetingDate' ? meeting.meetingDate : recordTimeLabel) || '—' }}
+              {{ footerDate(slot) || '—' }}
             </span>
           </span>
           <span
@@ -293,12 +321,12 @@ function onDrop(event: DragEvent) {
       <div class="inline-flex shrink-0 items-center gap-2">
         <template v-for="slot in footerRight" :key="slot">
           <span
-            v-if="slot === 'meetingDate' || slot === 'recordTime'"
+            v-if="slot === 'letterDate' || slot === 'meetingDate' || slot === 'recordTime'"
             class="inline-flex min-w-0 items-center gap-1 truncate"
           >
             <UIcon name="i-lucide-calendar" class="size-3 shrink-0" />
             <span class="truncate">
-              {{ (slot === 'meetingDate' ? meeting.meetingDate : recordTimeLabel) || '—' }}
+              {{ footerDate(slot) || '—' }}
             </span>
           </span>
           <span

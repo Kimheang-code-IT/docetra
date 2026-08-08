@@ -9,7 +9,7 @@ import { getByPath, setByPath } from '~/utils/object-path'
 export function useDocumentPage(config: EntityConfig, idParam?: string) {
   const route = useRoute()
   const router = useRouter()
-  const { t } = useI18n()
+  const { t, te } = useI18n()
   const toast = useToast()
   const { confirm } = useConfirm()
   const adapter = getEntityAdapter(config.key)
@@ -98,6 +98,20 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
 
   function prepareModelForSave() {
     const payload = { ...model.value }
+    if (config.key === 'meetingTopics' || config.key === 'meetingHistory') {
+      const tags = Array.isArray(payload.tags)
+        ? payload.tags.map(String).map(tag => tag.trim()).filter(Boolean)
+        : []
+      payload.tags = tags
+      payload.recordTag = tags.join(', ')
+    }
+    if (config.key === 'meetingHistory') {
+      const participants = Array.isArray(payload.participants)
+        ? payload.participants.map(String).map(name => name.trim()).filter(Boolean)
+        : []
+      payload.participants = participants
+      payload.attendeesCount = participants.length
+    }
     if (config.key === 'roles') {
       const rows = (Array.isArray(payload.permissionRows)
         ? payload.permissionRows
@@ -109,8 +123,39 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
     return payload
   }
 
+  function validateRequiredFields() {
+    const missing = config.tabs.flatMap(tab =>
+      tab.sections.flatMap(section =>
+        section.fields
+          .filter(field => field.required && !field.readOnly)
+          .filter((field) => {
+            const value = getByPath(model.value, field.key)
+            if (value == null) return true
+            if (typeof value === 'string') return !value.trim()
+            if (Array.isArray(value)) return value.length === 0
+            return false
+          })
+          .map(field => ({ field, tabId: tab.id })),
+      ),
+    )
+
+    if (!missing.length) return true
+    activeTab.value = missing[0]!.tabId
+    const labels = missing.map(({ field }) => {
+      if (field.label) return field.label
+      return te(field.labelKey) ? t(field.labelKey) : field.labelKey
+    })
+    toast.add({
+      title: t('docetra.document.requiredFieldsMissing'),
+      description: labels.join(', '),
+      color: 'error',
+    })
+    return false
+  }
+
   async function save() {
     if (config.readOnly) return
+    if (!validateRequiredFields()) return
     saving.value = true
     try {
       const payload = prepareModelForSave()

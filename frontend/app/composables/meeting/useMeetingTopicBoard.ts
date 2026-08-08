@@ -142,6 +142,10 @@ export function useMeetingTopicBoard() {
 
     const previousTopicId = meeting.topicId
     const topic = topicId ? topics.value.find(t => t.id === topicId) : null
+    if (topicId && !topic) {
+      toast.add({ title: t('docetra.meetingBoard.invalidTopicDrop'), color: 'error' })
+      return
+    }
     const siblings = topicId
       ? meetings.value.filter(m => m.topicId === topicId && m.id !== meetingId)
       : []

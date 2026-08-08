@@ -30,6 +30,10 @@ const stageLabel = computed(() => {
   return te(key) ? t(key) : props.topic.stage
 })
 
+const topicTags = computed(() =>
+  Array.isArray(props.topic.tags) ? props.topic.tags.map(String).filter(Boolean) : [],
+)
+
 const menuItems = computed(() => [[
   {
     label: t('docetra.meetingBoard.openTopic'),
@@ -90,7 +94,7 @@ function onDrop(event: DragEvent) {
         </h3>
         <p class="mt-1.5 truncate text-xs text-muted">
           {{ (topic.owner as any)?.name || statusLabel }}
-          <span v-if="topic.meetingDate"> · {{ topic.meetingDate }}</span>
+          <span v-if="topic.recordTime || topic.meetingDate"> · {{ topic.recordTime || topic.meetingDate }}</span>
         </p>
       </div>
       <UBadge color="neutral" variant="subtle" size="sm" class="shrink-0 tabular-nums">
@@ -114,6 +118,9 @@ function onDrop(event: DragEvent) {
       </UBadge>
       <UBadge size="sm" color="neutral" variant="outline">
         {{ statusLabel }}
+      </UBadge>
+      <UBadge v-if="topicTags.length" size="sm" color="neutral" variant="subtle">
+        {{ topicTags[0] }}
       </UBadge>
     </div>
   </article>
