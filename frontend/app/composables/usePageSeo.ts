@@ -8,7 +8,8 @@ type PageSeoOptions = {
   ogImage?: MaybeRefOrGetter<string | undefined>
 }
 
-const DEFAULT_OG_IMAGE = '/logo.png'
+/** Prefer landscape OG asset; logo.png is the fallback. */
+const DEFAULT_OG_IMAGE = '/og-image.png'
 
 /**
  * Per-page SEO. Titles are the page label only — brand is not appended
@@ -48,7 +49,9 @@ export function usePageSeo(options: PageSeoOptions) {
     ogDescription: () => description.value,
     ogImage: () => ogImage.value,
     ogImageAlt: () => title.value,
-    ogUrl: () => pageUrl.value,
+    ogImageWidth: '1200',
+    ogImageHeight: '630',
+    ogUrl: () => pageUrl.value || undefined,
     ogType: 'website',
     twitterTitle: () => title.value,
     twitterDescription: () => description.value,

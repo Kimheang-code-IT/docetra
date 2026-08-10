@@ -20,7 +20,7 @@ const siteName = computed(() => t('docetra.brand.name'))
 const appDescription = computed(() => t('app.description'))
 const appKeywords = computed(() => t('app.keywords'))
 const { absoluteUrl, absolutePageUrl } = useSeoAbsoluteUrl()
-const defaultOgImage = computed(() => absoluteUrl('/logo.png'))
+const defaultOgImage = computed(() => absoluteUrl('/og-image.png'))
 const pageUrl = computed(() => absolutePageUrl())
 
 onMounted(() => {
