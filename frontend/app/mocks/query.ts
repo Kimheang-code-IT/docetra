@@ -1,15 +1,17 @@
 import type { ApiMeta, ApiResponse, ListQuery } from '~/types/docetra/common'
+import { PAGE_SIZE_ALL_FETCH } from '~/utils/pagination'
 
 function delay(ms = 40) {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
 export function paginateMeta(total: number, page: number, limit: number): ApiMeta {
+  const safeLimit = Math.max(1, limit)
   return {
     page,
-    limit,
+    limit: safeLimit,
     total,
-    totalPages: Math.max(1, Math.ceil(total / limit)),
+    totalPages: Math.max(1, Math.ceil(total / safeLimit)),
   }
 }
 
@@ -29,7 +31,8 @@ export function applyListQuery<T extends Record<string, unknown>>(
   searchKeys: string[] = ['title', 'name', 'code', 'referenceNumber', 'fileName', 'email', 'message', 'summary'],
 ): ApiResponse<T[]> {
   const page = Number(query.page || 1)
-  const limit = Number(query.limit || 10)
+  let limit = Number(query.limit || 10)
+  if (!Number.isFinite(limit) || limit <= 0) limit = PAGE_SIZE_ALL_FETCH
   let filtered = [...items]
 
   const q = String(query.q || '').trim().toLowerCase()

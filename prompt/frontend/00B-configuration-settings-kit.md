@@ -1,7 +1,7 @@
 # Prompt 00B — Configuration & Settings Reusable Kit
 
 > **Status:** Implemented — architecture reference only (not a build ticket).
-> Key code: `config/configuration-schemas.ts`, `config/settings-schemas.ts` (`storageSettingsTabs`), `repositories/*` (mock now / HTTP when `useMockData=false`), list/editor components under `components/configuration/` and settings pages.
+> Key code: `config/configuration-schemas.ts`, `config/settings-schemas.ts` (includes Display / card fields + `storageSettingsTabs`), `repositories/*` (mock when `useMockData`, HTTP otherwise), list/editor components under `components/configuration/` and `components/settings/`.
 > Developer inventory: `frontend/docs/reusable-components-guide.md`.
 
 ## Reference (was copy/paste prompt)
@@ -10,16 +10,17 @@ Build and reuse the Docetra **Configuration & Settings** shared kit already star
 
 ### Technology baseline
 
-Follow versions in `prompt/frontend/README.md` and `frontend/package.json`. Mock-only for this phase — no backend APIs, Docker, or migrations.
+Follow versions in `prompt/frontend/README.md` and `frontend/package.json`.
 
 ### Architecture
 
 ```text
 Pages
   → Feature editors / Settings panels
-  → Composables
-  → Repository interface
-  → Mock repository (localStorage) now / HTTP later
+    → Composables
+    → Repository interface
+    → Mock repository (localStorage) when useMockData
+    → HTTP repository when useMockData=false
 ```
 
 Use `useConfigurationRepositories()` and `useSettingsRepositories()` from `app/repositories/index.ts`. Never import mock arrays into page components.
@@ -27,7 +28,7 @@ Use `useConfigurationRepositories()` and `useSettingsRepositories()` from `app/r
 ### Types
 
 - `app/types/docetra/configuration.ts` — RecordType, RecordAttribute, options, validation, visibility, workflow
-- `app/types/docetra/settings.ts` — AppInfo, AppConfig, Email, Telegram, Storage, ConnectionStatus
+- `app/types/docetra/settings.ts` — AppInfo, AppConfig (incl. `display.cardFields` / `cardFooterAlign`), Email, Telegram, Storage, ConnectionStatus, font size
 
 ### Shared common components (`app/components/common/`)
 
@@ -41,7 +42,9 @@ Use `useConfigurationRepositories()` and `useSettingsRepositories()` from `app/r
 | `AppColorPicker` | Color input + presets |
 | `AppImageUploadField` | Drag-drop image with preview/replace/remove |
 | `AppSortableList` | HTML5 drag-and-drop reorder |
-| `AppLiveSearch` / `AppFilterSelect` / `AppMultiSelect` | Toolbar search & filters |
+| `AppLiveSearch` / `AppFilterSelect` / `AppSingleFilterSelect` / `AppMultiSelect` | Toolbar search & filters |
+| `AppDateRangeFilter` / `AppInputDate` | Date / range filters |
+| `AppRolePermissionMatrix` | Role × document-type permissions |
 
 Do **not** recreate removed stubs: `AppFormSection`, `AppStatusBadge`, `AppUnsavedChangesDialog`, `AppSettingCard`, `AppSettingsPlaceholder`.
 
@@ -58,25 +61,43 @@ Do **not** recreate removed stubs: `AppFormSection`, `AppStatusBadge`, `AppUnsav
 | `AppRecordTypeList` / `AppRecordAttributeList` | Config indexes |
 | `AppRecordTypeEditor` / `AppRecordAttributeEditor` | Config editors via `AppDocumentPage` |
 
-Field rendering uses `AppDynamicFieldRenderer` (no separate Field/Form Preview panels).
+Field rendering uses `AppDynamicFieldRenderer` (no separate Field/Form Preview panels). Record document pages also consume record-type attributes via `useRecordTypeDrivenTabs`.
 
 ### Settings pages
 
 Compose with `AppDocumentPage` + schemas in `settings-schemas.ts`. No dedicated settings card kit.
 
+| Route | Notes |
+| --- | --- |
+| `/settings/app-info` | Branding / product info |
+| `/settings/app-config` | General, email, telegram, system, **display (card fields)** |
+| `/settings/storage` | Storage backends via `storageSettingsTabs` |
+
+### Settings display / card fields (`app/components/settings/`)
+
+| Component / API | Purpose |
+| --- | --- |
+| `AppCardFieldsEditor` | Per-entity slot checklist + footer align (field type `card-fields-editor`) |
+| `AppCardFieldPreview` | Live card preview while editing |
+| `useCardFields` / `invalidateCardFieldsCache` | Boards read visibility from App Config |
+| `utils/card-fields.ts` | Slot catalogs for meeting + record entities |
+
+Entities covered: `meetingTopics`, `meetingHistory`, `incomingDocuments`, `outgoingDocuments`, `documents`, `masterListRequests`.
+
 ### Navigation
 
-Sidebar group label must be **Settings** (`docetra.navigation.settings`), routes remain `/settings/*`.
+Sidebar group label must be **Settings** (`docetra.navigation.settings`), routes remain `/settings/*`. Font size lives in the **user menu**, not a settings route.
 
 ### Rules
 
 1. Reuse these components before creating duplicates.
 2. Persist mock data only inside repositories (localStorage keys `docetra:config:*`, `docetra:settings:*`).
-3. Label all connection tests as simulated mock behavior.
+3. Label all connection tests as simulated mock behavior when mock mode is on.
 4. Mask secrets; never log plaintext tokens/passwords.
 5. Keep pages thin; put orchestration in composables.
 6. Preserve unrelated modules.
+7. After saving App Config display settings, invalidate card-fields cache so boards update.
 
 ### Acceptance
 
-Reusable kit exists, typed repositories work, builders render, Settings nav label is correct, and Configuration / Settings pages compose these pieces without rewriting the foundation.
+Reusable kit exists, typed repositories work (mock + HTTP switch), builders render, Settings nav label is correct, card-fields editor drives board cards, and Configuration / Settings pages compose these pieces without rewriting the foundation.

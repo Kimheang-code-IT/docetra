@@ -5,6 +5,12 @@ import type { Row, RowSelectionState } from '@tanstack/vue-table'
 import type { TableColumnDef } from '~/types/docetra/common'
 import type { RowActionItem } from '~/types/docetra/row-actions'
 import { DEFAULT_ROW_ACTIONS } from '~/types/docetra/row-actions'
+import {
+  isShowAllLimit,
+  TABLE_PAGE_SIZES,
+  paginationItemsPerPage,
+  parsePageLimit,
+} from '~/utils/pagination'
 
 type DataRow = Record<string, unknown>
 
@@ -61,15 +67,22 @@ const resolvedRowActions = computed(() => {
 const rowSelection = ref<RowSelectionState>({})
 
 const pageSizeItems = computed(() => [
-  { label: '10', value: '10' },
-  { label: '20', value: '20' },
-  { label: '50', value: '50' },
-  { label: '100', value: '100' },
+  ...TABLE_PAGE_SIZES.map(size => ({ label: String(size), value: String(size) })),
+  { label: t('common.pageSizeAll'), value: 'all' },
 ])
 
-const pageSizeModel = computed(() => String(Math.min(props.limit, 100)))
+const pageSizeModel = computed(() =>
+  isShowAllLimit(props.limit) ? 'all' : String(props.limit),
+)
 
-const effectiveItemsPerPage = computed(() => Math.min(props.limit, 100))
+const effectiveItemsPerPage = computed(() =>
+  paginationItemsPerPage(props.limit, props.total),
+)
+
+const allVisibleSelected = computed(() => {
+  if (!props.rows.length) return false
+  return props.rows.every(row => rowSelection.value[String(row.id)])
+})
 
 const metaHeaderLabel = computed(() => {
   const assigned = props.rows.filter(row =>
@@ -101,8 +114,16 @@ watch(() => [props.page, props.limit, props.rows], () => {
 })
 
 function onLimitChange(value: string) {
-  emit('update:limit', Math.min(Number(value), 100))
+  emit('update:limit', parsePageLimit(value, 10))
   emit('update:page', 1)
+}
+
+function selectAllVisibleRows() {
+  const next: RowSelectionState = {}
+  for (const row of props.rows) {
+    next[String(row.id)] = true
+  }
+  rowSelection.value = next
 }
 
 function isNumericCol(key: string) {
@@ -193,15 +214,18 @@ const tableColumns = computed<TableColumn<DataRow>[]>(() => {
   if (props.selectable) {
     cols.push({
       id: 'select',
-      header: ({ table: tableApi }) => h(UCheckbox, {
-        'modelValue': tableApi.getIsSomePageRowsSelected()
-          ? 'indeterminate'
-          : tableApi.getIsAllPageRowsSelected(),
-        'onUpdate:modelValue': (value: boolean | 'indeterminate') =>
-          tableApi.toggleAllPageRowsSelected(!!value),
-        'aria-label': t('docetra.actions.selectAll'),
-        'onClick': (e: Event) => e.stopPropagation(),
-      }),
+      header: () => {
+        const some = selectedCount.value > 0 && !allVisibleSelected.value
+        return h(UCheckbox, {
+          'modelValue': some ? 'indeterminate' : allVisibleSelected.value,
+          'onUpdate:modelValue': (value: boolean | 'indeterminate') => {
+            if (value) selectAllVisibleRows()
+            else clearSelection()
+          },
+          'aria-label': t('docetra.actions.selectAll'),
+          'onClick': (e: Event) => e.stopPropagation(),
+        })
+      },
       size: 44,
       meta: {
         class: {
@@ -344,6 +368,15 @@ defineExpose({
       </div>
       <div class="flex items-center gap-2">
         <UButton
+          v-if="!allVisibleSelected && rows.length"
+          color="neutral"
+          variant="soft"
+          size="xs"
+          icon="i-lucide-check-check"
+          :label="$t('docetra.actions.selectAllRows', { n: rows.length })"
+          @click="selectAllVisibleRows"
+        />
+        <UButton
           v-if="canDelete !== false"
           color="error"
           variant="soft"
@@ -403,7 +436,7 @@ defineExpose({
           :items="pageSizeItems"
           value-key="value"
           size="sm"
-          class="w-14 sm:w-[4.75rem]"
+          class="w-17 sm:w-22"
           :aria-label="$t('common.rowsPerPage')"
           :ui="{ base: 'rounded-md bg-default ring-1 ring-default' }"
           @update:model-value="onLimitChange"

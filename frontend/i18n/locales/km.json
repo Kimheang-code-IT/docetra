@@ -113,6 +113,7 @@
       "viewAll": "មើលទាំងអស់",
       "selectAll": "ជ្រើសទាំងអស់",
       "selectRow": "ជ្រើសជួរ",
+      "selectAllRows": "ជ្រើសទាំង {n}",
       "itemsSelected": "បានជ្រើស {n} ធាតុ",
       "deleteConfirm": "លុប {n} ធាតុដែលបានជ្រើស? សកម្មភាពនេះមិនអាចត្រឡប់វិញបានទេ។",
       "deletedItems": "បានលុប {n} ធាតុ",
@@ -514,7 +515,17 @@
       "reorderFailed": "មិនអាចតម្រៀបកិច្ចប្រជុំបានទេ",
       "invalidTopicDrop": "ប្រធានបទនេះមិនមែនជាទីតាំងទម្លាក់ត្រឹមត្រូវទេ",
       "collapseTopics": "បង្រួមប្រធានបទ",
-      "expandTopics": "ពង្រីកប្រធានបទ"
+      "expandTopics": "ពង្រីកប្រធានបទ",
+      "joinMeeting": "ចូលរួមកិច្ចប្រជុំ",
+      "soon": "ជិតដល់",
+      "inProgress": "កំពុងប្រជុំ",
+      "durationMinutes": "{n} នាទី",
+      "meetingUrlRequired": "ត្រូវការតំណ URL សម្រាប់កិច្ចប្រជុំតាមអនឡាញ ឬរួម"
+    },
+    "meetingMode": {
+      "in_person": "ផ្ទាល់",
+      "online": "តាមអនឡាញ",
+      "hybrid": "រួម"
     },
     "cardSlots": {
       "topicTitle": "ប្រធានបទ",
@@ -702,6 +713,7 @@
       "directorDate": "កាលបរិច្ឆេទនាយក",
       "involvedOfficers": "មន្ត្រីពាក់ព័ន្ធ",
       "officeInCharge": "ការិយាល័យទទួលបន្ទុក",
+      "involvedOffice": "ការិយាល័យពាក់ព័ន្ធ",
       "officerInCharge": "មន្ត្រីទទួលបន្ទុក",
       "participants": "អ្នកចូលរួម",
       "internalUnits": "អង្គភាពផ្ទៃក្នុង",
@@ -1025,7 +1037,8 @@
     "home": "ទំព័រដើម",
     "search": "ស្វែងរក....",
     "pages": "ទំព័រ",
-    "rowsPerPage": "ជួរក្នុងមួយទំព័រ"
+    "rowsPerPage": "ជួរក្នុងមួយទំព័រ",
+    "pageSizeAll": "ទាំងអស់"
   },
   "api": {
     "errorTitle": "កំហុស API: {status}",
@@ -1035,7 +1048,8 @@
     "requestFailed": "សំណើបរាជ័យ"
   },
   "app": {
-    "description": "ការគ្រប់គ្រងកំណត់ត្រា និងឯកសារផ្ទៃក្នុងសម្រាប់កិច្ចប្រជុំ អង្គភាព និងការចូលប្រើដែលបានគ្រប់គ្រង។"
+    "description": "ការគ្រប់គ្រងកំណត់ត្រា និងឯកសារផ្ទៃក្នុងសម្រាប់កិច្ចប្រជុំ អង្គភាព និងការចូលប្រើដែលបានគ្រប់គ្រង។",
+    "keywords": "គ្រប់គ្រងកំណត់ត្រា, ឯកសារ, កិច្ចប្រជុំ, Docetra"
   },
   "components": {
     "select": "ជ្រើសរើស...",

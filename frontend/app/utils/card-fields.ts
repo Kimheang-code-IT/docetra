@@ -32,6 +32,9 @@ export const MEETING_CARD_SLOTS = [
   'meetingDate',
   'recordTime',
   'location',
+  'meetingMode',
+  'meetingUrl',
+  'durationMinutes',
   'attendeesCount',
   'createdAt',
   'updatedAt',
@@ -103,11 +106,12 @@ export const DEFAULT_RECORD_CARD_FIELDS: string[] = [
 ]
 
 export const DEFAULT_CARD_FIELDS: Record<CardDisplayEntityKey, string[]> = {
-  meetingTopics: [...TOPIC_CARD_SLOTS],
+  /** Topic rail: no date on folder cards by default */
+  meetingTopics: ['status', 'stage', 'tags'],
   meetingHistory: DEFAULT_MEETING_CARD_FIELDS,
-  incomingDocuments: [...DEFAULT_RECORD_CARD_FIELDS, 'recordFlowCode', 'letterSubject', 'involvedOfficers', 'externalUnits'],
-  outgoingDocuments: [...DEFAULT_RECORD_CARD_FIELDS, 'recordFlowCode', 'letterSubject', 'involvedOfficers', 'externalUnits'],
-  documents: [...DEFAULT_RECORD_CARD_FIELDS, 'recordFlowCode', 'letterSubject', 'involvedOfficers', 'externalUnits'],
+  incomingDocuments: [...DEFAULT_RECORD_CARD_FIELDS, 'documentType', 'letterSubject', 'officeInCharge', 'involvedOfficers', 'externalUnits'],
+  outgoingDocuments: [...DEFAULT_RECORD_CARD_FIELDS, 'documentType', 'letterSubject', 'officeInCharge', 'involvedOfficers', 'externalUnits'],
+  documents: [...DEFAULT_RECORD_CARD_FIELDS, 'documentType', 'letterSubject', 'officeInCharge', 'involvedOfficers', 'externalUnits'],
   masterListRequests: ['status', 'stage', 'tags', 'letterNumber', 'letterSubject', 'officeInCharge', 'officerInCharge', 'externalUnits', 'letterDate'],
 }
 
@@ -147,7 +151,7 @@ export const MEETING_CARD_BLOCKS: CardSlotBlock[] = [
   {
     id: 'footer',
     labelKey: 'docetra.cardSlotBlocks.footer',
-    slots: ['letterDate', 'meetingDate', 'recordTime', 'location', 'attendeesCount', 'createdAt', 'updatedAt'],
+    slots: ['letterDate', 'meetingDate', 'recordTime', 'location', 'meetingMode', 'meetingUrl', 'durationMinutes', 'attendeesCount', 'createdAt', 'updatedAt'],
   },
 ]
 

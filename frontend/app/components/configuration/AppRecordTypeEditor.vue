@@ -13,6 +13,7 @@ import { recordTypeTabs } from '~/config/configuration-schemas'
 import { useConfigurationRepositories } from '~/repositories'
 import { useConfirm } from '~/composables/common/useConfirm'
 import { useAppHeader } from '~/composables/layout/useAppHeader'
+import { usePageSeo } from '~/composables/usePageSeo'
 import { toConfigCode } from '~/utils/config-code'
 import { getByPath, setByPath } from '~/utils/object-path'
 import {
@@ -298,9 +299,11 @@ watch(
   },
 )
 
-useHead(() => ({
-  title: `${isCreate.value ? t('docetra.config.createRecordType') : model.value.name} · ${t('docetra.pages.recordType')}`,
-}))
+usePageSeo({
+  title: () => isCreate.value
+    ? t('docetra.config.createRecordType')
+    : model.value.name || t('docetra.pages.recordType'),
+})
 </script>
 
 <template>

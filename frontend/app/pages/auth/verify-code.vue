@@ -3,6 +3,7 @@ import {
   resendPasswordResetCode,
   verifyPasswordResetCode,
 } from '~/adapters/auth'
+import { usePageSeo } from '~/composables/usePageSeo'
 import {
   getPasswordResetSession,
   markPasswordResetVerified,
@@ -24,9 +25,10 @@ const code = ref<string[]>(['', '', '', '', '', ''])
 const session = ref(getPasswordResetSession())
 const useMock = computed(() => config.public.useMockData !== false)
 
-useSeoMeta({
+usePageSeo({
   title: () => t('pages.forgetPassword.verifyTitle'),
   description: () => t('pages.forgetPassword.verifyDesc'),
+  robots: 'noindex, nofollow',
 })
 
 onMounted(() => {

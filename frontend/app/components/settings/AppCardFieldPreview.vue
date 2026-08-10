@@ -90,7 +90,7 @@ function previewText(slot: string): string {
 </script>
 
 <template>
-  <article class="flex min-h-[7.5rem] flex-col rounded-lg border border-default bg-default p-3 text-left shadow-xs">
+  <article class="flex min-h-30 flex-col rounded-lg border border-default bg-default p-3 text-left shadow-xs">
     <div class="flex items-start gap-2">
       <span
         v-if="showSortOrder"

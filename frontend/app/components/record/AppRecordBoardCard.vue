@@ -88,7 +88,7 @@ function bodySlotText(slot: string) {
   const values: Record<string, unknown> = {
     recordFlowCode: props.row.recordFlowCode,
     recordContent: props.row.recordContent || props.row.description,
-    documentType: props.row.recordTypeName || props.row.recordTypeId,
+    documentType: props.row.documentType || props.row.recordTypeName || props.row.recordTypeId,
     letterNumber: props.row.referenceNumber,
     letterSubject: props.row.letterSubject,
     involvedOfficers: listText(props.row.involvedOfficers),
@@ -225,7 +225,7 @@ function onCardClick(event: MouseEvent) {
 <template>
   <article
     draggable="true"
-    class="group relative flex h-full min-h-[7.5rem] cursor-grab touch-pan-y flex-col rounded-lg border border-default bg-default p-3 text-left shadow-xs transition active:cursor-grabbing"
+    class="group relative flex h-full min-h-30 cursor-grab touch-pan-y flex-col rounded-lg border border-default bg-default p-3 text-left shadow-xs transition active:cursor-grabbing"
     :class="dragging ? 'opacity-40 ring-2 ring-primary/30' : 'hover:border-primary/35 hover:shadow-sm'"
     tabindex="0"
     role="button"

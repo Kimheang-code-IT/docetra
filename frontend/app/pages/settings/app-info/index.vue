@@ -5,6 +5,7 @@ import { useSettingsRepositories } from '~/repositories'
 import { useConfirm } from '~/composables/common/useConfirm'
 import { useAppHeader } from '~/composables/layout/useAppHeader'
 import { useAppBranding } from '~/composables/settings/useAppBranding'
+import { usePageSeo } from '~/composables/usePageSeo'
 import { getByPath, setByPath } from '~/utils/object-path'
 
 definePageMeta({
@@ -103,7 +104,9 @@ onMounted(() => {
 })
 onBeforeUnmount(clear)
 
-useHead(() => ({ title: `${t('docetra.pages.appInfo')} · ${t('docetra.brand.name')}` }))
+usePageSeo({
+  title: () => t('docetra.pages.appInfo'),
+})
 </script>
 
 <template>

@@ -100,32 +100,47 @@ const occurredAtDateFilter: FilterDef = {
   type: 'daterange',
 }
 
-interface WorkflowDocumentFormOptions {
-  contentLabelKey: string
-  dateKey: 'receivedDate' | 'sentDate' | 'documentDate'
-  documentTypeRequired?: boolean
-}
-
-function workflowDocumentTabs(options: WorkflowDocumentFormOptions): DocumentTabSchema[] {
+/** Incoming / Outgoing / Document create/edit — no record-flow / content blob; company + org selects. */
+function orgSelectDocumentTabs(options: { dateKey: 'receivedDate' | 'sentDate' | 'documentDate' }): DocumentTabSchema[] {
   return masterDataTabs([
     { key: 'status', labelKey: 'docetra.fields.status', type: 'select', required: true, options: statusFilter.options },
     { key: 'title', labelKey: 'docetra.fields.title', type: 'text', required: true },
-    { key: 'recordFlowCode', labelKey: 'docetra.fields.recordFlow', type: 'text', required: true },
-    { key: 'recordContent', labelKey: options.contentLabelKey, type: 'textarea', colSpan: 2 },
     {
-      key: 'recordTypeId',
+      key: 'documentType',
       labelKey: 'docetra.fields.documentType',
       type: 'select',
-      required: options.documentTypeRequired,
-      optionsEndpoint: `${ApiEndpoints.RECORD_TYPES}/options`,
+      required: true,
+      optionsEndpoint: `${ApiEndpoints.COMPANIES}/options?valueField=name`,
+      placeholder: 'Choose option ...',
     },
     { key: 'referenceNumber', labelKey: 'docetra.fields.letterNumber', type: 'text', required: true },
     { key: 'letterSubject', labelKey: 'docetra.fields.letterSubject', type: 'text', required: true, colSpan: 2 },
     { key: options.dateKey, labelKey: 'docetra.fields.date', type: 'date', required: true },
     { key: 'directorGeneralDate', labelKey: 'docetra.fields.directorGeneralDate', type: 'date' },
     { key: 'directorDate', labelKey: 'docetra.fields.directorDate', type: 'date' },
-    { key: 'involvedOfficers', labelKey: 'docetra.fields.involvedOfficers', type: 'csv-list', colSpan: 2 },
-    { key: 'externalUnits', labelKey: 'docetra.fields.externalUnits', type: 'csv-list', colSpan: 2 },
+    {
+      key: 'officeInCharge',
+      labelKey: 'docetra.fields.involvedOffice',
+      type: 'select',
+      optionsEndpoint: `${ApiEndpoints.DEPARTMENTS}/options?valueField=name`,
+      placeholder: 'Choose option ...',
+    },
+    {
+      key: 'involvedOfficers',
+      labelKey: 'docetra.fields.involvedOfficers',
+      type: 'multiselect',
+      optionsEndpoint: `${ApiEndpoints.OFFICERS}/options?valueField=name`,
+      placeholder: 'Choose option ...',
+      colSpan: 2,
+    },
+    {
+      key: 'externalUnits',
+      labelKey: 'docetra.fields.externalUnits',
+      type: 'multiselect',
+      optionsEndpoint: `${ApiEndpoints.COMPANIES}/options?valueField=name`,
+      placeholder: 'Choose option ...',
+      colSpan: 2,
+    },
     { key: 'tags', labelKey: 'docetra.fields.recordTag', type: 'csv-list', colSpan: 2 },
   ])
 }
@@ -133,13 +148,8 @@ function workflowDocumentTabs(options: WorkflowDocumentFormOptions): DocumentTab
 function masterListRequestTabs(): DocumentTabSchema[] {
   return masterDataTabs([
     { key: 'status', labelKey: 'docetra.fields.status', type: 'select', required: true, options: statusFilter.options },
-    { key: 'title', labelKey: 'docetra.fields.title', type: 'text', required: true },
-    { key: 'referenceNumber', labelKey: 'docetra.fields.letterNumber', type: 'text', required: true },
-    { key: 'letterDate', labelKey: 'docetra.fields.letterDate', type: 'date', required: true },
-    { key: 'letterSubject', labelKey: 'docetra.fields.letterSubject', type: 'text', required: true, colSpan: 2 },
-    { key: 'officeInCharge', labelKey: 'docetra.fields.officeInCharge', type: 'text' },
-    { key: 'officerInCharge', labelKey: 'docetra.fields.officerInCharge', type: 'text' },
-    { key: 'externalUnits', labelKey: 'docetra.fields.externalUnits', type: 'csv-list', colSpan: 2 },
+    { key: 'title', labelKey: 'docetra.fields.title', type: 'text', required: true, colSpan: 2 },
+    { key: 'recordTime', labelKey: 'docetra.fields.recordTime', type: 'datetime', required: true },
     { key: 'tags', labelKey: 'docetra.fields.recordTag', type: 'csv-list', colSpan: 2 },
   ])
 }
@@ -212,6 +222,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
       { key: 'title', labelKey: 'docetra.fields.letterSubject', sortable: true, priority: 'high' },
       { key: 'letterDate', labelKey: 'docetra.fields.letterDate', sortable: true },
       { key: 'meetingDate', labelKey: 'docetra.fields.meetingDate', sortable: true },
+      { key: 'meetingMode', labelKey: 'docetra.fields.meetingMode', priority: 'low' },
       { key: 'location', labelKey: 'docetra.fields.location' },
       { key: 'participants', labelKey: 'docetra.fields.participants' },
       { key: 'internalUnits', labelKey: 'docetra.fields.internalUnits', priority: 'low' },
@@ -226,10 +237,23 @@ export const entityConfigs: Record<string, EntityConfig> = {
     tabs: masterDataTabs([
       { key: 'status', labelKey: 'docetra.fields.status', type: 'select', required: true, options: statusFilter.options },
       { key: 'stage', labelKey: 'docetra.fields.stage', type: 'select', required: true, options: stageFilter.options },
+      { key: 'topicId', labelKey: 'docetra.fields.topicId', type: 'text', helpKey: 'docetra.fields.topicIdHelp' },
       { key: 'letterNumber', labelKey: 'docetra.fields.letterNumber', type: 'text', required: true },
       { key: 'title', labelKey: 'docetra.fields.letterSubject', type: 'text', required: true },
       { key: 'letterDate', labelKey: 'docetra.fields.letterDate', type: 'date', required: true },
       { key: 'meetingDate', labelKey: 'docetra.fields.meetingDateTime', type: 'datetime', required: true },
+      { key: 'durationMinutes', labelKey: 'docetra.fields.durationMinutes', type: 'number' },
+      {
+        key: 'meetingMode',
+        labelKey: 'docetra.fields.meetingMode',
+        type: 'select',
+        options: [
+          { label: 'In person', value: 'in_person' },
+          { label: 'Online', value: 'online' },
+          { label: 'Hybrid', value: 'hybrid' },
+        ],
+      },
+      { key: 'meetingUrl', labelKey: 'docetra.fields.meetingUrl', type: 'url' },
       { key: 'location', labelKey: 'docetra.fields.location', type: 'text' },
       { key: 'participants', labelKey: 'docetra.fields.participants', type: 'csv-list', colSpan: 2 },
       { key: 'internalUnits', labelKey: 'docetra.fields.internalUnits', type: 'csv-list' },
@@ -269,11 +293,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
       { key: 'receivedDate', labelKey: 'docetra.fields.receivedDate', type: 'daterange' },
       { key: 'waiting', labelKey: 'docetra.fields.waiting', type: 'boolean' },
     ],
-    tabs: workflowDocumentTabs({
-      contentLabelKey: 'docetra.fields.incomingDocument',
-      dateKey: 'receivedDate',
-      documentTypeRequired: true,
-    }),
+    tabs: orgSelectDocumentTabs({ dateKey: 'receivedDate' }),
   },
 
   outgoingDocuments: {
@@ -303,10 +323,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
       recordStageFilter,
       { key: 'sentDate', labelKey: 'docetra.fields.sentDate', type: 'daterange' },
     ],
-    tabs: workflowDocumentTabs({
-      contentLabelKey: 'docetra.fields.outgoingDocument',
-      dateKey: 'sentDate',
-    }),
+    tabs: orgSelectDocumentTabs({ dateKey: 'sentDate' }),
   },
 
   documents: {
@@ -337,11 +354,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
       recordStageFilter,
       { key: 'documentDate', labelKey: 'docetra.fields.date', type: 'daterange' },
     ],
-    tabs: workflowDocumentTabs({
-      contentLabelKey: 'docetra.fields.document',
-      dateKey: 'documentDate',
-      documentTypeRequired: true,
-    }),
+    tabs: orgSelectDocumentTabs({ dateKey: 'documentDate' }),
   },
 
   masterListRequests: {

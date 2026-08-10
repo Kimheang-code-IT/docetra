@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { fetchDashboardSummary } from '~/adapters'
+import { usePageSeo } from '~/composables/usePageSeo'
 import type { DashboardSummary } from '~/types/docetra/entities'
 
 definePageMeta({
@@ -11,9 +12,9 @@ const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 
-useHead(() => ({
-  title: `${t('docetra.pages.dashboard')} · ${t('docetra.brand.name')}`,
-}))
+usePageSeo({
+  title: () => t('docetra.pages.dashboard'),
+})
 
 const pending = ref(false)
 const error = ref<string | null>(null)

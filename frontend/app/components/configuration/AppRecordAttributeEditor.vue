@@ -9,6 +9,7 @@ import { recordAttributeTabs } from '~/config/configuration-schemas'
 import { useConfigurationRepositories } from '~/repositories'
 import { useConfirm } from '~/composables/common/useConfirm'
 import { useAppHeader } from '~/composables/layout/useAppHeader'
+import { usePageSeo } from '~/composables/usePageSeo'
 import { toConfigCode } from '~/utils/config-code'
 import { getByPath, setByPath } from '~/utils/object-path'
 import { pushPendingTypeAttributeId } from '~/utils/pending-type-attributes'
@@ -243,9 +244,11 @@ onBeforeUnmount(clear)
 onMounted(() => void load())
 watch(() => props.attributeId, () => void load())
 
-useHead(() => ({
-  title: `${isCreate.value ? t('docetra.config.createRecordAttribute') : model.value.label} · ${t('docetra.pages.recordAttribute')}`,
-}))
+usePageSeo({
+  title: () => isCreate.value
+    ? t('docetra.config.createRecordAttribute')
+    : model.value.label || t('docetra.pages.recordAttribute'),
+})
 </script>
 
 <template>

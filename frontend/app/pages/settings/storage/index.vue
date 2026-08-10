@@ -4,6 +4,7 @@ import type { ConnectionStatusFieldValue } from '~/types/docetra/common'
 import { storageSettingsTabs } from '~/config/settings-schemas'
 import { useSettingsRepositories } from '~/repositories'
 import { useAppHeader } from '~/composables/layout/useAppHeader'
+import { usePageSeo } from '~/composables/usePageSeo'
 import { getByPath, setByPath } from '~/utils/object-path'
 
 definePageMeta({
@@ -146,7 +147,9 @@ onMounted(() => {
 })
 onBeforeUnmount(clear)
 
-useHead(() => ({ title: `${t('docetra.pages.storage')} · ${t('docetra.brand.name')}` }))
+usePageSeo({
+  title: () => t('docetra.pages.storage'),
+})
 </script>
 
 <template>

@@ -156,8 +156,24 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
           details: {},
           ...(['departments', 'companies', 'companyPurposes', 'companySectors', 'officers'].includes(config.key) ? { status: 'active', isActive: true } : {}),
           ...(recordKind ? { recordKind } : {}),
-          ...(recordKind && recordKind !== 'master_list_request' ? { recordFlowCode: 'normal' } : {}),
+          ...(recordKind && recordKind !== 'master_list_request'
+            && config.key !== 'incomingDocuments'
+            && config.key !== 'outgoingDocuments'
+            && config.key !== 'documents'
+            ? { recordFlowCode: 'normal' }
+            : {}),
+          ...(['incomingDocuments', 'outgoingDocuments', 'documents'].includes(config.key)
+            ? { involvedOfficers: [], externalUnits: [] }
+            : {}),
           ...(config.key === 'roles' ? { permissionRows: [] as AppRolePermissionRow[] } : {}),
+          ...(config.key === 'meetingHistory'
+            ? {
+                meetingMode: 'in_person',
+                ...(typeof route.query.topicId === 'string' && route.query.topicId
+                  ? { topicId: route.query.topicId }
+                  : {}),
+              }
+            : {}),
         }
         initialSnapshot.value = JSON.stringify(model.value)
         comments.value = []
@@ -282,6 +298,14 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
   async function save() {
     if (config.readOnly) return
     if (!validateRequiredFields()) return
+    if (config.key === 'meetingHistory') {
+      const mode = String(model.value.meetingMode || '')
+      const url = String(model.value.meetingUrl || '').trim()
+      if ((mode === 'online' || mode === 'hybrid') && !url) {
+        toast.add({ title: t('docetra.meetingBoard.meetingUrlRequired'), color: 'error' })
+        return
+      }
+    }
     if (config.key === 'departments' && !isCreate.value && model.value.parentId === id.value) {
       toast.add({ title: t('docetra.department.cannotBeOwnAncestor'), color: 'error' })
       return

@@ -1,7 +1,7 @@
 # Prompt 00A — Reusable Nuxt UI Workspace and Document Components
 
 > **Status:** Implemented — architecture reference only (not a build ticket).
-> Key code: `EntityWorkspaceView`, `AppServerTable`, `AppKanban*`, `AppDocumentPage`, `EntityDocumentView`, boards under `components/{meeting,record,portal}/`.
+> Key code: `EntityWorkspaceView`, `EntityDocumentView`, `AppServerTable`, `AppKanban*`, `AppDocumentPage`, boards under `components/{meeting,record,portal}/`, card fields under `components/settings/`.
 > Developer inventory: `frontend/docs/reusable-components-guide.md`.
 
 ## Reference (was copy/paste prompt)
@@ -10,7 +10,29 @@ Build the shared Docetra workspace and ERP-style document-page component system 
 
 Use Nuxt UI primitives for the complete interface. Do not add another UI framework and do not copy ERPNext code or branding. Components must be typed, accessible, responsive, permission-aware, and API-agnostic.
 
+Nuxt auto-imports by folder prefix (e.g. `components/common/AppLiveSearch.vue` → `CommonAppLiveSearch`). Prefer those prefixes in templates.
+
+## Page composition paths
+
+```text
+Generic CRUD list/detail
+  → EntityWorkspaceView / EntityDocumentView
+  → config in app/config/entities.ts
+
+Special board UX (topics, stages, logs, upload)
+  → App*Board in meeting|record|portal
+  → domain composable (useMeetingTopicBoard, useRecordStageBoard, useRecordLogBoard, …)
+
+Config admin (record types / attributes)
+  → AppConfigEntityList + AppRecord*List / *Editor
+  → useConfigListPage
+```
+
 ## Workspace components
+
+### `EntityWorkspaceView` / `EntityDocumentView`
+
+Primary orchestrators for Organization, User Management, Meeting History, Portal Logs, System Logs, and Google Drive Sync (until dedicated UI lands). Thin pages pass `getEntityConfig('…')` only.
 
 ### `AppWorkspacePage`
 
@@ -18,7 +40,7 @@ Provide breadcrumb, localized title/description, result count, primary create ac
 
 ### `AppWorkspaceToolbar`
 
-Provide debounced live search (`AppLiveSearch`), select/multiselect filters (`AppFilterSelect`), sort, and table/Kanban/hierarchy view toggle. Selected filters show an active grey border on the control (no filter chip row). Synchronize supported state with URL query parameters via `useEntityWorkspace`.
+Provide debounced live search (`AppLiveSearch`), select/multiselect filters (`AppFilterSelect`), date range (`AppDateRangeFilter`), sort, and table/Kanban/hierarchy view toggle. Selected filters show an active grey border on the control (no filter chip row) via `utils/filter/select-ui.ts`. Synchronize supported state with URL query parameters via `useEntityWorkspace`.
 
 ### `AppServerTable`
 
@@ -51,7 +73,7 @@ interface RowActionItem {
 Default actions (i18n under `docetra.rowActions.*`):
 
 - **View detail** → open document / event
-- **View logs** → `/records/logs` (optionally with search query)
+- **View logs** → `/records/record-logs` (optionally with search query)
 - **Delete** → confirm then delete (omit when read-only)
 
 Use on tables, cards, and boards. Prefer this over one-off dropdowns.
@@ -82,13 +104,17 @@ Provide:
 - Focus on the first invalid field after validation failure.
 - Canonical navigation from `/new` to `/:id` after successful creation.
 
+### `AppDocumentContentShell`
+
+Readable max-width + gutters around form content (`wide` for dense forms).
+
 ### `AppDocumentForm`
 
 Render schema-driven sections using responsive one- or two-column grids. Support section title, help text, visibility rules, read-only state, validation, dependent fields, and server validation error mapping. Avoid a single extremely long unstructured form.
 
 ### `AppDynamicFieldRenderer`
 
-Render text, textarea, number, date, date-time, select, multi-select, boolean, organization, officer, record relation, file, and URL fields using Nuxt UI form controls. Keep values typed and accessible.
+Render text, textarea, number, date, date-time, select, multi-select, boolean, organization, officer, record relation, file, URL, secret, connection-status, csv-list, builders, and **`card-fields-editor`** fields using Nuxt UI form controls / settings editors. Keep values typed and accessible.
 
 ### `AppDocumentMetaRail`
 
@@ -140,11 +166,11 @@ Attachments live on `AppDocumentMetaRail` (upload list + metadata), not a standa
 
 ### `AppRichTextNote`
 
-Reusable TipTap editor via Nuxt UI `UEditor` + `UEditorToolbar` (HTML content). Client-only with loading fallback. Safe core extensions (align, color, highlight); avoid duplicate Underline (StarterKit already includes it). Optional TableKit only when stable. Used for meeting notes and any future rich-text fields.
+Reusable TipTap editor via Nuxt UI `UEditor` + `UEditorToolbar` (HTML content). Client-only with loading fallback. Safe core extensions (align, color, highlight, resizable image); avoid duplicate Underline (StarterKit already includes it). Optional TableKit only when stable. Used for meeting notes and any future rich-text fields.
 
 ### `AppUppyUploader`
 
-Reusable Uppy Dashboard for large uploads (XHR in API mode; local mock uploader when `useMockData`). Client-only mount. Emits `AttachmentMeta[]` on complete. Pair with adapter `listAttachments` / `replaceAttachments`. Include a fallback file picker if Dashboard fails to boot.
+Reusable Uppy Dashboard for large uploads (XHR in API mode; local mock uploader when `useMockData`). Client-only mount (`AppUppyUploader.client.vue`). Emits `AttachmentMeta[]` on complete. Pair with adapter `listAttachments` / `replaceAttachments`. Include a fallback file picker if Dashboard fails to boot.
 
 ### `AppMeetingNotesDialog`
 
@@ -156,8 +182,8 @@ Record Logs index as a **1+3 split board** (not a plain workspace table):
 
 - Left: vertical log-view tabs (All / Created / Updated / Stage / Shared / Incoming / Outgoing / Errors) with counts.
 - Collapsible to icon-only rail (sidebar style) so the table gains width.
-- Right: dynamic `AppServerTable` whose **columns + filters** change with the selected tab; datepicker + search in the toolbar; row action menu.
-- Detail route remains `/records/logs/:id`.
+- Right: dynamic `AppServerTable` whose **columns + filters** change with the selected tab; `AppDateRangeFilter` + search in the toolbar; row action menu.
+- Detail route: `/records/record-logs/:id`.
 
 Composable: `useRecordLogBoard`.
 
@@ -167,17 +193,32 @@ Portal File Upload index as a **1+3 split board**:
 
 - Left: Uppy upload folder (`AppUppyUploader` with `fill`); collapsible to icon-only rail like Logs.
 - Right: uploaded-files `AppServerTable` with status filter + search; row actions Detail / Logs / Delete.
-- Detail route remains `/portal/file-upload/:id`.
+- Detail route: `/portal/file-upload/:id`.
 
 ### `AppRecordStageBoard`
 
 Topic-style board for Incoming / Outgoing / Document / Master List Request:
 
 - Left: workflow **Stages** rail (All + stage cards with counts); search stages; collapsible icon-only.
-- Right: 3-column record **cards** with datepicker + search; drag onto a stage to move; `⋯` Detail / Logs / Move / Delete.
+- Right: 3-column record **cards** with date range + search; drag onto a stage to move; `⋯` Detail / Logs / Move / Delete.
+- Card scan fields driven by `useCardFields(entityKey)`.
 - Props: `dateField`, `subtitleField`, `stateKey`.
 
 Composable: `useRecordStageBoard`.
+
+### `AppMeetingTopicBoard`
+
+Meeting Topic index as a **1+3 split board** (topics left, meetings right). Cards use `AppMeetingBoardCard` / `AppMeetingTopicSideCard` with config-driven slots. Notes via `AppMeetingNotesDialog`.
+
+Composable: `useMeetingTopicBoard`.
+
+### Card fields (settings → boards)
+
+| Piece | Role |
+| --- | --- |
+| `AppCardFieldsEditor` / `AppCardFieldPreview` | App Config Display tab UI |
+| `useCardFields` | Resolve visible slots + footer align per entity |
+| `utils/card-fields.ts` | Slot catalogs + defaults for meeting/record entities |
 
 ### `useEntityWorkspace`
 
@@ -187,10 +228,18 @@ Coordinate workspace URL state, table/board mode, search, filters, sorting, pagi
 
 Coordinate route identity, create/read/edit state, schema, initial values, dirty tracking, validation, save, conflict handling, lazy tab data, comments, activity, permissions, and previous/next navigation. Accept entity adapters and do not invent endpoints inside UI components.
 
+### `useRecordTypeDrivenTabs`
+
+For record entities (`incomingDocuments`, `outgoingDocuments`, `documents`, `masterListRequests`), merge static document tabs with attributes from the selected record type (catalog via configuration repositories).
+
 ### `useMenu` / `useUserMenu`
 
-- `useMenu` — sidebar links only (no System Monitor group).
-- `useUserMenu` — includes System Log entry to `/system-monitor/system-logs`.
+- `useMenu` — sidebar links only (no System Monitor group). Order: Dashboard → Meeting → Record → Organization → Portal → User Management → Configuration → Settings.
+- `useUserMenu` — System Log, Language, Font size, About, Appearance, Logout.
+
+### `useGlobalSearch`
+
+Cmd+K keyword / semantic search over the local index; permission-filtered groups; Ask AI on demand.
 
 ## Shared interaction contract
 
@@ -200,7 +249,7 @@ Coordinate route identity, create/read/edit state, schema, initial values, dirty
 - Save stays on the document page and refreshes only affected data.
 - Successful creation replaces `/new` with the canonical ID route.
 - Cancel or Back returns to the preserved workspace URL when safe.
-- Unsaved changes require confirmation.
+- Unsaved changes require confirmation (`useConfirm`).
 - Previous/next respects the source workspace ordering where available.
 - Backend authorization is authoritative; frontend permission checks control visibility only.
 

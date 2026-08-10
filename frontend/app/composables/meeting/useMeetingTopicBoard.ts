@@ -1,6 +1,11 @@
 import type { MeetingHistory, MeetingTopic } from '~/types/docetra/entities'
 import { getEntityAdapter } from '~/config/entities'
+import {
+  assignMeetingToTopic as assignMeetingToTopicApi,
+  reorderMeetingsInTopic,
+} from '~/adapters/meeting-board'
 import { isWithinDateTimeRange } from '~/utils/date-time-range'
+import { mergeMeetingTiming, sortMeetingsForBoard } from '~/utils/meeting/board'
 
 /** Sentinel for the Unassigned row on the topic rail (not a real topic id). */
 export const MEETING_BOARD_UNASSIGNED = '__unassigned__'
@@ -80,12 +85,8 @@ export function useMeetingTopicBoard() {
         || (m.location || '').toLowerCase().includes(q),
       )
     }
-    return [...list].sort((a, b) => {
-      const ao = a.sortOrder ?? Number.MAX_SAFE_INTEGER
-      const bo = b.sortOrder ?? Number.MAX_SAFE_INTEGER
-      if (ao !== bo) return ao - bo
-      return String(a.meetingDate).localeCompare(String(b.meetingDate))
-    })
+    const withTiming = list.map(m => mergeMeetingTiming(m))
+    return sortMeetingsForBoard(withTiming, { topicScoped: !isPoolView.value })
   })
 
   const topicMeetingCounts = computed(() => {
@@ -159,11 +160,11 @@ export function useMeetingTopicBoard() {
     meeting.sortOrder = topicId ? nextOrder : undefined
 
     try {
-      await meetingsAdapter.update(meetingId, {
-        topicId: meeting.topicId,
+      await assignMeetingToTopicApi(meetingId, {
+        topicId: meeting.topicId || null,
         topicTitle: meeting.topicTitle,
         sortOrder: meeting.sortOrder,
-      } as any)
+      })
       if (previousTopicId) await syncTopicChildren(previousTopicId)
       if (topicId) await syncTopicChildren(topicId)
       await refresh()
@@ -195,10 +196,10 @@ export function useMeetingTopicBoard() {
     next.splice(toIndex, 0, item)
 
     try {
-      await Promise.all(next.map((meeting, index) => {
-        meeting.sortOrder = index
-        return meetingsAdapter.update(meeting.id, { sortOrder: index } as any)
-      }))
+      await reorderMeetingsInTopic({
+        topicId,
+        orderedMeetingIds: next.map(m => m.id),
+      })
       await syncTopicChildren(topicId)
       await refresh()
     }
@@ -221,7 +222,10 @@ export function useMeetingTopicBoard() {
   }
 
   function openCreateMeeting() {
-    navigateTo('/meetings/history/new')
+    const query: Record<string, string> = {}
+    const tid = selectedTopicId.value
+    if (tid && tid !== MEETING_BOARD_UNASSIGNED) query.topicId = tid
+    navigateTo({ path: '/meetings/history/new', query })
   }
 
   return {

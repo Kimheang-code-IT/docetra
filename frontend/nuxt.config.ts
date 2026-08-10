@@ -11,6 +11,23 @@ export default defineNuxtConfig({
     '@pinia/nuxt'
   ],
 
+  app: {
+    head: {
+      title: 'Docetra',
+      htmlAttrs: {
+        lang: 'en',
+      },
+      meta: [
+        { name: 'format-detection', content: 'telephone=no' },
+        { name: 'theme-color', content: '#e8472a' },
+      ],
+      link: [
+        { rel: 'icon', type: 'image/png', href: '/logo.png' },
+        { rel: 'apple-touch-icon', href: '/logo.png' },
+      ],
+    },
+  },
+
   devtools: {
     enabled: true
   },

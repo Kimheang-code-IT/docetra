@@ -16,7 +16,9 @@ const currentLocale = computed(() => uiLocales[locale.value] || en)
 const lang = computed(() => currentLocale.value.code || locale.value)
 const dir = computed(() => currentLocale.value.dir || 'ltr')
 
+const siteName = computed(() => t('docetra.brand.name'))
 const appDescription = computed(() => t('app.description'))
+const appKeywords = computed(() => t('app.keywords'))
 
 onMounted(() => {
   preferences.hydrate()
@@ -27,13 +29,21 @@ onMounted(() => {
 })
 
 useHead({
+  // Page title only in the tab — do not append "Docetra" again.
+  titleTemplate: (titleChunk) => {
+    const chunk = titleChunk?.trim()
+    if (!chunk || chunk === siteName.value) return siteName.value
+    return chunk
+  },
   meta: [
     { charset: 'utf-8' },
     { name: 'viewport', content: 'width=device-width, initial-scale=1' },
     { key: 'theme-color', name: 'theme-color', content: color },
+    { key: 'keywords', name: 'keywords', content: appKeywords },
   ],
   link: [
     { rel: 'icon', type: 'image/png', href: '/logo.png' },
+    { rel: 'apple-touch-icon', href: '/logo.png' },
   ],
   htmlAttrs: {
     lang,
@@ -41,16 +51,15 @@ useHead({
   },
 })
 
-const title = 'Docetra'
-
 useSeoMeta({
-  title,
   description: appDescription,
-  ogTitle: title,
+  ogSiteName: siteName,
   ogDescription: appDescription,
-  ogImage: '/assets/images/logo.png',
-  twitterImage: '/assets/images/logo.png',
-  twitterCard: 'summary_large_image',
+  ogImage: '/logo.png',
+  ogType: 'website',
+  twitterImage: '/logo.png',
+  twitterCard: 'summary',
+  robots: 'noindex, nofollow',
 })
 </script>
 

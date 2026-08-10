@@ -222,6 +222,7 @@
       "viewAll": "View all",
       "selectAll": "Select all",
       "selectRow": "Select row",
+      "selectAllRows": "Select all {n}",
       "itemsSelected": "{n} items selected",
       "deleteConfirm": "Delete {n} selected item(s)? This cannot be undone.",
       "deletedItems": "Deleted {n} item(s)",
@@ -623,7 +624,17 @@
       "reorderFailed": "Could not reorder meetings",
       "invalidTopicDrop": "This topic is not a valid drop target",
       "collapseTopics": "Collapse topics",
-      "expandTopics": "Expand topics"
+      "expandTopics": "Expand topics",
+      "joinMeeting": "Join meeting",
+      "soon": "Soon",
+      "inProgress": "In progress",
+      "durationMinutes": "{n} min",
+      "meetingUrlRequired": "Meeting URL is required for online or hybrid meetings"
+    },
+    "meetingMode": {
+      "in_person": "In person",
+      "online": "Online",
+      "hybrid": "Hybrid"
     },
     "cardSlots": {
       "topicTitle": "Topic",
@@ -641,6 +652,9 @@
       "letterDate": "Letter date",
       "meetingDate": "Meeting date",
       "location": "Location",
+      "meetingMode": "Mode",
+      "meetingUrl": "Join link",
+      "durationMinutes": "Duration",
       "attendeesCount": "Attendees",
       "participants": "Participants",
       "internalUnits": "Internal units",
@@ -726,6 +740,12 @@
       "saved": "Meeting notes saved",
       "saveFailed": "Could not save meeting notes",
       "loadFailed": "Could not load meeting notes",
+      "pickDriveFile": "Add from Google Drive",
+      "searchDriveFiles": "Search synced files…",
+      "drivePickHint": "Files must already be synced via Portal → Google Drive Sync.",
+      "driveLoadFailed": "Could not load Drive files",
+      "driveLinked": "Drive file linked to meeting",
+      "driveLinkFailed": "Could not link Drive file",
       "imageInvalid": "Please choose an image file",
       "imageTooLarge": "Image must be 5 MB or smaller",
       "chooseFiles": "Choose files",
@@ -796,6 +816,11 @@
       "assignee": "Assignee",
       "meetingDate": "Meeting date",
       "meetingDateTime": "Date and time",
+      "meetingMode": "Meeting mode",
+      "meetingUrl": "Join URL",
+      "durationMinutes": "Duration (minutes)",
+      "topicId": "Topic ID",
+      "topicIdHelp": "Optional. When creating from the Topic board, the selected folder is prefilled.",
       "recordTime": "Record time",
       "recordTag": "Record tag",
       "letterNumber": "Letter no.",
@@ -811,6 +836,7 @@
       "directorDate": "Director date",
       "involvedOfficers": "Involved officers",
       "officeInCharge": "Office in charge",
+      "involvedOffice": "Involved office",
       "officerInCharge": "Officer in charge",
       "participants": "Participants",
       "internalUnits": "Internal units",
@@ -1134,7 +1160,8 @@
     "home": "Home",
     "search": "Search....",
     "pages": "Pages",
-    "rowsPerPage": "Rows per page"
+    "rowsPerPage": "Rows per page",
+    "pageSizeAll": "All"
   },
   "components": {
     "select": "Select...",
@@ -1237,6 +1264,7 @@
     "requestFailed": "Request failed"
   },
   "app": {
-    "description": "Centralized administrative record management for documents, meetings, organizations, and controlled access."
+    "description": "Centralized administrative record management for documents, meetings, organizations, and controlled access.",
+    "keywords": "record management, documents, meetings, Docetra, workflow"
   }
 }

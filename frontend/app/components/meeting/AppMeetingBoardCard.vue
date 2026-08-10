@@ -4,6 +4,11 @@ import { MEETING_BOARD_UNASSIGNED } from '~/composables/meeting/useMeetingTopicB
 import { usePointerDrop } from '~/composables/common/usePointerDrop'
 import { useCardFields } from '~/composables/settings/useCardFields'
 import { isCardFooterSlot, splitCardSlots } from '~/utils/card-fields'
+import {
+  computeMeetingTiming,
+  formatMeetingDateTime,
+  isJoinableMeeting,
+} from '~/utils/meeting/board'
 
 const props = defineProps<{
   meeting: MeetingHistory
@@ -23,6 +28,20 @@ const emit = defineEmits<{
 
 const { t, te } = useI18n()
 const { show, visibleSlots, footerAlign } = useCardFields('meetingHistory')
+
+const timing = computed(() => {
+  if (props.meeting.imminent != null || props.meeting.inProgress != null) {
+    return {
+      imminent: Boolean(props.meeting.imminent || props.meeting.inProgress),
+      inProgress: Boolean(props.meeting.inProgress),
+    }
+  }
+  const t = computeMeetingTiming(props.meeting.meetingDate, props.meeting.durationMinutes)
+  return { imminent: Boolean(t.imminent), inProgress: Boolean(t.inProgress) }
+})
+
+const isImminent = computed(() => timing.value.imminent)
+const canJoin = computed(() => isJoinableMeeting(props.meeting.meetingMode, props.meeting.meetingUrl))
 
 const statusLabel = computed(() => {
   const key = `docetra.status.${props.meeting.status}`
@@ -56,8 +75,21 @@ function listText(value: unknown) {
 
 function footerDate(slot: string) {
   if (slot === 'letterDate') return day(props.meeting.letterDate)
-  if (slot === 'meetingDate') return day(props.meeting.meetingDate)
+  if (slot === 'meetingDate') return formatMeetingDateTime(props.meeting.meetingDate)
+  if (slot === 'recordTime') return formatMeetingDateTime(props.meeting.recordTime || props.meeting.meetingDate)
   return recordTimeLabel.value
+}
+
+function meetingModeLabel(mode?: string) {
+  if (!mode) return ''
+  const key = `docetra.meetingMode.${mode}`
+  return te(key) ? t(key) : mode
+}
+
+function joinMeeting() {
+  const url = props.meeting.meetingUrl?.trim()
+  if (!url) return
+  if (import.meta.client) window.open(url, '_blank', 'noopener,noreferrer')
 }
 
 const orderedSlots = computed(() => {
@@ -73,6 +105,9 @@ const orderedSlots = computed(() => {
     if (slot === 'internalUnits') return Boolean(listText(props.meeting.internalUnits))
     if (slot === 'externalUnits') return Boolean(listText(props.meeting.externalUnits))
     if (slot === 'letterDate') return Boolean(props.meeting.letterDate)
+    if (slot === 'meetingMode') return Boolean(props.meeting.meetingMode)
+    if (slot === 'meetingUrl') return Boolean(props.meeting.meetingUrl)
+    if (slot === 'durationMinutes') return props.meeting.durationMinutes != null
     return show(slot)
   })
 })
@@ -108,7 +143,14 @@ const assignItems = computed(() => {
       label: t('docetra.meetingBoard.openNotes'),
       icon: 'i-lucide-notebook-pen',
       onSelect: () => emit('openNotes'),
-    }],
+    },
+    ...(canJoin.value
+      ? [{
+          label: t('docetra.meetingBoard.joinMeeting'),
+          icon: 'i-lucide-video',
+          onSelect: () => joinMeeting(),
+        }]
+      : [])],
     [
       {
         label: t('docetra.meetingBoard.assignToTopic'),
@@ -168,8 +210,11 @@ function onDrop(event: DragEvent) {
 <template>
   <article
     draggable="true"
-    class="group relative flex h-full min-h-[7.5rem] cursor-grab touch-pan-y flex-col rounded-lg border border-default bg-default p-3 text-left shadow-xs transition active:cursor-grabbing"
-    :class="dragging ? 'opacity-40 ring-2 ring-primary/30' : 'hover:border-primary/35 hover:shadow-sm'"
+    class="group relative flex h-full min-h-30 cursor-grab touch-pan-y flex-col rounded-lg border border-default bg-default p-3 text-left shadow-xs transition active:cursor-grabbing"
+    :class="[
+      dragging ? 'opacity-40 ring-2 ring-primary/30' : 'hover:border-primary/35 hover:shadow-sm',
+      isImminent ? 'meeting-card--imminent border-primary/60' : '',
+    ]"
     tabindex="0"
     role="button"
     @dragstart="onDragStart"
@@ -185,7 +230,7 @@ function onDrop(event: DragEvent) {
   >
     <span
       v-if="showSortOrder"
-      class="pointer-events-none absolute end-1 top-1 z-10 inline-flex size-5 items-center justify-center rounded-full border border-default bg-elevated text-[11px] font-medium tabular-nums text-toned shadow-xs"
+      class="pointer-events-none absolute top-1 inset-e-1 z-10 inline-flex size-5 items-center justify-center rounded-full border border-default bg-elevated text-[11px] font-medium tabular-nums text-toned shadow-xs"
     >
       {{ (meeting.sortOrder ?? 0) + 1 }}
     </span>
@@ -203,6 +248,14 @@ function onDrop(event: DragEvent) {
             variant="subtle"
           >
             {{ statusLabel }}
+          </UBadge>
+          <UBadge
+            v-if="isImminent"
+            size="sm"
+            color="primary"
+            variant="soft"
+          >
+            {{ timing.inProgress ? $t('docetra.meetingBoard.inProgress') : $t('docetra.meetingBoard.soon') }}
           </UBadge>
         </div>
         <p
@@ -270,7 +323,43 @@ function onDrop(event: DragEvent) {
               : meeting.externalUnits) }}
         </span>
       </div>
+      <p
+        v-else-if="slot === 'meetingMode'"
+        class="mt-1.5 text-xs text-muted"
+      >
+        {{ meetingModeLabel(meeting.meetingMode) }}
+      </p>
+      <div
+        v-else-if="slot === 'meetingUrl' && meeting.meetingUrl"
+        class="mt-1.5"
+      >
+        <UButton
+          size="xs"
+          color="primary"
+          variant="soft"
+          icon="i-lucide-video"
+          :label="$t('docetra.meetingBoard.joinMeeting')"
+          @click.stop="joinMeeting"
+        />
+      </div>
+      <p
+        v-else-if="slot === 'durationMinutes' && meeting.durationMinutes != null"
+        class="mt-1.5 text-xs text-muted"
+      >
+        {{ $t('docetra.meetingBoard.durationMinutes', { n: meeting.durationMinutes }) }}
+      </p>
     </template>
+    </div>
+
+    <div v-if="canJoin && !bodySlots.includes('meetingUrl')" class="mt-2 shrink-0">
+      <UButton
+        size="xs"
+        color="primary"
+        variant="soft"
+        icon="i-lucide-video"
+        :label="$t('docetra.meetingBoard.joinMeeting')"
+        @click.stop="joinMeeting"
+      />
     </div>
 
     <div
@@ -301,6 +390,19 @@ function onDrop(event: DragEvent) {
           >
             <UIcon name="i-lucide-users" class="size-3" />
             {{ meeting.attendeesCount }}
+          </span>
+          <span
+            v-else-if="slot === 'durationMinutes' && meeting.durationMinutes != null"
+            class="inline-flex items-center gap-1"
+          >
+            <UIcon name="i-lucide-timer" class="size-3" />
+            {{ meeting.durationMinutes }}m
+          </span>
+          <span
+            v-else-if="slot === 'meetingMode'"
+            class="inline-flex min-w-0 items-center gap-1 truncate"
+          >
+            {{ meetingModeLabel(meeting.meetingMode) }}
           </span>
           <span
             v-else-if="slot === 'createdAt' || slot === 'updatedAt'"
@@ -337,6 +439,19 @@ function onDrop(event: DragEvent) {
             {{ meeting.attendeesCount }}
           </span>
           <span
+            v-else-if="slot === 'durationMinutes' && meeting.durationMinutes != null"
+            class="inline-flex items-center gap-1"
+          >
+            <UIcon name="i-lucide-timer" class="size-3" />
+            {{ meeting.durationMinutes }}m
+          </span>
+          <span
+            v-else-if="slot === 'meetingMode'"
+            class="inline-flex min-w-0 items-center gap-1 truncate"
+          >
+            {{ meetingModeLabel(meeting.meetingMode) }}
+          </span>
+          <span
             v-else-if="slot === 'createdAt' || slot === 'updatedAt'"
             class="inline-flex min-w-0 items-center gap-1 truncate"
           >
@@ -348,3 +463,19 @@ function onDrop(event: DragEvent) {
     </div>
   </article>
 </template>
+
+<style scoped>
+@keyframes meeting-imminent-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--ui-primary) 35%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--ui-primary) 55%, transparent);
+  }
+}
+
+.meeting-card--imminent {
+  animation: meeting-imminent-pulse 1.6s ease-in-out infinite;
+}
+</style>

@@ -12,6 +12,7 @@ const props = withDefaults(defineProps<{
   cancelLabelKey?: string
   confirmColor?: 'error' | 'primary' | 'neutral' | 'warning'
   loading?: boolean
+  ui?: Record<string, unknown>
 }>(), {
   confirmColor: 'error',
   loading: false,
@@ -59,7 +60,7 @@ function onConfirm() {
 </script>
 
 <template>
-  <UModal v-model:open="open">
+  <UModal v-model:open="open" :ui="props.ui">
     <template #content>
       <UCard>
         <template #header>

@@ -2,6 +2,7 @@
 import * as z from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import { resetPasswordWithCode } from '~/adapters/auth'
+import { usePageSeo } from '~/composables/usePageSeo'
 import {
   clearPasswordResetSession,
   getPasswordResetSession,
@@ -17,9 +18,10 @@ const toast = useToast()
 const submitting = ref(false)
 const session = ref(getPasswordResetSession())
 
-useSeoMeta({
+usePageSeo({
   title: () => t('pages.forgetPassword.resetTitle'),
   description: () => t('pages.forgetPassword.resetDesc'),
+  robots: 'noindex, nofollow',
 })
 
 onMounted(() => {

@@ -2,6 +2,7 @@
 import * as z from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import { requestPasswordReset } from '~/adapters/auth'
+import { usePageSeo } from '~/composables/usePageSeo'
 import { startPasswordReset } from '~/utils/auth/password-reset'
 
 definePageMeta({
@@ -13,9 +14,10 @@ const router = useRouter()
 const toast = useToast()
 const submitting = ref(false)
 
-useSeoMeta({
+usePageSeo({
   title: () => t('pages.forgetPassword.title'),
   description: () => t('pages.forgetPassword.desc'),
+  robots: 'noindex, nofollow',
 })
 
 const schema = computed(() => z.object({

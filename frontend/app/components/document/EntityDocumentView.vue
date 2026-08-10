@@ -3,6 +3,7 @@ import type { EntityConfig } from '~/config/entities'
 import { useDocumentPage } from '~/composables/workspace/useDocumentPage'
 import { useRecordTypeDrivenTabs } from '~/composables/record/useRecordTypeDrivenTabs'
 import { useAppHeader } from '~/composables/layout/useAppHeader'
+import { usePageSeo } from '~/composables/usePageSeo'
 import { getByPath, setByPath } from '~/utils/object-path'
 
 const props = defineProps<{
@@ -116,9 +117,9 @@ watch(
 
 onBeforeUnmount(clear)
 
-useHead(() => ({
-  title: `${title.value} · ${t('docetra.brand.name')}`,
-}))
+usePageSeo({
+  title: () => title.value,
+})
 
 const moreItems = computed(() => [[
   {

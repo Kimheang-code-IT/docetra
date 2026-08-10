@@ -1,6 +1,12 @@
 import type { ListQuery } from '~/types/docetra/common'
 import type { EntityConfig } from '~/config/entities'
 import { getEntityAdapter } from '~/config/entities'
+import {
+  fetchPageLimit,
+  isShowAllLimit,
+  parsePageLimit,
+  serializePageLimit,
+} from '~/utils/pagination'
 
 function getByPath(obj: Record<string, unknown>, path: string): unknown {
   return path.split('.').reduce<unknown>((acc, key) => {
@@ -40,10 +46,16 @@ export function useEntityWorkspace(config: EntityConfig) {
   })
 
   const limit = computed({
-    get: () => Math.min(Math.max(Number(route.query.limit || 10) || 10, 10), 100),
+    get: () => parsePageLimit(route.query.limit, 10),
     set: (value) => {
-      const bounded = Math.min(Math.max(value, 10), 100)
-      router.replace({ query: { ...route.query, limit: bounded === 10 ? undefined : String(bounded), page: undefined } })
+      const next = parsePageLimit(value, 10)
+      router.replace({
+        query: {
+          ...route.query,
+          limit: serializePageLimit(next, 10),
+          page: undefined,
+        },
+      })
     },
   })
 
@@ -123,8 +135,8 @@ export function useEntityWorkspace(config: EntityConfig) {
 
   const listQuery = computed<ListQuery>(() => ({
     q: q.value || undefined,
-    page: page.value,
-    limit: limit.value,
+    page: isShowAllLimit(limit.value) ? 1 : page.value,
+    limit: fetchPageLimit(limit.value),
     sort: sort.value,
     view: view.value,
     ...filters.value,
@@ -162,7 +174,9 @@ export function useEntityWorkspace(config: EntityConfig) {
         items.value = config.columns.some(column => column.key === 'rowNumber')
           ? rows.map((row, index) => ({
               ...row,
-              rowNumber: (page.value - 1) * limit.value + index + 1,
+              rowNumber: isShowAllLimit(limit.value)
+                ? index + 1
+                : (page.value - 1) * limit.value + index + 1,
             }))
           : rows
         total.value = res.meta?.total || 0

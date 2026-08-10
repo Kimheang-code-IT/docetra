@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useAppHeader } from '~/composables/layout/useAppHeader'
+import { usePageSeo } from '~/composables/usePageSeo'
 
 /**
  * List/workspace shell. Pass :can-create="true" (and optional createLabelKey)
@@ -51,9 +52,10 @@ onBeforeUnmount(() => {
   setBadges([])
 })
 
-useHead(() => ({
-  title: `${t(props.titleKey)} · ${t('docetra.brand.name')}`,
-}))
+usePageSeo({
+  title: () => t(props.titleKey),
+  description: () => props.descriptionKey ? t(props.descriptionKey) : undefined,
+})
 </script>
 
 <template>

@@ -43,8 +43,9 @@ const notesMeetingId = ref<string | null>(null)
 const topicPanelOpen = ref(false)
 const topicListCollapsed = useState('meeting-topic-left-collapsed', () => false)
 const isSmallScreen = useMediaQuery('(max-width: 1023px)')
+/** Desktop only: icon rail when collapsed. Small screens never use an icon rail. */
 const topicPanelCollapsed = computed(() =>
-  isSmallScreen.value ? !topicPanelOpen.value : topicListCollapsed.value,
+  isSmallScreen.value ? false : topicListCollapsed.value,
 )
 
 function toggleTopicPanel() {
@@ -79,6 +80,7 @@ function onCreateButton(index: number) {
 
 function selectTopicFromPanel(topicId: string | null) {
   selectTopic(topicId)
+  if (isSmallScreen.value) topicPanelOpen.value = false
 }
 
 onMounted(() => {
@@ -95,6 +97,10 @@ function onNotesSaved(meeting: { id: string, notes?: string, attachmentCount?: n
   if (!target) return
   target.notes = meeting.notes
   target.attachmentCount = meeting.attachmentCount
+}
+
+function onNotesClosed() {
+  notesMeetingId.value = null
 }
 
 function onMeetingDragStart(id: string) {
@@ -157,10 +163,25 @@ function onMeetingsPanelDrop(event: DragEvent) {
       />
 
       <div class="relative flex min-h-0 flex-1 overflow-hidden">
-        <!-- 1 col: topics -->
+        <button
+          v-if="isSmallScreen && topicPanelOpen"
+          type="button"
+          class="absolute inset-0 z-20 bg-black/25 lg:hidden"
+          :aria-label="$t('actions.close')"
+          @click="topicPanelOpen = false"
+        />
+
+        <!-- 1 col: topics — overlay drawer on small screens (no icon rail); collapsible rail on lg+ -->
         <aside
-          class="flex min-h-0 shrink-0 flex-col overflow-hidden border-e border-default bg-default transition-[width] duration-200"
-          :style="{ width: topicPanelCollapsed ? '3.5rem' : 'min(22rem, calc(100% - 3rem))' }"
+          class="flex min-h-0 shrink-0 flex-col overflow-hidden border-e border-default bg-default transition-[width] duration-200 lg:static lg:z-auto lg:shadow-none"
+          :class="isSmallScreen
+            ? (topicPanelOpen
+                ? 'absolute inset-y-0 inset-s-0 z-30 w-[min(22rem,calc(100%-3rem))] shadow-xl'
+                : 'hidden')
+            : ''"
+          :style="isSmallScreen
+            ? undefined
+            : { width: topicPanelCollapsed ? '3.5rem' : 'min(22rem, calc(100% - 3rem))' }"
         >
           <div
             class="shrink-0 border-b border-default"
@@ -177,7 +198,7 @@ function onMeetingsPanelDrop(event: DragEvent) {
                 size="sm"
                 square
                 class="shrink-0 lg:hidden"
-                :aria-label="$t('docetra.pages.meetingTopic')"
+                :aria-label="$t('actions.close')"
                 @click="topicPanelOpen = false"
               />
             </div>
@@ -277,14 +298,14 @@ function onMeetingsPanelDrop(event: DragEvent) {
         <section class="flex min-h-0 min-w-0 flex-1 flex-col">
           <div class="flex shrink-0 items-center gap-2 border-b border-default px-3 py-2.5">
             <UButton
-              :icon="topicPanelCollapsed ? 'i-lucide-panel-left-open' : 'i-lucide-panel-left-close'"
+              :icon="topicPanelOpen ? 'i-lucide-panel-left-close' : 'i-lucide-panel-left-open'"
               color="neutral"
               variant="ghost"
               size="sm"
               square
               class="shrink-0 lg:hidden"
               :aria-label="$t('docetra.pages.meetingTopic')"
-              :aria-expanded="!topicPanelCollapsed"
+              :aria-expanded="topicPanelOpen"
               @click="toggleTopicPanel"
             />
             <UButton
@@ -305,7 +326,7 @@ function onMeetingsPanelDrop(event: DragEvent) {
             </h2>
             <CommonAppLiveSearch
               v-model="meetingSearch"
-              class="min-w-0 w-full max-w-[18.75rem] flex-1"
+              class="min-w-0 flex-1 w-full max-w-75"
               :placeholder="$t('docetra.meetingBoard.searchMeetings')"
             />
             <CommonAppDateRangeFilter
@@ -354,10 +375,11 @@ function onMeetingsPanelDrop(event: DragEvent) {
     </div>
 
     <MeetingAppMeetingNotesDialog
-      v-if="notesOpen || notesMeetingId"
+      v-if="notesOpen && notesMeetingId"
       v-model:open="notesOpen"
       :meeting-id="notesMeetingId"
       @saved="onNotesSaved"
+      @closed="onNotesClosed"
     />
   </WorkspaceAppWorkspacePage>
 </template>

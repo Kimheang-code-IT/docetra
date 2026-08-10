@@ -2,6 +2,7 @@ import type { TableColumnDef } from '~/types/docetra/common'
 import type { RowActionItem } from '~/types/docetra/row-actions'
 import { useDebounceFn } from '@vueuse/core'
 import { useConfirm } from '~/composables/common/useConfirm'
+import { fetchPageLimit, isShowAllLimit } from '~/utils/pagination'
 
 export const CONFIG_ROW_ACTIONS: RowActionItem[] = [
   { key: 'detail', labelKey: 'docetra.rowActions.detail', icon: 'i-lucide-eye' },
@@ -45,8 +46,8 @@ export function useConfigListPage(options: {
     try {
       const result = await options.load({
         q: q.value || undefined,
-        page: page.value,
-        limit: limit.value,
+        page: isShowAllLimit(limit.value) ? 1 : page.value,
+        limit: fetchPageLimit(limit.value),
         sort: sort.value,
         ...filters.value,
       })

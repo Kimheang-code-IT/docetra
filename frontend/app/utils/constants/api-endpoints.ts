@@ -9,6 +9,12 @@ export const ApiEndpoints = {
 
   MEETING_TOPICS: '/api/v2/meetings/topics',
   MEETING_HISTORY: '/api/v2/meetings/history',
+  MEETINGS_REORDER: '/api/v2/meetings/reorder',
+  MEETING_ASSIGN_TOPIC: (meetingId: string) =>
+    `/api/v2/meetings/history/${encodeURIComponent(meetingId)}/assign-topic`,
+  MEETING_ATTACHMENTS_LINK: (meetingId: string) =>
+    `/api/v2/meetings/history/${encodeURIComponent(meetingId)}/attachments/link`,
+  PORTAL_DRIVE_FILES: '/api/v2/portal/drive-files',
 
   INCOMING_DOCUMENTS: '/api/v2/records/incoming-documents',
   OUTGOING_DOCUMENTS: '/api/v2/records/outgoing-documents',

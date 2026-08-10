@@ -4,6 +4,7 @@ import type { FormSubmitEvent, AuthFormField } from '@nuxt/ui'
 import { useAuthSession } from '~/utils/auth/session'
 import { readRememberMe } from '~/utils/auth/remember-me'
 import { loginWithCredentials } from '~/adapters/auth'
+import { usePageSeo } from '~/composables/usePageSeo'
 import { MOCK_LOGIN_ACCOUNTS } from '~/utils/auth/mock-login'
 
 definePageMeta({
@@ -18,9 +19,10 @@ const submitting = ref(false)
 const googleLoading = ref(false)
 const loginForm = useTemplateRef<{ state?: Record<string, unknown> }>('loginForm')
 
-useSeoMeta({
+usePageSeo({
   title: () => t('pages.auth.loginTitle'),
   description: () => t('pages.auth.loginDesc'),
+  robots: 'index, follow',
 })
 
 const remembered = readRememberMe()

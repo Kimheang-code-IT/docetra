@@ -55,6 +55,7 @@ const cancelLabel = computed(() => {
     :cancel-label="cancelLabel"
     :confirm-color="confirmState.confirmColor"
     :loading="confirmState.loading"
+    :ui="{ overlay: 'z-[200]', content: 'z-[200]' }"
     @confirm="accept"
     @cancel="dismiss"
   />

@@ -2,7 +2,9 @@
 import type { MeetingHistory } from '~/types/docetra/entities'
 import type { AttachmentMeta } from '~/types/docetra/common'
 import { getEntityAdapter } from '~/config/entities'
+import { linkMeetingDriveFile } from '~/adapters/meeting-board'
 import { useConfirm } from '~/composables/common/useConfirm'
+import type { DriveFileCatalogItem } from '~/types/docetra/meeting-api'
 
 const open = defineModel<boolean>('open', { default: false })
 
@@ -12,6 +14,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   saved: [meeting: MeetingHistory]
+  closed: []
 }>()
 
 const { t } = useI18n()
@@ -24,13 +27,30 @@ const saving = ref(false)
 const meeting = ref<MeetingHistory | null>(null)
 const notes = ref('')
 const attachments = ref<AttachmentMeta[]>([])
-const dirty = ref(false)
+const notesBaseline = ref('')
+const attachmentsBaseline = ref('')
 const filePanelOpen = ref(false)
+const drivePickerOpen = ref(false)
+const linkingDrive = ref(false)
+
+function attachmentsSnapshot() {
+  return JSON.stringify(attachments.value.map(f => f.id))
+}
+
+const dirty = computed(() => {
+  if (pending.value || !meeting.value) return false
+  return notes.value !== notesBaseline.value
+    || attachmentsSnapshot() !== attachmentsBaseline.value
+})
+
+function syncBaseline() {
+  notesBaseline.value = notes.value
+  attachmentsBaseline.value = attachmentsSnapshot()
+}
 
 async function load() {
   if (!props.meetingId) return
   pending.value = true
-  dirty.value = false
   try {
     const [meetingRes, filesRes] = await Promise.all([
       meetingsAdapter.get(props.meetingId),
@@ -39,6 +59,8 @@ async function load() {
     meeting.value = meetingRes.data as MeetingHistory
     notes.value = meeting.value.notes || ''
     attachments.value = (filesRes?.data || []) as AttachmentMeta[]
+    await nextTick()
+    syncBaseline()
   }
   catch (e: any) {
     toast.add({ title: e?.message || t('docetra.meetingNotes.loadFailed'), color: 'error' })
@@ -57,30 +79,69 @@ watch(
       meeting.value = null
       notes.value = ''
       attachments.value = []
-      dirty.value = false
+      notesBaseline.value = ''
+      attachmentsBaseline.value = ''
       filePanelOpen.value = false
+      drivePickerOpen.value = false
     }
   },
   { immediate: true },
 )
 
-watch(notes, () => {
-  if (!pending.value && meeting.value) dirty.value = true
-})
+function finishClose() {
+  open.value = false
+  emit('closed')
+}
+
+async function onClose(value: boolean) {
+  if (value) {
+    open.value = true
+    return
+  }
+  if (dirty.value) {
+    const ok = await confirm({ kind: 'unsaved' })
+    if (!ok) {
+      open.value = true
+      return
+    }
+  }
+  finishClose()
+}
 
 function onUploadsComplete(files: AttachmentMeta[]) {
   attachments.value = [...files, ...attachments.value]
   if (meeting.value) {
     meeting.value.attachmentCount = attachments.value.length
   }
-  dirty.value = true
   toast.add({ title: t('docetra.attachments.uploaded'), color: 'success' })
 }
 
 function removeAttachment(id: string) {
   attachments.value = attachments.value.filter(f => f.id !== id)
   if (meeting.value) meeting.value.attachmentCount = attachments.value.length
-  dirty.value = true
+}
+
+async function onDriveFilePicked(file: DriveFileCatalogItem) {
+  if (!props.meetingId) return
+  linkingDrive.value = true
+  try {
+    const res = await linkMeetingDriveFile(props.meetingId, {
+      source: 'google_drive',
+      driveFileId: file.driveFileId,
+      displayName: file.name,
+    })
+    if (res.data) {
+      attachments.value = [res.data, ...attachments.value.filter(a => a.id !== res.data!.id)]
+      if (meeting.value) meeting.value.attachmentCount = attachments.value.length
+      toast.add({ title: t('docetra.meetingNotes.driveLinked'), color: 'success' })
+    }
+  }
+  catch (e: any) {
+    toast.add({ title: e?.message || t('docetra.meetingNotes.driveLinkFailed'), color: 'error' })
+  }
+  finally {
+    linkingDrive.value = false
+  }
 }
 
 async function save() {
@@ -97,7 +158,7 @@ async function save() {
       await meetingsAdapter.replaceAttachments(props.meetingId, attachments.value)
     }
     meeting.value = res.data as MeetingHistory
-    dirty.value = false
+    syncBaseline()
     emit('saved', meeting.value)
     const { indexMeetingNotesForSearch, indexFileForSearch } = await import('~/utils/search/index-hooks')
     indexMeetingNotesForSearch({
@@ -126,23 +187,13 @@ async function save() {
     saving.value = false
   }
 }
-
-async function onClose(value: boolean) {
-  if (!value && dirty.value) {
-    const ok = await confirm({ kind: 'unsaved' })
-    if (!ok) {
-      open.value = true
-      return
-    }
-  }
-  open.value = value
-}
 </script>
 
 <template>
   <UModal
     :open="open"
     fullscreen
+    :dismissible="!dirty"
     :ui="{
       content: 'bg-default flex flex-col h-dvh max-h-dvh overflow-hidden',
       header: 'shrink-0 border-b border-default px-4 py-3',
@@ -216,7 +267,7 @@ async function onClose(value: boolean) {
 
         <!-- Files: 1 col -->
         <section
-          class="absolute inset-y-0 end-0 z-30 flex h-full min-h-0 w-[min(22rem,calc(100%-3rem))] flex-col gap-3 overflow-y-auto border-s border-default bg-default p-4 shadow-xl transition-transform duration-200 lg:static lg:z-auto lg:w-1/4 lg:translate-x-0 lg:shadow-none"
+          class="absolute inset-y-0 inset-e-0 z-30 flex h-full min-h-0 w-[min(22rem,calc(100%-3rem))] flex-col gap-3 overflow-y-auto border-s border-default bg-default p-4 shadow-xl transition-transform duration-200 lg:static lg:z-auto lg:w-1/4 lg:translate-x-0 lg:shadow-none"
           :class="filePanelOpen ? 'translate-x-0' : 'translate-x-full rtl:-translate-x-full'"
         >
           <div class="flex shrink-0 items-center justify-between lg:hidden">
@@ -240,6 +291,16 @@ async function onClose(value: boolean) {
             :endpoint="`/api/v2/meetings/history/${encodeURIComponent(meetingId)}/attachments`"
             :height="260"
             @complete="onUploadsComplete"
+          />
+
+          <UButton
+            block
+            color="neutral"
+            variant="outline"
+            icon="i-lucide-hard-drive"
+            :label="$t('docetra.meetingNotes.pickDriveFile')"
+            :loading="linkingDrive"
+            @click="drivePickerOpen = true"
           />
 
           <ul class="space-y-2">
@@ -290,4 +351,9 @@ async function onClose(value: boolean) {
       </div>
     </template>
   </UModal>
+
+  <MeetingAppMeetingDriveFilePicker
+    v-model:open="drivePickerOpen"
+    @select="onDriveFilePicked"
+  />
 </template>

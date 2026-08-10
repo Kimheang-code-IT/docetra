@@ -1,4 +1,5 @@
 import type { BaseEntity, EntityStatus, PersonSummary, OrganizationSummary } from './common'
+import type { MeetingBoardTiming, MeetingMode, MeetingRecurrenceRule } from './meeting-api'
 
 export interface MeetingTopic extends BaseEntity {
   title: string
@@ -10,13 +11,19 @@ export interface MeetingTopic extends BaseEntity {
   description?: string
 }
 
-export interface MeetingHistory extends BaseEntity {
+export interface MeetingHistory extends BaseEntity, MeetingBoardTiming {
   title: string
   letterNumber: string
   letterDate: string
   topicId?: string
   topicTitle?: string
   meetingDate: string
+  meetingMode?: MeetingMode
+  meetingUrl?: string
+  durationMinutes?: number
+  seriesId?: string
+  recurrence?: MeetingRecurrenceRule
+  isRecurrenceException?: boolean
   location?: string
   attendeesCount?: number
   participants?: string[]
@@ -51,8 +58,11 @@ export interface RecordDocument extends BaseEntity {
   letterSubject?: string
   directorGeneralDate?: string
   directorDate?: string
+  /** Company id used as document-type classification on Incoming Document forms. */
+  documentType?: string
   involvedOfficers?: string[]
   externalUnits?: string[]
+  /** Department id (Involved Office) on Incoming Document forms. */
   officeInCharge?: string
   officerInCharge?: string
   /** Record business timestamp (`record_time`). */

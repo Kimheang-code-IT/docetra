@@ -1,3 +1,4 @@
+import type { DriveFileCatalogItem } from '~/types/docetra/meeting-api'
 import type {
   AppRole,
   AppUser,
@@ -19,6 +20,22 @@ import type {
   SystemLog,
 } from '~/types/docetra/entities'
 import { dateOnly, daysAgo, org, person } from './seed'
+
+function minutesFromNowIso(minutes: number) {
+  const d = new Date()
+  d.setMinutes(d.getMinutes() + minutes)
+  return d.toISOString()
+}
+
+export const mockDriveFileCatalog: DriveFileCatalogItem[] = Array.from({ length: 12 }, (_, i) => ({
+  id: `pdf_${i + 1}`,
+  driveFileId: `gdrive-file-${i + 1}`,
+  name: `Synced report ${i + 1}.pdf`,
+  mimeType: 'application/pdf',
+  sizeBytes: 120_000 + i * 4000,
+  syncedAt: daysAgo(i % 5),
+  webViewLink: `https://drive.google.com/file/d/mock-${i + 1}/view`,
+}))
 
 const meetingStages = ['intake', 'review', 'approval', 'completed'] as const
 const recordStages = [
@@ -70,18 +87,31 @@ export const mockMeetingTopics: MeetingTopic[] = Array.from({ length: 24 }, (_, 
   commentCount: i % 4,
 }))
 
-export const mockMeetingHistory: MeetingHistory[] = Array.from({ length: 30 }, (_, i) => ({
+export const mockMeetingHistory: MeetingHistory[] = Array.from({ length: 30 }, (_, i) => {
+  const isSoon = i === 0
+  const isOnline = i === 0 || i % 4 === 0
+  const meetingDate = isSoon
+    ? minutesFromNowIso(12)
+    : `${dateOnly(i % 25)}T09:00:00+07:00`
+  return {
   id: `mh_${i + 1}`,
-  title: `Meeting ${i + 1}`,
+  title: isSoon ? 'Upcoming coordination (soon)' : `Meeting ${i + 1}`,
   letterNumber: `MTG-${2026}-${String(i + 1).padStart(4, '0')}`,
   letterDate: dateOnly((i + 2) % 25),
   status: status(i),
   stage: meetingStage(i),
   topicId: i % 3 === 0 ? undefined : `mt_${(i % 12) + 1}`,
   topicTitle: i % 3 === 0 ? undefined : `Topic ${(i % 12) + 1}: Quarterly coordination`,
-  meetingDate: `${dateOnly(i % 25)}T09:00:00+07:00`,
-  recordTime: `${dateOnly(i % 25)}T09:00:00+07:00`,
-  location: i % 2 === 0 ? 'Room A' : 'Online',
+  meetingDate,
+  recordTime: meetingDate,
+  meetingMode: isOnline ? (i % 8 === 0 ? 'hybrid' : 'online') : 'in_person',
+  meetingUrl: isOnline ? 'https://meet.example.com/docetra-room' : undefined,
+  durationMinutes: 60,
+  seriesId: i === 2 ? 'series_weekly_1' : undefined,
+  recurrence: i === 2
+    ? { frequency: 'weekly' as const, interval: 1, byWeekday: ['MO'], count: 12 }
+    : undefined,
+  location: isOnline ? 'Online' : 'Room A',
   attendeesCount: 4 + (i % 8),
   participants: [`Officer ${(i % 5) + 1}`, `Officer ${((i + 1) % 5) + 1}`],
   internalUnits: [`Department ${(i % 4) + 1}`],
@@ -99,7 +129,7 @@ export const mockMeetingHistory: MeetingHistory[] = Array.from({ length: 30 }, (
   owner: person(i),
   createdAt: daysAgo(40 - i),
   updatedAt: daysAgo(i % 8),
-}))
+}})
 
 function makeRecord(kind: RecordDocument['recordKind'], count: number, prefix: string): RecordDocument[] {
   const typeIdByKind: Record<RecordDocument['recordKind'], string> = {

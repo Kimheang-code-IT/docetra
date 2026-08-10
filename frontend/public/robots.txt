@@ -1,0 +1,6 @@
+# Docetra is an authenticated workspace. Public crawlers should not index app routes.
+User-agent: *
+Disallow: /
+
+# Allow auth entry points if you later publish a marketing site on the same host.
+# Allow: /auth/login

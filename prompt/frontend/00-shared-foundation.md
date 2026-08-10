@@ -1,7 +1,7 @@
 # Prompt 00 — Shared Nuxt UI Foundation
 
 > **Status:** Implemented — architecture reference only (not a build ticket).
-> Key code: `layouts/default.vue`, `useMenu.ts`, `useUserMenu.ts`, `AppHeader*`, `AppSlidebar`, i18n, adapters.
+> Key code: `layouts/default.vue`, `useMenu.ts`, `useUserMenu.ts`, `AppHeader*`, `AppSlidebar`, `stores/preferences.ts`, i18n, adapters, `useGlobalSearch`.
 
 ## Reference (was copy/paste prompt)
 
@@ -17,19 +17,23 @@ Build a reusable authenticated application shell matching this navigation:
 - Meeting: Topic, History
 - Record: Incoming Document, Outgoing Document, Document, Master List Request, Logs
 - Organization: Department, Company, Company Purpose, Company Sector, Officer
-- User Management: Role, User
 - Portal: File Upload, Google Drive Sync, Logs
+- User Management: Role, User
 - Configuration: Record Type, Record Attribute
 - Settings: App Info, App Config, Storage
 
 **User menu (`useUserMenu.ts`):**
 
 - System Log → `/system-monitor/system-logs` (not a sidebar item)
-- Language, About, Appearance, Logout
+- Language (en / km)
+- Font size (`sm` | `md` | `lg` | `xl` via `stores/preferences.ts`)
+- About (`AppAboutDialog` + `runtimeConfig.public.appVersion`)
+- Appearance (light / dark)
+- Logout
 
 Use Nuxt UI navigation components and Lucide icons already available through Iconify. Groups must be collapsible, keyboard accessible, responsive, and show the active child route. On small screens, use the existing dashboard/sidebar mobile behavior. Keep navigation data in one typed configuration source rather than duplicating it in templates. All user-facing labels must use i18n keys with English and Khmer entries; do not hardcode labels in page templates.
 
-Page titles for Record / Portal logs use plural **Logs** (`docetra.pages.recordLog`, `docetra.pages.portalLog`).
+Page titles for Record / Portal logs use plural **Logs** (`docetra.pages.recordLog`, `docetra.pages.portalLog`) with routes `/records/record-logs` and `/portal/portal-logs`.
 
 ### App version and About
 
@@ -37,7 +41,14 @@ Page titles for Record / Portal logs use plural **Logs** (`docetra.pages.recordL
 - Show the version on the user menu **About** dialog (`AppAboutDialog`) as a badge on the brand logo (for example `v0.1.0`). Do not invent a second version source in components.
 - To bump the displayed app version, update `NUXT_PUBLIC_APP_VERSION` in the environment or the default in `nuxt.config.ts`. Prefer env for deploy pipelines.
 - Keep About content light: brand, tagline, version badge, social links, copyright. Do not reintroduce framework/installed-apps dumps unless product asks for them.
-- Default i18n locale is **English** (`defaultLocale: 'en'`). Persist language only when the user explicitly chooses Khmer or English.
+- Default i18n locale is **English** (`defaultLocale: 'en'`). Persist language only when the user explicitly chooses Khmer or English (`preferences.setLocale`).
+
+### Global search (Cmd+K)
+
+- Mounted in `layouts/default.vue` via `UDashboardSearch` + `useGlobalSearch`.
+- Modes: **keyword** (default) and **semantic**; Ask AI only on explicit user action.
+- Hits come from the Phase 2 local file-text index (`utils/search/*`, `adapters/search.ts`), permission-filtered, with source links.
+- Keep page-level `AppLiveSearch` for list/board filters — do not replace it with Cmd+K.
 
 ### Form controls
 
@@ -49,12 +60,24 @@ All `UInput`, `USelect`, `UTextarea`, `UInputDate`, `UInputNumber`, and `UCheckb
 - **Document detail / create pages**: main content under the header uses `p-0` (edge-to-edge). Do not wrap detail pages in the list-page padding.
 - Keep header/navbar horizontal inset aligned with the shell (`px-1.5` where Nuxt UI dashboard navbar is customized).
 
+### Auth routes
+
+- Canonical: `/auth/login`, `/auth/forget-password`, `/auth/verify-code`, `/auth/reset-password`.
+- Legacy aliases `/login` and `/forget-password` redirect to the `/auth/*` routes.
+- `middleware/auth.global.ts` treats both sets as public.
+
 ### Loading and performance
 
 - Do **not** create custom page/table skeleton components.
 - Use Nuxt UI defaults only: `UTable` `:loading` (header progress) for lists, and a light spinner overlay where a full table is not present.
 - Keep TanStack / `UTable` virtualization for large datasets. Prefer stale-while-revalidate (keep rows visible while refreshing) over tearing down the table DOM.
 - Never fetch an entire large table into the browser; keep server pagination.
+
+### Data adapters & mock mode
+
+- Entity CRUD: `adapters/createEntityAdapter.ts` + `config/entities.ts`.
+- Configuration / settings: `useConfigurationRepositories()` / `useSettingsRepositories()` — mock localStorage when `useMockData !== false`, else HTTP.
+- Auth: `adapters/auth.ts`. Search: `adapters/search.ts`.
 
 ### Implement now
 
@@ -86,6 +109,7 @@ All list and board pages must use:
 - Dedicated schema-driven `/new` and `/:id` document pages for create, detail, and edit.
 - ERP-style document layout built only with Nuxt UI: sticky header/actions, section tabs, responsive form grid, right metadata rail, comments, and activity.
 - Per-row `⋯` action menus (`AppRowActionsMenu`) for Detail / Logs / Delete (permission-aware).
+- Config-driven board card fields via App Config display settings.
 
 Follow `/api/v2` REST conventions from the specifications. Keep uncertain endpoint names behind typed adapters rather than spreading invented URLs through page components.
 

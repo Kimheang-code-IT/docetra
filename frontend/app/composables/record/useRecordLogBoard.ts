@@ -2,6 +2,12 @@ import type { TableColumnDef } from '~/types/docetra/common'
 import type { RecordLog } from '~/types/docetra/entities'
 import { getEntityAdapter } from '~/config/entities'
 import { toComparableDateTime } from '~/utils/date-time-range'
+import {
+  fetchPageLimit,
+  isShowAllLimit,
+  parsePageLimit,
+  serializePageLimit,
+} from '~/utils/pagination'
 
 export interface RecordLogTab {
   id: string
@@ -119,13 +125,13 @@ export function useRecordLogBoard() {
   })
 
   const limit = computed({
-    get: () => Math.min(Math.max(Number(route.query.limit || 20) || 20, 10), 100),
+    get: () => parsePageLimit(route.query.limit, 20),
     set: (value) => {
-      const bounded = Math.min(Math.max(value, 10), 100)
+      const next = parsePageLimit(value, 20)
       router.replace({
         query: {
           ...route.query,
-          limit: bounded === 20 ? undefined : String(bounded),
+          limit: serializePageLimit(next, 20),
           page: undefined,
         },
       })
@@ -189,8 +195,8 @@ export function useRecordLogBoard() {
       const startDate = toComparableDateTime(dateStart.value, 'start') || undefined
       const endDate = toComparableDateTime(dateEnd.value, 'end') || undefined
       const res = await adapter.list({
-        page: page.value,
-        limit: limit.value,
+        page: isShowAllLimit(limit.value) ? 1 : page.value,
+        limit: fetchPageLimit(limit.value),
         sort: '-occurredAt',
         q: search.value.trim() || undefined,
         startDate,
@@ -200,7 +206,9 @@ export function useRecordLogBoard() {
       if (token !== requestToken) return
       pageItems.value = ((res.data || []) as RecordLog[]).map((item, index) => ({
         ...item,
-        rowNumber: (page.value - 1) * limit.value + index + 1,
+        rowNumber: isShowAllLimit(limit.value)
+          ? index + 1
+          : (page.value - 1) * limit.value + index + 1,
       }))
       total.value = res.meta?.total || 0
 

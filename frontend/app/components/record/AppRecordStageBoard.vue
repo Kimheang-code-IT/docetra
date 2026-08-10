@@ -54,11 +54,12 @@ const {
 })
 
 const stagePanelCollapsed = computed(() =>
-  isSmallScreen.value ? !mobileStagesOpen.value : leftCollapsed.value,
+  isSmallScreen.value ? false : leftCollapsed.value,
 )
 const showStageDetails = computed(() => !stagePanelCollapsed.value)
 function selectStageFromPanel(code: string | null) {
   selectStage(code)
+  if (isSmallScreen.value) mobileStagesOpen.value = false
 }
 
 onMounted(() => {
@@ -149,11 +150,26 @@ async function onDelete(row: Record<string, unknown>) {
         :actions="[{ label: $t('docetra.actions.retry'), onClick: refresh }]"
       />
 
-      <div class="flex min-h-0 flex-1 flex-row overflow-hidden">
-        <!-- Left: stages (topic-style) -->
+      <div class="relative flex min-h-0 flex-1 flex-row overflow-hidden">
+        <button
+          v-if="isSmallScreen && mobileStagesOpen"
+          type="button"
+          class="absolute inset-0 z-20 bg-black/25 lg:hidden"
+          :aria-label="$t('actions.close')"
+          @click="mobileStagesOpen = false"
+        />
+
+        <!-- Left: stages — overlay drawer on small screens (no icon rail); collapsible rail on lg+ -->
         <aside
-          class="flex h-full min-h-0 shrink-0 flex-col overflow-hidden border-e border-default bg-default transition-[width] duration-200"
-          :style="{ width: stagePanelCollapsed ? '3.5rem' : 'min(22rem, calc(100% - 3rem))' }"
+          class="flex h-full min-h-0 shrink-0 flex-col overflow-hidden border-e border-default bg-default transition-[width] duration-200 lg:static lg:z-auto lg:shadow-none"
+          :class="isSmallScreen
+            ? (mobileStagesOpen
+                ? 'absolute inset-y-0 inset-s-0 z-30 w-[min(22rem,calc(100%-3rem))] shadow-xl'
+                : 'hidden')
+            : ''"
+          :style="isSmallScreen
+            ? undefined
+            : { width: stagePanelCollapsed ? '3.5rem' : 'min(22rem, calc(100% - 3rem))' }"
         >
           <div
             class="shrink-0 space-y-2 border-b border-default"
@@ -170,7 +186,7 @@ async function onDelete(row: Record<string, unknown>) {
                 size="sm"
                 square
                 class="shrink-0 lg:hidden"
-                :aria-label="$t('docetra.recordStageBoard.collapseStages')"
+                :aria-label="$t('actions.close')"
                 @click="mobileStagesOpen = false"
               />
             </div>
@@ -252,14 +268,14 @@ async function onDelete(row: Record<string, unknown>) {
           <div class="flex shrink-0 items-center gap-2 border-b border-default px-3 py-2.5 sm:px-4 sm:py-3.5">
             <div class="flex min-w-0 shrink-0 items-center gap-1.5">
               <UButton
-                :icon="stagePanelCollapsed ? 'i-lucide-panel-left-open' : 'i-lucide-panel-left-close'"
+                :icon="mobileStagesOpen ? 'i-lucide-panel-left-close' : 'i-lucide-panel-left-open'"
                 color="neutral"
                 variant="ghost"
                 size="sm"
                 square
                 class="shrink-0 lg:hidden"
                 :aria-label="$t('docetra.recordStageBoard.stagesTitle')"
-                :aria-expanded="!stagePanelCollapsed"
+                :aria-expanded="mobileStagesOpen"
                 @click="mobileStagesOpen = !mobileStagesOpen"
               />
               <UButton
@@ -284,7 +300,7 @@ async function onDelete(row: Record<string, unknown>) {
 
             <CommonAppLiveSearch
               v-model="recordSearch"
-              class="min-w-0 w-full max-w-[18.75rem] flex-1"
+              class="min-w-0 w-full max-w-75 flex-1"
               :placeholder="$t('docetra.recordStageBoard.searchRecords')"
             />
             <CommonAppDateRangeFilter

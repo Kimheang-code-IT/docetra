@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { NuxtError } from '#app'
+import { usePageSeo } from '~/composables/usePageSeo'
 
 defineProps<{
   error: NuxtError
@@ -9,9 +10,10 @@ const { locale, t } = useI18n()
 const title = computed(() => t('pages.error.title'))
 const description = computed(() => t('pages.error.description'))
 
-useSeoMeta({
+usePageSeo({
   title,
-  description
+  description,
+  robots: 'noindex, nofollow',
 })
 
 useHead({
