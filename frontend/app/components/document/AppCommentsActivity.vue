@@ -11,16 +11,22 @@ const props = withDefaults(defineProps<{
   currentUser?: PersonSummary
   showComposer?: boolean
   showNewEmail?: boolean
+  updatingCommentId?: string | null
+  deletingCommentId?: string | null
 }>(), {
   canComment: true,
   showComposer: true,
   showNewEmail: true,
   submitting: false,
+  updatingCommentId: null,
+  deletingCommentId: null,
 })
 
 const emit = defineEmits<{
   'update:commentBody': [string]
   submit: []
+  updateComment: [payload: { id: string, body: string }]
+  deleteComment: [id: string]
 }>()
 
 const { t } = useI18n()
@@ -133,10 +139,58 @@ function asFeedItem(item: TimelineItem): ActivityTimelineItem {
   return item as ActivityTimelineItem
 }
 
-const commentActions = computed(() => [[
-  { label: t('actions.edit'), icon: 'i-lucide-pencil' },
-  { label: t('actions.delete'), icon: 'i-lucide-trash' },
-]])
+const editingCommentId = ref<string | null>(null)
+const editingBody = ref('')
+const submittedEditBody = ref<string | null>(null)
+
+function canManageComment(comment?: EntityComment) {
+  if (!comment || !props.currentUser) return false
+  return comment.author.id === props.currentUser.id
+    || Boolean(comment.author.email && comment.author.email === props.currentUser.email)
+    || comment.author.name === props.currentUser.name
+}
+
+function startEditing(comment: EntityComment) {
+  if (!canManageComment(comment)) return
+  editingCommentId.value = comment.id
+  editingBody.value = comment.body
+}
+
+function cancelEditing() {
+  editingCommentId.value = null
+  editingBody.value = ''
+  submittedEditBody.value = null
+}
+
+function saveEditing(comment: EntityComment) {
+  const body = editingBody.value.trim()
+  if (!body || props.updatingCommentId) return
+  submittedEditBody.value = body
+  emit('updateComment', { id: comment.id, body })
+}
+
+watch(() => props.updatingCommentId, (current, previous) => {
+  if (current || !previous || previous !== editingCommentId.value || !submittedEditBody.value) return
+  const updated = props.comments.find(comment => comment.id === previous)
+  if (updated?.body === submittedEditBody.value) cancelEditing()
+  else submittedEditBody.value = null
+})
+
+watch(() => props.comments.map(comment => comment.id), (ids) => {
+  if (editingCommentId.value && !ids.includes(editingCommentId.value)) cancelEditing()
+})
+
+function commentActions(comment: EntityComment) {
+  return [[
+    {
+      label: t('actions.delete'),
+      icon: 'i-lucide-trash',
+      color: 'error' as const,
+      disabled: Boolean(props.deletingCommentId),
+      onSelect: () => emit('deleteComment', comment.id),
+    },
+  ]]
+}
 </script>
 
 <template>
@@ -160,11 +214,24 @@ const commentActions = computed(() => [[
           variant="soft"
           size="md"
           class="w-full"
-          :loading="submitting"
           :disabled="submitting"
           @update:model-value="(v: string | number) => emit('update:commentBody', String(v ?? ''))"
           @keydown.enter.exact.prevent="onSubmit"
-        />
+        >
+          <template #trailing>
+            <UButton
+              icon="i-lucide-send"
+              color="primary"
+              variant="ghost"
+              size="xs"
+              square
+              :aria-label="$t('docetra.confirm.submit')"
+              :loading="submitting"
+              :disabled="!commentBody.trim() || submitting"
+              @click="onSubmit"
+            />
+          </template>
+        </UInput>
       </div>
     </section>
 
@@ -174,14 +241,6 @@ const commentActions = computed(() => [[
         <h2 class="text-base font-semibold text-highlighted">
           {{ $t('docetra.activity.title') }}
         </h2>
-        <UButton
-          v-if="showNewEmail"
-          size="xs"
-          color="neutral"
-          variant="outline"
-          icon="i-lucide-plus"
-          :label="$t('docetra.activity.newEmail')"
-        />
       </div>
 
       <UTimeline
@@ -222,28 +281,67 @@ const commentActions = computed(() => [[
                 <span class="font-medium text-highlighted">{{ asFeedItem(item).title }}</span>
                 <span class="text-muted"> • {{ asFeedItem(item).date }}</span>
               </p>
-              <div class="flex shrink-0 items-center">
+              <div v-if="canManageComment(asFeedItem(item).comment)" class="flex shrink-0 items-center">
                 <UButton
                   size="xs"
                   color="neutral"
                   variant="link"
                   class="px-1"
                   :label="$t('actions.edit')"
+                  :disabled="Boolean(updatingCommentId || deletingCommentId)"
+                  @click="startEditing(asFeedItem(item).comment!)"
                 />
-                <UDropdownMenu :items="commentActions">
+                <UDropdownMenu :items="commentActions(asFeedItem(item).comment!)">
                   <UButton
                     icon="i-lucide-ellipsis"
                     color="neutral"
                     variant="ghost"
                     size="xs"
                     square
+                    :loading="deletingCommentId === asFeedItem(item).comment!.id"
+                    :disabled="Boolean(updatingCommentId || deletingCommentId)"
                   />
                 </UDropdownMenu>
               </div>
             </template>
 
-            <p class="whitespace-pre-wrap text-sm text-highlighted">
+            <div v-if="editingCommentId === asFeedItem(item).comment?.id" class="space-y-2">
+              <UTextarea
+                v-model="editingBody"
+                :placeholder="$t('docetra.comments.editPlaceholder')"
+                :rows="3"
+                autoresize
+                autofocus
+                class="w-full"
+                :disabled="updatingCommentId === asFeedItem(item).comment?.id"
+                @keydown.ctrl.enter.prevent="saveEditing(asFeedItem(item).comment!)"
+                @keydown.meta.enter.prevent="saveEditing(asFeedItem(item).comment!)"
+                @keydown.esc.prevent="cancelEditing"
+              />
+              <div class="flex justify-end gap-2">
+                <UButton
+                  size="xs"
+                  color="neutral"
+                  variant="ghost"
+                  :label="$t('actions.cancel')"
+                  :disabled="updatingCommentId === asFeedItem(item).comment?.id"
+                  @click="cancelEditing"
+                />
+                <UButton
+                  size="xs"
+                  icon="i-lucide-check"
+                  :label="$t('actions.save')"
+                  :loading="updatingCommentId === asFeedItem(item).comment?.id"
+                  :disabled="!editingBody.trim()"
+                  @click="saveEditing(asFeedItem(item).comment!)"
+                />
+              </div>
+            </div>
+            <p v-else class="whitespace-pre-wrap text-sm text-highlighted">
               {{ asFeedItem(item).comment?.body }}
+              <span v-if="asFeedItem(item).comment?.editedAt" class="ms-1 text-xs text-muted">
+                ({{ $t('docetra.comments.edited') }})
+              </span>
             </p>
           </UCard>
         </template>

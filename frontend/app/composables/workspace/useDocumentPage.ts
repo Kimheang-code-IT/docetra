@@ -31,6 +31,19 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
   const attachments = ref<AttachmentMeta[]>([])
   const commentBody = ref('')
   const submittingComment = ref(false)
+  const updatingCommentId = ref<string | null>(null)
+  const deletingCommentId = ref<string | null>(null)
+  const auth = useAuthStore()
+  const previousRecordId = ref<string | null>(null)
+  const nextRecordId = ref<string | null>(null)
+  const loadingRecordNavigation = ref(false)
+  const recordNavigationDirection = ref<'previous' | 'next' | null>(null)
+  const isFavorite = ref(false)
+  const togglingFavorite = ref(false)
+  let neighborRequestToken = 0
+  let favoriteRequestToken = 0
+  let loadRequestToken = 0
+  let approvedRecordNavigation = false
 
   const dirty = computed(() => JSON.stringify(model.value) !== initialSnapshot.value)
 
@@ -53,7 +66,78 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
     model.value = next
   }
 
+  async function loadRecordNeighbors() {
+    const token = ++neighborRequestToken
+    const currentId = id.value
+    previousRecordId.value = null
+    nextRecordId.value = null
+    if (isCreate.value || !currentId || !adapter.getNeighbors) return
+
+    loadingRecordNavigation.value = true
+    try {
+      const response = await adapter.getNeighbors(currentId, { sort: '-updatedAt' })
+      if (token !== neighborRequestToken || currentId !== id.value) return
+      previousRecordId.value = response.data.previousId
+      nextRecordId.value = response.data.nextId
+    }
+    catch {
+      previousRecordId.value = null
+      nextRecordId.value = null
+    }
+    finally {
+      if (token === neighborRequestToken) loadingRecordNavigation.value = false
+    }
+  }
+
+  async function loadFavorite() {
+    const token = ++favoriteRequestToken
+    const currentId = id.value
+    isFavorite.value = false
+    togglingFavorite.value = false
+    if (isCreate.value || !currentId || !adapter.getFavorite) return
+
+    try {
+      const response = await adapter.getFavorite(
+        currentId,
+        String(auth.user?.id || auth.user?.email || 'current'),
+      )
+      if (token !== favoriteRequestToken || currentId !== id.value) return
+      isFavorite.value = response.data.isFavorite
+    }
+    catch {
+      isFavorite.value = false
+    }
+  }
+
+  async function toggleFavorite() {
+    if (isCreate.value || !adapter.setFavorite || togglingFavorite.value) return
+    const currentId = id.value
+    const previous = isFavorite.value
+    isFavorite.value = !previous
+    togglingFavorite.value = true
+    try {
+      const response = await adapter.setFavorite(
+        currentId,
+        isFavorite.value,
+        String(auth.user?.id || auth.user?.email || 'current'),
+      )
+      if (currentId !== id.value) return
+      isFavorite.value = response.data.isFavorite
+    }
+    catch (e: any) {
+      if (currentId === id.value) {
+        isFavorite.value = previous
+        toast.add({ title: e?.message || t('docetra.document.favoriteUpdateFailed'), color: 'error' })
+      }
+    }
+    finally {
+      if (currentId === id.value) togglingFavorite.value = false
+    }
+  }
+
   async function load() {
+    const token = ++loadRequestToken
+    const requestedId = id.value
     pending.value = true
     error.value = null
     notFound.value = false
@@ -79,9 +163,12 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
         comments.value = []
         activity.value = []
         attachments.value = []
+        void loadRecordNeighbors()
+        void loadFavorite()
         return
       }
-      const res = await adapter.get(id.value)
+      const res = await adapter.get(requestedId)
+      if (token !== loadRequestToken || requestedId !== id.value) return
       model.value = {
         details: {},
         ...(res.data as Record<string, unknown>),
@@ -97,20 +184,24 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
       }
       initialSnapshot.value = JSON.stringify(model.value)
       const [c, a, f] = await Promise.all([
-        adapter.listComments?.(id.value, { page: 1, limit: 20 }),
-        adapter.listActivity?.(id.value, { page: 1, limit: 20 }),
-        adapter.listAttachments?.(id.value),
+        adapter.listComments?.(requestedId, { page: 1, limit: 20 }),
+        adapter.listActivity?.(requestedId, { page: 1, limit: 20 }),
+        adapter.listAttachments?.(requestedId),
       ])
+      if (token !== loadRequestToken || requestedId !== id.value) return
       comments.value = (c?.data || []) as EntityComment[]
       activity.value = (a?.data || []) as ActivityEvent[]
       attachments.value = (f?.data || []) as AttachmentMeta[]
+      void loadRecordNeighbors()
+      void loadFavorite()
     }
     catch (e: any) {
+      if (token !== loadRequestToken) return
       if (e?.statusCode === 404) notFound.value = true
       error.value = e?.message || 'Failed to load document'
     }
     finally {
-      pending.value = false
+      if (token === loadRequestToken) pending.value = false
     }
   }
 
@@ -271,9 +362,15 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
 
   async function submitComment() {
     if (!commentBody.value.trim() || !adapter.addComment || isCreate.value) return
+    const currentId = id.value
     submittingComment.value = true
     try {
-      const res = await adapter.addComment(id.value, commentBody.value.trim())
+      const res = await adapter.addComment(currentId, commentBody.value.trim(), {
+        id: String(auth.user?.id || auth.user?.email || 'current'),
+        name: auth.user?.name || 'You',
+        email: auth.user?.email,
+      })
+      if (currentId !== id.value) return
       comments.value = [res.data as EntityComment, ...comments.value]
       activity.value = [{
         id: `act-comment-${(res.data as EntityComment).id}`,
@@ -288,10 +385,61 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
       toast.add({ title: t('docetra.document.commentAdded'), color: 'success' })
     }
     catch (e: any) {
-      toast.add({ title: e?.message || 'Failed', color: 'error' })
+      if (currentId === id.value) toast.add({ title: e?.message || 'Failed', color: 'error' })
     }
     finally {
       submittingComment.value = false
+    }
+  }
+
+  async function updateComment(commentId: string, body: string) {
+    const trimmed = body.trim()
+    if (!trimmed || !adapter.updateComment || updatingCommentId.value) return
+    const currentId = id.value
+    updatingCommentId.value = commentId
+    try {
+      const res = await adapter.updateComment(currentId, commentId, trimmed)
+      if (currentId !== id.value) return
+      const updated = res.data as EntityComment
+      comments.value = comments.value.map(comment => comment.id === commentId ? updated : comment)
+      toast.add({ title: t('docetra.document.commentUpdated'), color: 'success' })
+    }
+    catch (e: any) {
+      if (currentId === id.value) {
+        toast.add({ title: e?.message || t('docetra.document.commentUpdateFailed'), color: 'error' })
+      }
+    }
+    finally {
+      updatingCommentId.value = null
+    }
+  }
+
+  async function deleteComment(commentId: string) {
+    if (!adapter.deleteComment || deletingCommentId.value) return
+    const ok = await confirm({
+      kind: 'delete',
+      titleKey: 'docetra.comments.deleteTitle',
+      descriptionKey: 'docetra.comments.deleteDescription',
+      confirmLabelKey: 'actions.delete',
+    })
+    if (!ok) return
+
+    const currentId = id.value
+    deletingCommentId.value = commentId
+    try {
+      await adapter.deleteComment(currentId, commentId)
+      if (currentId !== id.value) return
+      comments.value = comments.value.filter(comment => comment.id !== commentId)
+      activity.value = activity.value.filter(event => event.id !== `act-comment-${commentId}`)
+      toast.add({ title: t('docetra.document.commentDeleted'), color: 'success' })
+    }
+    catch (e: any) {
+      if (currentId === id.value) {
+        toast.add({ title: e?.message || t('docetra.document.commentDeleteFailed'), color: 'error' })
+      }
+    }
+    finally {
+      deletingCommentId.value = null
     }
   }
 
@@ -300,7 +448,23 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
     return confirm({ kind: 'unsaved' })
   }
 
-  onBeforeRouteLeave(async () => confirmLeave())
+  async function navigateRecord(direction: 'previous' | 'next') {
+    const targetId = direction === 'previous' ? previousRecordId.value : nextRecordId.value
+    if (!targetId || recordNavigationDirection.value) return
+    if (!await confirmLeave()) return
+
+    recordNavigationDirection.value = direction
+    approvedRecordNavigation = true
+    try {
+      await router.push(`${config.routeBase}/${targetId}`)
+    }
+    finally {
+      approvedRecordNavigation = false
+      recordNavigationDirection.value = null
+    }
+  }
+
+  onBeforeRouteLeave(async () => approvedRecordNavigation || confirmLeave())
 
   if (import.meta.client) {
     useEventListener(window, 'beforeunload', (event) => {
@@ -310,7 +474,8 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
     })
   }
 
-  watch(() => route.fullPath, () => {
+  watch(id, (currentId, previousId) => {
+    if (previousId !== undefined && currentId !== previousId) commentBody.value = ''
     load()
   }, { immediate: true })
 
@@ -329,11 +494,24 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
     attachments,
     commentBody,
     submittingComment,
+    updatingCommentId,
+    deletingCommentId,
+    previousRecordId,
+    nextRecordId,
+    loadingRecordNavigation,
+    recordNavigationDirection,
+    isFavorite,
+    togglingFavorite,
     fieldValue,
     setFieldValue,
     load,
     save,
     submitComment,
+    updateComment,
+    deleteComment,
+    navigatePreviousRecord: () => navigateRecord('previous'),
+    navigateNextRecord: () => navigateRecord('next'),
+    toggleFavorite,
     confirmLeave,
   }
 }

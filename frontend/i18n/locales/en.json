@@ -1001,6 +1001,11 @@
       "saveFailed": "Save failed",
       "requiredFieldsMissing": "Complete the required fields",
       "commentAdded": "Comment added",
+      "commentUpdated": "Comment updated",
+      "commentUpdateFailed": "Could not update comment",
+      "commentDeleted": "Comment deleted",
+      "commentDeleteFailed": "Could not delete comment",
+      "favoriteUpdateFailed": "Could not update favorite",
       "unsaved": "Unsaved changes",
       "unsavedConfirm": "You have unsaved changes. Leave this page?",
       "moveFailed": "Stage move failed",
@@ -1030,12 +1035,18 @@
       "assignPlaceholder": "Add user name",
       "tagPlaceholder": "Add tag",
       "sharePlaceholder": "Share with user",
-      "removeTag": "Remove tag {tag}"
+      "removeTag": "Remove tag {tag}",
+      "addFavorite": "Add to favorites",
+      "removeFavorite": "Remove from favorites"
     },
     "comments": {
       "title": "Comments",
       "placeholder": "Type a reply / comment",
-      "commented": "commented"
+      "commented": "commented",
+      "edited": "edited",
+      "editPlaceholder": "Edit your comment",
+      "deleteTitle": "Delete comment?",
+      "deleteDescription": "This comment will be permanently deleted."
     },
     "activity": {
       "title": "Activity",

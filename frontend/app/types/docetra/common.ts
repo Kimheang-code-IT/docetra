@@ -63,6 +63,15 @@ export interface EntityComment {
   editedAt?: string
 }
 
+export interface EntityRecordNeighbors {
+  previousId: string | null
+  nextId: string | null
+}
+
+export interface EntityFavoriteState {
+  isFavorite: boolean
+}
+
 export interface ActivityEvent {
   id: string
   entityType: string

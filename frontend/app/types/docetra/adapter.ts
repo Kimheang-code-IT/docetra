@@ -3,6 +3,8 @@ import type {
   ApiResponse,
   AttachmentMeta,
   EntityComment,
+  EntityFavoriteState,
+  EntityRecordNeighbors,
   ListQuery,
 } from '~/types/docetra/common'
 
@@ -16,7 +18,12 @@ export interface EntityAdapter<T> {
   transitionStage?: (id: string, stage: string) => Promise<ApiResponse<T>>
   listByStage?: (stage: string, query?: ListQuery) => Promise<ApiResponse<T[]>>
   listComments?: (id: string, query?: ListQuery) => Promise<ApiResponse<EntityComment[]>>
-  addComment?: (id: string, body: string) => Promise<ApiResponse<EntityComment>>
+  addComment?: (id: string, body: string, author?: EntityComment['author']) => Promise<ApiResponse<EntityComment>>
+  updateComment?: (id: string, commentId: string, body: string) => Promise<ApiResponse<EntityComment>>
+  deleteComment?: (id: string, commentId: string) => Promise<ApiResponse<{ id: string }>>
+  getNeighbors?: (id: string, query?: Pick<ListQuery, 'sort'>) => Promise<ApiResponse<EntityRecordNeighbors>>
+  getFavorite?: (id: string, userId?: string) => Promise<ApiResponse<EntityFavoriteState>>
+  setFavorite?: (id: string, isFavorite: boolean, userId?: string) => Promise<ApiResponse<EntityFavoriteState>>
   listActivity?: (id: string, query?: ListQuery) => Promise<ApiResponse<ActivityEvent[]>>
   listAttachments?: (id: string) => Promise<ApiResponse<AttachmentMeta[]>>
   replaceAttachments?: (id: string, files: AttachmentMeta[]) => Promise<ApiResponse<AttachmentMeta[]>>

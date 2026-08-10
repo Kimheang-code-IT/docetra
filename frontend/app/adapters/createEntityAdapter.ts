@@ -1,5 +1,12 @@
 import type { EntityAdapter } from '~/types/docetra/adapter'
-import type { ActivityEvent, ApiResponse, AttachmentMeta, EntityComment } from '~/types/docetra/common'
+import type {
+  ActivityEvent,
+  ApiResponse,
+  AttachmentMeta,
+  EntityComment,
+  EntityFavoriteState,
+  EntityRecordNeighbors,
+} from '~/types/docetra/common'
 import { applyListQuery, createId, mockLatency, nowIso, ok } from '~/mocks/query'
 import { person, seedActivity, seedAttachments, seedComments } from '~/mocks/seed'
 
@@ -10,10 +17,11 @@ type MockStore<T extends EntityRecord> = {
   comments: Record<string, EntityComment[]>
   activity: Record<string, ActivityEvent[]>
   attachments: Record<string, AttachmentMeta[]>
+  favorites: Record<string, Set<string>>
 }
 
 export function createMockStore<T extends EntityRecord>(seed: T[]): MockStore<T> {
-  return { items: structuredClone(seed), comments: {}, activity: {}, attachments: {} }
+  return { items: structuredClone(seed), comments: {}, activity: {}, attachments: {}, favorites: {} }
 }
 
 function usesMockData() {
@@ -93,6 +101,7 @@ export function createEntityAdapter<T extends EntityRecord>(options: {
       delete store.comments[id]
       delete store.activity[id]
       delete store.attachments[id]
+      for (const favorites of Object.values(store.favorites)) favorites.delete(id)
       return ok({ id })
     },
 
@@ -105,6 +114,7 @@ export function createEntityAdapter<T extends EntityRecord>(options: {
         delete store.comments[id]
         delete store.activity[id]
         delete store.attachments[id]
+        for (const favorites of Object.values(store.favorites)) favorites.delete(id)
       }
       return ok({ ids })
     },
@@ -125,12 +135,89 @@ export function createEntityAdapter<T extends EntityRecord>(options: {
       return applyListQuery(store.comments[id] as unknown as Record<string, unknown>[], query, ['body']) as unknown as ApiResponse<EntityComment[]>
     },
 
-    async addComment(id, body) {
+    async addComment(id, body, author) {
       if (!usesMockData()) return useApi().post<ApiResponse<EntityComment>>(`${resource(id)}/comments`, { body })
       await mockLatency(null)
-      const comment: EntityComment = { id: createId('cmt'), entityType: endpoint, entityId: id, body, author: person(0), createdAt: nowIso() }
+      const comment: EntityComment = { id: createId('cmt'), entityType: endpoint, entityId: id, body, author: author || person(0), createdAt: nowIso() }
       store.comments[id] = [comment, ...(store.comments[id] || [])]
       return ok(comment)
+    },
+
+    async updateComment(id, commentId, body) {
+      if (!usesMockData()) {
+        return useApi().patch<ApiResponse<EntityComment>>(
+          `${resource(id)}/comments/${encodeURIComponent(commentId)}`,
+          { body },
+        )
+      }
+      await mockLatency(null)
+      store.comments[id] ||= seedComments(endpoint, id)
+      const index = store.comments[id].findIndex(comment => comment.id === commentId)
+      if (index < 0) throw createError({ statusCode: 404, statusMessage: 'Comment not found' })
+      const comment = { ...store.comments[id][index]!, body, editedAt: nowIso() }
+      store.comments[id][index] = comment
+      return ok(structuredClone(comment))
+    },
+
+    async deleteComment(id, commentId) {
+      if (!usesMockData()) {
+        return useApi().delete<ApiResponse<{ id: string }>>(
+          `${resource(id)}/comments/${encodeURIComponent(commentId)}`,
+        )
+      }
+      await mockLatency(null)
+      store.comments[id] ||= seedComments(endpoint, id)
+      const index = store.comments[id].findIndex(comment => comment.id === commentId)
+      if (index < 0) throw createError({ statusCode: 404, statusMessage: 'Comment not found' })
+      store.comments[id].splice(index, 1)
+      return ok({ id: commentId })
+    },
+
+    async getNeighbors(id, query) {
+      if (!usesMockData()) {
+        return useApi().get<ApiResponse<EntityRecordNeighbors>>(`${resource(id)}/neighbors`, {
+          query,
+          requestKey: `neighbors:${endpoint}:${id}`,
+          cancelPrevious: true,
+        })
+      }
+      await mockLatency(null)
+      const descending = query?.sort?.startsWith('-') !== false
+      const sortKey = query?.sort?.replace(/^-/, '') || 'updatedAt'
+      const ordered = [...store.items].sort((a, b) => {
+        const comparison = String(a[sortKey as keyof T] || '').localeCompare(String(b[sortKey as keyof T] || ''))
+        if (comparison) return descending ? -comparison : comparison
+        return descending ? b.id.localeCompare(a.id) : a.id.localeCompare(b.id)
+      })
+      const index = ordered.findIndex(item => item.id === id)
+      return ok({
+        previousId: index > 0 ? ordered[index - 1]!.id : null,
+        nextId: index >= 0 && index < ordered.length - 1 ? ordered[index + 1]!.id : null,
+      })
+    },
+
+    async getFavorite(id, userId) {
+      if (!usesMockData()) {
+        return useApi().get<ApiResponse<EntityFavoriteState>>(`${resource(id)}/favorite`, {
+          requestKey: `favorite:${endpoint}:${id}`,
+          cancelPrevious: true,
+        })
+      }
+      await mockLatency(null)
+      const favorites = store.favorites[userId || 'current'] || new Set<string>()
+      return ok({ isFavorite: favorites.has(id) })
+    },
+
+    async setFavorite(id, isFavorite, userId) {
+      if (!usesMockData()) {
+        return useApi().put<ApiResponse<EntityFavoriteState>>(`${resource(id)}/favorite`, { isFavorite })
+      }
+      await mockLatency(null)
+      const key = userId || 'current'
+      store.favorites[key] ||= new Set<string>()
+      if (isFavorite) store.favorites[key].add(id)
+      else store.favorites[key].delete(id)
+      return ok({ isFavorite })
     },
 
     async listActivity(id, query) {

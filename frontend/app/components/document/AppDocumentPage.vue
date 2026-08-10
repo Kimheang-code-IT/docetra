@@ -25,6 +25,10 @@ const props = withDefaults(defineProps<{
   showComments?: boolean
   showMetaRail?: boolean
   showListNav?: boolean
+  canNavigatePrevious?: boolean
+  canNavigateNext?: boolean
+  loadingListNavigation?: boolean
+  listNavigationDirection?: 'previous' | 'next' | null
   listTo?: string
   isCreate?: boolean
   /** Force the wider document content shell (matches App Config settings width). */
@@ -35,6 +39,8 @@ const props = withDefaults(defineProps<{
   attachments?: AttachmentMeta[]
   commentBody?: string
   submittingComment?: boolean
+  updatingCommentId?: string | null
+  deletingCommentId?: string | null
   currentUser?: { id: string, name: string, email?: string }
   metaTitle?: string
   metaSubtitle?: string
@@ -45,6 +51,8 @@ const props = withDefaults(defineProps<{
   metaTags?: string[]
   metaCreatedAt?: string
   metaUpdatedAt?: string
+  metaFavorite?: boolean
+  togglingFavorite?: boolean
   moreItems?: DropdownMenuItem[][]
 }>(), {
   pending: false,
@@ -57,6 +65,10 @@ const props = withDefaults(defineProps<{
   showComments: false,
   showMetaRail: false,
   showListNav: false,
+  canNavigatePrevious: false,
+  canNavigateNext: false,
+  loadingListNavigation: false,
+  listNavigationDirection: null,
   isCreate: false,
   contentWide: false,
   canComment: true,
@@ -65,6 +77,8 @@ const props = withDefaults(defineProps<{
   attachments: () => [],
   commentBody: '',
   submittingComment: false,
+  updatingCommentId: null,
+  deletingCommentId: null,
   metaTags: () => [],
 })
 
@@ -75,6 +89,11 @@ const emit = defineEmits<{
   save: []
   refresh: []
   submitComment: []
+  updateComment: [id: string, body: string]
+  deleteComment: [id: string]
+  navigatePrevious: []
+  navigateNext: []
+  toggleFavorite: []
 }>()
 
 const { t } = useI18n()
@@ -136,8 +155,10 @@ async function onSaveClick() {
             icon="i-lucide-chevron-left"
             square
             class="rounded-md"
-            :disabled="isCreate"
+            :loading="listNavigationDirection === 'previous'"
+            :disabled="isCreate || !canNavigatePrevious || loadingListNavigation || Boolean(listNavigationDirection)"
             :aria-label="t('docetra.document.previous')"
+            @click="emit('navigatePrevious')"
           />
           <UButton
             v-if="showListNav"
@@ -146,8 +167,10 @@ async function onSaveClick() {
             icon="i-lucide-chevron-right"
             square
             class="rounded-md"
-            :disabled="isCreate"
+            :loading="listNavigationDirection === 'next'"
+            :disabled="isCreate || !canNavigateNext || loadingListNavigation || Boolean(listNavigationDirection)"
             :aria-label="t('docetra.document.next')"
+            @click="emit('navigateNext')"
           />
         </slot>
       </template>
@@ -245,10 +268,14 @@ async function onSaveClick() {
                       :activity="activity"
                       :comment-body="commentBody"
                       :submitting="submittingComment"
+                      :updating-comment-id="updatingCommentId"
+                      :deleting-comment-id="deletingCommentId"
                       :can-comment="canComment"
                       :current-user="currentUser"
                       @update:comment-body="emit('update:commentBody', $event)"
                       @submit="emit('submitComment')"
+                      @update-comment="emit('updateComment', $event.id, $event.body)"
+                      @delete-comment="emit('deleteComment', $event)"
                     />
                   </DocumentAppDocumentContentShell>
 
@@ -312,9 +339,13 @@ async function onSaveClick() {
             :created-at="metaCreatedAt"
             :updated-at="metaUpdatedAt"
             :read-only="readOnly"
+            :is-favorite="metaFavorite"
+            :toggling-favorite="togglingFavorite"
+            :favorite-enabled="!isCreate"
             @update:tags="setFieldValue('tags', $event)"
             @update:attachments="localAttachments = $event"
             @update:assignees="setFieldValue('assignee', $event[0] || null)"
+            @toggle-favorite="emit('toggleFavorite')"
           />
         </aside>
       </div>

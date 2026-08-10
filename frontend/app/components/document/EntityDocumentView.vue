@@ -24,11 +24,24 @@ const {
   attachments,
   commentBody,
   submittingComment,
+  updatingCommentId,
+  deletingCommentId,
+  previousRecordId,
+  nextRecordId,
+  loadingRecordNavigation,
+  recordNavigationDirection,
+  isFavorite,
+  togglingFavorite,
   fieldValue,
   setFieldValue,
   load,
   save,
   submitComment,
+  updateComment,
+  deleteComment,
+  navigatePreviousRecord,
+  navigateNextRecord,
+  toggleFavorite,
 } = useDocumentPage(props.config)
 
 const { tabs: documentTabs } = useRecordTypeDrivenTabs({
@@ -122,7 +135,7 @@ const moreItems = computed(() => [[
 ]])
 
 const currentUser = computed(() => ({
-  id: 'current',
+  id: String(auth.user?.id || auth.user?.email || 'current'),
   name: auth.user?.name || 'You',
   email: auth.user?.email,
 }))
@@ -144,6 +157,10 @@ const showMetaRail = computed(() => !['users', 'roles'].includes(props.config.ke
     :show-comments="!isCreate"
     :show-meta-rail="showMetaRail"
     :show-list-nav="true"
+    :can-navigate-previous="Boolean(previousRecordId)"
+    :can-navigate-next="Boolean(nextRecordId)"
+    :loading-list-navigation="loadingRecordNavigation"
+    :list-navigation-direction="recordNavigationDirection"
     :list-to="config.routeBase"
     :is-create="isCreate"
     :can-comment="config.canComment !== false"
@@ -152,6 +169,8 @@ const showMetaRail = computed(() => !['users', 'roles'].includes(props.config.ke
     :attachments="attachments"
     :comment-body="commentBody"
     :submitting-comment="submittingComment"
+    :updating-comment-id="updatingCommentId"
+    :deleting-comment-id="deletingCommentId"
     :current-user="currentUser"
     :meta-title="title"
     :meta-subtitle="codeOrRef"
@@ -162,11 +181,18 @@ const showMetaRail = computed(() => !['users', 'roles'].includes(props.config.ke
     :meta-tags="(model.tags as string[]) || []"
     :meta-created-at="model.createdAt ? String(model.createdAt) : undefined"
     :meta-updated-at="model.updatedAt ? String(model.updatedAt) : undefined"
+    :meta-favorite="isFavorite"
+    :toggling-favorite="togglingFavorite"
     :more-items="moreItems"
     @update:comment-body="commentBody = $event"
     @update:attachments="attachments = $event"
     @save="save"
     @refresh="load"
     @submit-comment="submitComment"
+    @update-comment="updateComment"
+    @delete-comment="deleteComment"
+    @navigate-previous="navigatePreviousRecord"
+    @navigate-next="navigateNextRecord"
+    @toggle-favorite="toggleFavorite"
   />
 </template>

@@ -892,6 +892,11 @@
       "saveFailed": "រក្សាទុកបរាជ័យ",
       "requiredFieldsMissing": "សូមបំពេញវាលដែលត្រូវការ",
       "commentAdded": "បានបន្ថែមមតិ",
+      "commentUpdated": "បានកែប្រែមតិ",
+      "commentUpdateFailed": "មិនអាចកែប្រែមតិបានទេ",
+      "commentDeleted": "បានលុបមតិ",
+      "commentDeleteFailed": "មិនអាចលុបមតិបានទេ",
+      "favoriteUpdateFailed": "មិនអាចកែប្រែចំណូលចិត្តបានទេ",
       "unsaved": "មានការផ្លាស់ប្តូរមិនបានរក្សាទុក",
       "unsavedConfirm": "អ្នកមានការផ្លាស់ប្តូរមិនបានរក្សាទុក។ ចាកចេញ?",
       "moveFailed": "ផ្លាស់ដំណាក់កាលបរាជ័យ",
@@ -921,12 +926,18 @@
       "assignPlaceholder": "បញ្ចូលឈ្មោះអ្នកប្រើ",
       "tagPlaceholder": "បញ្ចូលស្លាក",
       "sharePlaceholder": "ចែករំលែកជាមួយអ្នកប្រើ",
-      "removeTag": "លុបស្លាក {tag}"
+      "removeTag": "លុបស្លាក {tag}",
+      "addFavorite": "បន្ថែមទៅចំណូលចិត្ត",
+      "removeFavorite": "ដកចេញពីចំណូលចិត្ត"
     },
     "comments": {
       "title": "មតិយោបល់",
       "placeholder": "វាយបញ្ចូលការឆ្លើយ / មតិ",
-      "commented": "បានបញ្ចេញមតិ"
+      "commented": "បានបញ្ចេញមតិ",
+      "edited": "បានកែប្រែ",
+      "editPlaceholder": "កែប្រែមតិរបស់អ្នក",
+      "deleteTitle": "លុបមតិ?",
+      "deleteDescription": "មតិនេះនឹងត្រូវបានលុបជាអចិន្ត្រៃយ៍។"
     },
     "activity": {
       "title": "សកម្មភាព",
