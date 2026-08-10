@@ -19,6 +19,9 @@ const dir = computed(() => currentLocale.value.dir || 'ltr')
 const siteName = computed(() => t('docetra.brand.name'))
 const appDescription = computed(() => t('app.description'))
 const appKeywords = computed(() => t('app.keywords'))
+const { absoluteUrl, absolutePageUrl } = useSeoAbsoluteUrl()
+const defaultOgImage = computed(() => absoluteUrl('/logo.png'))
+const pageUrl = computed(() => absolutePageUrl())
 
 onMounted(() => {
   preferences.hydrate()
@@ -54,11 +57,17 @@ useHead({
 useSeoMeta({
   description: appDescription,
   ogSiteName: siteName,
+  ogTitle: siteName,
   ogDescription: appDescription,
-  ogImage: '/logo.png',
+  ogImage: () => defaultOgImage.value,
+  ogImageAlt: siteName,
+  ogUrl: () => pageUrl.value,
   ogType: 'website',
-  twitterImage: '/logo.png',
-  twitterCard: 'summary',
+  twitterTitle: siteName,
+  twitterDescription: appDescription,
+  twitterImage: () => defaultOgImage.value,
+  twitterImageAlt: siteName,
+  twitterCard: 'summary_large_image',
   robots: 'noindex, nofollow',
 })
 </script>
