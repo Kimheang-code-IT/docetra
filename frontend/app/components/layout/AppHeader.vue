@@ -71,6 +71,7 @@ const { displayTitle, breadcrumbs, badges, hasBreadcrumbs, actions } = useAppHea
             icon="i-lucide-refresh-cw"
             square
             :loading="actions.refreshing"
+            :disabled="actions.refreshing"
             class="rounded-md"
             :aria-label="$t('docetra.actions.refresh')"
             @click="actions.onRefresh?.()"

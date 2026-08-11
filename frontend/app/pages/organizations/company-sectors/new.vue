@@ -5,7 +5,7 @@ const config = getEntityConfig('companySectors')
 
 definePageMeta({
   titleKey: 'docetra.pages.companySector',
-  permission: 'organizations.company_sectors.view',
+  permission: 'organizations.company_sectors.create',
 })
 </script>
 

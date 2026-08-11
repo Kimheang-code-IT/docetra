@@ -29,12 +29,13 @@ export default defineNuxtConfig({
   },
 
   devtools: {
-    enabled: true
+    enabled: import.meta.env.DEV
   },
 
   runtimeConfig: {
     public: {
       apiBase: import.meta.env.NUXT_PUBLIC_API_BASE || 'http://localhost:8000',
+      // Current release is mock-first. Set false later when the HTTP API is available.
       useMockData: import.meta.env.NUXT_PUBLIC_USE_MOCK_DATA !== 'false',
       appVersion: import.meta.env.NUXT_PUBLIC_APP_VERSION || '0.1.0',
       // Canonical public origin for Open Graph / Twitter image URLs (no trailing slash).
@@ -106,8 +107,13 @@ export default defineNuxtConfig({
   },
 
   routeRules: {
-    '/api/**': {
-      cors: true
+    '/**': {
+      headers: {
+        'x-content-type-options': 'nosniff',
+        'referrer-policy': 'strict-origin-when-cross-origin',
+        'x-frame-options': 'DENY',
+        'permissions-policy': 'camera=(), microphone=(), geolocation=()',
+      },
     },
   },
 

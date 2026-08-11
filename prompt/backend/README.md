@@ -62,6 +62,21 @@ Settings (email / telegram / system flags) ──▶ notifications & read-only m
 
 Each module doc ends with a **Frontend contract** section listing key files.
 
+## Current frontend-to-API security contract
+
+This version is frontend-complete with mock repositories and is ready for HTTP adapters. Backend implementation must preserve these boundaries:
+
+- Authenticate every `/api/v2` request and enforce the exact namespaced capability for the action. Browser route/action checks are never authoritative.
+- Return the user's flattened capability list as `pageAccess` (or migrate the frontend adapter to an equivalent typed field). `ALL_PAGES` is reserved for a trusted super-admin policy.
+- Prefer a Secure, HttpOnly, SameSite session or refresh cookie with short-lived access credentials. The current JS-readable bearer cookie is a compatibility bridge, not the target production design.
+- Reject authenticated uploads or API calls directed outside the configured API origin. CORS is explicit allow-list configuration; do not use wildcard credentialed CORS.
+- Enforce upload count, size, extension, detected MIME, malware scanning, tenant ownership, and storage policy server-side. Never trust browser `accept` or MIME values.
+- Recheck record and field permissions for list, schema, search, comments, workflow transitions, and asynchronous exports. Redact inaccessible dynamic field definitions and values.
+- Use immutable audit events for permission, configuration, upload, stage, comment, and sensitive settings actions.
+- Support bounded pagination/cursors, cancellation-safe idempotency, optimistic version conflicts, and async export/job polling rather than unbounded responses.
+
+The current frontend release defaults to mock data because the backend is not implemented yet. When these APIs are ready, deployment sets `NUXT_PUBLIC_USE_MOCK_DATA=false`; the existing typed HTTP adapters become active without page rewrites. A real production API deployment must not depend on mock credentials or localStorage datasets.
+
 ---
 
 ## Reading order for implementers

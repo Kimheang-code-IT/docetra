@@ -21,6 +21,7 @@ import { TELEGRAM_TEMPLATE_VARIABLES } from '~/types/docetra/settings'
 import { createClientId } from '~/utils/client-id'
 import { resolveFieldHelp } from '~/utils/field-help'
 import { loadReferenceOptions } from '~/adapters/reference-options'
+import { ApiEndpoints } from '~/utils/constants/api-endpoints'
 
 const props = defineProps<{
   field: DocumentFieldSchema
@@ -33,6 +34,7 @@ const emit = defineEmits<{
 }>()
 
 const { t, te } = useI18n()
+const route = useRoute()
 
 const hintOpen = ref(false)
 
@@ -133,7 +135,19 @@ const connectionValue = computed(() => {
 const remoteOptions = ref<FieldOption[]>([])
 const optionsPending = ref(false)
 
-watch(() => props.field.optionsEndpoint, async (endpoint) => {
+const resolvedOptionsEndpoint = computed(() => {
+  const endpoint = props.field.optionsEndpoint
+  if (!endpoint) return undefined
+  if (props.field.key !== 'parentId' || !endpoint.startsWith(`${ApiEndpoints.DEPARTMENTS}/options`)) {
+    return endpoint
+  }
+  const currentId = Array.isArray(route.params.id) ? route.params.id[0] : route.params.id
+  if (!currentId || currentId === 'new') return endpoint
+  const separator = endpoint.includes('?') ? '&' : '?'
+  return `${endpoint}${separator}excludeId=${encodeURIComponent(String(currentId))}`
+})
+
+watch(resolvedOptionsEndpoint, async (endpoint) => {
   remoteOptions.value = []
   if (!endpoint) return
   optionsPending.value = true
@@ -147,6 +161,14 @@ watch(() => props.field.optionsEndpoint, async (endpoint) => {
     optionsPending.value = false
   }
 }, { immediate: true })
+
+const searchRemoteOptions = useDebounceFn(async (search: string) => {
+  const endpoint = resolvedOptionsEndpoint.value
+  if (!endpoint) return
+  optionsPending.value = true
+  try { remoteOptions.value = await loadReferenceOptions(endpoint, search) }
+  finally { optionsPending.value = false }
+}, 250)
 
 const selectItems = computed(() =>
   [...(props.field.options || []), ...remoteOptions.value]
@@ -245,7 +267,22 @@ const attributeCatalog = computed(() =>
 
 const recordTypeIdForAssign = computed(() => String(props.field.meta?.typeId || ''))
 
+const assignmentStageItems = computed(() => {
+  const configured = Array.isArray(props.field.meta?.stages)
+    ? props.field.meta.stages as ConfigWorkflowStage[]
+    : []
+  return [
+    { label: t('docetra.config.allStages'), value: '__all_stages__' },
+    ...[...configured]
+      .sort((a, b) => a.order - b.order)
+      .map(stage => ({ label: stage.name, value: stage.code })),
+  ]
+})
+
 const selectedAttributeId = ref<string>()
+const searchAttributes = computed(() =>
+  props.field.meta?.searchAttributes as ((query: string) => void) | undefined,
+)
 
 function goCreateAttribute() {
   const typeId = recordTypeIdForAssign.value || 'new'
@@ -366,6 +403,7 @@ function onReorderAssigned(items: Array<RecordTypeAttribute & { id: string }>) {
     searchable: a.searchable,
     filterable: a.filterable,
     showInList: a.showInList,
+    stageCode: a.stageCode,
     section: a.section,
     order: index,
   }))
@@ -510,13 +548,14 @@ function removeDestination(id: string) {
   >
     <div class="flex flex-wrap items-end gap-2">
       <UFormField :label="t('docetra.config.assignAttribute')" class="min-w-64 flex-1">
-        <USelect
+        <UInputMenu
           v-model="selectedAttributeId"
           :items="selectItems"
           value-key="value"
           class="w-full"
           :disabled="disabled || field.readOnly"
           :loading="optionsPending"
+          @update:search-term="searchAttributes?.($event)"
         />
       </UFormField>
       <UButton
@@ -616,6 +655,18 @@ function removeDestination(id: string) {
             :disabled="disabled || field.readOnly"
             @update:model-value="updateAssigned(item.attributeId, { section: String($event) })"
           />
+          <UFormField :label="t('docetra.config.assignedStage')">
+            <USelect
+              :model-value="item.stageCode || '__all_stages__'"
+              :items="assignmentStageItems"
+              value-key="value"
+              label-key="label"
+              size="sm"
+              class="w-full"
+              :disabled="disabled || field.readOnly"
+              @update:model-value="updateAssigned(item.attributeId, { stageCode: $event === '__all_stages__' ? undefined : String($event || '') || undefined })"
+            />
+          </UFormField>
         </div>
       </template>
       <template #empty>
@@ -793,6 +844,17 @@ function removeDestination(id: string) {
           :disabled="disabled || field.readOnly"
           :required="field.required"
           class="w-full"
+        />
+        <UInputMenu
+          v-else-if="field.type === 'select' && field.optionsEndpoint"
+          v-model="selectValue"
+          :items="selectItems"
+          value-key="value"
+          :placeholder="placeholderText"
+          :disabled="disabled || field.readOnly"
+          :loading="optionsPending"
+          class="w-full"
+          @update:search-term="searchRemoteOptions"
         />
         <USelect
           v-else-if="field.type === 'select'"

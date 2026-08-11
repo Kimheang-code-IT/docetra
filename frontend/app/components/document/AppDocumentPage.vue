@@ -8,6 +8,7 @@ import type {
   PersonSummary,
 } from '~/types/docetra/common'
 import { useConfirm } from '~/composables/common/useConfirm'
+import type { ExportRequest } from '~/types/docetra/export'
 
 const props = withDefaults(defineProps<{
   tabs: DocumentTabSchema[]
@@ -41,6 +42,8 @@ const props = withDefaults(defineProps<{
   submittingComment?: boolean
   updatingCommentId?: string | null
   deletingCommentId?: string | null
+  hasMoreFeed?: boolean
+  loadingMoreFeed?: boolean
   currentUser?: { id: string, name: string, email?: string }
   metaTitle?: string
   metaSubtitle?: string
@@ -54,6 +57,8 @@ const props = withDefaults(defineProps<{
   metaFavorite?: boolean
   togglingFavorite?: boolean
   moreItems?: DropdownMenuItem[][]
+  exporting?: boolean
+  canExport?: boolean
 }>(), {
   pending: false,
   saving: false,
@@ -79,7 +84,11 @@ const props = withDefaults(defineProps<{
   submittingComment: false,
   updatingCommentId: null,
   deletingCommentId: null,
+  hasMoreFeed: false,
+  loadingMoreFeed: false,
   metaTags: () => [],
+  exporting: false,
+  canExport: true,
 })
 
 const emit = defineEmits<{
@@ -91,12 +100,29 @@ const emit = defineEmits<{
   submitComment: []
   updateComment: [id: string, body: string]
   deleteComment: [id: string]
+  loadMoreFeed: []
   navigatePrevious: []
   navigateNext: []
   toggleFavorite: []
+  export: [request: ExportRequest]
 }>()
 
 const { t } = useI18n()
+
+const exportFields = computed(() => {
+  if (!props.canExport) return []
+  const fields = props.tabs.flatMap(tab =>
+    tab.sections.flatMap(section =>
+      section.fields
+        .filter(field => field.type !== 'secret' && field.type !== 'alert')
+        .map(field => ({
+          label: field.label || t(field.labelKey),
+          value: field.key,
+        })),
+    ),
+  )
+  return [...new Map(fields.map(field => [field.value, field])).values()]
+})
 
 const localAttachments = computed({
   get: () => props.attachments || [],
@@ -121,6 +147,11 @@ function scrollToTop() {
   scrollEl.value?.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
+function selectTab(value: string) {
+  emit('update:activeTab', value)
+  scrollEl.value?.scrollTo({ top: 0 })
+}
+
 async function onSaveClick() {
   const ok = await confirm({
     kind: props.isCreate ? 'submit' : 'save',
@@ -135,7 +166,10 @@ async function onSaveClick() {
       :can-create="false"
       :refreshing="pending"
       :more-items="moreItems"
+      :export-fields="exportFields"
+      :exporting="exporting"
       @refresh="emit('refresh')"
+      @export="emit('export', $event)"
     >
       <template v-if="showListNav || $slots.leading" #leading>
         <slot name="leading">
@@ -216,10 +250,17 @@ async function onSaveClick() {
           @click="metaRailOpen = false"
         />
 
-        <div class="relative min-h-0 min-w-0 flex-1 overflow-hidden">
+        <div class="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+          <DocumentAppDocumentTabBar
+            v-if="showForm && !notFound && !error"
+            :tabs="tabs"
+            :active-tab="activeTab"
+            @update:active-tab="selectTab"
+          />
+
           <div
             ref="scrollEl"
-            class="h-full min-h-0 min-w-0 overflow-auto"
+            class="min-h-0 min-w-0 flex-1 overflow-auto"
             @scroll.passive="onFormScroll"
           >
             <UAlert
@@ -256,7 +297,6 @@ async function onSaveClick() {
                     :set-field-value="setFieldValue"
                     :read-only="readOnly"
                     :wide="contentWide"
-                    @update:active-tab="emit('update:activeTab', $event)"
                   />
 
                   <DocumentAppDocumentContentShell
@@ -270,12 +310,15 @@ async function onSaveClick() {
                       :submitting="submittingComment"
                       :updating-comment-id="updatingCommentId"
                       :deleting-comment-id="deletingCommentId"
+                      :has-more="hasMoreFeed"
+                      :loading-more="loadingMoreFeed"
                       :can-comment="canComment"
                       :current-user="currentUser"
                       @update:comment-body="emit('update:commentBody', $event)"
                       @submit="emit('submitComment')"
                       @update-comment="emit('updateComment', $event.id, $event.body)"
                       @delete-comment="emit('deleteComment', $event)"
+                      @load-more="emit('loadMoreFeed')"
                     />
                   </DocumentAppDocumentContentShell>
 

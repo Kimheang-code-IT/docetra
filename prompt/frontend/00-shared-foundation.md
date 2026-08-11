@@ -64,7 +64,18 @@ All `UInput`, `USelect`, `UTextarea`, `UInputDate`, `UInputNumber`, and `UCheckb
 
 - Canonical: `/auth/login`, `/auth/forget-password`, `/auth/verify-code`, `/auth/reset-password`.
 - Legacy aliases `/login` and `/forget-password` redirect to the `/auth/*` routes.
-- `middleware/auth.global.ts` treats both sets as public.
+- `middleware/auth.global.ts` treats both sets as public. Every other page declares a permission key and the middleware rejects authenticated users that lack it.
+- Create pages use `.create`, list/detail pages use `.view`, and shared components separately gate edit/delete/comment/export/configure actions.
+- Frontend checks never replace API authorization.
+
+### Frontend security boundary
+
+- All authenticated API calls must remain on `runtimeConfig.public.apiBase` origin; never forward bearer headers to a component-provided cross-origin URL.
+- Use `utils/security/url.ts` for HTTP(S) external links, root-relative internal navigation, safe raster image sources, and same-origin API URL resolution.
+- Use `utils/security/files.ts` for shared image/file allow-lists and size/type validation. SVG is not accepted for inline preview or rich-text insertion.
+- Keep `SameSite=Strict`, root-path cookies and `Secure` cookies in production. Moving the auth token to HttpOnly requires backend session/refresh-cookie support and is the target production design.
+- Mock credentials and mock password-reset behavior are temporary release aids. The current release defaults to mock mode; disable it when the real API is ready.
+- Keep security response headers in `nuxt.config.ts`; introduce a CSP only after validating Nuxt inline assets, fonts, image origins, and editor behavior.
 
 ### Loading and performance
 
@@ -76,8 +87,9 @@ All `UInput`, `USelect`, `UTextarea`, `UInputDate`, `UInputNumber`, and `UCheckb
 ### Data adapters & mock mode
 
 - Entity CRUD: `adapters/createEntityAdapter.ts` + `config/entities.ts`.
-- Configuration / settings: `useConfigurationRepositories()` / `useSettingsRepositories()` — mock localStorage when `useMockData !== false`, else HTTP.
+- Configuration / settings: `useConfigurationRepositories()` / `useSettingsRepositories()` — mock localStorage in enabled mock mode, otherwise HTTP.
 - Auth: `adapters/auth.ts`. Search: `adapters/search.ts`.
+- Mock mode defaults on in the current release so the complete UI can be tested without a backend. Set `NUXT_PUBLIC_USE_MOCK_DATA=false` later to activate the existing HTTP repository path.
 
 ### Implement now
 
@@ -107,9 +119,10 @@ All list and board pages must use:
 - Cursor-paginated comments and activity.
 - Bounded Kanban columns with incremental loading and optimistic transition rollback.
 - Dedicated schema-driven `/new` and `/:id` document pages for create, detail, and edit.
-- ERP-style document layout built only with Nuxt UI: sticky header/actions, section tabs, responsive form grid, right metadata rail, comments, and activity.
+- ERPNext-style document layout built only with Nuxt UI: sticky header/actions, a fixed non-vertical-scrolling section-tab row, independently scrolling active-tab content, responsive form grid, right metadata rail, comments, and activity. This shared behavior applies to add, edit, and detail modes.
 - Per-row `⋯` action menus (`AppRowActionsMenu`) for Detail / Logs / Delete (permission-aware).
 - Config-driven board card fields via App Config display settings.
+- System-wide dynamic fields via the Attribute Catalog and versioned record-type schema in `00C-dynamic-record-fields.md`; this applies to meetings, meeting topics, documents, and future record-backed pages.
 
 Follow `/api/v2` REST conventions from the specifications. Keep uncertain endpoint names behind typed adapters rather than spreading invented URLs through page components.
 

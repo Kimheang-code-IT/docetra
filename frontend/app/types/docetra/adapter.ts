@@ -5,6 +5,7 @@ import type {
   EntityComment,
   EntityFavoriteState,
   EntityRecordNeighbors,
+  GroupCountSummary,
   ListQuery,
 } from '~/types/docetra/common'
 
@@ -17,6 +18,8 @@ export interface EntityAdapter<T> {
   deleteMany?: (ids: string[]) => Promise<ApiResponse<{ ids: string[] }>>
   transitionStage?: (id: string, stage: string) => Promise<ApiResponse<T>>
   listByStage?: (stage: string, query?: ListQuery) => Promise<ApiResponse<T[]>>
+  /** One aggregate request; avoids one count request per board column. */
+  getGroupCounts?: (field: string, query?: ListQuery) => Promise<ApiResponse<GroupCountSummary>>
   listComments?: (id: string, query?: ListQuery) => Promise<ApiResponse<EntityComment[]>>
   addComment?: (id: string, body: string, author?: EntityComment['author']) => Promise<ApiResponse<EntityComment>>
   updateComment?: (id: string, commentId: string, body: string) => Promise<ApiResponse<EntityComment>>
@@ -25,6 +28,6 @@ export interface EntityAdapter<T> {
   getFavorite?: (id: string, userId?: string) => Promise<ApiResponse<EntityFavoriteState>>
   setFavorite?: (id: string, isFavorite: boolean, userId?: string) => Promise<ApiResponse<EntityFavoriteState>>
   listActivity?: (id: string, query?: ListQuery) => Promise<ApiResponse<ActivityEvent[]>>
-  listAttachments?: (id: string) => Promise<ApiResponse<AttachmentMeta[]>>
+  listAttachments?: (id: string, query?: ListQuery) => Promise<ApiResponse<AttachmentMeta[]>>
   replaceAttachments?: (id: string, files: AttachmentMeta[]) => Promise<ApiResponse<AttachmentMeta[]>>
 }

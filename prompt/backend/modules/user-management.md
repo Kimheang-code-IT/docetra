@@ -20,6 +20,8 @@ User Management configures **who can sign in** and **what they can do**:
 
 Backend is **source of truth** for authorization; UI only hides actions.
 
+The current frontend middleware enforces page metadata and shared components gate action buttons. New routes use `.create`; list/detail routes use `.view`; save, delete, comments, exports, and configuration controls use their corresponding action suffix. Direct API calls must produce the same authorization result even when the UI is bypassed.
+
 ---
 
 ## 2. Domain entities
@@ -84,6 +86,48 @@ The UI edits **document-type × action** rows (`AppRolePermissionMatrix`). Backe
 
 Keep one canonical form in DB to avoid drift.
 
+The implemented frontend contract uses canonical actions: `view`, `create`, `edit`, `delete`, `assign`, `share`, `export`, `comment`, `transition`, and `configure`. Every matrix document type declares a permission namespace matching route metadata, for example `incoming_document` expands to `records.incoming_documents.*` and `role` expands to `users.roles.*`.
+
+The permission catalog covers every protected frontend area: Meetings, all Record workspaces and logs, Organization master data, Users/Roles, Record Type/Attribute configuration, uploads and Drive sync, Portal/System logs, App Config, App Info, and Storage. Each catalog item declares its allowed action subset; the API rejects actions that are not applicable to that item. Published dynamic Record Types are appended by `/permission-catalog` using stable type IDs/codes and must not require a frontend release.
+
+Permission dependency rules are deterministic:
+
+- Granting any action automatically grants `view`.
+- Removing `view` removes every dependent action in that row.
+- `onlyIfCreator` is valid only when at least one action is granted.
+- `level` is an integer from `0` through `9` and is scope metadata, not a permission string.
+- Unknown document types or actions are rejected by the API; the frontend drops legacy/unknown values while normalizing responses.
+- Legacy UI actions are migrated as follows: `select|read|report|mask → view`, `write → edit`, `email → comment`, and `import → create`.
+
+Create and update send both the structured source and an expanded, sorted capability list:
+
+```json
+{
+  "name": "Records Officer",
+  "code": "RECORDS_OFFICER",
+  "status": "active",
+  "permissionSchemaVersion": 1,
+  "permissionRows": [
+    {
+      "id": "perm_incoming_document",
+      "documentType": "incoming_document",
+      "actions": ["view", "create", "edit", "export"],
+      "onlyIfCreator": false,
+      "level": 0
+    }
+  ],
+  "permissions": [
+    "records.incoming_documents.create",
+    "records.incoming_documents.edit",
+    "records.incoming_documents.export",
+    "records.incoming_documents.view"
+  ],
+  "permissionCount": 4
+}
+```
+
+The backend must treat `permissionRows` as the canonical write model, recompute `permissions` and `permissionCount`, and reject a mismatch with `422 permission_payload_mismatch`. Never trust client-expanded keys without recomputation.
+
 ---
 
 ## 4. API surface (proposed)
@@ -94,14 +138,19 @@ Keep one canonical form in DB to avoid drift.
 | GET | `/api/v2/users/roles/{id}` | Role detail |
 | POST | `/api/v2/users/roles` | Create |
 | PATCH | `/api/v2/users/roles/{id}` | Update permissions |
+| GET | `/api/v2/users/permission-catalog` | Permission-filtered document/action catalog, including published dynamic Record Types |
 | DELETE | `/api/v2/users/roles/{id}` | Disable/delete |
 | GET | `/api/v2/users` | List users |
 | GET | `/api/v2/users/{id}` | User detail |
 | POST | `/api/v2/users` | Create (invite/set password flow TBD) |
 | PATCH | `/api/v2/users/{id}` | Update roles, status, officer link |
 | POST | `/api/v2/auth/login` | Issue token (see auth adapter) |
+| POST | `/api/v2/auth/refresh` | Rotate a short-lived access credential using the HttpOnly refresh/session cookie |
+| POST | `/api/v2/auth/logout` | Revoke session/refresh token and clear cookies |
 
 List endpoints: pagination, search on name/email/code, sort.
+
+Mutation responses return the normalized `permissionRows`, recomputed `permissions`, `permissionCount`, `permissionSchemaVersion`, and normal entity timestamps. Permission changes produce an immutable activity event containing added/removed capability codes but no sensitive record data. Return `409 role_version_conflict` when optimistic versioning detects a stale role update.
 
 ---
 
@@ -137,6 +186,9 @@ List endpoints: pagination, search on name/email/code, sort.
 | --- | --- |
 | Password storage | Strong hash (argon2/bcrypt); never log |
 | Rate limit | Login and forgot-password endpoints |
+| Browser session | Prefer Secure + HttpOnly + SameSite cookie; rotate refresh tokens and revoke on logout/disable |
+| CSRF | If cookie-authenticated mutations are used, require same-origin requests plus CSRF protection appropriate to the framework |
+| Token exposure | Never return refresh/session secrets in user JSON, logs, query strings, or localStorage |
 | Self-edit | Users may not grant themselves super-admin unless break-glass policy |
 | Last admin | Prevent delete/disable last role with `settings.*.edit` |
 | Audit | Security-sensitive changes → system log + activity |
@@ -147,8 +199,8 @@ List endpoints: pagination, search on name/email/code, sort.
 
 | Code | Use |
 | --- | --- |
-| `users.roles.view` / `.edit` | Role pages |
-| `users.users.view` / `.edit` | User pages |
+| `users.roles.view` / `.create` / `.edit` / `.delete` / `.configure` | Role pages and permission matrix |
+| `users.users.view` / `.create` / `.edit` / `.delete` / `.configure` | User pages |
 
 Exact strings match `entityConfigs.roles.permission` and `users.permission` in frontend.
 
@@ -174,6 +226,10 @@ Document pages use shared comments/activity when enabled on entity config.
 | --- | --- |
 | Duplicate role code | 409 |
 | Invalid permission key | 422 |
+| Action without required `view` after server normalization | Normalize or 422 according to API policy; response must be canonical |
+| Invalid creator scope or level outside 0–9 | 422 |
+| Client flat keys differ from server expansion | 422 `permission_payload_mismatch` |
+| Stale permission schema/version | 409 `role_version_conflict` |
 | User email duplicate | 409 |
 | Officer already linked to another user | 422 |
 | Delete role assigned to users | 409 with count |

@@ -1,4 +1,5 @@
-import type { RecordAttributeRepository, RecordTypeRepository } from '~/repositories/contracts/configuration'
+import type { ConfigurationDiscussionRepository, RecordAttributeRepository, RecordTypeRepository } from '~/repositories/contracts/configuration'
+import type { ActivityEvent, EntityComment } from '~/types/docetra/common'
 import type {
   CreateRecordAttributeInput,
   CreateRecordTypeInput,
@@ -9,13 +10,18 @@ import type {
   UpdateRecordTypeInput,
 } from '~/types/docetra/configuration'
 import { defaultRecordTypeFeatures, defaultRecordTypeNumbering } from '~/types/docetra/configuration'
-import { applyListQuery, mockLatency, nowIso } from '~/mocks/query'
+import { applyListQuery, createId, mockLatency, nowIso, ok } from '~/mocks/query'
+import { person, seedActivity, seedComments } from '~/mocks/seed'
 import { createClientId } from '~/utils/client-id'
 
 const ATTRIBUTE_KEY = 'docetra:mock:record-attributes:v2'
 const RECORD_TYPE_KEY = 'docetra:mock:record-types:v2'
 /** One-time: drop legacy v1 keys and empty pre-assignment v2 caches. */
 const CONFIG_MIGRATION_KEY = 'docetra:mock:config-migration:v2-assigned-attrs'
+const RECORD_BACKED_TYPES_MIGRATION_KEY = 'docetra:mock:config-migration:v3-record-backed-types'
+const RECORD_STAGE_ALIGNMENT_MIGRATION_KEY = 'docetra:mock:config-migration:v4-record-stage-alignment'
+const REMOVE_DEMO_FORM_FIELDS_MIGRATION_KEY = 'docetra:mock:config-migration:v5-remove-demo-form-fields'
+const REMOVED_DEFAULT_FIELD_CODES = new Set(['priority', 'due_date', 'notes', 'confidential'])
 
 const LEGACY_CONFIG_KEYS = [
   'docetra:mock:record-attributes:v1',
@@ -195,6 +201,30 @@ function defaultStages() {
   ]
 }
 
+function recordDocumentStages() {
+  const rows = [
+    ['created', 'Created', '#64748b'],
+    ['record_created', 'Record Created', '#0284c7'],
+    ['observation_note', 'Observation Note', '#d97706'],
+    ['waiting_related_document', 'Waiting Related Document', '#d97706'],
+    ['submitted_director', 'Submitted to Director', '#2563eb'],
+    ['submitted_ddg', 'Submitted to DDG', '#2563eb'],
+    ['submitted_dg', 'Submitted to DG', '#2563eb'],
+    ['further_measures', 'Further Measures', '#0284c7'],
+    ['reply', 'Reply', '#16a34a'],
+    ['finished_final', 'Finished / Final', '#16a34a'],
+  ] as const
+  return rows.map(([code, name, color], order) => ({
+    id: `stg_${code}`,
+    name,
+    code,
+    color,
+    isInitial: order === 0,
+    isFinal: order === rows.length - 1,
+    order,
+  }))
+}
+
 function seedRecordTypes(attrs: RecordAttribute[]): RecordType[] {
   const now = nowIso()
   const byId = Object.fromEntries(attrs.map(a => [a.id, a])) as Record<string, RecordAttribute>
@@ -215,28 +245,42 @@ function seedRecordTypes(attrs: RecordAttribute[]): RecordType[] {
       name: 'Incoming Document',
       code: 'incoming',
       prefix: 'IN',
-      attributeIds: ['ra_priority', 'ra_external_ref', 'ra_due_date', 'ra_notes', 'ra_confidential'],
+      attributeIds: ['ra_external_ref'],
     },
     {
       id: 'rt_outgoing',
       name: 'Outgoing Document',
       code: 'outgoing',
       prefix: 'OUT',
-      attributeIds: ['ra_priority', 'ra_external_ref', 'ra_due_date', 'ra_notes'],
+      attributeIds: ['ra_external_ref'],
     },
     {
       id: 'rt_document',
       name: 'Document',
       code: 'document',
       prefix: 'DOC',
-      attributeIds: ['ra_priority', 'ra_notes', 'ra_confidential', 'ra_amount'],
+      attributeIds: ['ra_amount'],
     },
     {
       id: 'rt_master_list',
       name: 'Master List Request',
       code: 'master_list',
       prefix: 'MLR',
-      attributeIds: ['ra_priority', 'ra_due_date', 'ra_external_ref', 'ra_notes', 'ra_amount'],
+      attributeIds: ['ra_external_ref', 'ra_amount'],
+    },
+    {
+      id: 'rt_meeting',
+      name: 'Meeting',
+      code: 'meeting',
+      prefix: 'MTG',
+      attributeIds: [],
+    },
+    {
+      id: 'rt_meeting_topic',
+      name: 'Meeting Topic',
+      code: 'meeting_topic',
+      prefix: 'TOP',
+      attributeIds: [],
     },
   ]
 
@@ -249,7 +293,9 @@ function seedRecordTypes(attrs: RecordAttribute[]): RecordType[] {
     features: defaultRecordTypeFeatures(),
     numbering: defaultRecordTypeNumbering(prefix),
     attributes: pick(...attributeIds),
-    stages: defaultStages(),
+    stages: ['incoming', 'outgoing', 'document', 'master_list'].includes(code)
+      ? recordDocumentStages()
+      : defaultStages(),
     transitions: [],
     attributeCount: attributeIds.length,
     workflowEnabled: true,
@@ -262,7 +308,52 @@ function seedRecordTypes(attrs: RecordAttribute[]): RecordType[] {
 clearLegacyConfigStorage()
 const seedAttrs = seedAttributes()
 let attributeRows = readRows(ATTRIBUTE_KEY, seedAttrs)
-let typeRows = readRows(RECORD_TYPE_KEY, seedRecordTypes(seedAttrs))
+const seededTypeRows = seedRecordTypes(seedAttrs)
+let typeRows = readRows(RECORD_TYPE_KEY, seededTypeRows)
+
+if (import.meta.client && !localStorage.getItem(RECORD_BACKED_TYPES_MIGRATION_KEY)) {
+  const existingCodes = new Set(typeRows.map(type => type.code))
+  typeRows = [
+    ...typeRows,
+    ...seededTypeRows.filter(type => !existingCodes.has(type.code)),
+  ]
+  writeRows(RECORD_TYPE_KEY, typeRows)
+  localStorage.setItem(RECORD_BACKED_TYPES_MIGRATION_KEY, '1')
+}
+
+if (import.meta.client && !localStorage.getItem(RECORD_STAGE_ALIGNMENT_MIGRATION_KEY)) {
+  const legacyDefaultCodes = defaultStages().map(stage => stage.code).join('|')
+  typeRows = typeRows.map((type) => {
+    const isDocumentType = ['incoming', 'outgoing', 'document', 'master_list'].includes(type.code)
+    const currentCodes = [...(type.stages || [])]
+      .sort((a, b) => a.order - b.order)
+      .map(stage => stage.code)
+      .join('|')
+    return isDocumentType && currentCodes === legacyDefaultCodes
+      ? { ...type, stages: recordDocumentStages() }
+      : type
+  })
+  writeRows(RECORD_TYPE_KEY, typeRows)
+  localStorage.setItem(RECORD_STAGE_ALIGNMENT_MIGRATION_KEY, '1')
+}
+
+// Remove obsolete demo assignments from existing mock Record Types without
+// deleting the Attribute Catalog entries. Users may assign them again later.
+if (import.meta.client && !localStorage.getItem(REMOVE_DEMO_FORM_FIELDS_MIGRATION_KEY)) {
+  typeRows = typeRows.map((type) => {
+    const attributes = (type.attributes || [])
+      .filter(attribute => !REMOVED_DEFAULT_FIELD_CODES.has(attribute.attributeCode))
+      .map((attribute, order) => ({ ...attribute, order }))
+    return {
+      ...type,
+      attributes,
+      attributeCount: attributes.length,
+      updatedAt: nowIso(),
+    }
+  })
+  writeRows(RECORD_TYPE_KEY, typeRows)
+  localStorage.setItem(REMOVE_DEMO_FORM_FIELDS_MIGRATION_KEY, '1')
+}
 
 function recalculateUsedByCounts() {
   const counts = new Map<string, number>()
@@ -281,14 +372,102 @@ function recalculateUsedByCounts() {
 // Ensure seeded counts are consistent on first load
 recalculateUsedByCounts()
 
-export function createMockRecordAttributeRepository(): RecordAttributeRepository {
+function createMockConfigurationDiscussion(entityType: string) {
+  const comments: Record<string, EntityComment[]> = {}
+  const activity: Record<string, ActivityEvent[]> = {}
+
+  function track(id: string, action: string, summary: string) {
+    const actor = person(0)
+    activity[id] = [{
+      id: createId('act'),
+      entityType,
+      entityId: id,
+      action,
+      actor,
+      summary,
+      occurredAt: nowIso(),
+    }, ...(activity[id] || [])]
+  }
+
+  const repository: ConfigurationDiscussionRepository = {
+    async listComments(id, query) {
+      await mockLatency(null)
+      comments[id] ||= seedComments(entityType, id)
+      return applyListQuery(
+        comments[id] as unknown as Record<string, unknown>[],
+        query,
+        ['body'],
+      ) as unknown as Awaited<ReturnType<ConfigurationDiscussionRepository['listComments']>>
+    },
+    async addComment(id, body, author) {
+      await mockLatency(null)
+      const comment: EntityComment = {
+        id: createId('cmt'),
+        entityType,
+        entityId: id,
+        body,
+        author: author || person(0),
+        createdAt: nowIso(),
+      }
+      comments[id] = [comment, ...(comments[id] || [])]
+      track(id, 'commented', `${comment.author.name} commented`)
+      return ok(structuredClone(comment))
+    },
+    async updateComment(id, commentId, body) {
+      await mockLatency(null)
+      comments[id] ||= seedComments(entityType, id)
+      const index = comments[id].findIndex(comment => comment.id === commentId)
+      if (index < 0) throw new Error('Comment not found')
+      const comment = { ...comments[id][index]!, body, editedAt: nowIso() }
+      comments[id][index] = comment
+      track(id, 'comment_updated', `${comment.author.name} edited a comment`)
+      return ok(structuredClone(comment))
+    },
+    async deleteComment(id, commentId) {
+      await mockLatency(null)
+      comments[id] ||= seedComments(entityType, id)
+      const index = comments[id].findIndex(comment => comment.id === commentId)
+      if (index < 0) throw new Error('Comment not found')
+      comments[id].splice(index, 1)
+      track(id, 'comment_deleted', `${person(0).name} deleted a comment`)
+      return ok({ id: commentId })
+    },
+    async listActivity(id, query) {
+      await mockLatency(null)
+      activity[id] ||= seedActivity(entityType, id)
+      return applyListQuery(
+        activity[id] as unknown as Record<string, unknown>[],
+        query,
+        ['summary', 'action'],
+      ) as unknown as Awaited<ReturnType<ConfigurationDiscussionRepository['listActivity']>>
+    },
+  }
+
   return {
+    repository,
+    track,
+    commentCount: (id: string) => comments[id]?.length || 0,
+    clear(id: string) {
+      delete comments[id]
+      delete activity[id]
+    },
+  }
+}
+
+export function createMockRecordAttributeRepository(): RecordAttributeRepository {
+  const discussion = createMockConfigurationDiscussion('record_attribute')
+  return {
+    ...discussion.repository,
     async list(query) {
       await mockLatency(null)
       const q = { ...(query || {}) } as Record<string, unknown>
       const unused = q.unused === true || q.unused === 'true'
       delete q.unused
-      let filtered = attributeRows as unknown as Record<string, unknown>[]
+      let filtered = attributeRows.map(row => ({
+        ...row,
+        updatedBy: row.updatedBy || person(0),
+        commentCount: discussion.commentCount(row.id),
+      })) as unknown as Record<string, unknown>[]
       if (unused) {
         filtered = filtered.filter(row => !Number(row.usedByCount || 0))
       }
@@ -298,7 +477,7 @@ export function createMockRecordAttributeRepository(): RecordAttributeRepository
       await mockLatency(null)
       const row = attributeRows.find(item => item.id === id)
       if (!row) throw new Error('Record attribute not found')
-      return structuredClone(row)
+      return structuredClone({ ...row, updatedBy: row.updatedBy || person(0) })
     },
     async create(input: CreateRecordAttributeInput) {
       const now = nowIso()
@@ -310,8 +489,11 @@ export function createMockRecordAttributeRepository(): RecordAttributeRepository
         status: input.status || 'active',
         createdAt: now,
         updatedAt: now,
+        createdBy: person(0),
+        updatedBy: person(0),
       } as RecordAttribute
       attributeRows.unshift(row)
+      discussion.track(row.id, 'created', `${person(0).name} created this attribute`)
       writeRows(ATTRIBUTE_KEY, attributeRows)
       return mockLatency(structuredClone(row))
     },
@@ -323,7 +505,18 @@ export function createMockRecordAttributeRepository(): RecordAttributeRepository
         ...input,
         name: input.label || attributeRows[index]!.name,
         updatedAt: nowIso(),
+        updatedBy: person(0),
       }
+      const nextStatus = input.status
+      discussion.track(
+        id,
+        nextStatus === 'active' ? 'activated' : nextStatus === 'disabled' ? 'deactivated' : 'updated',
+        nextStatus === 'active'
+          ? `${person(0).name} activated this attribute`
+          : nextStatus === 'disabled'
+            ? `${person(0).name} deactivated this attribute`
+            : `${person(0).name} updated this attribute`,
+      )
       writeRows(ATTRIBUTE_KEY, attributeRows)
       return mockLatency(structuredClone(attributeRows[index]!))
     },
@@ -334,6 +527,14 @@ export function createMockRecordAttributeRepository(): RecordAttributeRepository
     setActive(id, active) { return this.update(id, { status: active ? 'active' : 'disabled' }) },
     async remove(id) {
       attributeRows = attributeRows.filter(item => item.id !== id)
+      discussion.clear(id)
+      writeRows(ATTRIBUTE_KEY, attributeRows)
+      await mockLatency(null)
+    },
+    async removeMany(ids) {
+      const idSet = new Set(ids)
+      attributeRows = attributeRows.filter(item => !idSet.has(item.id))
+      ids.forEach(id => discussion.clear(id))
       writeRows(ATTRIBUTE_KEY, attributeRows)
       await mockLatency(null)
     },
@@ -341,16 +542,36 @@ export function createMockRecordAttributeRepository(): RecordAttributeRepository
 }
 
 export function createMockRecordTypeRepository(): RecordTypeRepository {
+  const discussion = createMockConfigurationDiscussion('record_type')
   return {
+    ...discussion.repository,
     async list(query) {
       await mockLatency(null)
-      return applyListQuery(typeRows as unknown as Record<string, unknown>[], query as any, ['name', 'code', 'description']) as unknown as Awaited<ReturnType<RecordTypeRepository['list']>>
+      const rows = typeRows.map(row => ({
+        ...row,
+        updatedBy: row.updatedBy || person(0),
+        commentCount: discussion.commentCount(row.id),
+      }))
+      return applyListQuery(rows as unknown as Record<string, unknown>[], query as any, ['name', 'code', 'description']) as unknown as Awaited<ReturnType<RecordTypeRepository['list']>>
     },
     async getById(id) {
       await mockLatency(null)
       const row = typeRows.find(item => item.id === id)
       if (!row) throw new Error('Record type not found')
-      return structuredClone(row)
+      return structuredClone({ ...row, updatedBy: row.updatedBy || person(0) })
+    },
+    async getResolvedSchema(lookup) {
+      await mockLatency(null)
+      const recordType = lookup.id
+        ? typeRows.find(item => item.id === lookup.id)
+        : typeRows.find(item => item.code === lookup.code)
+      if (!recordType) throw new Error('Record type not found')
+      const assignedIds = new Set((recordType.attributes || []).map(item => item.attributeId))
+      return structuredClone({
+        recordType: { ...recordType, updatedBy: recordType.updatedBy || person(0) },
+        attributes: attributeRows.filter(item => assignedIds.has(item.id) && item.status === 'active'),
+        version: recordType.updatedAt,
+      })
     },
     async create(input: CreateRecordTypeInput) {
       const now = nowIso()
@@ -368,8 +589,11 @@ export function createMockRecordTypeRepository(): RecordTypeRepository {
         workflowEnabled: input.features?.enableWorkflow ?? true,
         createdAt: now,
         updatedAt: now,
+        createdBy: person(0),
+        updatedBy: person(0),
       } as RecordType
       typeRows.unshift(row)
+      discussion.track(row.id, 'created', `${person(0).name} created this record type`)
       writeRows(RECORD_TYPE_KEY, typeRows)
       recalculateUsedByCounts()
       return mockLatency(structuredClone(row))
@@ -386,7 +610,18 @@ export function createMockRecordTypeRepository(): RecordTypeRepository {
         attributeCount: attributes.length,
         workflowEnabled: (input.features || previous.features).enableWorkflow,
         updatedAt: nowIso(),
+        updatedBy: person(0),
       }
+      const nextStatus = input.status
+      discussion.track(
+        id,
+        nextStatus === 'active' ? 'activated' : nextStatus === 'disabled' ? 'deactivated' : 'updated',
+        nextStatus === 'active'
+          ? `${person(0).name} activated this record type`
+          : nextStatus === 'disabled'
+            ? `${person(0).name} deactivated this record type`
+            : `${person(0).name} updated this record type`,
+      )
       writeRows(RECORD_TYPE_KEY, typeRows)
       recalculateUsedByCounts()
       return mockLatency(structuredClone(typeRows[index]!))
@@ -398,6 +633,15 @@ export function createMockRecordTypeRepository(): RecordTypeRepository {
     setActive(id, active) { return this.update(id, { status: active ? 'active' : 'disabled' }) },
     async remove(id) {
       typeRows = typeRows.filter(item => item.id !== id)
+      discussion.clear(id)
+      writeRows(RECORD_TYPE_KEY, typeRows)
+      recalculateUsedByCounts()
+      await mockLatency(null)
+    },
+    async removeMany(ids) {
+      const idSet = new Set(ids)
+      typeRows = typeRows.filter(item => !idSet.has(item.id))
+      ids.forEach(id => discussion.clear(id))
       writeRows(RECORD_TYPE_KEY, typeRows)
       recalculateUsedByCounts()
       await mockLatency(null)

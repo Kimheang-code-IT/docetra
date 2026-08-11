@@ -5,7 +5,7 @@ const config = getEntityConfig('departments')
 
 definePageMeta({
   titleKey: 'docetra.pages.department',
-  permission: 'organizations.departments.view',
+  permission: 'organizations.departments.create',
 })
 </script>
 

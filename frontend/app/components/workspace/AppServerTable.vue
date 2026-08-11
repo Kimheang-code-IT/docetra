@@ -6,7 +6,6 @@ import type { TableColumnDef } from '~/types/docetra/common'
 import type { RowActionItem } from '~/types/docetra/row-actions'
 import { DEFAULT_ROW_ACTIONS } from '~/types/docetra/row-actions'
 import {
-  isShowAllLimit,
   TABLE_PAGE_SIZES,
   paginationItemsPerPage,
   parsePageLimit,
@@ -68,16 +67,25 @@ const rowSelection = ref<RowSelectionState>({})
 
 const pageSizeItems = computed(() => [
   ...TABLE_PAGE_SIZES.map(size => ({ label: String(size), value: String(size) })),
-  { label: t('common.pageSizeAll'), value: 'all' },
 ])
 
-const pageSizeModel = computed(() =>
-  isShowAllLimit(props.limit) ? 'all' : String(props.limit),
-)
+const pageSizeModel = computed({
+  get: () => String(props.limit),
+  set: value => onLimitChange(value),
+})
 
 const effectiveItemsPerPage = computed(() =>
   paginationItemsPerPage(props.limit, props.total),
 )
+
+const visibleRange = computed(() => {
+  if (!props.total || !props.rows.length) return { start: 0, end: 0 }
+  const start = ((props.page - 1) * props.limit) + 1
+  return {
+    start,
+    end: Math.min(start + props.rows.length - 1, props.total),
+  }
+})
 
 const allVisibleSelected = computed(() => {
   if (!props.rows.length) return false
@@ -113,9 +121,11 @@ watch(() => [props.page, props.limit, props.rows], () => {
   rowSelection.value = {}
 })
 
-function onLimitChange(value: string) {
-  emit('update:limit', parsePageLimit(value, 10))
+function onLimitChange(value: unknown) {
+  const nextLimit = parsePageLimit(value, 10)
+  if (nextLimit === props.limit && props.page === 1) return
   emit('update:page', 1)
+  emit('update:limit', nextLimit)
 }
 
 function selectAllVisibleRows() {
@@ -432,15 +442,18 @@ defineExpose({
       <div class="flex shrink-0 items-center gap-1.5 text-sm text-toned sm:gap-2">
         <span class="hidden sm:inline">{{ $t('common.rowsPerPage') }}</span>
         <USelect
-          :model-value="pageSizeModel"
+          v-model="pageSizeModel"
           :items="pageSizeItems"
           value-key="value"
           size="sm"
           class="w-17 sm:w-22"
+          :content="{ side: 'top', align: 'start', sideOffset: 6 }"
           :aria-label="$t('common.rowsPerPage')"
           :ui="{ base: 'rounded-md bg-default ring-1 ring-default' }"
-          @update:model-value="onLimitChange"
         />
+        <span class="hidden whitespace-nowrap text-xs text-muted md:inline">
+          {{ $t('common.showingRows', { start: visibleRange.start, end: visibleRange.end, total }) }}
+        </span>
       </div>
 
       <UPagination

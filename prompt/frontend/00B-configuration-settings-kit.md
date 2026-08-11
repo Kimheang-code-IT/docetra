@@ -46,6 +46,12 @@ Use `useConfigurationRepositories()` and `useSettingsRepositories()` from `app/r
 | `AppDateRangeFilter` / `AppInputDate` | Date / range filters |
 | `AppRolePermissionMatrix` | Role × document-type permissions |
 
+Shared orchestration helpers:
+
+- `usePathModel` provides nested schema field get/set behavior for Settings and other schema-driven documents.
+- `useAppPageTitle` owns the repeated shell-title, locale reaction, cleanup, and SEO lifecycle.
+- `utils/role/access.ts` derives action capabilities from an entity's canonical `.view` namespace.
+
 Do **not** recreate removed stubs: `AppFormSection`, `AppStatusBadge`, `AppUnsavedChangesDialog`, `AppSettingCard`, `AppSettingsPlaceholder`.
 
 ### Configuration builders (`app/components/configuration/`)
@@ -56,12 +62,15 @@ Do **not** recreate removed stubs: `AppFormSection`, `AppStatusBadge`, `AppUnsav
 | `AppValidationRuleBuilder` | Type-aware validation controls |
 | `AppVisibilityRuleBuilder` | Field / operator / value rule |
 | `AppWorkflowStageBuilder` | Stages + transitions list |
-| `AppNumberingPreview` | e.g. `DOC-2026-000001` |
 | `AppConfigEntityList` | Shared config index shell |
 | `AppRecordTypeList` / `AppRecordAttributeList` | Config indexes |
 | `AppRecordTypeEditor` / `AppRecordAttributeEditor` | Config editors via `AppDocumentPage` |
 
 Field rendering uses `AppDynamicFieldRenderer` (no separate Field/Form Preview panels). Record document pages also consume record-type attributes via `useRecordTypeDrivenTabs`.
+
+`prompt/frontend/00C-dynamic-record-fields.md` is the authoritative extension for dynamic fields. Treat `/configuration/record-attributes` as the global **Attribute Catalog**, and extend `AppRecordTypeEditor` with versioned Fields & layout composition. The current four-entity `useRecordTypeDrivenTabs` behavior is transitional; all record-backed entities, including Meeting and Meeting Topic, must consume the same resolved published schema.
+
+Each Record Type table row includes **Assign fields**, which deep-links to its assignment editor. Assigned-field rows and workflow-stage rows are drag-sortable; each field row may optionally reference a configured stage. Incoming, Outgoing, Document, and Master List Request boards resolve this saved stage list and order at runtime.
 
 ### Settings pages
 
@@ -72,6 +81,8 @@ Compose with `AppDocumentPage` + schemas in `settings-schemas.ts`. No dedicated 
 | `/settings/app-info` | Branding / product info |
 | `/settings/app-config` | General, email, telegram, system, **display (card fields)** |
 | `/settings/storage` | Storage backends via `storageSettingsTabs` |
+
+Settings routes require `.view`; editing requires `.edit`; reset, connection tests, activation, and set-default controls require `.configure`. Apply `readOnly` and `canSave` through `AppDocumentPage` instead of duplicating disabled-state logic in every page.
 
 ### Settings display / card fields (`app/components/settings/`)
 
@@ -97,6 +108,10 @@ Sidebar group label must be **Settings** (`docetra.navigation.settings`), routes
 5. Keep pages thin; put orchestration in composables.
 6. Preserve unrelated modules.
 7. After saving App Config display settings, invalidate card-fields cache so boards update.
+8. After publishing a record type or attribute change, invalidate the resolved record-schema cache.
+9. Do not hard-delete published/used attributes or silently mutate stable attribute/option codes.
+10. Use the shared safe raster image rules for branding uploads; do not allow SVG/active content in inline previews.
+11. Frontend permission visibility is advisory. The Settings and Configuration APIs must enforce the same action key.
 
 ### Acceptance
 

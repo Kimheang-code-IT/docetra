@@ -5,7 +5,7 @@ const config = getEntityConfig('companyPurposes')
 
 definePageMeta({
   titleKey: 'docetra.pages.companyPurpose',
-  permission: 'organizations.company_purposes.view',
+  permission: 'organizations.company_purposes.create',
 })
 </script>
 

@@ -22,10 +22,5 @@ export const localStore = {
   remove: (key: string): void => {
     if (typeof window === 'undefined') return
     localStorage.removeItem(key)
-  },
-
-  clear: (): void => {
-    if (typeof window === 'undefined') return
-    localStorage.clear()
   }
 }

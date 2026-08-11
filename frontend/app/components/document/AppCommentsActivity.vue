@@ -13,6 +13,8 @@ const props = withDefaults(defineProps<{
   showNewEmail?: boolean
   updatingCommentId?: string | null
   deletingCommentId?: string | null
+  hasMore?: boolean
+  loadingMore?: boolean
 }>(), {
   canComment: true,
   showComposer: true,
@@ -20,6 +22,8 @@ const props = withDefaults(defineProps<{
   submitting: false,
   updatingCommentId: null,
   deletingCommentId: null,
+  hasMore: false,
+  loadingMore: false,
 })
 
 const emit = defineEmits<{
@@ -27,6 +31,7 @@ const emit = defineEmits<{
   submit: []
   updateComment: [payload: { id: string, body: string }]
   deleteComment: [id: string]
+  loadMore: []
 }>()
 
 const { t } = useI18n()
@@ -373,6 +378,18 @@ function commentActions(comment: EntityComment) {
       </UTimeline>
 
       <p v-else class="text-sm text-muted">{{ $t('docetra.activity.empty') }}</p>
+
+      <div v-if="hasMore" class="flex justify-center pt-2">
+        <UButton
+          color="neutral"
+          variant="soft"
+          icon="i-lucide-chevrons-down"
+          :loading="loadingMore"
+          @click="emit('loadMore')"
+        >
+          {{ $t('docetra.actions.loadMore') }}
+        </UButton>
+      </div>
     </section>
   </div>
 </template>

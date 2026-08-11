@@ -3,12 +3,12 @@ import type { StorageProvider, StorageProviderType } from '~/types/docetra/setti
 import type { ConnectionStatusFieldValue } from '~/types/docetra/common'
 import { storageSettingsTabs } from '~/config/settings-schemas'
 import { useSettingsRepositories } from '~/repositories'
-import { useAppHeader } from '~/composables/layout/useAppHeader'
-import { usePageSeo } from '~/composables/usePageSeo'
-import { getByPath, setByPath } from '~/utils/object-path'
+import { usePathModel } from '~/composables/common/usePathModel'
+import { useAppPageTitle } from '~/composables/layout/useAppPageTitle'
 
 definePageMeta({
   titleKey: 'docetra.pages.storage',
+  permission: 'settings.storage.view',
 })
 
 const STORAGE_TAB_TYPES = storageSettingsTabs.map(tab => tab.id) as StorageProviderType[]
@@ -16,13 +16,16 @@ const STORAGE_TAB_TYPES = storageSettingsTabs.map(tab => tab.id) as StorageProvi
 const { storage } = useSettingsRepositories()
 const { t } = useI18n()
 const toast = useToast()
-const { setTitle, clear } = useAppHeader()
+const auth = useAuthStore()
+const canEdit = computed(() => auth.canAccessPage('settings.storage.edit'))
+const canConfigure = computed(() => auth.canAccessPage('settings.storage.configure'))
 
 const pending = ref(true)
 const saving = ref(false)
 const testing = ref(false)
 const providers = ref<StorageProvider[]>([])
 const draft = ref<StorageProvider | null>(null)
+const pathModel = usePathModel(draft)
 const activeTab = ref<string>(STORAGE_TAB_TYPES[0] || 'amazon_s3')
 
 const tabs = storageSettingsTabs
@@ -86,13 +89,13 @@ function fieldValue(key: string): unknown {
     return value
   }
 
-  return getByPath(draft.value, key)
+  return pathModel.fieldValue(key)
 }
 
 function setFieldValue(key: string, value: unknown) {
   if (!draft.value) return
   if (key === '__storageConnection' || key === 'type') return
-  setByPath(draft.value as any, key, value)
+  pathModel.setFieldValue(key, value)
 }
 
 async function save() {
@@ -141,15 +144,8 @@ async function testConnection() {
   }
 }
 
-onMounted(() => {
-  setTitle(t('docetra.pages.storage'))
-  void load()
-})
-onBeforeUnmount(clear)
-
-usePageSeo({
-  title: () => t('docetra.pages.storage'),
-})
+onMounted(() => void load())
+useAppPageTitle(() => t('docetra.pages.storage'))
 </script>
 
 <template>
@@ -160,7 +156,8 @@ usePageSeo({
     :set-field-value="setFieldValue"
     :pending="pending"
     :saving="saving"
-    :can-save="Boolean(draft)"
+    :read-only="!canEdit"
+    :can-save="Boolean(draft) && canEdit"
     :error="!pending && !draft ? t('docetra.common.loadFailed') : null"
     :show-comments="false"
     :show-meta-rail="false"
@@ -171,12 +168,12 @@ usePageSeo({
   >
     <template #actions>
       <CommonAppConnectionTestButton
-        v-if="draft"
+        v-if="draft && canConfigure"
         :loading="testing"
         @click="testConnection"
       />
       <UButton
-        v-if="draft && !draft.isDefault"
+        v-if="draft && !draft.isDefault && canConfigure"
         color="neutral"
         variant="soft"
         icon="i-lucide-star"

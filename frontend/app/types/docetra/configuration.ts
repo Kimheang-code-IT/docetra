@@ -107,6 +107,8 @@ export interface RecordTypeAttribute {
   searchable: boolean
   filterable: boolean
   showInList: boolean
+  /** Optional workflow stage where this field becomes applicable. Empty means all stages. */
+  stageCode?: string
   section?: string
   columnWidth?: number
   order: number
@@ -160,6 +162,13 @@ export interface RecordType extends BaseEntity {
   transitions: WorkflowTransition[]
   attributeCount: number
   workflowEnabled: boolean
+}
+
+/** Permission-filtered, versionable schema used to render one record type. */
+export interface ResolvedRecordTypeSchema {
+  recordType: RecordType
+  attributes: RecordAttribute[]
+  version: string
 }
 
 export type CreateRecordTypeInput = Omit<

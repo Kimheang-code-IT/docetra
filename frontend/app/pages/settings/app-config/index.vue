@@ -4,25 +4,26 @@ import type { ConnectionStatusFieldValue } from '~/types/docetra/common'
 import { appConfigTabs } from '~/config/settings-schemas'
 import { useSettingsRepositories } from '~/repositories'
 import { useConfirm } from '~/composables/common/useConfirm'
-import { useAppHeader } from '~/composables/layout/useAppHeader'
-import { usePageSeo } from '~/composables/usePageSeo'
+import { useAppPageTitle } from '~/composables/layout/useAppPageTitle'
 import { getByPath, setByPath } from '~/utils/object-path'
 
 definePageMeta({
   titleKey: 'docetra.pages.appConfig',
+  permission: 'settings.app_config.view',
 })
 
 const { appConfig } = useSettingsRepositories()
 const { t } = useI18n()
 const toast = useToast()
 const { confirm } = useConfirm()
-const { setTitle, clear } = useAppHeader()
+const auth = useAuthStore()
+const canEdit = computed(() => auth.canAccessPage('settings.app_config.edit'))
+const canConfigure = computed(() => auth.canAccessPage('settings.app_config.configure'))
 
 const pending = ref(true)
 const saving = ref(false)
 const testingEmail = ref(false)
 const testingTelegram = ref(false)
-const dirty = ref(false)
 const activeTab = ref('general')
 const model = ref<AppConfig | null>(null)
 
@@ -30,7 +31,6 @@ async function load() {
   pending.value = true
   try {
     model.value = await appConfig.get()
-    dirty.value = false
   }
   catch (e: any) {
     toast.add({ title: e?.message || t('docetra.common.loadFailed'), color: 'error' })
@@ -39,8 +39,6 @@ async function load() {
     pending.value = false
   }
 }
-
-watch(model, () => { if (model.value) dirty.value = true }, { deep: true })
 
 function fieldValue(key: string): unknown {
   if (!model.value) return undefined
@@ -115,7 +113,6 @@ async function save() {
     const { invalidateCardFieldsCache } = await import('~/composables/settings/useCardFields')
     invalidateCardFieldsCache()
     toast.add({ title: t('docetra.common.saved'), color: 'success' })
-    dirty.value = false
   }
   catch (e: any) {
     toast.add({ title: e?.message || t('docetra.common.saveFailed'), color: 'error' })
@@ -157,15 +154,8 @@ async function testTelegram() {
   }
 }
 
-onMounted(() => {
-  setTitle(t('docetra.pages.appConfig'))
-  void load()
-})
-onBeforeUnmount(clear)
-
-usePageSeo({
-  title: () => t('docetra.pages.appConfig'),
-})
+onMounted(() => void load())
+useAppPageTitle(() => t('docetra.pages.appConfig'))
 </script>
 
 <template>
@@ -176,6 +166,8 @@ usePageSeo({
     :set-field-value="setFieldValue"
     :pending="pending || !model"
     :saving="saving"
+    :read-only="!canEdit"
+    :can-save="canEdit"
     :show-comments="false"
     :show-meta-rail="false"
     :show-list-nav="false"
@@ -184,12 +176,12 @@ usePageSeo({
   >
     <template #actions>
       <CommonAppConnectionTestButton
-        v-if="activeTab === 'email'"
+        v-if="activeTab === 'email' && canConfigure"
         :loading="testingEmail"
         @click="testEmail"
       />
       <CommonAppConnectionTestButton
-        v-if="activeTab === 'telegram'"
+        v-if="activeTab === 'telegram' && canConfigure"
         :loading="testingTelegram"
         @click="testTelegram"
       />

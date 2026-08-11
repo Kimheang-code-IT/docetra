@@ -5,6 +5,8 @@ import { getEntityAdapter } from '~/config/entities'
 import { useConfirm } from '~/composables/common/useConfirm'
 import { useRecordStageBoard } from '~/composables/record/useRecordStageBoard'
 import type { CardDisplayEntityKey } from '~/types/docetra/settings'
+import { consumeListStale } from '~/utils/workspace-list-stale'
+import { permissionForAction } from '~/utils/role/access'
 
 const props = defineProps<{
   config: EntityConfig
@@ -16,10 +18,17 @@ const props = defineProps<{
 const toast = useToast()
 const { t } = useI18n()
 const { confirm } = useConfirm()
+const auth = useAuthStore()
 const adapter = getEntityAdapter(props.config.key)
 const cardEntityKey = computed(() => props.config.key as CardDisplayEntityKey)
 const mobileStagesOpen = ref(false)
 const isSmallScreen = useMediaQuery('(max-width: 1023px)')
+
+const canCreate = computed(() => props.config.canCreate !== false
+  && !props.config.readOnly
+  && auth.canAccessPage(
+    props.config.createPermission || permissionForAction(props.config.permission, 'create'),
+  ))
 
 const {
   filteredStages,
@@ -34,10 +43,13 @@ const {
   stageCounts,
   allCount,
   pending,
+  loadingMore,
+  hasMore,
   error,
   draggingId,
   dropStageCode,
   refresh,
+  loadMore,
   selectStage,
   toggleLeftPanel,
   openCreate,
@@ -47,6 +59,8 @@ const {
   statusLabel,
   stageLabel,
   stages,
+  stageConfigurationError,
+  reloadStageConfiguration,
 } = useRecordStageBoard(props.config, {
   dateField: props.dateField,
   subtitleField: props.subtitleField,
@@ -63,7 +77,13 @@ function selectStageFromPanel(code: string | null) {
 }
 
 onMounted(() => {
-  refresh()
+  // Always reload when entering the board (including return from /new).
+  consumeListStale(props.config.key)
+  void refresh()
+})
+
+onActivated(() => {
+  if (consumeListStale(props.config.key)) void refresh()
 })
 
 async function onDropRecord(stageCode: string, id: string) {
@@ -72,7 +92,7 @@ async function onDropRecord(stageCode: string, id: string) {
   try {
     await moveToStage(id, stageCode)
     toast.add({
-      title: t('docetra.recordStageBoard.moved', { stage: t(stages.value.find(s => s.code === stageCode)?.labelKey || stageCode) }),
+      title: t('docetra.recordStageBoard.moved', { stage: stageLabel(stageCode) }),
       color: 'success',
     })
   }
@@ -88,7 +108,7 @@ async function onMoveStage(id: string, stageCode: string) {
   try {
     await moveToStage(id, stageCode)
     toast.add({
-      title: t('docetra.recordStageBoard.moved', { stage: t(stages.value.find(s => s.code === stageCode)?.labelKey || stageCode) }),
+      title: t('docetra.recordStageBoard.moved', { stage: stageLabel(stageCode) }),
       color: 'success',
     })
   }
@@ -102,9 +122,13 @@ async function onMoveStage(id: string, stageCode: string) {
 
 function onLogs(row: Record<string, unknown>) {
   const id = String(row.id || '')
+  const recordTypeCode = props.config.recordTypeCode
   navigateTo({
     path: '/records/record-logs',
-    query: id ? { q: id } : undefined,
+    query: {
+      tab: recordTypeCode || undefined,
+      entityId: id || undefined,
+    },
   })
 }
 
@@ -130,7 +154,8 @@ async function onDelete(row: Record<string, unknown>) {
     :title-key="config.titleKey"
     :description-key="config.descriptionKey"
     :icon="config.icon"
-    :can-create="config.canCreate !== false && !config.readOnly"
+    :can-create="canCreate"
+    :refreshing="pending"
     @create="openCreate"
     @refresh="refresh"
   >
@@ -148,6 +173,15 @@ async function onDelete(row: Record<string, unknown>) {
         color="error"
         :title="error"
         :actions="[{ label: $t('docetra.actions.retry'), onClick: refresh }]"
+      />
+
+      <UAlert
+        v-if="stageConfigurationError"
+        class="m-3 mb-0"
+        color="warning"
+        :title="$t('docetra.recordStageBoard.usingFallbackStages')"
+        :description="stageConfigurationError"
+        :actions="[{ label: $t('docetra.actions.retry'), onClick: reloadStageConfiguration }]"
       />
 
       <div class="relative flex min-h-0 flex-1 flex-row overflow-hidden">
@@ -293,7 +327,7 @@ async function onDelete(row: Record<string, unknown>) {
               />
               <h2 class="hidden min-w-0 max-w-40 truncate text-sm font-semibold text-highlighted sm:block">
                 {{ selectedStageMeta
-                  ? $t(selectedStageMeta.labelKey)
+                  ? stageLabel(selectedStageMeta.code)
                   : $t('docetra.recordStageBoard.allRecords') }}
               </h2>
             </div>
@@ -333,6 +367,18 @@ async function onDelete(row: Record<string, unknown>) {
                 @logs="onLogs(row)"
                 @delete="onDelete(row)"
               />
+            </div>
+
+            <div v-if="hasMore" class="flex justify-center py-4">
+              <UButton
+                :loading="loadingMore"
+                color="neutral"
+                variant="soft"
+                icon="i-lucide-chevrons-down"
+                @click="loadMore"
+              >
+                {{ $t('docetra.actions.loadMore') }}
+              </UButton>
             </div>
 
             <div

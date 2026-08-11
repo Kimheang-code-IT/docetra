@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import type { FilterDef } from '~/types/docetra/common'
+import type { EntityView, FilterDef } from '~/types/docetra/common'
 
 const props = defineProps<{
   search: string
   filters: FilterDef[]
   filterValues: Record<string, string>
   view: string
-  views: Array<'table' | 'kanban' | 'hierarchy'>
+  views: EntityView[]
   sort: string
 }>()
 
@@ -25,6 +25,12 @@ const searchModel = computed({
 })
 
 const sortItems = computed(() => [
+  ...(props.views.includes('timeline')
+    ? [
+        { label: t('docetra.sort.meetingDesc'), value: '-meetingDate' },
+        { label: t('docetra.sort.meetingAsc'), value: 'meetingDate' },
+      ]
+    : []),
   { label: t('docetra.sort.updatedDesc'), value: '-updatedAt' },
   { label: t('docetra.sort.updatedAsc'), value: 'updatedAt' },
   { label: t('docetra.sort.nameAsc'), value: 'name' },
@@ -54,7 +60,13 @@ const viewItems = computed(() =>
   props.views.map(v => ({
     label: t(`docetra.views.${v}`),
     value: v,
-    icon: v === 'kanban' ? 'i-lucide-columns-3' : v === 'hierarchy' ? 'i-lucide-git-branch' : 'i-lucide-table',
+    icon: v === 'kanban'
+      ? 'i-lucide-columns-3'
+      : v === 'hierarchy'
+        ? 'i-lucide-git-branch'
+        : v === 'timeline'
+          ? 'i-lucide-list-tree'
+          : 'i-lucide-table',
   })),
 )
 

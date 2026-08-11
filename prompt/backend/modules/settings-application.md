@@ -112,6 +112,8 @@ Upload modules resolve default provider id on each upload
 | Secrets | Write-only fields; GET returns `***` or omit |
 | Permissions | Separate view vs edit for settings |
 | Test endpoints | Rate limited; no arbitrary recipient without permission |
+| Configure actions | Reset, connection tests, set-default, and provider activation require `.configure` |
+| Images | Detect and allow safe raster content; do not trust file extension or browser MIME; reject active SVG for inline branding previews |
 | Read-only mode | System tab flag blocks mutating APIs globally (503 or 403) |
 
 ---
@@ -120,9 +122,9 @@ Upload modules resolve default provider id on each upload
 
 | Code | Use |
 | --- | --- |
-| `settings.app_info.view` / `.edit` | App info |
-| `settings.app_config.view` / `.edit` | App config |
-| `settings.storage.view` / `.edit` | Storage |
+| `settings.app_info.view` / `.edit` / `.configure` | Read/update/reset app info |
+| `settings.app_config.view` / `.edit` / `.configure` | Read/update/test app config connections |
+| `settings.storage.view` / `.edit` / `.configure` | Read/update/test/default storage providers |
 
 ---
 

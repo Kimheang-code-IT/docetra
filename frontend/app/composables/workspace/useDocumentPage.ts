@@ -1,12 +1,17 @@
 import type { EntityConfig } from '~/config/entities'
 import { getEntityAdapter } from '~/config/entities'
 import { useConfirm } from '~/composables/common/useConfirm'
-import type { ActivityEvent, AttachmentMeta, EntityComment } from '~/types/docetra/common'
+import type { ActivityEvent, AttachmentMeta, DocumentTabSchema, EntityComment } from '~/types/docetra/common'
 import type { AppRolePermissionRow } from '~/types/docetra/entities'
-import { permissionRowsToFlatKeys } from '~/utils/role/permissions'
+import { normalizePermissionRows, permissionRowsToFlatKeys } from '~/utils/role/permissions'
 import { getByPath, setByPath } from '~/utils/object-path'
 import { loadReferenceOptions } from '~/adapters/reference-options'
 import { ApiEndpoints } from '~/utils/constants/api-endpoints'
+import {
+  markListStale,
+  resolveCreateReturnTo,
+  returnsToListAfterCreate,
+} from '~/utils/workspace-list-stale'
 
 export function useDocumentPage(config: EntityConfig, idParam?: string) {
   const route = useRoute()
@@ -20,7 +25,8 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
   const isCreate = computed(() => !id.value || id.value === 'new' || route.path.endsWith('/new'))
 
   const model = ref<Record<string, unknown>>({})
-  const initialSnapshot = ref('')
+  const dirty = ref(false)
+  const trackingChanges = ref(false)
   const pending = ref(false)
   const saving = ref(false)
   const error = ref<string | null>(null)
@@ -29,6 +35,10 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
   const comments = ref<EntityComment[]>([])
   const activity = ref<ActivityEvent[]>([])
   const attachments = ref<AttachmentMeta[]>([])
+  const feedPage = ref(1)
+  const commentsTotal = ref(0)
+  const activityTotal = ref(0)
+  const loadingMoreFeed = ref(false)
   const commentBody = ref('')
   const submittingComment = ref(false)
   const updatingCommentId = ref<string | null>(null)
@@ -45,7 +55,9 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
   let loadRequestToken = 0
   let approvedRecordNavigation = false
 
-  const dirty = computed(() => JSON.stringify(model.value) !== initialSnapshot.value)
+  const hasMoreFeed = computed(() =>
+    comments.value.length < commentsTotal.value || activity.value.length < activityTotal.value,
+  )
 
   const title = computed(() => {
     if (isCreate.value) {
@@ -64,6 +76,7 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
     const next = { ...model.value }
     setByPath(next, key, value)
     model.value = next
+    if (trackingChanges.value) dirty.value = true
   }
 
   async function loadRecordNeighbors() {
@@ -138,7 +151,10 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
   async function load() {
     const token = ++loadRequestToken
     const requestedId = id.value
-    pending.value = true
+    // A create page only initializes a local draft; it does not load a record.
+    // Keep its form interactive while optional Record Type fields resolve.
+    pending.value = !isCreate.value
+    trackingChanges.value = false
     error.value = null
     notFound.value = false
     try {
@@ -149,33 +165,58 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
           documents: 'document',
           masterListRequests: 'master_list_request',
         }
+        const recordTypeNames: Partial<Record<EntityConfig['key'], string>> = {
+          incomingDocuments: 'Incoming Document',
+          outgoingDocuments: 'Outgoing Document',
+          documents: 'Document',
+          masterListRequests: 'Master List Request',
+        }
         const recordKind = recordKinds[config.key]
+        const now = new Date().toISOString()
         model.value = {
           status: 'draft',
           stage: config.stages?.[0]?.code || undefined,
           details: {},
+          tags: [],
           ...(['departments', 'companies', 'companyPurposes', 'companySectors', 'officers'].includes(config.key) ? { status: 'active', isActive: true } : {}),
-          ...(recordKind ? { recordKind } : {}),
-          ...(recordKind && recordKind !== 'master_list_request'
-            && config.key !== 'incomingDocuments'
-            && config.key !== 'outgoingDocuments'
-            && config.key !== 'documents'
-            ? { recordFlowCode: 'normal' }
+          ...(recordKind
+            ? {
+                recordKind,
+                recordTypeName: recordTypeNames[config.key],
+                recordTime: now.slice(0, 10),
+                attachmentCount: 0,
+                commentCount: 0,
+              }
             : {}),
-          ...(['incomingDocuments', 'outgoingDocuments', 'documents'].includes(config.key)
-            ? { involvedOfficers: [], externalUnits: [] }
+          ...(config.key === 'incomingDocuments' ? { receivedDate: now.slice(0, 10), involvedOfficers: [], externalUnits: [] } : {}),
+          ...(config.key === 'outgoingDocuments' ? { sentDate: now.slice(0, 10), involvedOfficers: [], externalUnits: [] } : {}),
+          ...(config.key === 'documents' ? { documentDate: now.slice(0, 10), involvedOfficers: [], externalUnits: [] } : {}),
+          ...(config.key === 'masterListRequests' ? { letterDate: now.slice(0, 10) } : {}),
+          ...(config.key === 'meetingTopics'
+            ? {
+                childMeetingCount: 0,
+                childMeetings: [],
+                recordTime: now,
+                attachmentCount: 0,
+                commentCount: 0,
+              }
             : {}),
           ...(config.key === 'roles' ? { permissionRows: [] as AppRolePermissionRow[] } : {}),
           ...(config.key === 'meetingHistory'
             ? {
                 meetingMode: 'in_person',
+                participants: [],
+                internalUnits: [],
+                externalUnits: [],
+                attendeesCount: 0,
+                attachmentCount: 0,
                 ...(typeof route.query.topicId === 'string' && route.query.topicId
                   ? { topicId: route.query.topicId }
                   : {}),
               }
             : {}),
         }
-        initialSnapshot.value = JSON.stringify(model.value)
+        dirty.value = false
         comments.value = []
         activity.value = []
         attachments.value = []
@@ -198,16 +239,29 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
       if (config.key === 'officers' && typeof model.value.authenticationEnabled !== 'boolean') {
         model.value.authenticationEnabled = Boolean(model.value.userId)
       }
-      initialSnapshot.value = JSON.stringify(model.value)
-      const [c, a, f] = await Promise.all([
+      if (config.key === 'roles') {
+        model.value.permissionRows = normalizePermissionRows(
+          Array.isArray(model.value.permissionRows)
+            ? model.value.permissionRows as AppRolePermissionRow[]
+            : [],
+        )
+      }
+      dirty.value = false
+      const related = await Promise.allSettled([
         adapter.listComments?.(requestedId, { page: 1, limit: 20 }),
         adapter.listActivity?.(requestedId, { page: 1, limit: 20 }),
-        adapter.listAttachments?.(requestedId),
+        adapter.listAttachments?.(requestedId, { page: 1, limit: 50 }),
       ])
       if (token !== loadRequestToken || requestedId !== id.value) return
+      const c = related[0].status === 'fulfilled' ? related[0].value : undefined
+      const a = related[1].status === 'fulfilled' ? related[1].value : undefined
+      const f = related[2].status === 'fulfilled' ? related[2].value : undefined
       comments.value = (c?.data || []) as EntityComment[]
       activity.value = (a?.data || []) as ActivityEvent[]
       attachments.value = (f?.data || []) as AttachmentMeta[]
+      commentsTotal.value = c?.meta?.total || comments.value.length
+      activityTotal.value = a?.meta?.total || activity.value.length
+      feedPage.value = 1
       void loadRecordNeighbors()
       void loadFavorite()
     }
@@ -217,7 +271,10 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
       error.value = e?.message || 'Failed to load document'
     }
     finally {
-      if (token === loadRequestToken) pending.value = false
+      if (token === loadRequestToken) {
+        pending.value = false
+        trackingChanges.value = true
+      }
     }
   }
 
@@ -236,12 +293,28 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
       payload.tags = tags
       payload.recordTag = tags.join(', ')
     }
+    if (config.key === 'meetingTopics') {
+      if (typeof payload.childMeetingCount !== 'number') payload.childMeetingCount = 0
+      if (!Array.isArray(payload.childMeetings)) payload.childMeetings = []
+    }
     if (isRecordDocument) {
       for (const key of ['involvedOfficers', 'externalUnits']) {
         payload[key] = Array.isArray(payload[key])
           ? payload[key].map(String).map(value => value.trim()).filter(Boolean)
           : []
       }
+      const recordTime = payload.recordTime ? String(payload.recordTime).slice(0, 10) : undefined
+      if (config.key === 'incomingDocuments' && !payload.receivedDate && recordTime) {
+        payload.receivedDate = recordTime
+      }
+      if (config.key === 'outgoingDocuments' && !payload.sentDate && recordTime) {
+        payload.sentDate = recordTime
+      }
+      if (config.key === 'documents' && !payload.documentDate && recordTime) {
+        payload.documentDate = recordTime
+      }
+      if (typeof payload.attachmentCount !== 'number') payload.attachmentCount = attachments.value.length
+      if (typeof payload.commentCount !== 'number') payload.commentCount = 0
     }
     if (['departments', 'companies', 'companyPurposes', 'companySectors', 'officers'].includes(config.key)) {
       payload.isActive = payload.isActive !== false
@@ -253,20 +326,22 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
         : []
       payload.participants = participants
       payload.attendeesCount = participants.length
+      if (payload.meetingDate && !payload.recordTime) payload.recordTime = payload.meetingDate
     }
     if (config.key === 'roles') {
-      const rows = (Array.isArray(payload.permissionRows)
+      const rows = normalizePermissionRows((Array.isArray(payload.permissionRows)
         ? payload.permissionRows
-        : []) as AppRolePermissionRow[]
+        : []) as AppRolePermissionRow[], false)
       payload.permissionRows = rows
       payload.permissions = permissionRowsToFlatKeys(rows)
       payload.permissionCount = rows.reduce((sum, row) => sum + row.actions.length, 0)
+      payload.permissionSchemaVersion = 1
     }
     return payload
   }
 
-  function validateRequiredFields() {
-    const missing = config.tabs.flatMap(tab =>
+  function validateRequiredFields(documentTabs: DocumentTabSchema[] = config.tabs) {
+    const missing = documentTabs.flatMap(tab =>
       tab.sections.flatMap(section =>
         section.fields
           .filter(field => field.required && !field.readOnly)
@@ -295,9 +370,9 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
     return false
   }
 
-  async function save() {
+  async function save(documentTabs: DocumentTabSchema[] = config.tabs) {
     if (config.readOnly) return
-    if (!validateRequiredFields()) return
+    if (!validateRequiredFields(documentTabs)) return
     if (config.key === 'meetingHistory') {
       const mode = String(model.value.meetingMode || '')
       const url = String(model.value.meetingUrl || '').trim()
@@ -317,12 +392,34 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
     saving.value = true
     try {
       const payload = prepareModelForSave()
-      if (config.key === 'departments') {
-        const parentId = String(payload.parentId || '')
-        const departmentOptions = await loadReferenceOptions(`${ApiEndpoints.DEPARTMENTS}/options`)
-        payload.parentName = departmentOptions.find(option => option.value === parentId)?.label || ''
+      const useMockData = useRuntimeConfig().public.useMockData !== false
+      if (config.key === 'meetingHistory' && payload.topicId && !payload.topicTitle) {
+        try {
+          const topicRes = await getEntityAdapter('meetingTopics').get(String(payload.topicId))
+          const title = (topicRes.data as { title?: string } | undefined)?.title
+          if (title) payload.topicTitle = title
+        }
+        catch {
+          // Topic title is optional for save; board can still show the meeting.
+        }
       }
-      if (config.key === 'companies') {
+      if (config.key === 'departments' && useMockData) {
+        const parentId = String(payload.parentId || '')
+        const exclude = !isCreate.value && id.value
+          ? `&excludeId=${encodeURIComponent(id.value)}`
+          : ''
+        const departmentOptions = await loadReferenceOptions(
+          `${ApiEndpoints.DEPARTMENTS}/options?hierarchy=true${exclude}`,
+        )
+        const parentOption = departmentOptions.find(option => option.value === parentId)
+        if (parentId && !parentOption) {
+          toast.add({ title: t('docetra.department.cannotBeDescendant'), color: 'error' })
+          return
+        }
+        payload.parentName = String(parentOption?.meta?.name || parentOption?.label || '')
+          .replace(/^(?:(?:—|-)\s*)+/, '')
+      }
+      if (config.key === 'companies' && useMockData) {
         const [sectorOptions, purposeOptions] = await Promise.all([
           loadReferenceOptions(`${ApiEndpoints.COMPANY_SECTORS}/options`),
           loadReferenceOptions(`${ApiEndpoints.COMPANY_PURPOSES}/options`),
@@ -330,11 +427,11 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
         payload.sectorName = sectorOptions.find(option => option.value === String(payload.sectorId || ''))?.label || ''
         payload.purposeName = purposeOptions.find(option => option.value === String(payload.purposeId || ''))?.label || ''
       }
-      if (config.key === 'companySectors') {
+      if (config.key === 'companySectors' && useMockData) {
         const sectorOptions = await loadReferenceOptions(`${ApiEndpoints.COMPANY_SECTORS}/options`)
         payload.parentName = sectorOptions.find(option => option.value === String(payload.parentId || ''))?.label || ''
       }
-      if (config.key === 'officers') {
+      if (config.key === 'officers' && useMockData) {
         const [organizationOptions, roleOptions] = await Promise.all([
           loadReferenceOptions(`${ApiEndpoints.DEPARTMENTS}/options`),
           loadReferenceOptions(`${ApiEndpoints.ROLES}/options`),
@@ -347,16 +444,29 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
           payload.authenticationEnabled = Boolean(payload.userId)
         }
       }
+      else if (config.key === 'officers' && typeof payload.authenticationEnabled !== 'boolean') {
+        payload.authenticationEnabled = Boolean(payload.userId)
+      }
       if (isCreate.value) {
         const res = await adapter.create(payload as any)
         const created = res.data as { id: string }
         toast.add({ title: t('docetra.document.created'), color: 'success' })
+        // Board/list creates: return to the list instead of remounting the full
+        // detail document (get + comments + activity + attachments + schema).
+        if (returnsToListAfterCreate(config.key)) {
+          markListStale(config.key)
+          if (config.key === 'meetingHistory' || config.key === 'meetingTopics') {
+            markListStale('meetingTopics', 'meetingHistory')
+          }
+          await router.replace(resolveCreateReturnTo(route.query.returnTo, config.routeBase))
+          return
+        }
         await router.replace(`${config.routeBase}/${created.id}`)
         return
       }
       const res = await adapter.update(id.value, payload as any)
       model.value = { ...(res.data as Record<string, unknown>) }
-      initialSnapshot.value = JSON.stringify(model.value)
+      dirty.value = false
       if (adapter.replaceAttachments) {
         await adapter.replaceAttachments(id.value, attachments.value)
         const { indexFileForSearch } = await import('~/utils/search/index-hooks')
@@ -382,6 +492,32 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
     finally {
       saving.value = false
     }
+  }
+
+  async function loadMoreFeed() {
+    if (!hasMoreFeed.value || loadingMoreFeed.value || isCreate.value) return
+    const currentId = id.value
+    const nextPage = feedPage.value + 1
+    loadingMoreFeed.value = true
+    try {
+      const related = await Promise.allSettled([
+        comments.value.length < commentsTotal.value
+          ? adapter.listComments?.(currentId, { page: nextPage, limit: 20 })
+          : undefined,
+        activity.value.length < activityTotal.value
+          ? adapter.listActivity?.(currentId, { page: nextPage, limit: 20 })
+          : undefined,
+      ])
+      if (currentId !== id.value) return
+      const commentsResponse = related[0].status === 'fulfilled' ? related[0].value : undefined
+      const activityResponse = related[1].status === 'fulfilled' ? related[1].value : undefined
+      const commentIds = new Set(comments.value.map(item => item.id))
+      const activityIds = new Set(activity.value.map(item => item.id))
+      comments.value.push(...(commentsResponse?.data || []).filter(item => !commentIds.has(item.id)))
+      activity.value.push(...(activityResponse?.data || []).filter(item => !activityIds.has(item.id)))
+      feedPage.value = nextPage
+    }
+    finally { loadingMoreFeed.value = false }
   }
 
   async function submitComment() {
@@ -516,6 +652,8 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
     comments,
     activity,
     attachments,
+    hasMoreFeed,
+    loadingMoreFeed,
     commentBody,
     submittingComment,
     updatingCommentId,
@@ -533,6 +671,7 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
     submitComment,
     updateComment,
     deleteComment,
+    loadMoreFeed,
     navigatePreviousRecord: () => navigateRecord('previous'),
     navigateNextRecord: () => navigateRecord('next'),
     toggleFavorite,

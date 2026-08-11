@@ -16,9 +16,15 @@ const props = withDefaults(defineProps<{
   fill?: boolean
   note?: string
   disabled?: boolean
+  maxFileSizeMb?: number
+  maxNumberOfFiles?: number
+  allowedFileTypes?: string[]
 }>(), {
   height: 280,
   fill: false,
+  maxFileSizeMb: 200,
+  maxNumberOfFiles: 25,
+  allowedFileTypes: () => [...DEFAULT_UPLOAD_TYPES],
 })
 
 const emit = defineEmits<{
@@ -70,9 +76,15 @@ useResizeObserver(hostEl, (entries) => {
 const uploadPath = computed(() => props.endpoint || ApiEndpoints.ATTACHMENTS('entities', props.entityId))
 
 const uploadUrl = computed(() => {
-  if (/^https?:\/\//i.test(uploadPath.value)) return uploadPath.value
-  return new URL(uploadPath.value, String(config.public.apiBase)).toString()
+  return sameOriginApiUrl(uploadPath.value, String(config.public.apiBase))
 })
+
+const inputAccept = computed(() => props.allowedFileTypes.join(','))
+
+function validFile(file: File): boolean {
+  return file.size <= props.maxFileSizeMb * 1024 * 1024
+    && fileMatchesAllowedTypes(file, props.allowedFileTypes)
+}
 
 function attachmentFromResponse(body: unknown): AttachmentMeta | null {
   if (!body || typeof body !== 'object') return null
@@ -94,17 +106,21 @@ function mockAttachment(file: { name?: string | null; type?: string | null; size
 
 async function onFallbackPicked(event: Event) {
   const input = event.target as HTMLInputElement
-  const files = Array.from(input.files || [])
+  const files = Array.from(input.files || []).filter(validFile).slice(0, props.maxNumberOfFiles)
   input.value = ''
   if (config.public.useMockData !== false) {
     if (files.length) emit('complete', files.map(mockAttachment))
+    return
+  }
+  if (!uploadUrl.value) {
+    bootError.value = 'Upload endpoint must use the configured API origin'
     return
   }
   const uploaded: AttachmentMeta[] = []
   for (const file of files) {
     const form = new FormData()
     form.append('file', file)
-    const response = await api.post<AttachmentMeta | ApiResponse<AttachmentMeta>>(uploadPath.value, form)
+    const response = await api.post<AttachmentMeta | ApiResponse<AttachmentMeta>>(uploadUrl.value, form)
     const meta = attachmentFromResponse(response)
     if (meta) uploaded.push(meta)
   }
@@ -113,12 +129,16 @@ async function onFallbackPicked(event: Event) {
 
 onMounted(() => {
   try {
+    if (config.public.useMockData === false && !uploadUrl.value) {
+      throw new Error('Upload endpoint must use the configured API origin')
+    }
     const instance = new Uppy({
       id: `uppy-${props.entityId}-${Date.now()}`,
       autoProceed: false,
       restrictions: {
-        maxNumberOfFiles: 25,
-        maxFileSize: 200 * 1024 * 1024,
+        maxNumberOfFiles: props.maxNumberOfFiles,
+        maxFileSize: props.maxFileSizeMb * 1024 * 1024,
+        allowedFileTypes: props.allowedFileTypes,
       },
     })
 
@@ -137,7 +157,7 @@ onMounted(() => {
     }
     else {
       instance.use(XHRUpload, {
-        endpoint: uploadUrl.value,
+        endpoint: uploadUrl.value!,
         fieldName: 'file',
         formData: true,
         bundle: false,
@@ -222,6 +242,7 @@ onBeforeUnmount(() => {
         type="file"
         class="sr-only"
         multiple
+        :accept="inputAccept"
         :disabled="disabled"
         @change="onFallbackPicked"
       >

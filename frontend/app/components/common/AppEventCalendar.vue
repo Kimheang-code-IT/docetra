@@ -165,7 +165,8 @@ function selectDay(date: Date) {
 function onEventClick(event: DashboardCalendarEvent, e: Event) {
   e.stopPropagation()
   emit('eventClick', event)
-  if (event.href) navigateTo(event.href)
+  const path = safeInternalPath(event.href)
+  if (path) navigateTo(path)
 }
 
 function dayEvents(date: Date) {

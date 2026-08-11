@@ -84,6 +84,14 @@ const waiting = computed(() => Boolean(props.row.waiting))
 const attachmentCount = computed(() => Number(props.row.attachmentCount || 0))
 const commentCount = computed(() => Number(props.row.commentCount || 0))
 
+const statusColor = computed(() => {
+  const status = String(props.row.status || '').toLowerCase()
+  if (status === 'active' || status === 'completed') return 'success' as const
+  if (status === 'pending' || status === 'draft') return 'warning' as const
+  if (status === 'disabled' || status === 'failed') return 'error' as const
+  return 'info' as const
+})
+
 function bodySlotText(slot: string) {
   const values: Record<string, unknown> = {
     recordFlowCode: props.row.recordFlowCode,
@@ -112,6 +120,30 @@ function footerDate(slot: string) {
     updatedAt: props.row.updatedAt,
   }
   return day(values[slot])
+}
+
+function fieldTone(slot: string) {
+  if (slot === 'referenceNumber' || slot === 'letterNumber') return 'app-card-field-highlight--info'
+  if (slot === 'recordType' || slot === 'documentType') return 'app-card-field-highlight--secondary'
+  if (slot === 'party' || slot === 'externalUnits' || slot === 'officeInCharge') return 'app-card-field-highlight--warning'
+  if (slot === 'owner' || slot === 'assignee' || slot === 'involvedOfficers' || slot === 'officerInCharge') return 'app-card-field-highlight--success'
+  if (slot === 'description' || slot === 'recordContent') return 'app-card-field-highlight--neutral'
+  return ''
+}
+
+function fieldIcon(slot: string) {
+  if (slot === 'referenceNumber' || slot === 'letterNumber') return 'i-lucide-hash'
+  if (slot === 'recordType' || slot === 'documentType') return 'i-lucide-shapes'
+  if (slot === 'description' || slot === 'recordContent' || slot === 'letterSubject') return 'i-lucide-align-left'
+  if (slot === 'involvedOfficers' || slot === 'officerInCharge') return 'i-lucide-user-round'
+  if (slot === 'externalUnits' || slot === 'officeInCharge') return 'i-lucide-building-2'
+  return 'i-lucide-file-text'
+}
+
+function footerTone(slot: string) {
+  if (slot === 'attachmentCount') return 'app-card-field-highlight--secondary'
+  if (slot === 'commentCount') return 'app-card-field-highlight--info'
+  return 'app-card-field-highlight--success'
 }
 
 const startDate = computed(() =>
@@ -189,7 +221,7 @@ const menuItems = computed(() => [
     label: t('docetra.recordStageBoard.moveToStage'),
     icon: 'i-lucide-layers',
     children: props.stages.map(stage => ({
-      label: te(stage.labelKey) ? t(stage.labelKey) : stage.code,
+      label: stage.label || (te(stage.labelKey) ? t(stage.labelKey) : stage.code),
       icon: String(props.row.stage) === stage.code ? 'i-lucide-check' : 'i-lucide-circle',
       onSelect: () => emit('moveStage', stage.code),
     })),
@@ -247,8 +279,9 @@ function onCardClick(event: MouseEvent) {
           <UBadge
             v-if="titleStatusText"
             size="sm"
-            color="neutral"
+            :color="statusColor"
             variant="subtle"
+            icon="i-lucide-circle-dot"
           >
             {{ titleStatusText }}
           </UBadge>
@@ -269,40 +302,49 @@ function onCardClick(event: MouseEvent) {
 
     <div class="min-h-0 flex-1">
       <template v-for="slot in bodySlots" :key="slot">
-      <p
+      <div
         v-if="slot === 'referenceNumber' || slot === 'recordType' || slot === 'description'"
-        class="mt-1.5 truncate text-xs text-muted"
+        class="app-card-field-highlight mt-1.5 truncate text-xs text-muted"
+        :class="fieldTone(slot)"
       >
-        <template v-if="slot === 'referenceNumber'">{{ referenceNumber }}</template>
-        <template v-else-if="slot === 'recordType'">{{ recordTypeLabel }}</template>
-        <template v-else>{{ description }}</template>
-      </p>
+        <span class="flex min-w-0 items-center gap-1.5">
+          <UIcon :name="fieldIcon(slot)" class="size-3 shrink-0" />
+          <span class="truncate">
+            <template v-if="slot === 'referenceNumber'">{{ referenceNumber }}</template>
+            <template v-else-if="slot === 'recordType'">{{ recordTypeLabel }}</template>
+            <template v-else>{{ description }}</template>
+          </span>
+        </span>
+      </div>
       <div
         v-else-if="slot === 'party' && partyLabel"
-        class="mt-1.5 flex items-center gap-1.5 truncate text-xs text-muted"
+        class="app-card-field-highlight mt-1.5 flex items-center gap-1.5 truncate text-xs text-muted"
+        :class="fieldTone(slot)"
       >
         <UIcon :name="partyLabel.icon" class="size-3 shrink-0" />
         <span class="truncate">{{ partyLabel.text }}</span>
       </div>
       <div
         v-else-if="slot === 'owner'"
-        class="mt-1.5 flex items-center gap-1.5 truncate text-xs text-muted"
+        class="app-card-field-highlight mt-1.5 flex items-center gap-1.5 truncate text-xs text-muted"
+        :class="fieldTone(slot)"
       >
         <UIcon name="i-lucide-user" class="size-3 shrink-0" />
         <span class="truncate">{{ owner }}</span>
       </div>
       <div
         v-else-if="slot === 'assignee'"
-        class="mt-1.5 flex items-center gap-1.5 truncate text-xs text-muted"
+        class="app-card-field-highlight mt-1.5 flex items-center gap-1.5 truncate text-xs text-muted"
+        :class="fieldTone(slot)"
       >
         <UIcon name="i-lucide-user-check" class="size-3 shrink-0" />
         <span class="truncate">{{ assignee }}</span>
       </div>
       <div v-else-if="slot === 'stage'" class="mt-1.5">
-        <UBadge size="sm" color="neutral" variant="outline">{{ stageLabel }}</UBadge>
+        <UBadge size="sm" color="info" variant="soft" icon="i-lucide-git-branch">{{ stageLabel }}</UBadge>
       </div>
       <div v-else-if="slot === 'waiting'" class="mt-1.5">
-        <UBadge size="sm" color="warning" variant="subtle">{{ $t('docetra.fields.waiting') }}</UBadge>
+        <UBadge size="sm" color="warning" variant="subtle" icon="i-lucide-clock-3">{{ $t('docetra.fields.waiting') }}</UBadge>
       </div>
       <div
         v-else-if="slot === 'tags'"
@@ -312,22 +354,20 @@ function onCardClick(event: MouseEvent) {
           v-for="tag in tags.slice(0, 2)"
           :key="tag"
           size="sm"
-          color="neutral"
+          color="secondary"
           variant="soft"
+          icon="i-lucide-tag"
         >
           {{ tag }}
         </UBadge>
       </div>
       <div
         v-else-if="bodySlotText(slot)"
-        class="mt-1.5 flex min-w-0 items-center gap-1.5 text-xs text-muted"
+        class="app-card-field-highlight mt-1.5 flex min-w-0 items-center gap-1.5 text-xs text-muted"
+        :class="fieldTone(slot)"
       >
         <UIcon
-          :name="slot === 'involvedOfficers' || slot === 'officerInCharge'
-            ? 'i-lucide-user-round'
-            : slot === 'externalUnits' || slot === 'officeInCharge'
-              ? 'i-lucide-building-2'
-              : 'i-lucide-file-text'"
+          :name="fieldIcon(slot)"
           class="size-3 shrink-0"
         />
         <span class="shrink-0 font-medium text-toned">{{ $t(`docetra.cardSlots.${slot}`) }}:</span>
@@ -344,21 +384,24 @@ function onCardClick(event: MouseEvent) {
         <template v-for="slot in footerLeft" :key="`L-${slot}`">
           <span
             v-if="slot === 'attachmentCount'"
-            class="inline-flex items-center gap-1"
+            class="app-card-field-highlight--compact inline-flex items-center gap-1"
+            :class="footerTone(slot)"
           >
             <UIcon name="i-lucide-paperclip" class="size-3" />
             {{ attachmentCount }}
           </span>
           <span
             v-else-if="slot === 'commentCount'"
-            class="inline-flex items-center gap-1"
+            class="app-card-field-highlight--compact inline-flex items-center gap-1"
+            :class="footerTone(slot)"
           >
             <UIcon name="i-lucide-message-circle" class="size-3" />
             {{ commentCount }}
           </span>
           <span
             v-else
-            class="inline-flex min-w-0 items-center gap-1 truncate"
+            class="app-card-field-highlight--compact inline-flex min-w-0 items-center gap-1 truncate"
+            :class="footerTone(slot)"
           >
             <UIcon name="i-lucide-calendar" class="size-3 shrink-0" />
             <span class="truncate">
@@ -373,21 +416,24 @@ function onCardClick(event: MouseEvent) {
         <template v-for="slot in footerRight" :key="`R-${slot}`">
           <span
             v-if="slot === 'attachmentCount'"
-            class="inline-flex items-center gap-1"
+            class="app-card-field-highlight--compact inline-flex items-center gap-1"
+            :class="footerTone(slot)"
           >
             <UIcon name="i-lucide-paperclip" class="size-3" />
             {{ attachmentCount }}
           </span>
           <span
             v-else-if="slot === 'commentCount'"
-            class="inline-flex items-center gap-1"
+            class="app-card-field-highlight--compact inline-flex items-center gap-1"
+            :class="footerTone(slot)"
           >
             <UIcon name="i-lucide-message-circle" class="size-3" />
             {{ commentCount }}
           </span>
           <span
             v-else
-            class="inline-flex min-w-0 items-center gap-1 truncate"
+            class="app-card-field-highlight--compact inline-flex min-w-0 items-center gap-1 truncate"
+            :class="footerTone(slot)"
           >
             <UIcon name="i-lucide-calendar" class="size-3 shrink-0" />
             <span class="truncate">

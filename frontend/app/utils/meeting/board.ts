@@ -89,6 +89,6 @@ export function formatMeetingDateTime(value: unknown): string {
 }
 
 export function isJoinableMeeting(mode?: string, url?: string): boolean {
-  if (!url?.trim()) return false
+  if (!safeExternalUrl(url)) return false
   return mode === 'online' || mode === 'hybrid'
 }

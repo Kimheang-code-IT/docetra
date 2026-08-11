@@ -74,6 +74,8 @@ Upload endpoint on client today: `/api/v2/meetings/history/{id}/attachments` for
 
 **1+3 UI rules:** Left panel hosts upload widget; right panel server-paginated table only — never load full history client-side.
 
+The current uploader accepts a bounded configurable file count/size/type list and refuses to attach Authorization to a cross-origin endpoint. The API must still treat every client rule as advisory: resolve the authenticated tenant/user, enforce storage policy, inspect content instead of trusting extension or `Content-Type`, scan malware, generate a safe storage key, and return normalized `AttachmentMeta` only after acceptance.
+
 ---
 
 ## 4. Google Drive Sync flow (target)
@@ -154,6 +156,10 @@ No comment composer; activity **is** the audit product.
 | --- | --- |
 | Max file size | Provider config + request rejection |
 | Allowed MIME/types | Provider allow-list |
+| Content validation | Server-side signature/MIME sniffing; reject SVG/active content where inline preview is possible |
+| Malware | Quarantine and scan before status becomes `ready` |
+| Upload origin | Signed URLs are issued only for approved storage origins; normal bearer uploads stay on the API origin |
+| File names | Store an opaque key; sanitize display/download headers and prevent path traversal |
 | Secrets in API responses | Strip always |
 | Cross-tenant file access | 403 on link if user lacks file scope |
 

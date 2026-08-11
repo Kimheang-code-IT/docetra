@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { DropdownMenuItem } from '@nuxt/ui'
+import type { ExportFieldOption, ExportRequest } from '~/types/docetra/export'
 import { useAppHeader } from '~/composables/layout/useAppHeader'
 
 /**
@@ -14,17 +15,24 @@ const props = withDefaults(defineProps<{
   createButtons?: Array<{ label: string, icon?: string }>
   refreshing?: boolean
   moreItems?: DropdownMenuItem[][]
+  exportFields?: ExportFieldOption[]
+  selectedCount?: number
+  exporting?: boolean
 }>(), {
   canCreate: false,
   createIcon: 'i-lucide-plus',
   refreshing: false,
   moreItems: undefined,
+  exportFields: () => [],
+  selectedCount: 0,
+  exporting: false,
 })
 
 const emit = defineEmits<{
   refresh: []
   create: []
   createButton: [index: number]
+  export: [request: ExportRequest]
 }>()
 
 const { t } = useI18n()
@@ -32,6 +40,9 @@ const toast = useToast()
 const { setActions, clearActions } = useAppHeader()
 const slots = useSlots()
 const ownerId = ref(0)
+const exportOpen = ref(false)
+/** Keep-alive pages stay mounted; only the active one may teleport into the header. */
+const headerTeleportActive = ref(true)
 
 const resolvedCreateLabel = computed(() =>
   props.createLabel || t('docetra.actions.addItem'),
@@ -41,16 +52,40 @@ const defaultMoreItems = computed<DropdownMenuItem[][]>(() => [[
   {
     label: t('actions.export'),
     icon: 'i-lucide-download',
-    onSelect: () => toast.add({ title: t('docetra.document.comingSoon'), color: 'neutral' }),
-  },
-  {
-    label: t('docetra.document.print'),
-    icon: 'i-lucide-printer',
-    onSelect: () => toast.add({ title: t('docetra.document.comingSoon'), color: 'neutral' }),
+    onSelect: () => { exportOpen.value = true },
   },
 ]])
 
-const menuItems = computed(() => props.moreItems?.length ? props.moreItems : defaultMoreItems.value)
+function withoutPrint(items: DropdownMenuItem[][]): DropdownMenuItem[][] {
+  const printLabels = new Set([
+    'print',
+    t('docetra.document.print').trim().toLowerCase(),
+    t('docetra.rolePermissions.actions.print').trim().toLowerCase(),
+  ])
+  return items
+    .map(group => group.filter((item: any) =>
+      !String(item.icon || '').includes('printer')
+      && !printLabels.has(String(item.label || '').trim().toLowerCase()),
+    ))
+    .filter(group => group.length > 0)
+}
+
+const menuItems = computed(() => {
+  const custom = props.moreItems || []
+  const exportItem = defaultMoreItems.value[0] || []
+  return withoutPrint([
+    [...exportItem, ...(custom[0] || [])],
+    ...custom.slice(1),
+  ])
+})
+
+function submitExport(request: ExportRequest) {
+  emit('export', request)
+  if (!props.exporting) {
+    exportOpen.value = false
+    toast.add({ title: t('docetra.exportDialog.requestReady'), color: 'success' })
+  }
+}
 
 function syncActions() {
   const createButtons = props.createButtons?.length
@@ -88,24 +123,39 @@ watch(
 
 // Re-register after keep-alive / back-navigation races with the previous page’s clear.
 onActivated(() => {
+  headerTeleportActive.value = true
   syncActions()
 })
 
+onDeactivated(() => {
+  headerTeleportActive.value = false
+  clearActions(ownerId.value)
+})
+
 onBeforeUnmount(() => {
+  headerTeleportActive.value = false
   clearActions(ownerId.value)
 })
 </script>
 
 <template>
-  <Teleport v-if="slots.leading" defer to="#app-header-leading">
+  <Teleport v-if="headerTeleportActive && slots.leading" defer to="#app-header-leading">
     <div class="contents">
       <slot name="leading" />
     </div>
   </Teleport>
 
-  <Teleport v-if="slots.default" defer to="#app-header-trailing">
+  <Teleport v-if="headerTeleportActive && slots.default" defer to="#app-header-trailing">
     <div class="contents">
       <slot />
     </div>
   </Teleport>
+
+  <CommonAppExportDialog
+    v-model:open="exportOpen"
+    :fields="props.exportFields"
+    :selected-count="props.selectedCount"
+    :loading="props.exporting"
+    @submit="submitExport"
+  />
 </template>

@@ -9,6 +9,7 @@ export function useMenu() {
   const collapsed = useState('sidebar-collapsed', () => false)
   const manualCollapsed = useState<boolean | null>('sidebar-collapsed-manual', () => null)
   const { t } = useI18n()
+  const auth = useAuthStore()
 
   const isNarrow = useMediaQuery(SIDEBAR_AUTO_MQ)
   const hydrated = useState('sidebar-collapsed-hydrated', () => false)
@@ -69,6 +70,47 @@ export function useMenu() {
     children,
   })
 
+  const routePermissions: Record<string, string> = {
+    '/': 'dashboard.view',
+    '/meetings/topics': 'meetings.topics.view',
+    '/meetings/history': 'meetings.history.view',
+    '/records/incoming-documents': 'records.incoming_documents.view',
+    '/records/outgoing-documents': 'records.outgoing_documents.view',
+    '/records/documents': 'records.documents.view',
+    '/records/master-list-requests': 'records.master_list_requests.view',
+    '/records/record-logs': 'records.logs.view',
+    '/organizations/departments': 'organizations.departments.view',
+    '/organizations/companies': 'organizations.companies.view',
+    '/organizations/company-purposes': 'organizations.company_purposes.view',
+    '/organizations/company-sectors': 'organizations.company_sectors.view',
+    '/organizations/officers': 'organizations.officers.view',
+    '/portal/file-upload': 'portal.file_upload.view',
+    '/portal/google-drive-sync': 'portal.google_drive_sync.view',
+    '/portal/portal-logs': 'portal.logs.view',
+    '/user-management/roles': 'users.roles.view',
+    '/user-management/users': 'users.users.view',
+    '/configuration/record-types': 'configuration.record_types.view',
+    '/configuration/record-attributes': 'configuration.record_attributes.view',
+    '/settings/app-info': 'settings.app_info.view',
+    '/settings/app-config': 'settings.app_config.view',
+    '/settings/storage': 'settings.storage.view',
+  }
+
+  function permittedItem(item: NavigationMenuItem): NavigationMenuItem | null {
+    const candidate = item as NavigationMenuItem & { to?: string; children?: NavigationMenuItem[] }
+    if (candidate.to) {
+      const permission = routePermissions[candidate.to]
+      if (permission && !auth.canAccessPage(permission)) return null
+    }
+    if (candidate.children) {
+      const children = candidate.children
+        .map(child => permittedItem(child))
+        .filter((child): child is NavigationMenuItem => Boolean(child))
+      return children.length ? { ...candidate, children } : null
+    }
+    return candidate
+  }
+
   // Order matches product nav: Dashboard → … → Configuration → Setting
   const links = computed<NavigationMenuItem[][]>(() => [[
     {
@@ -115,7 +157,9 @@ export function useMenu() {
       pageLink(t('docetra.pages.appConfig'), '/settings/app-config'),
       pageLink(t('docetra.pages.storage'), '/settings/storage'),
     ], { defaultOpen: true }),
-  ], []])
+  ]
+    .map(item => permittedItem(item))
+    .filter((item): item is NavigationMenuItem => Boolean(item)), []])
 
   return {
     open,

@@ -1,10 +1,10 @@
 import type { TableColumnDef } from '~/types/docetra/common'
 import type { RecordLog } from '~/types/docetra/entities'
+import type { RecordType } from '~/types/docetra/configuration'
 import { getEntityAdapter } from '~/config/entities'
+import { useConfigurationRepositories } from '~/repositories'
 import { toComparableDateTime } from '~/utils/date-time-range'
 import {
-  fetchPageLimit,
-  isShowAllLimit,
   parsePageLimit,
   serializePageLimit,
 } from '~/utils/pagination'
@@ -12,6 +12,8 @@ import {
 export interface RecordLogTab {
   id: string
   labelKey: string
+  /** Literal configured Record Type name. */
+  label?: string
   descriptionKey?: string
   icon: string
   /** Filter applied when this tab is active. Empty = all logs. */
@@ -23,7 +25,7 @@ const baseColumns = {
   rowNumber: { key: 'rowNumber', labelKey: 'docetra.fields.number', priority: 'high' },
   occurredAt: { key: 'occurredAt', labelKey: 'docetra.fields.occurredAt', sortable: true, priority: 'high', cell: 'datetime' },
   action: { key: 'action', labelKey: 'docetra.fields.action', priority: 'high', cell: 'badge' },
-  entityType: { key: 'entityType', labelKey: 'docetra.fields.recordType', priority: 'high', cell: 'badge' },
+  recordType: { key: 'recordTypeName', labelKey: 'docetra.fields.recordType', priority: 'high', cell: 'badge' },
   entityTitle: { key: 'entityTitle', labelKey: 'docetra.fields.title', priority: 'high' },
   recordStage: { key: 'recordStage', labelKey: 'docetra.fields.recordStage', priority: 'high', cell: 'badge' },
   parentRecord: { key: 'parentRecord', labelKey: 'docetra.fields.parentRecord', priority: 'high' },
@@ -43,7 +45,7 @@ function pickColumns(...keys: Array<keyof typeof baseColumns>): TableColumnDef[]
 
 const recordLogColumns = pickColumns(
   'rowNumber',
-  'entityType',
+  'recordType',
   'entityTitle',
   'recordStage',
   'parentRecord',
@@ -51,33 +53,13 @@ const recordLogColumns = pickColumns(
   'actor',
 )
 
-export const RECORD_LOG_TABS: RecordLogTab[] = [
-  {
-    id: 'all',
-    labelKey: 'docetra.recordLogBoard.tabs.all',
-    descriptionKey: 'docetra.recordLogBoard.tabs.allHint',
-    icon: 'i-lucide-list',
-    columns: recordLogColumns,
-  },
-  ...[
-    ['document', 'i-lucide-file-text'],
-    ['file', 'i-lucide-paperclip'],
-    ['master_list_request', 'i-lucide-list-checks'],
-    ['meeting', 'i-lucide-calendar-days'],
-    ['meeting_topic', 'i-lucide-messages-square'],
-    ['url', 'i-lucide-link'],
-    ['approved_master_list', 'i-lucide-badge-check'],
-    ['extension_of_validity', 'i-lucide-clock-3'],
-    ['physical_inspection', 'i-lucide-search-check'],
-    ['tax_incentive', 'i-lucide-landmark'],
-  ].map(([entityType, icon]) => ({
-    id: entityType!,
-    labelKey: `docetra.entityTypes.${entityType}`,
-    icon: icon!,
-    filter: { entityType },
-    columns: recordLogColumns,
-  } satisfies RecordLogTab)),
-]
+const ALL_RECORD_LOGS_TAB: RecordLogTab = {
+  id: 'all',
+  labelKey: 'docetra.recordLogBoard.tabs.all',
+  descriptionKey: 'docetra.recordLogBoard.tabs.allHint',
+  icon: 'i-lucide-list',
+  columns: recordLogColumns,
+}
 
 function getByPath(obj: Record<string, unknown>, path: string): unknown {
   return path.split('.').reduce<unknown>((acc, key) => {
@@ -91,13 +73,20 @@ export function useRecordLogBoard() {
   const router = useRouter()
   const { t, te, locale } = useI18n()
   const adapter = getEntityAdapter('recordLogs')
+  const { recordTypes: recordTypeRepository } = useConfigurationRepositories()
 
   const pending = ref(false)
   const error = ref<string | null>(null)
   const pageItems = ref<RecordLog[]>([])
   const total = ref(0)
   const tabCounts = ref(new Map<string, number>())
-  const search = ref('')
+  const search = ref(String(route.query.q || ''))
+  const configuredRecordTypes = ref<RecordType[]>([])
+  let recordTypesLoaded = false
+  const recordTypePage = ref(1)
+  const recordTypeTotal = ref(0)
+  const loadingMoreRecordTypes = ref(false)
+  const hasMoreRecordTypes = computed(() => configuredRecordTypes.value.length < recordTypeTotal.value)
   const dateStart = ref(typeof route.query.startDate === 'string' ? route.query.startDate : '')
   const dateEnd = ref(typeof route.query.endDate === 'string' ? route.query.endDate : '')
   let requestToken = 0
@@ -109,6 +98,7 @@ export function useRecordLogBoard() {
         query: {
           ...route.query,
           tab: value === 'all' ? undefined : value,
+          entityId: undefined,
           page: undefined,
         },
       })
@@ -138,9 +128,65 @@ export function useRecordLogBoard() {
     },
   })
 
-  const selectedTab = computed(() =>
-    RECORD_LOG_TABS.find(tab => tab.id === selectedTabId.value) || RECORD_LOG_TABS[0]!,
+  const entityId = computed(() =>
+    typeof route.query.entityId === 'string' ? route.query.entityId : undefined,
   )
+
+  const selectedTab = computed(() =>
+    tabs.value.find(tab => tab.id === selectedTabId.value) || ALL_RECORD_LOGS_TAB,
+  )
+
+  const recordTypeByCode = computed(() => new Map(
+    configuredRecordTypes.value.map(type => [type.code, type]),
+  ))
+
+  const tabs = computed<RecordLogTab[]>(() => [
+    ALL_RECORD_LOGS_TAB,
+    ...configuredRecordTypes.value.map(type => ({
+      id: type.code,
+      labelKey: `docetra.entityTypes.${type.code}`,
+      label: type.name,
+      icon: type.icon || 'i-lucide-file-text',
+      filter: { entityType: type.code },
+      columns: recordLogColumns,
+    })),
+  ])
+
+  async function ensureRecordTypes() {
+    if (recordTypesLoaded) return
+    recordTypesLoaded = true
+    try {
+      const response = await recordTypeRepository.list({ status: 'active', page: 1, limit: 50, sort: 'name' })
+      configuredRecordTypes.value = response.data || []
+      recordTypePage.value = 1
+      recordTypeTotal.value = response.meta?.total || configuredRecordTypes.value.length
+      const selectedCode = selectedTabId.value
+      if (selectedCode !== 'all' && !configuredRecordTypes.value.some(type => type.code === selectedCode)) {
+        try {
+          const schema = await recordTypeRepository.getResolvedSchema({ code: selectedCode })
+          configuredRecordTypes.value.push(schema.recordType)
+        }
+        catch { /* inaccessible or deleted type; All remains the safe fallback */ }
+      }
+    }
+    catch {
+      configuredRecordTypes.value = []
+    }
+  }
+
+  async function loadMoreRecordTypes() {
+    if (!hasMoreRecordTypes.value || loadingMoreRecordTypes.value) return
+    loadingMoreRecordTypes.value = true
+    const nextPage = recordTypePage.value + 1
+    try {
+      const response = await recordTypeRepository.list({ status: 'active', page: nextPage, limit: 50, sort: 'name' })
+      const known = new Set(configuredRecordTypes.value.map(type => type.id))
+      configuredRecordTypes.value.push(...(response.data || []).filter(type => !known.has(type.id)))
+      recordTypePage.value = nextPage
+      recordTypeTotal.value = response.meta?.total || recordTypeTotal.value
+    }
+    finally { loadingMoreRecordTypes.value = false }
+  }
 
   function selectTab(id: string) {
     selectedTabId.value = id
@@ -159,6 +205,7 @@ export function useRecordLogBoard() {
       const typeKey = `docetra.entityTypes.${text}`
       return te(typeKey) ? t(typeKey) : text.replaceAll('_', ' ')
     }
+    if (key === 'recordTypeName') return text
     if (key === 'recordStage') {
       const stageKey = `docetra.stages.${text}`
       return te(stageKey) ? t(stageKey) : text.replaceAll('_', ' ')
@@ -192,24 +239,30 @@ export function useRecordLogBoard() {
     pending.value = true
     error.value = null
     try {
+      await ensureRecordTypes()
       const startDate = toComparableDateTime(dateStart.value, 'start') || undefined
       const endDate = toComparableDateTime(dateEnd.value, 'end') || undefined
       const res = await adapter.list({
-        page: isShowAllLimit(limit.value) ? 1 : page.value,
-        limit: fetchPageLimit(limit.value),
+        page: page.value,
+        limit: limit.value,
         sort: '-occurredAt',
         q: search.value.trim() || undefined,
         startDate,
         endDate,
+        entityId: entityId.value,
         ...(selectedTab.value.filter || {}),
       })
       if (token !== requestToken) return
-      pageItems.value = ((res.data || []) as RecordLog[]).map((item, index) => ({
-        ...item,
-        rowNumber: isShowAllLimit(limit.value)
-          ? index + 1
-          : (page.value - 1) * limit.value + index + 1,
-      }))
+      pageItems.value = ((res.data || []) as RecordLog[]).map((item, index) => {
+        const recordType = recordTypeByCode.value.get(item.recordTypeCode || item.entityType)
+        return {
+          ...item,
+          recordTypeId: item.recordTypeId || recordType?.id,
+          recordTypeCode: item.recordTypeCode || recordType?.code || item.entityType,
+          recordTypeName: item.recordTypeName || recordType?.name || item.entityType.replaceAll('_', ' '),
+          rowNumber: (page.value - 1) * limit.value + index + 1,
+        }
+      })
       total.value = res.meta?.total || 0
 
       const counts = (res.meta as (typeof res.meta & { counts?: Record<string, number> }))?.counts
@@ -237,6 +290,10 @@ export function useRecordLogBoard() {
     else void refresh()
   })
   watch([page, limit], () => { void refresh() }, { immediate: true })
+  watch(entityId, () => {
+    if (page.value !== 1) page.value = 1
+    else void refresh()
+  })
   watch(search, useDebounceFn(() => {
     if (page.value !== 1) page.value = 1
     else void refresh()
@@ -248,10 +305,13 @@ export function useRecordLogBoard() {
     search,
     dateStart,
     dateEnd,
-    tabs: RECORD_LOG_TABS,
+    tabs,
     selectedTabId,
     selectedTab,
     tabCounts,
+    hasMoreRecordTypes,
+    loadingMoreRecordTypes,
+    loadMoreRecordTypes,
     page,
     limit,
     total,

@@ -15,6 +15,9 @@ const color = computed(() => colorMode.value === 'dark' ? '#1b1718' : 'white')
 const currentLocale = computed(() => uiLocales[locale.value] || en)
 const lang = computed(() => currentLocale.value.code || locale.value)
 const dir = computed(() => currentLocale.value.dir || 'ltr')
+const route = useRoute()
+/** Force remount on path change so create/detail never stick on a stale list page. */
+const pageKey = computed(() => route.fullPath)
 
 const siteName = computed(() => t('docetra.brand.name'))
 const appDescription = computed(() => t('app.description'))
@@ -80,7 +83,7 @@ useSeoMeta({
       :height="3"
     />
     <NuxtLayout>
-      <NuxtPage />
+      <NuxtPage :page-key="pageKey" />
     </NuxtLayout>
     <CommonAppConfirmHost />
   </UApp>

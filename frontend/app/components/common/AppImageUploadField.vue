@@ -10,7 +10,7 @@ const props = withDefaults(defineProps<{
   maxSizeMb?: number
   disabled?: boolean
 }>(), {
-  accept: 'image/png,image/jpeg,image/webp,image/svg+xml',
+  accept: SAFE_RASTER_IMAGE_ACCEPT,
   maxSizeMb: 2,
   disabled: false,
 })
@@ -19,6 +19,7 @@ const { t, te } = useI18n()
 const toast = useToast()
 const inputRef = ref<HTMLInputElement | null>(null)
 const dragOver = ref(false)
+const previewSource = computed(() => safeImageSource(model.value))
 
 const labelText = computed(() => {
   if (props.label) return props.label
@@ -42,11 +43,11 @@ function clear() {
 }
 
 async function readFile(file: File) {
-  if (!file.type.startsWith('image/')) {
+  if (!SAFE_RASTER_IMAGE_TYPES.includes(file.type as (typeof SAFE_RASTER_IMAGE_TYPES)[number])) {
     toast.add({ title: t('docetra.common.imageInvalidType'), color: 'error' })
     return
   }
-  if (file.size > props.maxSizeMb * 1024 * 1024) {
+  if (!isSafeRasterImage(file, props.maxSizeMb)) {
     toast.add({ title: t('docetra.common.imageTooLarge', { size: props.maxSizeMb }), color: 'error' })
     return
   }
@@ -88,7 +89,7 @@ function onDrop(event: DragEvent) {
       @drop.prevent="onDrop"
     >
       <template v-if="model">
-        <img :src="model" alt="" class="max-h-24 max-w-full object-contain">
+        <img v-if="previewSource" :src="previewSource" alt="" class="max-h-24 max-w-full object-contain" referrerpolicy="no-referrer">
         <div class="flex gap-2">
           <UButton size="xs" color="neutral" variant="soft" @click.stop="openPicker">
             {{ t('docetra.common.replace') }}

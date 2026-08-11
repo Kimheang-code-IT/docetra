@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { FilterDef, TableColumnDef } from '~/types/docetra/common'
 import type { RowActionItem } from '~/types/docetra/row-actions'
+import type { ExportRequest } from '~/types/docetra/export'
 
 const props = withDefaults(defineProps<{
   titleKey: string
@@ -15,14 +16,17 @@ const props = withDefaults(defineProps<{
   limit: number
   pending?: boolean
   error?: string | null
+  exporting?: boolean
   search: string
   sort?: string
   filters?: FilterDef[]
   filterValues?: Record<string, string>
   rowActions?: RowActionItem[]
+  showMeta?: boolean
   cellValue: (row: Record<string, unknown>, key: string) => string
 }>(), {
   canCreate: true,
+  showMeta: true,
 })
 
 const emit = defineEmits<{
@@ -39,7 +43,19 @@ const emit = defineEmits<{
   rowAction: [payload: { key: string, row: Record<string, unknown> }]
   deleteSelected: [string[]]
   retry: []
+  export: [request: ExportRequest, selectedIds: string[]]
 }>()
+
+const { t } = useI18n()
+const selectedIds = ref<string[]>([])
+const exportFields = computed(() => props.columns
+  .filter(column => column.key !== '_rowNumber' && column.key !== 'rowNumber')
+  .map(column => ({ label: t(column.labelKey), value: column.key })))
+
+function updateSelection(ids: string[]) {
+  selectedIds.value = ids
+  emit('update:selection', ids)
+}
 </script>
 
 <template>
@@ -49,8 +65,13 @@ const emit = defineEmits<{
     :icon="props.icon"
     :can-create="props.canCreate === true"
     :create-label-key="props.createLabelKey"
+    :refreshing="props.pending"
+    :export-fields="exportFields"
+    :selected-count="selectedIds.length"
+    :exporting="props.exporting"
     @create="emit('create')"
     @refresh="emit('refresh')"
+    @export="emit('export', $event, selectedIds)"
   >
     <div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-sm border border-default bg-default">
       <WorkspaceAppWorkspaceToolbar
@@ -77,10 +98,10 @@ const emit = defineEmits<{
         :error="props.error"
         :cell-value="props.cellValue"
         :row-actions="props.rowActions"
-        :show-meta="true"
+        :show-meta="props.showMeta"
         @update:page="emit('update:page', $event)"
         @update:limit="emit('update:limit', $event)"
-        @update:selection="emit('update:selection', $event)"
+        @update:selection="updateSelection"
         @row-click="emit('rowClick', $event)"
         @row-action="emit('rowAction', $event)"
         @delete-selected="emit('deleteSelected', $event)"

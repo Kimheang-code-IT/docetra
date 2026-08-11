@@ -65,7 +65,8 @@
       "systemLog": "កំណត់ហេតុប្រព័ន្ធ និងសេវាកម្ម។"
     },
     "department": {
-      "cannotBeOwnAncestor": "នាយកដ្ឋានមិនអាចជាអង្គភាពមេរបស់ខ្លួនឯងបានទេ។"
+      "cannotBeOwnAncestor": "នាយកដ្ឋានមិនអាចជាអង្គភាពមេរបស់ខ្លួនឯងបានទេ។",
+      "cannotBeDescendant": "នាយកដ្ឋានមិនអាចប្រើខ្លួនឯង ឬអង្គភាពកូនរបស់ខ្លួនជាអង្គភាពមេបានទេ។"
     },
     "companySector": {
       "cannotBeOwnParent": "វិស័យក្រុមហ៊ុនមិនអាចជាមេរបស់ខ្លួនឯងបានទេ។"
@@ -124,6 +125,9 @@
       "logs": "មើលកំណត់ហេតុ",
       "delete": "លុប",
       "duplicate": "ចម្លង",
+      "assignFields": "កំណត់វាល",
+      "activate": "បើកដំណើរការ",
+      "deactivate": "បិទដំណើរការ",
       "toggleActive": "បើក / បិទ"
     },
     "common": {
@@ -249,6 +253,9 @@
       "showInList": "បង្ហាញក្នុងបញ្ជី",
       "visible": "មើលឃើញ",
       "section": "ផ្នែក",
+      "assignedStage": "ដំណាក់កាលដែលបានកំណត់",
+      "allStages": "គ្រប់ដំណាក់កាល",
+      "invalidAssignedStage": "{field} ត្រូវបានកំណត់ទៅដំណាក់កាលដែលលែងមាន។ សូមកំណត់ឡើងវិញ ឬជ្រើសគ្រប់ដំណាក់កាល។",
       "optionsNotApplicable": "ជម្រើសមានតែសម្រាប់ប្រភេទ select។",
       "assignAttribute": "កំណត់ attribute",
       "addAttribute": "បន្ថែម attribute",
@@ -459,10 +466,13 @@
       "table": "តារាង",
       "kanban": "កានបង់",
       "hierarchy": "ឋានានុក្រម",
+      "timeline": "បន្ទាត់ពេលវេលា",
       "hierarchyHint": "នាយកដ្ឋានមេ និងរង។ ចុចជួរដើម្បីបើកឯកសារ។"
     },
     "sort": {
       "label": "តម្រៀប",
+      "meetingDesc": "កាលបរិច្ឆេទប្រជុំ (ថ្មីបំផុត)",
+      "meetingAsc": "កាលបរិច្ឆេទប្រជុំ (ចាស់បំផុត)",
       "updatedDesc": "ធ្វើបច្ចុប្បន្នភាព (ថ្មីបំផុត)",
       "updatedAsc": "ធ្វើបច្ចុប្បន្នភាព (ចាស់បំផុត)",
       "nameAsc": "ឈ្មោះ A–Z",
@@ -618,6 +628,10 @@
       "moveToStage": "ផ្លាស់ទៅដំណាក់កាល",
       "moved": "បានផ្លាស់ទៅ {stage}",
       "moveFailed": "មិនអាចផ្លាស់កំណត់ត្រាបានទេ",
+      "stageConfigNotFound": "រកមិនឃើញការកំណត់ Record Type ដែលត្រូវគ្នា។",
+      "stageConfigEmpty": "Record Type មិនមានដំណាក់កាលការងារសកម្មទេ។",
+      "stageConfigFailed": "មិនអាចផ្ទុកដំណាក់កាលការងារដែលបានកំណត់បានទេ។",
+      "usingFallbackStages": "កំពុងប្រើដំណាក់កាលបម្រុង",
       "collapseStages": "បង្រួមដំណាក់កាល",
       "expandStages": "ពង្រីកដំណាក់កាល"
     },
@@ -874,7 +888,22 @@
     },
     "rolePermissions": {
       "documentType": "ប្រភេទឯកសារ",
+      "matrixTitle": "តារាងសិទ្ធិ",
+      "grantedCount": "បានផ្តល់សិទ្ធិ {granted} ក្នុងចំណោម {total}",
+      "grantAll": "ផ្តល់ទាំងអស់",
+      "clearAll": "សម្អាតទាំងអស់",
+      "scope": "វិសាលភាព",
+      "level": "កម្រិត",
+      "creatorOnly": "សម្រាប់អ្នកបង្កើតប៉ុណ្ណោះ",
+      "toggleRow": "បិទបើកសិទ្ធិទាំងអស់សម្រាប់ {entity}",
+      "dependencyHint": "សិទ្ធិមើលត្រូវការសម្រាប់សកម្មភាពផ្សេងទៀត។ ការដកសិទ្ធិមើលនឹងដកសកម្មភាពដែលពាក់ព័ន្ធ។",
       "actions": {
+        "view": "មើល",
+        "edit": "កែប្រែ",
+        "assign": "ចាត់តាំង",
+        "comment": "មតិយោបល់",
+        "transition": "ប្តូរដំណាក់កាល",
+        "configure": "កំណត់រចនាសម្ព័ន្ធ",
         "select": "ជ្រើស",
         "read": "អាន",
         "write": "សរសេរ",
@@ -896,6 +925,21 @@
       "noAttachments": "មិនទាន់មានឯកសារភ្ជាប់",
       "loadFailed": "មិនអាចផ្ទុកទិន្នន័យបាន"
     },
+    "exportDialog": {
+      "title": "នាំចេញទិន្នន័យ",
+      "description": "ជ្រើសរើសចន្លោះកាលបរិច្ឆេទ កំណត់ត្រា និងវាលដែលត្រូវបញ្ចូល។",
+      "startDate": "កាលបរិច្ឆេទចាប់ផ្តើម",
+      "endDate": "កាលបរិច្ឆេទបញ្ចប់",
+      "scope": "ទិន្នន័យដែលត្រូវនាំចេញ",
+      "allMatching": "ទិន្នន័យដែលត្រូវគ្នាទាំងអស់",
+      "currentPage": "ទំព័របច្ចុប្បន្ន",
+      "selectedRows": "ជួរដែលបានជ្រើស ({n})",
+      "fields": "វាលដែលត្រូវបញ្ចូល",
+      "fieldsHint": "ជ្រើសរើសជួរឈរដែលត្រូវបង្ហាញក្នុងឯកសារនាំចេញ។",
+      "fieldRequired": "ជ្រើសរើសយ៉ាងហោចណាស់មួយវាល។",
+      "invalidRange": "កាលបរិច្ឆេទបញ្ចប់ត្រូវតែនៅក្រោយ ឬស្មើកាលបរិច្ឆេទចាប់ផ្តើម។",
+      "requestReady": "សំណើនាំចេញរួចរាល់"
+    },
     "document": {
       "new": "{entity} ថ្មី",
       "newShort": "ថ្មី",
@@ -904,6 +948,7 @@
       "saveFailed": "រក្សាទុកបរាជ័យ",
       "requiredFieldsMissing": "សូមបំពេញវាលដែលត្រូវការ",
       "commentAdded": "បានបន្ថែមមតិ",
+      "commentAddFailed": "មិនអាចបន្ថែមមតិបានទេ",
       "commentUpdated": "បានកែប្រែមតិ",
       "commentUpdateFailed": "មិនអាចកែប្រែមតិបានទេ",
       "commentDeleted": "បានលុបមតិ",
@@ -1038,7 +1083,8 @@
     "search": "ស្វែងរក....",
     "pages": "ទំព័រ",
     "rowsPerPage": "ជួរក្នុងមួយទំព័រ",
-    "pageSizeAll": "ទាំងអស់"
+    "pageSizeAll": "ទាំងអស់",
+    "showingRows": "បង្ហាញ {start}–{end} នៃ {total}"
   },
   "api": {
     "errorTitle": "កំហុស API: {status}",

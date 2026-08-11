@@ -12,6 +12,8 @@ const width = computed(() => {
   return typeof w === 'number' ? w : null
 })
 
+const imageSrc = computed(() => safeImageSource(props.node.attrs.src))
+
 function startResize(event: PointerEvent) {
   if (!props.editor.isEditable) return
   event.preventDefault()
@@ -45,13 +47,15 @@ function startResize(event: PointerEvent) {
     data-drag-handle
   >
     <img
+      v-if="imageSrc"
       ref="imgRef"
-      :src="node.attrs.src"
+      :src="imageSrc"
       :alt="node.attrs.alt || ''"
       :title="node.attrs.title || undefined"
       class="block h-auto max-w-full rounded-md"
       :style="width ? { width: `${width}px` } : undefined"
       draggable="false"
+      referrerpolicy="no-referrer"
     >
     <span
       v-if="editor.isEditable"

@@ -5,7 +5,6 @@ import { useAuthSession } from '~/utils/auth/session'
 import { readRememberMe } from '~/utils/auth/remember-me'
 import { loginWithCredentials } from '~/adapters/auth'
 import { usePageSeo } from '~/composables/usePageSeo'
-import { MOCK_LOGIN_ACCOUNTS } from '~/utils/auth/mock-login'
 
 definePageMeta({
   layout: 'auth',
@@ -15,6 +14,7 @@ const { t, locale } = useI18n()
 const router = useRouter()
 const toast = useToast()
 const authSession = useAuthSession()
+const config = useRuntimeConfig()
 const submitting = ref(false)
 const googleLoading = ref(false)
 const loginForm = useTemplateRef<{ state?: Record<string, unknown> }>('loginForm')
@@ -37,7 +37,7 @@ function buildFields(): AuthFormField[] {
       placeholder: t('pages.auth.emailPlaceholder'),
       required: true,
       autocomplete: 'username',
-      defaultValue: remembered.email || MOCK_LOGIN_ACCOUNTS[0]!.email,
+      defaultValue: remembered.email || (config.public.useMockData ? 'admin@gmail.com' : ''),
     },
     {
       name: 'password',

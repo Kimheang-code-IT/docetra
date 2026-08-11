@@ -1,5 +1,5 @@
 import type { DocumentTabSchema, FieldOption } from '~/types/docetra/common'
-import type { AttributeDataType, RecordAttribute } from '~/types/docetra/configuration'
+import type { AttributeDataType, ConfigWorkflowStage, RecordAttribute } from '~/types/docetra/configuration'
 import { ATTRIBUTE_DATA_TYPES } from '~/types/docetra/configuration'
 
 const statusOptions: FieldOption[] = [
@@ -14,6 +14,9 @@ export function recordTypeTabs(ctx: {
   enableWorkflow?: boolean
   /** Current record type id (or `new`) for create-attribute return flow. */
   typeId?: string
+  /** Draft workflow stages available for per-field assignment. */
+  stages?: ConfigWorkflowStage[]
+  searchAttributes?: (query: string) => void
 }): DocumentTabSchema[] {
   const tabs: DocumentTabSchema[] = [
     {
@@ -52,21 +55,6 @@ export function recordTypeTabs(ctx: {
       }],
     },
     {
-      id: 'numbering',
-      labelKey: 'docetra.config.tabs.numbering',
-      sections: [{
-        id: 'numbering',
-        titleKey: 'docetra.config.tabs.numbering',
-        fields: [
-          { key: 'numbering.prefix', labelKey: 'docetra.config.prefix', type: 'text' },
-          { key: 'numbering.sequenceLength', labelKey: 'docetra.config.sequenceLength', type: 'number' },
-          { key: 'numbering.includeYear', labelKey: 'docetra.config.includeYear', type: 'boolean' },
-          { key: 'numbering.resetYearly', labelKey: 'docetra.config.resetYearly', type: 'boolean' },
-          { key: 'numbering', labelKey: 'docetra.config.numberPreview', type: 'numbering-preview', colSpan: 2 },
-        ],
-      }],
-    },
-    {
       id: 'attributes',
       labelKey: 'docetra.config.tabs.attributes',
       sections: [{
@@ -79,7 +67,12 @@ export function recordTypeTabs(ctx: {
             type: 'assigned-attributes',
             colSpan: 2,
             options: ctx.availableAttributeOptions,
-            meta: { catalog: ctx.attributeCatalog, typeId: ctx.typeId },
+            meta: {
+              catalog: ctx.attributeCatalog,
+              typeId: ctx.typeId,
+              stages: ctx.stages || [],
+              searchAttributes: ctx.searchAttributes,
+            },
           },
         ],
       }],

@@ -7,14 +7,12 @@ const { attributes } = useConfigurationRepositories()
 const { t } = useI18n()
 
 const columns: TableColumnDef[] = [
-  { key: 'label', labelKey: 'docetra.fields.label', sortable: true },
+  { key: '_rowNumber', labelKey: 'docetra.fields.number' },
+  { key: 'label', labelKey: 'docetra.fields.name', sortable: true },
   { key: 'code', labelKey: 'docetra.fields.code', sortable: true },
   { key: 'dataType', labelKey: 'docetra.config.dataTypeLabel' },
-  { key: 'usedByCount', labelKey: 'docetra.fields.usage' },
-  { key: 'required', labelKey: 'docetra.fields.required' },
-  { key: 'searchable', labelKey: 'docetra.config.searchable' },
-  { key: 'status', labelKey: 'docetra.fields.status', cell: 'badge' },
   { key: 'updatedAt', labelKey: 'docetra.fields.updatedAt', cell: 'datetime' },
+  { key: 'updatedBy.name', labelKey: 'docetra.fields.updater', cell: 'person' },
 ]
 
 const filters: FilterDef[] = [
@@ -55,15 +53,26 @@ const list = useConfigListPage({
   descriptionKey: 'docetra.descriptions.recordAttribute',
   icon: 'i-lucide-list-tree',
   routeBase: '/configuration/record-attributes',
+  exportResource: 'recordAttributes',
   columns,
   async load(query) {
     const res = await attributes.list(query as any)
+    const page = Number(query.page || 1)
+    const limit = Number(query.limit || 20)
     return {
-      data: (res.data || []).map(row => ({ ...row }) as Record<string, unknown>),
+      data: (res.data || []).map((row, index) => ({
+        ...row,
+        _rowNumber: ((page - 1) * limit) + index + 1,
+        updatedBy: row.updatedBy || {
+          id: 'system',
+          name: t('docetra.activity.system'),
+        },
+      }) as Record<string, unknown>),
       total: res.meta?.total || 0,
     }
   },
   remove: id => attributes.remove(id),
+  removeMany: ids => attributes.removeMany(ids),
   duplicate: id => attributes.duplicate(id).then(r => r as any),
   setActive: (id, active) => attributes.setActive(id, active).then(() => undefined),
   cellValue(row, key) {
@@ -72,13 +81,9 @@ const list = useConfigListPage({
       const i18nKey = `docetra.config.dataType.${dt}`
       return t(i18nKey) !== i18nKey ? t(i18nKey) : dt
     }
-    if (key === 'required' || key === 'searchable') {
-      return row[key] ? t('docetra.common.yes') : t('docetra.common.no')
-    }
-    if (key === 'status') {
-      const s = String(row.status || '')
-      const i18nKey = `docetra.status.${s}`
-      return t(i18nKey) !== i18nKey ? t(i18nKey) : s
+    if (key === 'updatedBy.name') {
+      const updater = row.updatedBy as { name?: string } | undefined
+      return updater?.name || t('docetra.activity.system')
     }
     if (key === 'updatedAt') {
       return row.updatedAt ? new Date(String(row.updatedAt)).toLocaleString() : '—'
@@ -104,12 +109,15 @@ watch(() => list.q, v => { searchInput.value = v })
     :limit="list.limit"
     :pending="list.pending"
     :error="list.error"
+    :exporting="list.exporting"
     :search="searchInput"
+    @export="list.exportData"
     :sort="list.sort"
     :filters="filters"
     :filter-values="list.filters"
     :row-actions="list.rowActions"
     :cell-value="list.defaultCellValue"
+    :show-meta="true"
     @create="list.openCreate"
     @refresh="list.refresh"
     @update:search="(v) => { searchInput = v; list.debouncedSearch(v) }"

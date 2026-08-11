@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useAppHeader } from '~/composables/layout/useAppHeader'
 import { usePageSeo } from '~/composables/usePageSeo'
+import type { ExportFieldOption, ExportRequest } from '~/types/docetra/export'
 
 /**
  * List/workspace shell. Pass :can-create="true" (and optional createLabelKey)
@@ -14,14 +15,24 @@ const props = withDefaults(defineProps<{
   canCreate?: boolean
   createLabelKey?: string
   createButtons?: Array<{ labelKey: string, icon?: string }>
+  /** Current page refetch state, shown on the shared header reload action. */
+  refreshing?: boolean
+  exportFields?: ExportFieldOption[]
+  selectedCount?: number
+  exporting?: boolean
 }>(), {
   canCreate: false,
+  refreshing: false,
+  exportFields: () => [],
+  selectedCount: 0,
+  exporting: false,
 })
 
 const emit = defineEmits<{
   create: []
   createButton: [index: number]
   refresh: []
+  export: [request: ExportRequest]
 }>()
 
 const { t } = useI18n()
@@ -52,6 +63,12 @@ onBeforeUnmount(() => {
   setBadges([])
 })
 
+onDeactivated(() => {
+  setTitle('')
+  setBreadcrumbs([])
+  setBadges([])
+})
+
 usePageSeo({
   title: () => t(props.titleKey),
   description: () => props.descriptionKey ? t(props.descriptionKey) : undefined,
@@ -64,7 +81,12 @@ usePageSeo({
       :can-create="props.canCreate === true && !resolvedCreateButtons.length"
       :create-label="resolvedCreateLabel"
       :create-buttons="resolvedCreateButtons.length ? resolvedCreateButtons : undefined"
+      :refreshing="props.refreshing"
+      :export-fields="props.exportFields"
+      :selected-count="props.selectedCount"
+      :exporting="props.exporting"
       @refresh="emit('refresh')"
+      @export="emit('export', $event)"
       @create="emit('create')"
       @create-button="emit('createButton', $event)"
     />

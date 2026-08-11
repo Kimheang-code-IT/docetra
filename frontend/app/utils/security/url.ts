@@ -1,0 +1,43 @@
+const EXTERNAL_PROTOCOLS = new Set(['http:', 'https:'])
+const IMAGE_DATA_URL = /^data:image\/(?:png|jpeg|webp|gif);base64,[a-z0-9+/=\s]+$/i
+
+/** Return a browser-safe external URL, or null for executable/unsupported schemes. */
+export function safeExternalUrl(value: unknown): string | null {
+  const raw = typeof value === 'string' ? value.trim() : ''
+  if (!raw) return null
+  try {
+    const parsed = new URL(raw)
+    return EXTERNAL_PROTOCOLS.has(parsed.protocol) ? parsed.toString() : null
+  }
+  catch {
+    return null
+  }
+}
+
+/** Allow application-relative navigation only; rejects protocol-relative and encoded schemes. */
+export function safeInternalPath(value: unknown): string | null {
+  const raw = typeof value === 'string' ? value.trim() : ''
+  if (!raw.startsWith('/') || raw.startsWith('//') || /[\u0000-\u001f]/.test(raw)) return null
+  return raw
+}
+
+/** Restrict editor/image sources to raster data, blob, or normal web URLs. */
+export function safeImageSource(value: unknown): string | null {
+  const raw = typeof value === 'string' ? value.trim() : ''
+  if (!raw) return null
+  if (IMAGE_DATA_URL.test(raw)) return raw
+  if (raw.startsWith('blob:') && import.meta.client) return raw
+  return safeExternalUrl(raw)
+}
+
+/** Resolve uploads against the API origin without ever forwarding auth cross-origin. */
+export function sameOriginApiUrl(path: string, apiBase: string): string | null {
+  try {
+    const base = new URL(apiBase)
+    const resolved = new URL(path, base)
+    return resolved.origin === base.origin ? resolved.toString() : null
+  }
+  catch {
+    return null
+  }
+}

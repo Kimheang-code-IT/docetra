@@ -3,13 +3,13 @@ import type { AppInfo } from '~/types/docetra/settings'
 import { appInfoTabs } from '~/config/settings-schemas'
 import { useSettingsRepositories } from '~/repositories'
 import { useConfirm } from '~/composables/common/useConfirm'
-import { useAppHeader } from '~/composables/layout/useAppHeader'
+import { usePathModel } from '~/composables/common/usePathModel'
+import { useAppPageTitle } from '~/composables/layout/useAppPageTitle'
 import { useAppBranding } from '~/composables/settings/useAppBranding'
-import { usePageSeo } from '~/composables/usePageSeo'
-import { getByPath, setByPath } from '~/utils/object-path'
 
 definePageMeta({
   titleKey: 'docetra.pages.appInfo',
+  permission: 'settings.app_info.view',
 })
 
 const { appInfo } = useSettingsRepositories()
@@ -17,20 +17,21 @@ const { applyFromAppInfo } = useAppBranding()
 const { t } = useI18n()
 const toast = useToast()
 const { confirm } = useConfirm()
-const { setTitle, clear } = useAppHeader()
+const auth = useAuthStore()
+const canEdit = computed(() => auth.canAccessPage('settings.app_info.edit'))
+const canConfigure = computed(() => auth.canAccessPage('settings.app_info.configure'))
 
 const pending = ref(true)
 const saving = ref(false)
-const dirty = ref(false)
 const activeTab = ref('info')
 const model = ref<AppInfo | null>(null)
+const { fieldValue, setFieldValue } = usePathModel(model)
 
 async function load() {
   pending.value = true
   try {
     model.value = await appInfo.get()
     applyFromAppInfo(model.value)
-    dirty.value = false
   }
   catch (e: any) {
     toast.add({ title: e?.message || t('docetra.common.loadFailed'), color: 'error' })
@@ -47,18 +48,6 @@ watch(
   },
 )
 
-watch(model, () => { if (model.value) dirty.value = true }, { deep: true })
-
-function fieldValue(key: string) {
-  if (!model.value) return undefined
-  return getByPath(model.value, key)
-}
-
-function setFieldValue(key: string, value: unknown) {
-  if (!model.value) return
-  setByPath(model.value as any, key, value)
-}
-
 async function save() {
   if (!model.value) return
   saving.value = true
@@ -66,7 +55,6 @@ async function save() {
     model.value = await appInfo.update(model.value)
     applyFromAppInfo(model.value)
     toast.add({ title: t('docetra.common.saved'), color: 'success' })
-    dirty.value = false
   }
   catch (e: any) {
     toast.add({ title: e?.message || t('docetra.common.saveFailed'), color: 'error' })
@@ -90,7 +78,6 @@ async function reset() {
   try {
     model.value = await appInfo.reset()
     applyFromAppInfo(model.value)
-    dirty.value = false
     toast.add({ title: t('docetra.common.resetDone'), color: 'success' })
   }
   finally {
@@ -98,15 +85,8 @@ async function reset() {
   }
 }
 
-onMounted(() => {
-  setTitle(t('docetra.pages.appInfo'))
-  void load()
-})
-onBeforeUnmount(clear)
-
-usePageSeo({
-  title: () => t('docetra.pages.appInfo'),
-})
+onMounted(() => void load())
+useAppPageTitle(() => t('docetra.pages.appInfo'))
 </script>
 
 <template>
@@ -117,6 +97,8 @@ usePageSeo({
     :set-field-value="setFieldValue"
     :pending="pending || !model"
     :saving="saving"
+    :read-only="!canEdit"
+    :can-save="canEdit"
     :show-comments="false"
     :show-meta-rail="false"
     :show-list-nav="false"
@@ -125,7 +107,7 @@ usePageSeo({
     @refresh="load"
   >
     <template #actions>
-      <UButton color="neutral" variant="ghost" :loading="saving" @click="reset">
+      <UButton v-if="canConfigure" color="neutral" variant="ghost" :loading="saving" @click="reset">
         {{ t('docetra.common.reset') }}
       </UButton>
     </template>

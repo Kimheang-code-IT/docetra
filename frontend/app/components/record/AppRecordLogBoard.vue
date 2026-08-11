@@ -11,6 +11,9 @@ const {
   selectedTabId,
   selectedTab,
   tabCounts,
+  hasMoreRecordTypes,
+  loadingMoreRecordTypes,
+  loadMoreRecordTypes,
   page,
   limit,
   total,
@@ -45,6 +48,7 @@ function selectLogTab(id: string) {
     description-key="docetra.descriptions.recordLog"
     icon="i-lucide-scroll-text"
     :can-create="false"
+    :refreshing="pending"
     @refresh="refresh"
   >
     <div class="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-sm border border-default bg-default">
@@ -135,7 +139,7 @@ function selectLogTab(id: string) {
             <UTooltip
               v-for="tab in tabs"
               :key="tab.id"
-              :text="$t(tab.labelKey)"
+              :text="tab.label || $t(tab.labelKey)"
               :content="{ side: 'right', sideOffset: 8 }"
             >
               <button
@@ -159,7 +163,7 @@ function selectLogTab(id: string) {
                         ? 'text-muted hover:bg-elevated hover:text-highlighted'
                         : 'text-muted hover:bg-elevated hover:text-highlighted lg:border-default lg:text-inherit lg:hover:border-primary/30 lg:hover:bg-transparent'),
                 ]"
-                :aria-label="$t(tab.labelKey)"
+                :aria-label="tab.label || $t(tab.labelKey)"
                 :aria-current="selectedTabId === tab.id ? 'page' : undefined"
                 @click="selectLogTab(tab.id)"
               >
@@ -177,7 +181,7 @@ function selectLogTab(id: string) {
                       selectedTabId === tab.id ? 'font-semibold text-highlighted' : 'font-medium text-toned',
                     ]"
                   >
-                    {{ $t(tab.labelKey) }}
+                    {{ tab.label || $t(tab.labelKey) }}
                   </span>
                   <UBadge
                     color="neutral"
@@ -191,6 +195,18 @@ function selectLogTab(id: string) {
                 </template>
               </button>
             </UTooltip>
+            <UButton
+              v-if="hasMoreRecordTypes && (mobileLogListOpen || !leftCollapsed)"
+              block
+              color="neutral"
+              variant="soft"
+              icon="i-lucide-chevrons-down"
+              :loading="loadingMoreRecordTypes"
+              :class="mobileLogListOpen ? '' : 'hidden lg:inline-flex'"
+              @click="loadMoreRecordTypes"
+            >
+              {{ $t('docetra.actions.loadMore') }}
+            </UButton>
           </nav>
         </aside>
 
@@ -223,7 +239,7 @@ function selectLogTab(id: string) {
                 @click="toggleLeftPanel"
               />
               <h2 class="hidden min-w-0 max-w-40 truncate text-sm font-semibold text-highlighted sm:block">
-                {{ $t(selectedTab.labelKey) }}
+                {{ selectedTab.label || $t(selectedTab.labelKey) }}
               </h2>
             </div>
 

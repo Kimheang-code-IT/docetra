@@ -5,7 +5,7 @@ const config = getEntityConfig('documents')
 
 definePageMeta({
   titleKey: 'docetra.pages.document',
-  permission: 'records.documents.view',
+  permission: 'records.documents.create',
 })
 </script>
 

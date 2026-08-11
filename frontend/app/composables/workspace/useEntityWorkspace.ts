@@ -1,9 +1,10 @@
 import type { ListQuery } from '~/types/docetra/common'
+import type { EntityView } from '~/types/docetra/common'
 import type { EntityConfig } from '~/config/entities'
+import type { ExportRequest } from '~/types/docetra/export'
+import { createExportJob } from '~/adapters/exports'
 import { getEntityAdapter } from '~/config/entities'
 import {
-  fetchPageLimit,
-  isShowAllLimit,
   parsePageLimit,
   serializePageLimit,
 } from '~/utils/pagination'
@@ -23,11 +24,18 @@ export function useEntityWorkspace(config: EntityConfig) {
 
   const view = computed({
     get: () => {
-      const requested = String(route.query.view || config.defaultView) as 'table' | 'kanban' | 'hierarchy'
+      const requested = String(route.query.view || config.defaultView) as EntityView
       return config.views.includes(requested) ? requested : config.defaultView
     },
     set: (value) => {
-      router.replace({ query: { ...route.query, view: value === config.defaultView ? undefined : value } })
+      router.replace({
+        query: {
+          ...route.query,
+          view: value === config.defaultView ? undefined : value,
+          sort: undefined,
+          page: undefined,
+        },
+      })
     },
   })
 
@@ -60,9 +68,10 @@ export function useEntityWorkspace(config: EntityConfig) {
   })
 
   const sort = computed({
-    get: () => String(route.query.sort || '-updatedAt'),
+    get: () => String(route.query.sort || config.viewSorts?.[view.value] || '-updatedAt'),
     set: (value) => {
-      router.replace({ query: { ...route.query, sort: value || undefined } })
+      const defaultSort = config.viewSorts?.[view.value] || '-updatedAt'
+      router.replace({ query: { ...route.query, sort: value === defaultSort ? undefined : value, page: undefined } })
     },
   })
 
@@ -129,14 +138,15 @@ export function useEntityWorkspace(config: EntityConfig) {
   const total = ref(0)
   const pending = ref(false)
   const error = ref<string | null>(null)
+  const exporting = ref(false)
   const kanbanColumns = ref<Record<string, { items: Record<string, unknown>[]; total: number; page: number }>>({})
 
   let requestToken = 0
 
   const listQuery = computed<ListQuery>(() => ({
     q: q.value || undefined,
-    page: isShowAllLimit(limit.value) ? 1 : page.value,
-    limit: fetchPageLimit(limit.value),
+    page: page.value,
+    limit: limit.value,
     sort: sort.value,
     view: view.value,
     ...filters.value,
@@ -174,9 +184,7 @@ export function useEntityWorkspace(config: EntityConfig) {
         items.value = config.columns.some(column => column.key === 'rowNumber')
           ? rows.map((row, index) => ({
               ...row,
-              rowNumber: isShowAllLimit(limit.value)
-                ? index + 1
-                : (page.value - 1) * limit.value + index + 1,
+              rowNumber: (page.value - 1) * limit.value + index + 1,
             }))
           : rows
         total.value = res.meta?.total || 0
@@ -213,7 +221,10 @@ export function useEntityWorkspace(config: EntityConfig) {
 
   async function moveToStage(id: string, stage: string) {
     if (!adapter.transitionStage) return
-    const snapshot = JSON.parse(JSON.stringify(kanbanColumns.value))
+    const snapshot = Object.fromEntries(Object.entries(kanbanColumns.value).map(([code, column]) => [
+      code,
+      { ...column, items: column.items.map(item => ({ ...item })) },
+    ]))
     // optimistic
     for (const [code, col] of Object.entries(kanbanColumns.value)) {
       const idx = col.items.findIndex(i => i.id === id)
@@ -235,7 +246,7 @@ export function useEntityWorkspace(config: EntityConfig) {
     }
   }
 
-  watch([listQuery, view], () => {
+  watch(listQuery, () => {
     refresh()
   }, { deep: true, immediate: true })
 
@@ -314,7 +325,9 @@ export function useEntityWorkspace(config: EntityConfig) {
   }
 
   function openCreate() {
-    navigateTo(`${config.routeBase}/new`)
+    return navigateTo(
+      `${config.routeBase}/new?returnTo=${encodeURIComponent(config.routeBase)}`,
+    )
   }
 
   function openRow(row: Record<string, unknown>) {
@@ -335,6 +348,20 @@ export function useEntityWorkspace(config: EntityConfig) {
     await refresh()
   }
 
+  async function exportData(request: ExportRequest, selectedIds: string[] = []) {
+    exporting.value = true
+    try {
+      return await createExportJob({
+        ...request,
+        resource: config.key,
+        format: 'csv',
+        query: { ...listQuery.value, page: undefined, limit: undefined },
+        selectedIds: request.scope === 'selected' ? selectedIds : undefined,
+      })
+    }
+    finally { exporting.value = false }
+  }
+
   return {
     view,
     q,
@@ -348,6 +375,7 @@ export function useEntityWorkspace(config: EntityConfig) {
     total,
     pending,
     error,
+    exporting,
     kanbanColumns,
     refresh,
     loadMoreStage,
@@ -357,6 +385,7 @@ export function useEntityWorkspace(config: EntityConfig) {
     openCreate,
     openRow,
     deleteSelected,
+    exportData,
     listQuery,
   }
 }

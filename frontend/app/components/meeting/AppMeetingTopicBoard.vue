@@ -4,6 +4,8 @@ import {
   MEETING_BOARD_UNASSIGNED,
   useMeetingTopicBoard,
 } from '~/composables/meeting/useMeetingTopicBoard'
+import { consumeListStale } from '~/utils/workspace-list-stale'
+import { permissionForAction } from '~/utils/role/access'
 
 const {
   pending,
@@ -24,9 +26,15 @@ const {
   allMeetingCount,
   unassignedMeetingCount,
   topicMeetingCounts,
+  hasMoreTopics,
+  hasMoreMeetings,
+  loadingMoreTopics,
+  loadingMoreMeetings,
   draggingMeetingId,
   dropTopicId,
   refresh,
+  loadMoreTopics,
+  loadMoreMeetings,
   selectTopic,
   assignMeetingToTopic,
   reorderMeeting,
@@ -37,6 +45,7 @@ const {
 } = useMeetingTopicBoard()
 
 const { t } = useI18n()
+const auth = useAuthStore()
 
 const notesOpen = ref(false)
 const notesMeetingId = ref<string | null>(null)
@@ -56,12 +65,20 @@ function toggleTopicPanel() {
   topicListCollapsed.value = !topicListCollapsed.value
 }
 
-/** Add Topic always; Add Meeting on All / Unassigned pool views. */
+const canCreateTopic = computed(() =>
+  auth.canAccessPage(permissionForAction('meetings.topics.view', 'create')),
+)
+const canCreateMeeting = computed(() =>
+  auth.canAccessPage(permissionForAction('meetings.history.view', 'create')),
+)
+
+/** Add Topic always (when allowed); Add Meeting on All / Unassigned pool views. */
 const createButtons = computed(() => {
-  const buttons = [
-    { labelKey: 'docetra.meetingBoard.createTopic', icon: 'i-lucide-messages-square' },
-  ]
-  if (isPoolView.value) {
+  const buttons: Array<{ labelKey: string, icon?: string }> = []
+  if (canCreateTopic.value) {
+    buttons.push({ labelKey: 'docetra.meetingBoard.createTopic', icon: 'i-lucide-messages-square' })
+  }
+  if (canCreateMeeting.value && isPoolView.value) {
     buttons.push({ labelKey: 'docetra.meetingBoard.createMeeting', icon: 'i-lucide-calendar-plus' })
   }
   return buttons
@@ -74,7 +91,9 @@ const meetingsPanelTitle = computed(() => {
 })
 
 function onCreateButton(index: number) {
-  if (index === 0) openCreateTopic()
+  const button = createButtons.value[index]
+  if (!button) return
+  if (button.labelKey === 'docetra.meetingBoard.createTopic') openCreateTopic()
   else openCreateMeeting()
 }
 
@@ -84,7 +103,13 @@ function selectTopicFromPanel(topicId: string | null) {
 }
 
 onMounted(() => {
-  refresh()
+  // Always reload when entering the board (including return from /new).
+  consumeListStale('meetingTopics', 'meetingHistory')
+  void refresh()
+})
+
+onActivated(() => {
+  if (consumeListStale('meetingTopics', 'meetingHistory')) void refresh()
 })
 
 function openMeetingNotes(id: string) {
@@ -142,7 +167,8 @@ function onMeetingsPanelDrop(event: DragEvent) {
     title-key="docetra.pages.meetingTopic"
     description-key="docetra.descriptions.meetingTopic"
     icon="i-lucide-messages-square"
-    :create-buttons="createButtons"
+    :create-buttons="createButtons.length ? createButtons : undefined"
+    :refreshing="pending"
     @create-button="onCreateButton"
     @refresh="refresh"
   >
@@ -288,6 +314,18 @@ function onMeetingsPanelDrop(event: DragEvent) {
               @drop-meeting="(id) => onTopicDrop(topic.id, id)"
             />
 
+            <UButton
+              v-if="hasMoreTopics && !topicPanelCollapsed"
+              block
+              color="neutral"
+              variant="soft"
+              icon="i-lucide-chevrons-down"
+              :loading="loadingMoreTopics"
+              @click="loadMoreTopics"
+            >
+              {{ $t('docetra.actions.loadMore') }}
+            </UButton>
+
             <p v-if="!filteredTopics.length && !pending && !topicPanelCollapsed" class="py-8 text-center text-xs text-muted">
               {{ $t('docetra.states.empty') }}
             </p>
@@ -360,6 +398,18 @@ function onMeetingsPanelDrop(event: DragEvent) {
                 @assign="(topicId) => assignMeetingToTopic(meeting.id, topicId)"
                 @reorder-before="onReorderBefore"
               />
+            </div>
+
+            <div v-if="hasMoreMeetings" class="flex justify-center py-4">
+              <UButton
+                color="neutral"
+                variant="soft"
+                icon="i-lucide-chevrons-down"
+                :loading="loadingMoreMeetings"
+                @click="loadMoreMeetings"
+              >
+                {{ $t('docetra.actions.loadMore') }}
+              </UButton>
             </div>
 
             <div

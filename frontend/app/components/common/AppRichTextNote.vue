@@ -291,7 +291,7 @@ function onImagePicked(event: Event) {
   input.value = ''
   if (!file || !editorRef.value) return
 
-  if (!file.type.startsWith('image/')) {
+  if (!SAFE_RASTER_IMAGE_TYPES.includes(file.type as (typeof SAFE_RASTER_IMAGE_TYPES)[number])) {
     toast.add({ title: t('docetra.meetingNotes.imageInvalid'), color: 'error' })
     return
   }
@@ -363,7 +363,7 @@ onMounted(() => {
         <input
           ref="imageInput"
           type="file"
-          accept="image/*"
+          :accept="SAFE_RASTER_IMAGE_ACCEPT"
           class="sr-only"
           @change="onImagePicked"
         >

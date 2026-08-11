@@ -2,6 +2,7 @@
 import type { EntityConfig } from '~/config/entities'
 import { useConfirm } from '~/composables/common/useConfirm'
 import { useEntityWorkspace } from '~/composables/workspace/useEntityWorkspace'
+import { consumeListStale } from '~/utils/workspace-list-stale'
 
 const props = defineProps<{
   config: EntityConfig
@@ -24,6 +25,7 @@ const {
   total,
   pending,
   error,
+  exporting,
   kanbanColumns,
   refresh,
   loadMoreStage,
@@ -33,22 +35,35 @@ const {
   openCreate,
   openRow,
   deleteSelected,
+  exportData,
 } = useEntityWorkspace(props.config)
 
 const toast = useToast()
 const { t } = useI18n()
 const { confirm } = useConfirm()
+const auth = useAuthStore()
+
+onActivated(() => {
+  if (consumeListStale(props.config.key)) void refresh()
+})
 
 const searchInput = ref(q.value)
 const selectedIds = ref<string[]>([])
 const deleting = ref(false)
+const exportFields = computed(() => props.config.columns
+  .filter(column => column.key !== 'rowNumber')
+  .map(column => ({ label: t(column.labelKey), value: column.key })))
 
 watch(q, (v) => { searchInput.value = v })
 watch(searchInput, (v) => debouncedSearch(v))
 
-const canDelete = computed(() =>
-  props.config.canDelete !== false && !props.config.readOnly,
-)
+const canCreate = computed(() => props.config.canCreate === true
+  && !props.config.readOnly
+  && auth.canAccessPage(props.config.createPermission || permissionForAction(props.config.permission, 'create')))
+const canDelete = computed(() => props.config.canDelete !== false
+  && !props.config.readOnly
+  && auth.canAccessPage(permissionForAction(props.config.permission, 'delete')))
+const canExport = computed(() => auth.canAccessPage(permissionForAction(props.config.permission, 'export')))
 
 const tableRowActions = computed(() => {
   if (props.config.readOnly) {
@@ -120,10 +135,15 @@ function onRowAction(payload: { key: string, row: Record<string, unknown> }) {
     :title-key="config.titleKey"
     :description-key="config.descriptionKey"
     :icon="config.icon"
-    :can-create="config.canCreate === true && !config.readOnly"
+    :can-create="canCreate"
     :create-label-key="config.createLabelKey"
+    :refreshing="pending"
+    :export-fields="canExport ? exportFields : []"
+    :selected-count="selectedIds.length"
+    :exporting="exporting"
     @create="openCreate"
     @refresh="refresh"
+    @export="request => exportData(request, selectedIds)"
   >
     <div
       v-if="view === 'kanban' && config.stages"
@@ -192,6 +212,37 @@ function onRowAction(payload: { key: string, row: Record<string, unknown> }) {
     </div>
 
     <div
+      v-else-if="view === 'timeline'"
+      class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-sm border border-default bg-default shadow-xs"
+    >
+      <WorkspaceAppWorkspaceToolbar
+        :search="searchInput"
+        :filters="config.filters"
+        :filter-values="filters"
+        :view="view"
+        :views="config.views"
+        :sort="sort"
+        @update:search="searchInput = $event"
+        @update:view="view = $event as any"
+        @update:sort="sort = $event"
+        @set-filter="setFilter"
+        @clear-filters="clearFilters"
+      />
+      <MeetingAppMeetingHistoryTimeline
+        :rows="items"
+        :total="total"
+        :page="page"
+        :limit="limit"
+        :pending="pending"
+        :error="error"
+        @update:page="page = $event"
+        @update:limit="limit = $event"
+        @open="openRow"
+        @retry="refresh"
+      />
+    </div>
+
+    <div
       v-else
       class="flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden rounded-sm border border-default bg-default shadow-xs"
     >
@@ -205,7 +256,7 @@ function onRowAction(payload: { key: string, row: Record<string, unknown> }) {
         :error="error"
         :cell-value="cellValue"
         :can-delete="canDelete"
-        :selectable="usesExactColumns ? false : !config.readOnly && config.canDelete !== false"
+        :selectable="usesExactColumns ? false : canDelete"
         :show-meta="true"
         :row-actions="tableRowActions"
         @update:page="page = $event"

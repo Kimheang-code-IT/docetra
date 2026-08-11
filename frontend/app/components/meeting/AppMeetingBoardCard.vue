@@ -54,6 +54,14 @@ const stageLabel = computed(() => {
   return te(key) ? t(key) : props.meeting.stage
 })
 
+const statusColor = computed(() => {
+  const status = String(props.meeting.status || '').toLowerCase()
+  if (status === 'active' || status === 'completed') return 'success' as const
+  if (status === 'pending' || status === 'draft') return 'warning' as const
+  if (status === 'disabled' || status === 'failed') return 'error' as const
+  return 'info' as const
+})
+
 const tags = computed(() => {
   if (Array.isArray(props.meeting.tags) && props.meeting.tags.length) {
     return props.meeting.tags.map(String).filter(Boolean)
@@ -86,8 +94,36 @@ function meetingModeLabel(mode?: string) {
   return te(key) ? t(key) : mode
 }
 
+function fieldTone(slot: string) {
+  if (slot === 'letterNumber') return 'app-card-field-highlight--info'
+  if (slot === 'topicTitle' || slot === 'meetingMode') return 'app-card-field-highlight--secondary'
+  if (slot === 'participants') return 'app-card-field-highlight--success'
+  if (slot === 'internalUnits') return 'app-card-field-highlight--info'
+  if (slot === 'externalUnits' || slot === 'durationMinutes') return 'app-card-field-highlight--warning'
+  return ''
+}
+
+function fieldIcon(slot: string) {
+  if (slot === 'letterNumber') return 'i-lucide-hash'
+  if (slot === 'topicTitle') return 'i-lucide-messages-square'
+  if (slot === 'participants') return 'i-lucide-users'
+  if (slot === 'internalUnits') return 'i-lucide-building-2'
+  if (slot === 'externalUnits') return 'i-lucide-landmark'
+  if (slot === 'meetingMode') return 'i-lucide-video'
+  if (slot === 'durationMinutes') return 'i-lucide-timer'
+  return 'i-lucide-file-text'
+}
+
+function footerTone(slot: string) {
+  if (slot === 'location' || slot === 'durationMinutes') return 'app-card-field-highlight--warning'
+  if (slot === 'attendeesCount') return 'app-card-field-highlight--success'
+  if (slot === 'meetingMode') return 'app-card-field-highlight--secondary'
+  if (slot === 'createdAt' || slot === 'updatedAt') return 'app-card-field-highlight--neutral'
+  return 'app-card-field-highlight--info'
+}
+
 function joinMeeting() {
-  const url = props.meeting.meetingUrl?.trim()
+  const url = safeExternalUrl(props.meeting.meetingUrl)
   if (!url) return
   if (import.meta.client) window.open(url, '_blank', 'noopener,noreferrer')
 }
@@ -244,8 +280,9 @@ function onDrop(event: DragEvent) {
           <UBadge
             v-if="showStatus"
             size="sm"
-            color="neutral"
+            :color="statusColor"
             variant="subtle"
+            icon="i-lucide-circle-dot"
           >
             {{ statusLabel }}
           </UBadge>
@@ -254,16 +291,19 @@ function onDrop(event: DragEvent) {
             size="sm"
             color="primary"
             variant="soft"
+            icon="i-lucide-clock-3"
           >
             {{ timing.inProgress ? $t('docetra.meetingBoard.inProgress') : $t('docetra.meetingBoard.soon') }}
           </UBadge>
         </div>
-        <p
+        <div
           v-if="bodySlots.includes('topicTitle')"
-          class="mt-1 truncate text-xs text-muted"
+          class="app-card-field-highlight mt-1 flex min-w-0 items-center gap-1.5 text-xs text-muted"
+          :class="fieldTone('topicTitle')"
         >
-          {{ meeting.topicTitle || $t('docetra.meetingBoard.unassigned') }}
-        </p>
+          <UIcon :name="fieldIcon('topicTitle')" class="size-3 shrink-0" />
+          <span class="truncate">{{ meeting.topicTitle || $t('docetra.meetingBoard.unassigned') }}</span>
+        </div>
       </div>
       <UDropdownMenu :items="assignItems" :content="{ align: 'end' }">
         <UButton
@@ -280,14 +320,16 @@ function onDrop(event: DragEvent) {
 
     <div class="min-h-0 flex-1">
       <template v-for="slot in bodySlots" :key="slot">
-      <p
+      <div
         v-if="slot === 'letterNumber'"
-        class="mt-1.5 truncate text-xs text-muted"
+        class="app-card-field-highlight mt-1.5 flex min-w-0 items-center gap-1.5 text-xs text-muted"
+        :class="fieldTone(slot)"
       >
-        {{ meeting.letterNumber }}
-      </p>
+        <UIcon :name="fieldIcon(slot)" class="size-3 shrink-0" />
+        <span class="truncate">{{ meeting.letterNumber }}</span>
+      </div>
       <div v-else-if="slot === 'stage'" class="mt-1.5">
-        <UBadge size="sm" color="neutral" variant="outline">{{ stageLabel }}</UBadge>
+        <UBadge size="sm" color="info" variant="soft" icon="i-lucide-git-branch">{{ stageLabel }}</UBadge>
       </div>
       <div
         v-else-if="slot === 'tags'"
@@ -297,22 +339,20 @@ function onDrop(event: DragEvent) {
           v-for="tag in tags.slice(0, 2)"
           :key="tag"
           size="sm"
-          color="neutral"
+          color="secondary"
           variant="soft"
+          icon="i-lucide-tag"
         >
           {{ tag }}
         </UBadge>
       </div>
       <div
         v-else-if="slot === 'participants' || slot === 'internalUnits' || slot === 'externalUnits'"
-        class="mt-1.5 flex min-w-0 items-center gap-1.5 truncate text-xs text-muted"
+        class="app-card-field-highlight mt-1.5 flex min-w-0 items-center gap-1.5 truncate text-xs text-muted"
+        :class="fieldTone(slot)"
       >
         <UIcon
-          :name="slot === 'participants'
-            ? 'i-lucide-users'
-            : slot === 'internalUnits'
-              ? 'i-lucide-building-2'
-              : 'i-lucide-landmark'"
+          :name="fieldIcon(slot)"
           class="size-3 shrink-0"
         />
         <span class="truncate">
@@ -323,12 +363,14 @@ function onDrop(event: DragEvent) {
               : meeting.externalUnits) }}
         </span>
       </div>
-      <p
+      <div
         v-else-if="slot === 'meetingMode'"
-        class="mt-1.5 text-xs text-muted"
+        class="app-card-field-highlight mt-1.5 flex items-center gap-1.5 text-xs text-muted"
+        :class="fieldTone(slot)"
       >
-        {{ meetingModeLabel(meeting.meetingMode) }}
-      </p>
+        <UIcon :name="fieldIcon(slot)" class="size-3 shrink-0" />
+        <span class="truncate">{{ meetingModeLabel(meeting.meetingMode) }}</span>
+      </div>
       <div
         v-else-if="slot === 'meetingUrl' && meeting.meetingUrl"
         class="mt-1.5"
@@ -342,12 +384,14 @@ function onDrop(event: DragEvent) {
           @click.stop="joinMeeting"
         />
       </div>
-      <p
+      <div
         v-else-if="slot === 'durationMinutes' && meeting.durationMinutes != null"
-        class="mt-1.5 text-xs text-muted"
+        class="app-card-field-highlight mt-1.5 flex items-center gap-1.5 text-xs text-muted"
+        :class="fieldTone(slot)"
       >
-        {{ $t('docetra.meetingBoard.durationMinutes', { n: meeting.durationMinutes }) }}
-      </p>
+        <UIcon :name="fieldIcon(slot)" class="size-3 shrink-0" />
+        <span>{{ $t('docetra.meetingBoard.durationMinutes', { n: meeting.durationMinutes }) }}</span>
+      </div>
     </template>
     </div>
 
@@ -370,7 +414,8 @@ function onDrop(event: DragEvent) {
         <template v-for="slot in footerLeft" :key="slot">
           <span
             v-if="slot === 'letterDate' || slot === 'meetingDate' || slot === 'recordTime'"
-            class="inline-flex min-w-0 items-center gap-1 truncate"
+            class="app-card-field-highlight--compact inline-flex min-w-0 items-center gap-1 truncate"
+            :class="footerTone(slot)"
           >
             <UIcon name="i-lucide-calendar" class="size-3 shrink-0" />
             <span class="truncate">
@@ -379,34 +424,40 @@ function onDrop(event: DragEvent) {
           </span>
           <span
             v-else-if="slot === 'location'"
-            class="inline-flex min-w-0 items-center gap-1 truncate"
+            class="app-card-field-highlight--compact inline-flex min-w-0 items-center gap-1 truncate"
+            :class="footerTone(slot)"
           >
             <UIcon name="i-lucide-map-pin" class="size-3 shrink-0" />
             <span class="truncate">{{ meeting.location || '—' }}</span>
           </span>
           <span
             v-else-if="slot === 'attendeesCount'"
-            class="inline-flex items-center gap-1"
+            class="app-card-field-highlight--compact inline-flex items-center gap-1"
+            :class="footerTone(slot)"
           >
             <UIcon name="i-lucide-users" class="size-3" />
             {{ meeting.attendeesCount }}
           </span>
           <span
             v-else-if="slot === 'durationMinutes' && meeting.durationMinutes != null"
-            class="inline-flex items-center gap-1"
+            class="app-card-field-highlight--compact inline-flex items-center gap-1"
+            :class="footerTone(slot)"
           >
             <UIcon name="i-lucide-timer" class="size-3" />
             {{ meeting.durationMinutes }}m
           </span>
           <span
             v-else-if="slot === 'meetingMode'"
-            class="inline-flex min-w-0 items-center gap-1 truncate"
+            class="app-card-field-highlight--compact inline-flex min-w-0 items-center gap-1 truncate"
+            :class="footerTone(slot)"
           >
+            <UIcon name="i-lucide-video" class="size-3 shrink-0" />
             {{ meetingModeLabel(meeting.meetingMode) }}
           </span>
           <span
             v-else-if="slot === 'createdAt' || slot === 'updatedAt'"
-            class="inline-flex min-w-0 items-center gap-1 truncate"
+            class="app-card-field-highlight--compact inline-flex min-w-0 items-center gap-1 truncate"
+            :class="footerTone(slot)"
           >
             <UIcon name="i-lucide-clock" class="size-3 shrink-0" />
             <span class="truncate">{{ day(slot === 'createdAt' ? meeting.createdAt : meeting.updatedAt) || '—' }}</span>
@@ -417,7 +468,8 @@ function onDrop(event: DragEvent) {
         <template v-for="slot in footerRight" :key="slot">
           <span
             v-if="slot === 'letterDate' || slot === 'meetingDate' || slot === 'recordTime'"
-            class="inline-flex min-w-0 items-center gap-1 truncate"
+            class="app-card-field-highlight--compact inline-flex min-w-0 items-center gap-1 truncate"
+            :class="footerTone(slot)"
           >
             <UIcon name="i-lucide-calendar" class="size-3 shrink-0" />
             <span class="truncate">
@@ -426,34 +478,40 @@ function onDrop(event: DragEvent) {
           </span>
           <span
             v-else-if="slot === 'location'"
-            class="inline-flex min-w-0 items-center gap-1 truncate"
+            class="app-card-field-highlight--compact inline-flex min-w-0 items-center gap-1 truncate"
+            :class="footerTone(slot)"
           >
             <UIcon name="i-lucide-map-pin" class="size-3 shrink-0" />
             <span class="truncate">{{ meeting.location || '—' }}</span>
           </span>
           <span
             v-else-if="slot === 'attendeesCount'"
-            class="inline-flex items-center gap-1"
+            class="app-card-field-highlight--compact inline-flex items-center gap-1"
+            :class="footerTone(slot)"
           >
             <UIcon name="i-lucide-users" class="size-3" />
             {{ meeting.attendeesCount }}
           </span>
           <span
             v-else-if="slot === 'durationMinutes' && meeting.durationMinutes != null"
-            class="inline-flex items-center gap-1"
+            class="app-card-field-highlight--compact inline-flex items-center gap-1"
+            :class="footerTone(slot)"
           >
             <UIcon name="i-lucide-timer" class="size-3" />
             {{ meeting.durationMinutes }}m
           </span>
           <span
             v-else-if="slot === 'meetingMode'"
-            class="inline-flex min-w-0 items-center gap-1 truncate"
+            class="app-card-field-highlight--compact inline-flex min-w-0 items-center gap-1 truncate"
+            :class="footerTone(slot)"
           >
+            <UIcon name="i-lucide-video" class="size-3 shrink-0" />
             {{ meetingModeLabel(meeting.meetingMode) }}
           </span>
           <span
             v-else-if="slot === 'createdAt' || slot === 'updatedAt'"
-            class="inline-flex min-w-0 items-center gap-1 truncate"
+            class="app-card-field-highlight--compact inline-flex min-w-0 items-center gap-1 truncate"
+            :class="footerTone(slot)"
           >
             <UIcon name="i-lucide-clock" class="size-3 shrink-0" />
             <span class="truncate">{{ day(slot === 'createdAt' ? meeting.createdAt : meeting.updatedAt) || '—' }}</span>

@@ -5,7 +5,7 @@ const config = getEntityConfig('incomingDocuments')
 
 definePageMeta({
   titleKey: 'docetra.pages.incomingDocument',
-  permission: 'records.incoming_documents.view',
+  permission: 'records.incoming_documents.create',
 })
 </script>
 

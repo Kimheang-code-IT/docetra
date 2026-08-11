@@ -6,6 +6,7 @@ import type {
   EntityComment,
   EntityFavoriteState,
   EntityRecordNeighbors,
+  GroupCountSummary,
 } from '~/types/docetra/common'
 import { applyListQuery, createId, mockLatency, nowIso, ok } from '~/mocks/query'
 import { person, seedActivity, seedAttachments, seedComments } from '~/mocks/seed'
@@ -43,9 +44,12 @@ export function createEntityAdapter<T extends EntityRecord>(options: {
   return {
     async list(query) {
       if (!usesMockData()) {
+        // Keep independent board columns concurrent while replacing stale
+        // searches/page requests for the same list consumer.
+        const listScope = [query?.view || 'list', query?.stage || 'all'].join(':')
         return useApi().get<ApiResponse<T[]>>(endpoint, {
           query,
-          requestKey: `list:${endpoint}`,
+          requestKey: `list:${endpoint}:${listScope}`,
           cancelPrevious: true,
         })
       }
@@ -126,6 +130,38 @@ export function createEntityAdapter<T extends EntityRecord>(options: {
 
     listByStage(stage, query) {
       return this.list({ ...query, stage })
+    },
+
+    async getGroupCounts(field, query) {
+      if (!usesMockData()) {
+        return useApi().get<ApiResponse<GroupCountSummary>>(`${endpoint}/counts`, {
+          query: { ...query, groupBy: field },
+          requestKey: `counts:${endpoint}:${field}`,
+          cancelPrevious: true,
+        })
+      }
+      await mockLatency(null)
+      const baseQuery = { ...query, page: 1, limit: 1 }
+      const total = applyListQuery(store.items as unknown as Record<string, unknown>[], baseQuery, searchKeys).meta?.total || 0
+      const groups: Record<string, number> = {}
+      const values = new Set(
+        store.items
+          .map(item => String((item as Record<string, unknown>)[field] || ''))
+          .filter(Boolean),
+      )
+      for (const value of values) {
+        groups[value] = applyListQuery(
+          store.items as unknown as Record<string, unknown>[],
+          { ...baseQuery, [field]: value },
+          searchKeys,
+        ).meta?.total || 0
+      }
+      const unassigned = applyListQuery(
+        store.items as unknown as Record<string, unknown>[],
+        { ...baseQuery, [field]: '__empty__' },
+        searchKeys,
+      ).meta?.total || 0
+      return ok({ total, unassigned, groups })
     },
 
     async listComments(id, query) {
@@ -227,11 +263,15 @@ export function createEntityAdapter<T extends EntityRecord>(options: {
       return applyListQuery(store.activity[id] as unknown as Record<string, unknown>[], query, ['summary', 'action']) as unknown as ApiResponse<ActivityEvent[]>
     },
 
-    async listAttachments(id) {
-      if (!usesMockData()) return useApi().get<ApiResponse<AttachmentMeta[]>>(`${resource(id)}/attachments`)
+    async listAttachments(id, query) {
+      if (!usesMockData()) return useApi().get<ApiResponse<AttachmentMeta[]>>(`${resource(id)}/attachments`, { query })
       await mockLatency(null)
       store.attachments[id] ||= seedAttachments()
-      return ok(structuredClone(store.attachments[id]))
+      return applyListQuery(
+        store.attachments[id] as unknown as Record<string, unknown>[],
+        query,
+        ['name', 'mimeType'],
+      ) as unknown as ApiResponse<AttachmentMeta[]>
     },
 
     async replaceAttachments(id, files) {

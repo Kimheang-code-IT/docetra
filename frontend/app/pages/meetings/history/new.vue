@@ -5,7 +5,7 @@ const config = getEntityConfig('meetingHistory')
 
 definePageMeta({
   titleKey: 'docetra.pages.meetingHistory',
-  permission: 'meetings.history.view',
+  permission: 'meetings.history.create',
 })
 </script>
 

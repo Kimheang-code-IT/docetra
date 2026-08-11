@@ -1,5 +1,5 @@
 import type { ApiMeta, ApiResponse, ListQuery } from '~/types/docetra/common'
-import { PAGE_SIZE_ALL_FETCH } from '~/utils/pagination'
+import { TABLE_PAGE_SIZES } from '~/utils/pagination'
 
 function delay(ms = 40) {
   return new Promise(resolve => setTimeout(resolve, ms))
@@ -19,8 +19,11 @@ export function ok<T>(data: T, meta?: ApiMeta): ApiResponse<T> {
   return { data, meta }
 }
 
-/** Artificial mock network delay. Keep low so UI feels snappy in mock mode. */
-export async function mockLatency<T>(value: T, ms = 40): Promise<T> {
+/**
+ * Optional mock network delay. Normal mock CRUD resolves immediately so the
+ * mock-only release does not flash or retain API-style pending states.
+ */
+export async function mockLatency<T>(value: T, ms = 0): Promise<T> {
   if (ms > 0) await delay(ms)
   return value
 }
@@ -32,7 +35,8 @@ export function applyListQuery<T extends Record<string, unknown>>(
 ): ApiResponse<T[]> {
   const page = Number(query.page || 1)
   let limit = Number(query.limit || 10)
-  if (!Number.isFinite(limit) || limit <= 0) limit = PAGE_SIZE_ALL_FETCH
+  if (!Number.isFinite(limit) || limit <= 0) limit = TABLE_PAGE_SIZES[1]
+  limit = Math.min(limit, TABLE_PAGE_SIZES.at(-1) || 100)
   let filtered = [...items]
 
   const q = String(query.q || '').trim().toLowerCase()
@@ -59,6 +63,7 @@ export function applyListQuery<T extends Record<string, unknown>>(
     if (value === undefined || value === '' || value === null) continue
     filtered = filtered.filter((item) => {
       const current = item[key]
+      if (value === '__empty__') return current == null || current === ''
       if (typeof current === 'boolean') return current === (value === true || value === 'true')
       if (current && typeof current === 'object' && 'id' in (current as object)) {
         return String((current as { id: string }).id) === String(value)

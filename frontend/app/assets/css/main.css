@@ -85,5 +85,45 @@
     flex-shrink: 0;
     overflow: hidden;
   }
+
+  /* Compact ERP card metadata chip for quick visual scanning. */
+  .app-card-field-highlight {
+    border: 1px solid color-mix(in oklab, var(--ui-primary) 32%, var(--ui-border));
+    border-radius: 0.375rem;
+    background: color-mix(in oklab, var(--ui-primary) 16%, var(--ui-bg));
+    padding: 0.25rem 0.5rem;
+  }
+
+  .app-card-field-highlight--compact {
+    border: 1px solid color-mix(in oklab, var(--ui-primary) 28%, var(--ui-border));
+    border-radius: 0.375rem;
+    background: color-mix(in oklab, var(--ui-primary) 13%, var(--ui-bg));
+    padding: 0.1875rem 0.375rem;
+  }
+
+  .app-card-field-highlight--info {
+    border-color: color-mix(in oklab, var(--ui-info) 38%, var(--ui-border));
+    background: color-mix(in oklab, var(--ui-info) 18%, var(--ui-bg));
+  }
+
+  .app-card-field-highlight--success {
+    border-color: color-mix(in oklab, var(--ui-success) 38%, var(--ui-border));
+    background: color-mix(in oklab, var(--ui-success) 18%, var(--ui-bg));
+  }
+
+  .app-card-field-highlight--warning {
+    border-color: color-mix(in oklab, var(--ui-warning) 42%, var(--ui-border));
+    background: color-mix(in oklab, var(--ui-warning) 20%, var(--ui-bg));
+  }
+
+  .app-card-field-highlight--secondary {
+    border-color: color-mix(in oklab, var(--ui-secondary) 38%, var(--ui-border));
+    background: color-mix(in oklab, var(--ui-secondary) 18%, var(--ui-bg));
+  }
+
+  .app-card-field-highlight--neutral {
+    border-color: var(--ui-border);
+    background: var(--ui-bg-elevated);
+  }
 }
 

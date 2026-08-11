@@ -3,8 +3,15 @@ import { computed } from 'vue'
 import type { AuthUser } from '~/types/auth-user'
 
 export const useAuthStore = defineStore('auth', () => {
-  const token = useCookie<string | null>('auth_token', { default: () => null })
-  const user = useCookie<AuthUser | null>('auth_user', { default: () => null })
+  const cookieOptions = {
+    default: () => null,
+    path: '/',
+    sameSite: 'strict' as const,
+    secure: import.meta.env.PROD,
+  }
+  // The access token remains JS-readable until the API supports an HttpOnly session cookie.
+  const token = useCookie<string | null>('auth_token', cookieOptions)
+  const user = useCookie<AuthUser | null>('auth_user', cookieOptions)
 
   const isLoggedIn = computed(() => Boolean(token.value))
 

@@ -1,13 +1,18 @@
 <script setup lang="ts">
 import type { WorkflowStage } from '~/types/docetra/common'
 
-defineProps<{
+const props = defineProps<{
   stage: WorkflowStage
   count: number
   selected?: boolean
   dropActive?: boolean
   collapsed?: boolean
 }>()
+
+const { t, te } = useI18n()
+const stageName = computed(() =>
+  props.stage.label || (te(props.stage.labelKey) ? t(props.stage.labelKey) : props.stage.code),
+)
 
 const emit = defineEmits<{
   select: []
@@ -31,7 +36,7 @@ function onDrop(event: DragEvent) {
 
 <template>
   <UTooltip
-    :text="$t(stage.labelKey)"
+    :text="stageName"
     :disabled="!collapsed"
     :content="{ side: 'right', sideOffset: 8 }"
   >
@@ -55,7 +60,7 @@ function onDrop(event: DragEvent) {
               : 'border-default bg-default hover:border-primary/35',
             dropActive ? 'border-primary bg-primary/10 ring-2 ring-primary/25' : '',
           ]"
-      :aria-label="$t(stage.labelKey)"
+      :aria-label="stageName"
       :aria-current="selected ? 'page' : undefined"
       @click="emit('select')"
       @keydown.enter.prevent="emit('select')"
@@ -70,7 +75,7 @@ function onDrop(event: DragEvent) {
         <div class="flex items-start gap-2">
           <div class="min-w-0 flex-1">
             <h3 class="text-sm font-semibold text-highlighted wrap-break-word">
-              {{ $t(stage.labelKey) }}
+              {{ stageName }}
             </h3>
             <p class="mt-1 truncate text-xs text-muted">
               {{ $t('docetra.recordStageBoard.stageHint') }}
@@ -82,7 +87,7 @@ function onDrop(event: DragEvent) {
         </div>
         <div class="mt-2 flex flex-wrap gap-1">
           <UBadge size="sm" color="neutral" variant="subtle">
-            {{ $t(stage.labelKey) }}
+            {{ stageName }}
           </UBadge>
         </div>
       </template>

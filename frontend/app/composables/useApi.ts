@@ -22,6 +22,10 @@ type ApiFetchError = Error & {
     data?: ApiErrorPayload
 }
 
+// Shared across every useApi() consumer so a later request can cancel an older
+// request even when adapters/composables created separate useApi instances.
+const requestControllers = new Map<string, AbortController>()
+
 /**
  * Standard API Fetching Composable
  * ───────────────────────────────────────
@@ -39,21 +43,23 @@ export function useApi() {
 
     // Base URL from nuxt.config (fallback to localhost for dev)
     const baseURL = config.public.apiBase || 'http://localhost:8000/api'
-    const controllers = new Map<string, AbortController>()
 
     function getRequestKey(url: string, options: ApiRequestOptions): string {
         return options.requestKey || `${options.method || 'GET'}:${url}`
     }
 
     function cancelRequest(key: string) {
-        const controller = controllers.get(key)
+        const controller = requestControllers.get(key)
         if (controller) {
             controller.abort()
-            controllers.delete(key)
+            requestControllers.delete(key)
         }
     }
 
     const fetch = async <T>(url: string, options: ApiRequestOptions = {}) => {
+        if (!sameOriginApiUrl(url, String(baseURL))) {
+            throw new Error('API requests must use the configured API origin')
+        }
         // Retrieve real global app state via Pinia
         const authStore = useAuthStore()
         const requestKey = getRequestKey(url, options)
@@ -64,7 +70,7 @@ export function useApi() {
         }
 
         const controller = new AbortController()
-        controllers.set(requestKey, controller)
+        requestControllers.set(requestKey, controller)
 
         try {
             pending.value = true
@@ -114,8 +120,8 @@ export function useApi() {
             throw err
         }
         finally {
-            if (controllers.get(requestKey) === controller) {
-                controllers.delete(requestKey)
+            if (requestControllers.get(requestKey) === controller) {
+                requestControllers.delete(requestKey)
             }
             pending.value = false
         }

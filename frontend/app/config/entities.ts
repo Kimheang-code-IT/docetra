@@ -1,5 +1,6 @@
 import type {
   DocumentTabSchema,
+  EntityView,
   FilterDef,
   TableColumnDef,
   WorkflowStage,
@@ -18,14 +19,25 @@ export interface EntityConfig {
   createPermission?: string
   icon: string
   groupKey: string
-  views: Array<'table' | 'kanban' | 'hierarchy'>
-  defaultView: 'table' | 'kanban' | 'hierarchy'
+  views: EntityView[]
+  defaultView: EntityView
+  /** API sort used when a view has no explicit `sort` query parameter. */
+  viewSorts?: Partial<Record<EntityView, string>>
   readOnly?: boolean
   canCreate?: boolean
   /** Header/create-page label, e.g. docetra.config.createRecordAttribute → "New Attribute". */
   createLabelKey?: string
   canDelete?: boolean
   canComment?: boolean
+  /** Reusable add/detail/edit document presentation; avoids entity-specific templates. */
+  document?: {
+    wide?: boolean
+    metaRail?: boolean
+  }
+  /** Uses unified Record Type metadata and dynamic record-detail fields. */
+  recordBacked?: boolean
+  /** Stable Record Type code used to resolve runtime workflow configuration. */
+  recordTypeCode?: string
   stages?: WorkflowStage[]
   columns: TableColumnDef[]
   filters: FilterDef[]
@@ -180,6 +192,8 @@ export const entityConfigs: Record<string, EntityConfig> = {
     canCreate: true,
     createLabelKey: 'docetra.meetingBoard.createTopic',
     canComment: true,
+    recordBacked: true,
+    recordTypeCode: 'meeting_topic',
     stages: workflowStages,
     titleField: 'title',
     columns: [
@@ -208,11 +222,17 @@ export const entityConfigs: Record<string, EntityConfig> = {
     permission: 'meetings.history.view',
     icon: 'i-lucide-history',
     groupKey: 'docetra.navigation.meeting',
-    views: ['table'],
+    views: ['table', 'timeline'],
     defaultView: 'table',
+    viewSorts: {
+      table: '-meetingDate',
+      timeline: '-meetingDate',
+    },
     canCreate: true,
     createLabelKey: 'docetra.meetingBoard.createMeeting',
     canComment: true,
+    recordBacked: true,
+    recordTypeCode: 'meeting',
     stages: workflowStages,
     titleField: 'title',
     columns: [
@@ -274,6 +294,8 @@ export const entityConfigs: Record<string, EntityConfig> = {
     defaultView: 'table',
     canCreate: true,
     canComment: true,
+    recordBacked: true,
+    recordTypeCode: 'incoming',
     stages: recordWorkflowStages,
     titleField: 'title',
     columns: [
@@ -308,6 +330,8 @@ export const entityConfigs: Record<string, EntityConfig> = {
     defaultView: 'table',
     canCreate: true,
     canComment: true,
+    recordBacked: true,
+    recordTypeCode: 'outgoing',
     stages: recordWorkflowStages,
     titleField: 'title',
     columns: [
@@ -338,6 +362,8 @@ export const entityConfigs: Record<string, EntityConfig> = {
     defaultView: 'table',
     canCreate: true,
     canComment: true,
+    recordBacked: true,
+    recordTypeCode: 'document',
     stages: recordWorkflowStages,
     titleField: 'title',
     columns: [
@@ -369,6 +395,8 @@ export const entityConfigs: Record<string, EntityConfig> = {
     defaultView: 'table',
     canCreate: true,
     canComment: true,
+    recordBacked: true,
+    recordTypeCode: 'master_list',
     stages: recordWorkflowStages,
     titleField: 'title',
     columns: [
@@ -531,7 +559,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
         labelKey: 'docetra.fields.ancestor',
         type: 'select',
         placeholder: 'Choose option ...',
-        optionsEndpoint: `${ApiEndpoints.DEPARTMENTS}/options`,
+        optionsEndpoint: `${ApiEndpoints.DEPARTMENTS}/options?hierarchy=true`,
       },
       { key: 'name', labelKey: 'docetra.fields.name', type: 'text', required: true },
       { key: 'taxId', labelKey: 'docetra.fields.taxId', type: 'text' },
@@ -730,6 +758,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
     defaultView: 'table',
     canCreate: true,
     canComment: false,
+    document: { wide: true, metaRail: false },
     titleField: 'name',
     columns: [
       { key: 'name', labelKey: 'docetra.fields.roleName', sortable: true, priority: 'high' },
@@ -782,6 +811,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
     defaultView: 'table',
     canCreate: true,
     canComment: false,
+    document: { wide: true, metaRail: false },
     titleField: 'name',
     columns: [
       { key: 'name', labelKey: 'docetra.fields.name', sortable: true },

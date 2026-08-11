@@ -65,7 +65,8 @@
       "systemLog": "System and service diagnostics."
     },
     "department": {
-      "cannotBeOwnAncestor": "A department cannot be its own ancestor."
+      "cannotBeOwnAncestor": "A department cannot be its own ancestor.",
+      "cannotBeDescendant": "A department cannot use itself or one of its descendants as its ancestor."
     },
     "companySector": {
       "cannotBeOwnParent": "A company sector cannot be its own parent."
@@ -233,6 +234,9 @@
       "logs": "View logs",
       "delete": "Delete",
       "duplicate": "Duplicate",
+      "assignFields": "Assign fields",
+      "activate": "Activate",
+      "deactivate": "Deactivate",
       "toggleActive": "Activate / deactivate"
     },
     "common": {
@@ -358,6 +362,9 @@
       "showInList": "Show in list",
       "visible": "Visible",
       "section": "Section",
+      "assignedStage": "Assigned stage",
+      "allStages": "All stages",
+      "invalidAssignedStage": "{field} is assigned to a stage that no longer exists. Reassign it or choose All stages.",
       "optionsNotApplicable": "Options are only available for select-like field types.",
       "assignAttribute": "Assign attribute",
       "addAttribute": "Add attribute",
@@ -568,10 +575,13 @@
       "table": "Table",
       "kanban": "Kanban",
       "hierarchy": "Hierarchy",
+      "timeline": "Timeline",
       "hierarchyHint": "Parent and child departments. Click a row to open the document."
     },
     "sort": {
       "label": "Sort",
+      "meetingDesc": "Meeting date (newest)",
+      "meetingAsc": "Meeting date (oldest)",
       "updatedDesc": "Updated (newest)",
       "updatedAsc": "Updated (oldest)",
       "nameAsc": "Name A–Z",
@@ -730,6 +740,10 @@
       "moveToStage": "Move to stage",
       "moved": "Moved to {stage}",
       "moveFailed": "Could not move record",
+      "stageConfigNotFound": "The matching Record Type configuration was not found.",
+      "stageConfigEmpty": "The Record Type has no active workflow stages.",
+      "stageConfigFailed": "Could not load configured workflow stages.",
+      "usingFallbackStages": "Using fallback stages",
       "collapseStages": "Collapse stages",
       "expandStages": "Expand stages"
     },
@@ -997,7 +1011,22 @@
     },
     "rolePermissions": {
       "documentType": "Document Type",
+      "matrixTitle": "Permission matrix",
+      "grantedCount": "{granted} of {total} permissions granted",
+      "grantAll": "Grant all",
+      "clearAll": "Clear all",
+      "scope": "Scope",
+      "level": "Level",
+      "creatorOnly": "Creator only",
+      "toggleRow": "Toggle all permissions for {entity}",
+      "dependencyHint": "View is required for every other action. Removing View clears dependent actions.",
       "actions": {
+        "view": "View",
+        "edit": "Edit",
+        "assign": "Assign",
+        "comment": "Comment",
+        "transition": "Change stage",
+        "configure": "Configure",
         "select": "Select",
         "read": "Read",
         "write": "Write",
@@ -1019,6 +1048,21 @@
       "noAttachments": "No attachments yet",
       "loadFailed": "Failed to load data"
     },
+    "exportDialog": {
+      "title": "Export data",
+      "description": "Choose the date range, records, and fields to include.",
+      "startDate": "Start date",
+      "endDate": "End date",
+      "scope": "Data to export",
+      "allMatching": "All matching data",
+      "currentPage": "Current page",
+      "selectedRows": "Selected rows ({n})",
+      "fields": "Fields to include",
+      "fieldsHint": "Choose the columns that should appear in the exported file.",
+      "fieldRequired": "Select at least one field.",
+      "invalidRange": "End date must be on or after start date.",
+      "requestReady": "Export request is ready"
+    },
     "document": {
       "new": "New {entity}",
       "newShort": "New",
@@ -1027,6 +1071,7 @@
       "saveFailed": "Save failed",
       "requiredFieldsMissing": "Complete the required fields",
       "commentAdded": "Comment added",
+      "commentAddFailed": "Could not add comment",
       "commentUpdated": "Comment updated",
       "commentUpdateFailed": "Could not update comment",
       "commentDeleted": "Comment deleted",
@@ -1161,7 +1206,8 @@
     "search": "Search....",
     "pages": "Pages",
     "rowsPerPage": "Rows per page",
-    "pageSizeAll": "All"
+    "pageSizeAll": "All",
+    "showingRows": "Showing {start}–{end} of {total}"
   },
   "components": {
     "select": "Select...",

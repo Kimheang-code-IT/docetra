@@ -20,6 +20,7 @@ import type {
   SystemLog,
 } from '~/types/docetra/entities'
 import { dateOnly, daysAgo, org, person } from './seed'
+import { permissionRowsToFlatKeys } from '~/utils/role/permissions'
 
 function minutesFromNowIso(minutes: number) {
   const d = new Date()
@@ -180,11 +181,7 @@ function makeRecord(kind: RecordDocument['recordKind'], count: number, prefix: s
         ? dateOnly(i % 18)
         : dateOnly(i % 20),
     details: {
-      priority: (['low', 'medium', 'high'] as const)[i % 3],
       external_ref: `EXT-${1000 + i}`,
-      due_date: dateOnly((i + 3) % 20),
-      notes: i % 3 === 0 ? `Follow-up notes for ${kind} ${i + 1}` : '',
-      confidential: i % 4 === 0,
       amount: kind === 'document' || kind === 'master_list_request' ? 1000 + i * 25 : undefined,
     },
     createdAt: daysAgo(50 - i),
@@ -204,26 +201,31 @@ export const mockMasterListRequests = makeRecord('master_list_request', 20, 'mlr
 export const mockRecordLogs: RecordLog[] = Array.from({ length: 40 }, (_, i) => {
   const action = (['created', 'updated', 'stage_changed', 'shared'] as const)[i % 4]!
   const entityTypes = [
+    'incoming',
+    'outgoing',
     'document',
-    'file',
-    'master_list_request',
+    'master_list',
     'meeting',
     'meeting_topic',
-    'url',
-    'approved_master_list',
-    'extension_of_validity',
-    'physical_inspection',
-    'tax_incentive',
   ] as const
   const entityType = entityTypes[i % entityTypes.length]!
+  const recordNumber = (Math.floor(i / entityTypes.length) % 20) + 1
+  const entityPrefix = {
+    incoming: 'inc',
+    outgoing: 'out',
+    document: 'doc',
+    master_list: 'mlr',
+    meeting: 'mh',
+    meeting_topic: 'mt',
+  }[entityType]
   const severity = (['info', 'info', 'warn', 'error'] as const)[i % 4]!
   return {
     id: `rl_${i + 1}`,
     status: 'active',
     action,
     entityType,
-    entityId: `${entityType.slice(0, 3)}_${(i % 20) + 1}`,
-    entityTitle: `${entityType.replaceAll('_', ' ')} ${(i % 20) + 1}`,
+    entityId: `${entityPrefix}_${recordNumber}`,
+    entityTitle: `${entityType.replaceAll('_', ' ')} ${recordNumber}`,
     recordStage: recordStage(i),
     parentRecord: i % 3 === 0 ? `Parent record ${(i % 8) + 1}` : undefined,
     actor: person(i),
@@ -346,14 +348,14 @@ export const mockRoles: AppRole[] = Array.from({ length: 8 }, (_, i) => {
       documentType: 'incoming_document',
       onlyIfCreator: i % 2 === 0,
       level: i % 3,
-      actions: ['select', 'read', 'write', 'create', 'print', 'export'].slice(0, 3 + (i % 3)),
+      actions: ['view', 'edit', 'create', 'export'].slice(0, 2 + (i % 3)),
     },
     {
       id: `perm_row_${i}_2`,
       documentType: 'meeting_topic',
       onlyIfCreator: false,
       level: 0,
-      actions: ['select', 'read', 'report'],
+      actions: ['view', 'comment'],
     },
   ]
   return {
@@ -364,8 +366,9 @@ export const mockRoles: AppRole[] = Array.from({ length: 8 }, (_, i) => {
     description: 'Role permission set for Docetra modules',
     permissionCount: permissionRows.reduce((sum, row) => sum + row.actions.length, 0),
     userCount: 1 + i,
-    permissions: permissionRows.flatMap(row => row.actions.map(a => `${row.documentType}:${a}`)),
+    permissions: permissionRowsToFlatKeys(permissionRows),
     permissionRows,
+    permissionSchemaVersion: 1,
     createdAt: daysAgo(120 - i),
     updatedAt: daysAgo(i),
   }

@@ -5,7 +5,7 @@ const config = getEntityConfig('outgoingDocuments')
 
 definePageMeta({
   titleKey: 'docetra.pages.outgoingDocument',
-  permission: 'records.outgoing_documents.view',
+  permission: 'records.outgoing_documents.create',
 })
 </script>
 

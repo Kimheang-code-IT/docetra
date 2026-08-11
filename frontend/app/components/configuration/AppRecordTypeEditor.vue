@@ -12,6 +12,7 @@ import {
 import { recordTypeTabs } from '~/config/configuration-schemas'
 import { useConfigurationRepositories } from '~/repositories'
 import { useConfirm } from '~/composables/common/useConfirm'
+import { useConfigurationDiscussion } from '~/composables/configuration/useConfigurationDiscussion'
 import { useAppHeader } from '~/composables/layout/useAppHeader'
 import { usePageSeo } from '~/composables/usePageSeo'
 import { toConfigCode } from '~/utils/config-code'
@@ -33,6 +34,12 @@ const router = useRouter()
 const route = useRoute()
 const { confirm } = useConfirm()
 const { setBreadcrumbs, clear } = useAppHeader()
+const auth = useAuthStore()
+const canEditDocument = computed(() => auth.canAccessPage(permissionForAction(
+  'configuration.record_types.view',
+  isCreate.value ? 'create' : 'edit',
+)))
+const canCommentDocument = computed(() => auth.canAccessPage('configuration.record_types.comment'))
 
 const pending = ref(true)
 const saving = ref(false)
@@ -42,6 +49,24 @@ const activeTab = ref('general')
 const catalog = ref<RecordAttribute[]>([])
 const model = ref(emptyType())
 const codeTouched = ref(false)
+let attributeSearchToken = 0
+const discussionId = computed(() => isCreate.value ? undefined : props.recordTypeId)
+const {
+  comments,
+  activity,
+  commentBody,
+  submittingComment,
+  updatingCommentId,
+  deletingCommentId,
+  hasMoreFeed,
+  loadingMoreFeed,
+  currentUser,
+  loadDiscussion,
+  submitComment,
+  updateComment,
+  deleteComment,
+  loadMoreFeed,
+} = useConfigurationDiscussion({ repository: recordTypes, id: discussionId, isCreate })
 
 const availableAttributeOptions = computed(() => {
   const used = new Set(model.value.attributes.map(a => a.attributeId))
@@ -59,12 +84,30 @@ const tabs = computed(() => {
     availableAttributeOptions: availableAttributeOptions.value,
     enableWorkflow: model.value.features.enableWorkflow,
     typeId: isCreate.value ? 'new' : (props.recordTypeId || model.value.id),
+    stages: model.value.stages,
+    searchAttributes: debouncedAttributeSearch,
   })
   if (!model.value.features.enableWorkflow && activeTab.value === 'workflow') {
     activeTab.value = 'general'
   }
   return next
 })
+
+const debouncedAttributeSearch = useDebounceFn(async (query: string) => {
+  const token = ++attributeSearchToken
+  const response = await attributes.list({
+    q: query.trim() || undefined,
+    page: 1,
+    limit: 50,
+    status: 'active',
+    sort: 'label',
+  })
+  if (token !== attributeSearchToken) return
+  const assignedIds = new Set(model.value.attributes.map(item => item.attributeId))
+  const assignedCatalog = catalog.value.filter(item => assignedIds.has(item.id))
+  const known = new Set(assignedCatalog.map(item => item.id))
+  catalog.value = [...assignedCatalog, ...(response.data || []).filter(item => !known.has(item.id))]
+}, 250)
 
 function emptyType(): RecordType {
   const now = new Date().toISOString()
@@ -160,16 +203,20 @@ async function load() {
   hydrating.value = true
   codeTouched.value = !isCreate.value
   try {
-    const attrRes = await attributes.list({ limit: 200, status: 'active' })
+    const attrRes = await attributes.list({ page: 1, limit: 50, status: 'active', sort: 'label' })
     catalog.value = attrRes.data || []
     if (isCreate.value) {
       model.value = emptyType()
     }
     else {
-      model.value = await recordTypes.getById(props.recordTypeId!)
+      const schema = await recordTypes.getResolvedSchema({ id: props.recordTypeId! })
+      model.value = schema.recordType
+      const known = new Set(catalog.value.map(item => item.id))
+      catalog.value = [...catalog.value, ...schema.attributes.filter(item => !known.has(item.id))]
     }
     dirty.value = false
     await consumeAssignQueryAndPending()
+    await loadDiscussion()
   }
   catch (e: any) {
     toast.add({ title: e?.message || t('docetra.common.loadFailed'), color: 'error' })
@@ -239,6 +286,18 @@ async function save() {
   if (!model.value.name.trim() || !model.value.code.trim()) {
     toast.add({ title: t('docetra.config.requiredIdentity'), color: 'error' })
     activeTab.value = 'general'
+    return
+  }
+  const stageCodes = new Set(model.value.stages.map(stage => stage.code))
+  const invalidStageAssignment = model.value.attributes.find(
+    attribute => attribute.stageCode && !stageCodes.has(attribute.stageCode),
+  )
+  if (invalidStageAssignment) {
+    toast.add({
+      title: t('docetra.config.invalidAssignedStage', { field: invalidStageAssignment.attributeLabel }),
+      color: 'error',
+    })
+    activeTab.value = 'attributes'
     return
   }
   saving.value = true
@@ -314,15 +373,38 @@ usePageSeo({
     :set-field-value="setFieldValue"
     :pending="pending"
     :saving="saving"
+    :read-only="!canEditDocument"
+    :can-save="canEditDocument"
     :is-create="isCreate"
     :save-label="isCreate ? t('docetra.common.create') : t('docetra.common.save')"
-    :show-comments="false"
-    :show-meta-rail="false"
+    :show-comments="!isCreate"
+    :can-comment="canCommentDocument"
+    :show-meta-rail="!isCreate"
     :show-list-nav="true"
     list-to="/configuration/record-types"
+    :comments="comments"
+    :activity="activity"
+    :comment-body="commentBody"
+    :submitting-comment="submittingComment"
+    :updating-comment-id="updatingCommentId"
+    :deleting-comment-id="deletingCommentId"
+    :has-more-feed="hasMoreFeed"
+    :loading-more-feed="loadingMoreFeed"
+    :current-user="currentUser"
+    :meta-title="model.name"
+    :meta-subtitle="model.code"
+    :meta-status="model.status"
+    :meta-owner="model.updatedBy || null"
+    :meta-created-at="model.createdAt"
+    :meta-updated-at="model.updatedAt"
     content-wide
+    @update:comment-body="commentBody = $event"
     @save="save"
     @refresh="load"
+    @submit-comment="submitComment"
+    @update-comment="updateComment"
+    @delete-comment="deleteComment"
+    @load-more-feed="loadMoreFeed"
   >
     <template #actions>
       <UButton color="neutral" variant="ghost" @click="goBack">

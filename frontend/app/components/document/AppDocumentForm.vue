@@ -14,16 +14,6 @@ const props = withDefaults(defineProps<{
   wide: false,
 })
 
-const emit = defineEmits<{
-  'update:activeTab': [string]
-}>()
-
-const { t } = useI18n()
-
-const tabItems = computed(() =>
-  props.tabs.map(tab => ({ label: t(tab.labelKey), value: tab.id })),
-)
-
 const wideForm = computed(() =>
   props.wide
   || props.tabs.some(tab =>
@@ -58,34 +48,6 @@ function isFullWidthField(field: DocumentTabSchema['sections'][0]['fields'][0]) 
 
 <template>
   <div class="min-w-0 w-full flex-1 overflow-x-hidden">
-    <div
-      v-if="tabs.length > 1"
-      class="sticky top-0 z-10 w-full border-b border-default bg-default"
-    >
-      <div class="w-full touch-pan-x overflow-x-auto overflow-y-hidden overscroll-x-contain overscroll-y-none [scrollbar-width:thin]">
-        <UTabs
-          :model-value="activeTab"
-          :items="tabItems"
-          :content="false"
-          color="neutral"
-          variant="link"
-          size="md"
-          class="min-w-max"
-          :ui="{
-            root: 'min-w-max gap-0',
-            list: 'min-w-max w-max gap-0 rounded-none bg-transparent border-b-0 px-4 sm:px-6 lg:px-10',
-            trigger: [
-              'grow-0 shrink-0 justify-center whitespace-nowrap rounded-none px-4 pb-2.5 pt-2.5',
-              'font-normal text-muted',
-              'data-[state=active]:font-medium data-[state=active]:text-highlighted',
-            ].join(' '),
-            indicator: 'h-0.5 rounded-none bg-highlighted',
-          }"
-          @update:model-value="(v: string | number) => emit('update:activeTab', String(v))"
-        />
-      </div>
-    </div>
-
     <DocumentAppDocumentContentShell :wide="wideForm">
       <template v-for="tab in tabs" :key="tab.id">
         <div v-show="activeTab === tab.id || tabs.length === 1" class="space-y-8 py-6">

@@ -33,6 +33,14 @@ const stageLabel = computed(() => {
   return te(key) ? t(key) : props.topic.stage
 })
 
+const statusColor = computed(() => {
+  const status = String(props.topic.status || '').toLowerCase()
+  if (status === 'active' || status === 'completed') return 'success' as const
+  if (status === 'pending' || status === 'draft') return 'warning' as const
+  if (status === 'disabled' || status === 'failed') return 'error' as const
+  return 'info' as const
+})
+
 const topicTags = computed(() =>
   Array.isArray(props.topic.tags) ? props.topic.tags.map(String).filter(Boolean) : [],
 )
@@ -102,12 +110,12 @@ function onDrop(event: DragEvent) {
           <h3 class="text-sm font-semibold text-highlighted wrap-break-word">
             {{ topic.title }}
           </h3>
-          <UBadge v-if="showStatus" color="neutral" variant="outline" size="sm">
+          <UBadge v-if="showStatus" :color="statusColor" variant="soft" size="sm" icon="i-lucide-circle-dot">
             {{ statusLabel }}
           </UBadge>
         </div>
       </div>
-      <UBadge color="neutral" variant="subtle" size="sm" class="shrink-0 tabular-nums">
+      <UBadge color="neutral" variant="subtle" size="sm" icon="i-lucide-calendar-days" class="shrink-0 tabular-nums">
         {{ meetingCount }}
       </UBadge>
       <UDropdownMenu :items="menuItems" :content="{ align: 'end' }">
@@ -123,16 +131,16 @@ function onDrop(event: DragEvent) {
       </UDropdownMenu>
     </div>
     <div v-if="!collapsed && (showStage || showTags)" class="mt-2 flex flex-wrap gap-1">
-      <UBadge v-if="showStage && topic.stage" size="sm" color="neutral" variant="subtle">
+      <UBadge v-if="showStage && topic.stage" size="sm" color="info" variant="soft" icon="i-lucide-git-branch">
         {{ stageLabel }}
       </UBadge>
-      <UBadge v-if="showTags && topicTags.length" size="sm" color="neutral" variant="subtle">
+      <UBadge v-if="showTags && topicTags.length" size="sm" color="secondary" variant="soft" icon="i-lucide-tag">
         {{ topicTags[0] }}
       </UBadge>
     </div>
     <div
       v-if="!collapsed && showRecordTime"
-      class="mt-2 flex items-center gap-1 border-t border-default pt-2 text-xs text-muted"
+      class="app-card-field-highlight app-card-field-highlight--info mt-2 flex items-center gap-1 text-xs text-muted"
     >
       <UIcon name="i-lucide-calendar" class="size-3 shrink-0" />
       <span class="truncate">{{ topic.recordTime || topic.meetingDate || '—' }}</span>

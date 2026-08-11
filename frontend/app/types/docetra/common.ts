@@ -32,12 +32,18 @@ export interface ApiResponse<T> {
   errors?: ApiErrorItem[]
 }
 
+export interface GroupCountSummary {
+  total: number
+  unassigned: number
+  groups: Record<string, number>
+}
+
 export interface ListQuery {
   q?: string
   page?: number
   limit?: number
   sort?: string
-  view?: 'table' | 'kanban' | 'hierarchy'
+  view?: EntityView
   stage?: string
   status?: string
   startDate?: string
@@ -49,6 +55,8 @@ export interface WorkflowStage {
   id: string
   code: string
   labelKey: string
+  /** Literal configured label; preferred over labelKey for user-defined stages. */
+  label?: string
   order: number
   color?: string
 }
@@ -62,6 +70,8 @@ export interface EntityComment {
   createdAt: string
   editedAt?: string
 }
+
+export type EntityView = 'table' | 'kanban' | 'hierarchy' | 'timeline'
 
 export interface EntityRecordNeighbors {
   previousId: string | null
@@ -131,6 +141,8 @@ export interface FieldOption {
   label: string
   value: string
   labelKey?: string
+  /** Optional API-safe option context such as hierarchy depth and unformatted name. */
+  meta?: Record<string, unknown>
 }
 
 export interface ConnectionStatusFieldValue {

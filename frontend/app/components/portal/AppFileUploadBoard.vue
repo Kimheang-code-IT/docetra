@@ -190,6 +190,7 @@ onMounted(() => {
     :description-key="config.descriptionKey"
     :icon="config.icon"
     :can-create="false"
+    :refreshing="pending"
     @refresh="refresh"
   >
     <div class="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-sm border border-default bg-default">

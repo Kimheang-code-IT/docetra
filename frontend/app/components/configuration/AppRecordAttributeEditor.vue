@@ -8,6 +8,7 @@ import { OPTION_DATA_TYPES } from '~/types/docetra/configuration'
 import { recordAttributeTabs } from '~/config/configuration-schemas'
 import { useConfigurationRepositories } from '~/repositories'
 import { useConfirm } from '~/composables/common/useConfirm'
+import { useConfigurationDiscussion } from '~/composables/configuration/useConfigurationDiscussion'
 import { useAppHeader } from '~/composables/layout/useAppHeader'
 import { usePageSeo } from '~/composables/usePageSeo'
 import { toConfigCode } from '~/utils/config-code'
@@ -27,6 +28,12 @@ const router = useRouter()
 const route = useRoute()
 const { confirm } = useConfirm()
 const { setBreadcrumbs, clear } = useAppHeader()
+const auth = useAuthStore()
+const canEditDocument = computed(() => auth.canAccessPage(permissionForAction(
+  'configuration.record_attributes.view',
+  isCreate.value ? 'create' : 'edit',
+)))
+const canCommentDocument = computed(() => auth.canAccessPage('configuration.record_attributes.comment'))
 
 const returnToType = computed(() => route.query.returnTo === 'type')
 const returnTypeId = computed(() => String(route.query.typeId || 'new'))
@@ -47,6 +54,23 @@ const hydrating = ref(false)
 const activeTab = ref('basic')
 const model = ref(emptyAttribute())
 const codeTouched = ref(false)
+const discussionId = computed(() => isCreate.value ? undefined : props.attributeId)
+const {
+  comments,
+  activity,
+  commentBody,
+  submittingComment,
+  updatingCommentId,
+  deletingCommentId,
+  hasMoreFeed,
+  loadingMoreFeed,
+  currentUser,
+  loadDiscussion,
+  submitComment,
+  updateComment,
+  deleteComment,
+  loadMoreFeed,
+} = useConfigurationDiscussion({ repository: attributes, id: discussionId, isCreate })
 
 const showOptions = computed(() => OPTION_DATA_TYPES.includes(model.value.dataType))
 
@@ -105,6 +129,7 @@ async function load() {
       model.value = await attributes.getById(props.attributeId!)
     }
     dirty.value = false
+    await loadDiscussion()
   }
   catch (e: any) {
     toast.add({ title: e?.message || t('docetra.common.loadFailed'), color: 'error' })
@@ -259,15 +284,38 @@ usePageSeo({
     :set-field-value="setFieldValue"
     :pending="pending"
     :saving="saving"
+    :read-only="!canEditDocument"
+    :can-save="canEditDocument"
     :is-create="isCreate"
     :save-label="isCreate ? t('docetra.common.create') : t('docetra.common.save')"
-    :show-comments="false"
-    :show-meta-rail="false"
+    :show-comments="!isCreate"
+    :can-comment="canCommentDocument"
+    :show-meta-rail="!isCreate"
     :show-list-nav="true"
     :list-to="listPath()"
+    :comments="comments"
+    :activity="activity"
+    :comment-body="commentBody"
+    :submitting-comment="submittingComment"
+    :updating-comment-id="updatingCommentId"
+    :deleting-comment-id="deletingCommentId"
+    :has-more-feed="hasMoreFeed"
+    :loading-more-feed="loadingMoreFeed"
+    :current-user="currentUser"
+    :meta-title="model.label"
+    :meta-subtitle="model.code"
+    :meta-status="model.status"
+    :meta-owner="model.updatedBy || null"
+    :meta-created-at="model.createdAt"
+    :meta-updated-at="model.updatedAt"
     content-wide
+    @update:comment-body="commentBody = $event"
     @save="save"
     @refresh="load"
+    @submit-comment="submitComment"
+    @update-comment="updateComment"
+    @delete-comment="deleteComment"
+    @load-more-feed="loadMoreFeed"
   >
     <template #actions>
       <UButton color="neutral" variant="ghost" @click="goBack">

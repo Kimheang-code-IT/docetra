@@ -29,6 +29,7 @@ export const ApiEndpoints = {
   OFFICERS: '/api/v2/organizations/officers',
 
   ROLES: '/api/v2/users/roles',
+  PERMISSION_CATALOG: '/api/v2/users/permission-catalog',
   USERS: '/api/v2/users',
 
   RECORD_TYPES: '/api/v2/configuration/record-types',
@@ -52,6 +53,9 @@ export const ApiEndpoints = {
   PORTAL_LOGS: '/api/v2/portal/logs',
 
   SYSTEM_LOGS: '/api/v2/system/logs',
+
+  EXPORT_JOBS: '/api/v2/exports',
+  EXPORT_JOB: (id: string) => `/api/v2/exports/${encodeURIComponent(id)}`,
 
   COMMENTS: (entityType: string, entityId: string) =>
     `/api/v2/${entityType}/${entityId}/comments`,

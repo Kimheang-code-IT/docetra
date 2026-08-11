@@ -12,7 +12,7 @@ Configuration defines **how records behave** before operational data exists:
 | Route | UI | Flow |
 | --- | --- | --- |
 | `/configuration/record-types` | `AppRecordTypeList` | Index + search |
-| `/configuration/record-types/new`, `/:id` | `AppRecordTypeEditor` | Workflow, numbering, assigned attributes |
+| `/configuration/record-types/new`, `/:id` | `AppRecordTypeEditor` | General, features, assigned attributes, workflow, comments/activity |
 | `/configuration/record-attributes` | `AppRecordAttributeList` | Index |
 | `/configuration/record-attributes/new`, `/:id` | `AppRecordAttributeEditor` | Field definition + builders |
 
@@ -22,9 +22,9 @@ Changes here drive:
 - Validation and visibility for assigned attributes on save.
 - Stage lists on Incoming / Outgoing / Document / Master List boards.
 
-**Note (current UI):** Base create/edit fields for Incoming / Outgoing / Document are **fixed** in `orgSelectDocumentTabs` (company/department/officer selects) — not the old Record flow / record-type document-type picker. Master List Request base form is only status, title, `recordTime`, tags. Configuration still owns stages and any *additional* type-driven fields.
+**Current UI:** Record and Meeting add/detail/edit pages resolve assigned fields through the Record Type schema boundary. Core identity/workflow fields can remain protected, but user-defined Attribute Catalog fields are not copied into page code. Mock mode exercises the same assignment, stage, visibility, and `details` payload contracts expected from HTTP.
 
-Configuration is **admin-only**; mock today uses localStorage repositories; production uses HTTP.
+Configuration is capability-restricted. The current frontend release uses localStorage-backed mock repositories; the later API release sets `NUXT_PUBLIC_USE_MOCK_DATA=false` and uses the existing HTTP repository contracts.
 
 ---
 
@@ -37,7 +37,7 @@ Configuration is **admin-only**; mock today uses localStorage repositories; prod
 | `id`, `name`, `code` | Identity; `code` stable for API |
 | `status` | active / draft / disabled |
 | `workflowStages` | Ordered stages + transitions |
-| `numberingRule` | Prefix/pattern preview |
+| `numberingRule` | Reserved API-compatible numbering metadata; the current editor intentionally has no Numbering tab |
 | `assignedAttributeIds` | Many-to-many to attributes |
 | `recordTimePriority` | Which field resolves `record_time` |
 
@@ -72,7 +72,7 @@ Record.detail[attribute.code] ──▶ value
 
 ### Create / edit record type
 
-1. Base fields + workflow stage builder + numbering preview.
+1. General/features fields + workflow stage builder. Numbering metadata may round-trip for API compatibility but is not currently edited in a tab.
 2. Assign attributes (sort order for form sections).
 3. Save → record boards and document forms pull catalog on next load.
 
@@ -96,10 +96,16 @@ Version stamp optional: `settings.app_config.configurationVersion` for cache bus
 | GET | `/api/v2/configuration/record-types/{id}` | Detail |
 | POST | `/api/v2/configuration/record-types` | Create |
 | PATCH | `/api/v2/configuration/record-types/{id}` | Update |
+| GET | `/api/v2/configuration/record-types/{id}/schema` | Permission-filtered published runtime schema |
+| GET | `/api/v2/configuration/record-types/by-code/{code}/schema` | Resolve schema for record-backed routes |
 | GET | `/api/v2/configuration/record-attributes` | List |
 | GET | `/api/v2/configuration/record-attributes/{id}` | Detail |
 | POST | `/api/v2/configuration/record-attributes` | Create |
 | PATCH | `/api/v2/configuration/record-attributes/{id}` | Update |
+| GET/POST | `/api/v2/configuration/record-types/{id}/comments` | Cursor-paginated comments |
+| GET | `/api/v2/configuration/record-types/{id}/activity` | Cursor-paginated immutable activity |
+| GET/POST | `/api/v2/configuration/record-attributes/{id}/comments` | Cursor-paginated comments |
+| GET | `/api/v2/configuration/record-attributes/{id}/activity` | Cursor-paginated immutable activity |
 
 Optional: `GET /record-types/{id}/attributes` expanded catalog for document page bootstrap.
 
@@ -121,8 +127,8 @@ Optional: `GET /record-types/{id}/attributes` expanded catalog for document page
 
 | Code | Use |
 | --- | --- |
-| `configuration.record_types.view` / `.edit` | Record types |
-| `configuration.record_attributes.view` / `.edit` | Attributes |
+| `configuration.record_types.view` / `.create` / `.edit` / `.delete` / `.comment` / `.configure` | Record types |
+| `configuration.record_attributes.view` / `.create` / `.edit` / `.delete` / `.comment` / `.configure` | Attributes |
 
 ---
 
@@ -133,7 +139,7 @@ Optional: `GET /record-types/{id}/attributes` expanded catalog for document page
 | Schemas | `config/configuration-schemas.ts` |
 | Types | `types/docetra/configuration.ts` |
 | Repositories | `useConfigurationRepositories()` — mock + HTTP |
-| Builders | `AppWorkflowStageBuilder`, `AppAttributeOptionsBuilder`, `AppValidationRuleBuilder`, `AppVisibilityRuleBuilder`, `AppNumberingPreview` |
+| Builders | `AppWorkflowStageBuilder`, `AppAttributeOptionsBuilder`, `AppValidationRuleBuilder`, `AppVisibilityRuleBuilder` |
 | List composable | `useConfigListPage.ts` |
 | Runtime merge | `useRecordTypeDrivenTabs.ts`, `utils/record-type-fields.ts` |
 | Endpoints | `RECORD_TYPES`, `RECORD_ATTRIBUTES` |

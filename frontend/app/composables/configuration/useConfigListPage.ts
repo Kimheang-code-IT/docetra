@@ -2,12 +2,27 @@ import type { TableColumnDef } from '~/types/docetra/common'
 import type { RowActionItem } from '~/types/docetra/row-actions'
 import { useDebounceFn } from '@vueuse/core'
 import { useConfirm } from '~/composables/common/useConfirm'
-import { fetchPageLimit, isShowAllLimit } from '~/utils/pagination'
+import { parsePageLimit, serializePageLimit } from '~/utils/pagination'
+import type { ExportRequest } from '~/types/docetra/export'
+import { createExportJob } from '~/adapters/exports'
 
 export const CONFIG_ROW_ACTIONS: RowActionItem[] = [
   { key: 'detail', labelKey: 'docetra.rowActions.detail', icon: 'i-lucide-eye' },
   { key: 'duplicate', labelKey: 'docetra.rowActions.duplicate', icon: 'i-lucide-copy' },
-  { key: 'toggleActive', labelKey: 'docetra.rowActions.toggleActive', icon: 'i-lucide-power' },
+  {
+    key: 'toggleActive',
+    labelKey: 'docetra.rowActions.deactivate',
+    icon: 'i-lucide-power-off',
+    color: 'warning',
+    hidden: row => String(row.status) !== 'active',
+  },
+  {
+    key: 'toggleActive',
+    labelKey: 'docetra.rowActions.activate',
+    icon: 'i-lucide-power',
+    color: 'success',
+    hidden: row => String(row.status) === 'active',
+  },
   { key: 'delete', labelKey: 'docetra.rowActions.delete', icon: 'i-lucide-trash-2', color: 'error' },
 ]
 
@@ -16,9 +31,11 @@ export function useConfigListPage(options: {
   descriptionKey: string
   icon: string
   routeBase: string
+  exportResource: string
   columns: TableColumnDef[]
   load: (query: Record<string, unknown>) => Promise<{ data: Record<string, unknown>[], total: number }>
   remove?: (id: string) => Promise<void>
+  removeMany?: (ids: string[]) => Promise<void>
   duplicate?: (id: string) => Promise<unknown>
   setActive?: (id: string, active: boolean) => Promise<unknown>
   cellValue?: (row: Record<string, unknown>, key: string) => string
@@ -26,47 +43,70 @@ export function useConfigListPage(options: {
   const { t } = useI18n()
   const toast = useToast()
   const router = useRouter()
+  const route = useRoute()
   const { confirm, setLoading } = useConfirm()
 
-  const q = ref('')
-  const page = ref(1)
-  const limit = ref(20)
-  const sort = ref('-updatedAt')
-  const filters = ref<Record<string, string>>({})
+  const q = ref(String(route.query.q || ''))
+  const page = ref(Math.max(1, Number(route.query.page || 1)))
+  const limit = ref(parsePageLimit(route.query.limit, 20))
+  const sort = ref(String(route.query.sort || '-updatedAt'))
+  const filters = ref<Record<string, string>>(Object.fromEntries(
+    Object.entries(route.query)
+      .filter(([key, value]) => !['q', 'page', 'limit', 'sort'].includes(key) && typeof value === 'string' && value)
+      .map(([key, value]) => [key, String(value)]),
+  ))
   const items = ref<Record<string, unknown>[]>([])
   const total = ref(0)
   const pending = ref(false)
   const error = ref<string | null>(null)
   const selectedIds = ref<string[]>([])
   const deleting = ref(false)
+  const exporting = ref(false)
+  let requestToken = 0
+
+  function syncRoute() {
+    void router.replace({
+      query: {
+        ...filters.value,
+        q: q.value || undefined,
+        page: page.value > 1 ? String(page.value) : undefined,
+        limit: serializePageLimit(limit.value, 20),
+        sort: sort.value === '-updatedAt' ? undefined : sort.value,
+      },
+    })
+  }
 
   async function refresh() {
+    const token = ++requestToken
     pending.value = true
     error.value = null
     try {
       const result = await options.load({
         q: q.value || undefined,
-        page: isShowAllLimit(limit.value) ? 1 : page.value,
-        limit: fetchPageLimit(limit.value),
+        page: page.value,
+        limit: limit.value,
         sort: sort.value,
         ...filters.value,
       })
+      if (token !== requestToken) return
       items.value = result.data
       total.value = result.total
     }
     catch (e: any) {
+      if (token !== requestToken) return
       error.value = e?.message || t('docetra.common.loadFailed')
       items.value = []
       total.value = 0
     }
     finally {
-      pending.value = false
+      if (token === requestToken) pending.value = false
     }
   }
 
   const debouncedSearch = useDebounceFn((value: string) => {
     q.value = value
     page.value = 1
+    syncRoute()
     void refresh()
   }, 300)
 
@@ -84,12 +124,14 @@ export function useConfigListPage(options: {
       filters.value = { ...filters.value, [key]: nextValue }
     }
     page.value = 1
+    syncRoute()
     void refresh()
   }
 
   function clearFilters() {
     filters.value = {}
     page.value = 1
+    syncRoute()
     void refresh()
   }
 
@@ -125,9 +167,8 @@ export function useConfigListPage(options: {
     deleting.value = true
     setLoading(true)
     try {
-      for (const id of ids) {
-        await options.remove(id)
-      }
+      if (options.removeMany) await options.removeMany(ids)
+      else await Promise.all(ids.map(id => options.remove!(id)))
       toast.add({ title: t('docetra.actions.deletedItems', { n: ids.length }), color: 'success' })
       selectedIds.value = []
       await refresh()
@@ -139,6 +180,20 @@ export function useConfigListPage(options: {
       deleting.value = false
       setLoading(false)
     }
+  }
+
+  async function exportData(request: ExportRequest, ids: string[] = selectedIds.value) {
+    exporting.value = true
+    try {
+      return await createExportJob({
+        ...request,
+        resource: options.exportResource,
+        format: 'csv',
+        query: { q: q.value || undefined, sort: sort.value, ...filters.value },
+        selectedIds: request.scope === 'selected' ? ids : undefined,
+      })
+    }
+    finally { exporting.value = false }
   }
 
   async function onRowAction(payload: { key: string, row: Record<string, unknown> }) {
@@ -181,7 +236,10 @@ export function useConfigListPage(options: {
     }
   }
 
-  watch([page, limit, sort], () => void refresh())
+  watch([page, limit, sort], () => {
+    syncRoute()
+    void refresh()
+  })
 
   onMounted(() => void refresh())
 
@@ -202,6 +260,7 @@ export function useConfigListPage(options: {
     error,
     selectedIds,
     deleting,
+    exporting,
     refresh,
     debouncedSearch,
     setFilter,
@@ -211,5 +270,6 @@ export function useConfigListPage(options: {
     defaultCellValue,
     requestDelete,
     onRowAction,
+    exportData,
   })
 }

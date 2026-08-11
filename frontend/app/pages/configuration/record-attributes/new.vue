@@ -1,7 +1,7 @@
 <script setup lang="ts">
 definePageMeta({
   titleKey: 'docetra.pages.recordAttribute',
-  permission: 'configuration.record_attributes.view',
+  permission: 'configuration.record_attributes.create',
 })
 </script>
 

@@ -2,6 +2,7 @@
 import { useConfigurationRepositories } from '~/repositories'
 import { useConfigListPage } from '~/composables/configuration/useConfigListPage'
 import type { FilterDef, TableColumnDef } from '~/types/docetra/common'
+import type { RowActionItem } from '~/types/docetra/row-actions'
 
 const { recordTypes } = useConfigurationRepositories()
 const { t } = useI18n()
@@ -42,6 +43,7 @@ const list = useConfigListPage({
   descriptionKey: 'docetra.descriptions.recordType',
   icon: 'i-lucide-shapes',
   routeBase: '/configuration/record-types',
+  exportResource: 'recordTypes',
   columns,
   async load(query) {
     const res = await recordTypes.list(query as any)
@@ -51,6 +53,7 @@ const list = useConfigListPage({
     }
   },
   remove: id => recordTypes.remove(id),
+  removeMany: ids => recordTypes.removeMany(ids),
   duplicate: id => recordTypes.duplicate(id).then(r => r as any),
   setActive: (id, active) => recordTypes.setActive(id, active).then(() => undefined),
   cellValue(row, key) {
@@ -67,6 +70,30 @@ const list = useConfigListPage({
 })
 
 const searchInput = ref('')
+const router = useRouter()
+const rowActions = computed<RowActionItem[]>(() => [
+  {
+    key: 'assignFields',
+    labelKey: 'docetra.rowActions.assignFields',
+    icon: 'i-lucide-list-plus',
+  },
+  ...list.rowActions,
+])
+
+function onRowAction(payload: { key: string, row: Record<string, unknown> }) {
+  if (payload.key === 'assignFields') {
+    const id = String(payload.row.id || '')
+    if (id) {
+      void router.push({
+        path: `/configuration/record-types/${id}`,
+        query: { tab: 'attributes' },
+      })
+    }
+    return
+  }
+  void list.onRowAction(payload)
+}
+
 watch(() => list.q, v => { searchInput.value = v })
 </script>
 
@@ -83,11 +110,13 @@ watch(() => list.q, v => { searchInput.value = v })
     :limit="list.limit"
     :pending="list.pending"
     :error="list.error"
+    :exporting="list.exporting"
     :search="searchInput"
+    @export="list.exportData"
     :sort="list.sort"
     :filters="filters"
     :filter-values="list.filters"
-    :row-actions="list.rowActions"
+    :row-actions="rowActions"
     :cell-value="list.defaultCellValue"
     @create="list.openCreate"
     @refresh="list.refresh"
@@ -99,7 +128,7 @@ watch(() => list.q, v => { searchInput.value = v })
     @set-filter="list.setFilter"
     @clear-filters="list.clearFilters"
     @row-click="list.openRow"
-    @row-action="list.onRowAction"
+    @row-action="onRowAction"
     @delete-selected="list.requestDelete"
     @retry="list.refresh"
   />

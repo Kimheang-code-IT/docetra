@@ -1,7 +1,7 @@
 import type { EntityConfig } from '~/config/entities'
 import { getEntityAdapter } from '~/config/entities'
 import type { WorkflowStage } from '~/types/docetra/common'
-import { isWithinDateTimeRange } from '~/utils/date-time-range'
+import { useConfigurationRepositories } from '~/repositories'
 
 function getByPath(obj: Record<string, unknown>, path: string): unknown {
   return path.split('.').reduce<unknown>((acc, key) => {
@@ -24,7 +24,39 @@ export function useRecordStageBoard(
   const router = useRouter()
   const { t, te } = useI18n()
   const adapter = getEntityAdapter(config.key)
-  const stages = computed(() => config.stages || [])
+  const { recordTypes } = useConfigurationRepositories()
+  const runtimeStages = ref<WorkflowStage[]>(
+    [...(config.stages || [])].sort((a, b) => a.order - b.order),
+  )
+  const stages = computed(() => runtimeStages.value)
+  const stageConfigurationError = ref<string | null>(null)
+  let stageConfigurationLoaded = false
+
+  async function ensureConfiguredStages() {
+    if (stageConfigurationLoaded || !config.recordTypeCode) return
+    stageConfigurationLoaded = true
+    stageConfigurationError.value = null
+    try {
+      const schema = await recordTypes.getResolvedSchema({ code: config.recordTypeCode })
+      const recordType = schema.recordType
+      if (!recordType.features.enableWorkflow || !recordType.stages?.length) {
+        throw new Error(t('docetra.recordStageBoard.stageConfigEmpty'))
+      }
+      runtimeStages.value = [...recordType.stages]
+        .sort((a, b) => a.order - b.order)
+        .map(stage => ({
+          id: stage.id,
+          code: stage.code,
+          label: stage.name,
+          labelKey: `docetra.stages.${stage.code}`,
+          order: stage.order,
+          color: stage.color,
+        }))
+    }
+    catch (cause: any) {
+      stageConfigurationError.value = cause?.message || t('docetra.recordStageBoard.stageConfigFailed')
+    }
+  }
 
   const stageSearch = ref('')
   const recordSearch = ref(String(route.query.q || ''))
@@ -54,6 +86,9 @@ export function useRecordStageBoard(
 
   const items = ref<Record<string, unknown>[]>([])
   const total = ref(0)
+  const currentPage = ref(1)
+  const pageSize = 24
+  const loadingMore = ref(false)
   const stageCounts = ref<Record<string, number>>({})
   const pending = ref(false)
   const error = ref<string | null>(null)
@@ -66,39 +101,23 @@ export function useRecordStageBoard(
     const q = stageSearch.value.trim().toLowerCase()
     if (!q) return stages.value
     return stages.value.filter((stage) => {
-      const label = te(stage.labelKey) ? t(stage.labelKey) : stage.code
+      const label = stage.label || (te(stage.labelKey) ? t(stage.labelKey) : stage.code)
       return label.toLowerCase().includes(q) || stage.code.toLowerCase().includes(q)
     })
   })
 
-  const filteredItems = computed(() => {
-    let rows = items.value
-    if (dateStart.value.trim() || dateEnd.value.trim()) {
-      rows = rows.filter(row =>
-        isWithinDateTimeRange(
-          String(getByPath(row, options.dateField) || ''),
-          dateStart.value,
-          dateEnd.value,
-        ),
-      )
-    }
-    return rows
-  })
+  // Search and date filters are applied by the API. Keeping the browser list
+  // bounded avoids scanning a growing local collection on every render.
+  const filteredItems = computed(() => items.value)
 
   async function refreshCounts() {
-    const counts: Record<string, number> = {}
-    await Promise.all(stages.value.map(async (stage) => {
-      const res = await adapter.list({
-        stage: stage.code,
-        startDate: dateStart.value || undefined,
-        endDate: dateEnd.value || undefined,
-        page: 1,
-        limit: 1,
-        q: recordSearch.value || undefined,
-      })
-      counts[stage.code] = res.meta?.total || 0
-    }))
-    stageCounts.value = counts
+    if (!adapter.getGroupCounts) return { total: 0, groups: {} as Record<string, number> }
+    const response = await adapter.getGroupCounts('stage', {
+      startDate: dateStart.value || undefined,
+      endDate: dateEnd.value || undefined,
+      q: recordSearch.value || undefined,
+    })
+    return response.data
   }
 
   async function refresh() {
@@ -106,14 +125,15 @@ export function useRecordStageBoard(
     pending.value = true
     error.value = null
     try {
-      const [listRes] = await Promise.all([
+      await ensureConfiguredStages()
+      const [listRes, counts] = await Promise.all([
         adapter.list({
           q: recordSearch.value || undefined,
           stage: selectedStage.value || undefined,
           startDate: dateStart.value || undefined,
           endDate: dateEnd.value || undefined,
           page: 1,
-          limit: 100,
+          limit: pageSize,
           sort: '-updatedAt',
         }),
         refreshCounts(),
@@ -121,6 +141,9 @@ export function useRecordStageBoard(
       if (token !== requestToken) return
       items.value = (listRes.data || []) as Record<string, unknown>[]
       total.value = listRes.meta?.total || 0
+      currentPage.value = 1
+      stageCounts.value = counts.groups || {}
+      if (!selectedStage.value) total.value = counts.total || total.value
     }
     catch (e: any) {
       if (token !== requestToken) return
@@ -171,7 +194,9 @@ export function useRecordStageBoard(
   }
 
   function openCreate() {
-    navigateTo(`${config.routeBase}/new`)
+    return navigateTo(
+      `${config.routeBase}/new?returnTo=${encodeURIComponent(config.routeBase)}`,
+    )
   }
 
   function openRow(row: Record<string, unknown>) {
@@ -216,16 +241,53 @@ export function useRecordStageBoard(
   function stageLabel(stage: unknown) {
     const text = String(stage || '')
     if (!text) return ''
+    const configured = stages.value.find(item => item.code === text)
+    if (configured?.label) return configured.label
     const key = `docetra.stages.${text}`
     return te(key) ? t(key) : text
   }
 
-  const allCount = computed(() =>
-    Object.values(stageCounts.value).reduce((sum, n) => sum + n, 0),
-  )
+  const hasMore = computed(() => items.value.length < total.value)
+
+  async function loadMore() {
+    if (!hasMore.value || loadingMore.value) return
+    const token = requestToken
+    const nextPage = currentPage.value + 1
+    loadingMore.value = true
+    try {
+      const response = await adapter.list({
+        q: recordSearch.value || undefined,
+        stage: selectedStage.value || undefined,
+        startDate: dateStart.value || undefined,
+        endDate: dateEnd.value || undefined,
+        page: nextPage,
+        limit: pageSize,
+        sort: '-updatedAt',
+      })
+      if (token !== requestToken) return
+      const seen = new Set(items.value.map(item => String(item.id)))
+      items.value = [
+        ...items.value,
+        ...((response.data || []) as Record<string, unknown>[]).filter(item => !seen.has(String(item.id))),
+      ]
+      currentPage.value = nextPage
+      total.value = response.meta?.total || total.value
+    }
+    finally {
+      if (token === requestToken) loadingMore.value = false
+    }
+  }
+
+  async function reloadStageConfiguration() {
+    stageConfigurationLoaded = false
+    await refresh()
+  }
+
+  const allCount = computed(() => total.value)
 
   return {
     stages,
+    stageConfigurationError,
     filteredStages,
     stageSearch,
     recordSearch,
@@ -240,10 +302,14 @@ export function useRecordStageBoard(
     stageCounts,
     allCount,
     pending,
+    loadingMore,
+    hasMore,
     error,
     draggingId,
     dropStageCode,
     refresh,
+    loadMore,
+    reloadStageConfiguration,
     selectStage,
     toggleLeftPanel,
     openCreate,

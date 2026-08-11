@@ -4,7 +4,9 @@ import { useDocumentPage } from '~/composables/workspace/useDocumentPage'
 import { useRecordTypeDrivenTabs } from '~/composables/record/useRecordTypeDrivenTabs'
 import { useAppHeader } from '~/composables/layout/useAppHeader'
 import { usePageSeo } from '~/composables/usePageSeo'
-import { getByPath, setByPath } from '~/utils/object-path'
+import { getByPath } from '~/utils/object-path'
+import type { ExportRequest } from '~/types/docetra/export'
+import { createExportJob } from '~/adapters/exports'
 
 const props = defineProps<{
   config: EntityConfig
@@ -23,6 +25,8 @@ const {
   comments,
   activity,
   attachments,
+  hasMoreFeed,
+  loadingMoreFeed,
   commentBody,
   submittingComment,
   updatingCommentId,
@@ -40,13 +44,20 @@ const {
   submitComment,
   updateComment,
   deleteComment,
+  loadMoreFeed,
   navigatePreviousRecord,
   navigateNextRecord,
   toggleFavorite,
 } = useDocumentPage(props.config)
 
-const { tabs: documentTabs } = useRecordTypeDrivenTabs({
+const {
+  tabs: documentTabs,
+  loadingType: loadingRecordSchema,
+  reload: reloadRecordSchema,
+} = useRecordTypeDrivenTabs({
   entityKey: props.config.key,
+  recordBacked: props.config.recordBacked === true,
+  recordTypeCode: props.config.recordTypeCode,
   baseTabs: props.config.tabs,
   getRecordTypeId: () => {
     const id = model.value.recordTypeId
@@ -59,12 +70,10 @@ const { tabs: documentTabs } = useRecordTypeDrivenTabs({
       : {}
   },
   setDetails: (details) => {
-    const next = { ...model.value }
-    setByPath(next, 'details', details)
-    model.value = next
+    setFieldValue('details', details)
   },
   setStageIfEmpty: (stage) => {
-    if (!getByPath(model.value, 'stage')) {
+    if (isCreate.value || !getByPath(model.value, 'stage')) {
       setFieldValue('stage', stage)
     }
   },
@@ -117,6 +126,8 @@ watch(
 
 onBeforeUnmount(clear)
 
+onDeactivated(clear)
+
 usePageSeo({
   title: () => title.value,
 })
@@ -128,11 +139,6 @@ const moreItems = computed(() => [[
     disabled: isCreate.value,
     onSelect: () => toast.add({ title: t('docetra.document.comingSoon'), color: 'neutral' }),
   },
-  {
-    label: t('docetra.document.print'),
-    icon: 'i-lucide-printer',
-    onSelect: () => toast.add({ title: t('docetra.document.comingSoon'), color: 'neutral' }),
-  },
 ]])
 
 const currentUser = computed(() => ({
@@ -141,7 +147,46 @@ const currentUser = computed(() => ({
   email: auth.user?.email,
 }))
 
-const showMetaRail = computed(() => !['users', 'roles'].includes(props.config.key))
+const showMetaRail = computed(() => props.config.document?.metaRail !== false)
+const contentWide = computed(() => props.config.document?.wide === true)
+// Dynamic schema loading must not cover a new form with the full-page pending
+// overlay. Existing records still block until both record and schema are ready.
+const documentPending = computed(() =>
+  !isCreate.value && (pending.value || loadingRecordSchema.value),
+)
+const exporting = ref(false)
+const canEditDocument = computed(() => auth.canAccessPage(permissionForAction(
+  props.config.permission,
+  isCreate.value ? 'create' : 'edit',
+)))
+const canCommentDocument = computed(() => props.config.canComment !== false
+  && auth.canAccessPage(permissionForAction(props.config.permission, 'comment')))
+const canExportDocument = computed(() => auth.canAccessPage(permissionForAction(props.config.permission, 'export')))
+
+async function exportDocument(request: ExportRequest) {
+  exporting.value = true
+  try {
+    await createExportJob({
+      ...request,
+      resource: props.config.key,
+      format: 'csv',
+      query: isCreate.value ? undefined : { id: String(model.value.id || '') },
+      selectedIds: isCreate.value ? undefined : [String(model.value.id || '')],
+    })
+  }
+  finally { exporting.value = false }
+}
+
+/** One save path validates the same resolved schema that renders the form. */
+function saveDocument() {
+  return save(documentTabs.value)
+}
+
+/** Reload the record first, then its current Record Type schema and related data. */
+async function refreshDocument() {
+  await load()
+  await reloadRecordSchema()
+}
 </script>
 
 <template>
@@ -150,13 +195,14 @@ const showMetaRail = computed(() => !['users', 'roles'].includes(props.config.ke
     v-model:active-tab="activeTab"
     :field-value="fieldValue"
     :set-field-value="setFieldValue"
-    :pending="pending"
+    :pending="documentPending"
     :saving="saving"
     :error="error"
     :not-found="notFound"
-    :read-only="config.readOnly"
+    :read-only="config.readOnly || !canEditDocument"
     :show-comments="!isCreate"
     :show-meta-rail="showMetaRail"
+    :content-wide="contentWide"
     :show-list-nav="true"
     :can-navigate-previous="Boolean(previousRecordId)"
     :can-navigate-next="Boolean(nextRecordId)"
@@ -164,7 +210,8 @@ const showMetaRail = computed(() => !['users', 'roles'].includes(props.config.ke
     :list-navigation-direction="recordNavigationDirection"
     :list-to="config.routeBase"
     :is-create="isCreate"
-    :can-comment="config.canComment !== false"
+    :can-comment="canCommentDocument"
+    :can-export="canExportDocument"
     :comments="comments"
     :activity="activity"
     :attachments="attachments"
@@ -172,6 +219,8 @@ const showMetaRail = computed(() => !['users', 'roles'].includes(props.config.ke
     :submitting-comment="submittingComment"
     :updating-comment-id="updatingCommentId"
     :deleting-comment-id="deletingCommentId"
+    :has-more-feed="hasMoreFeed"
+    :loading-more-feed="loadingMoreFeed"
     :current-user="currentUser"
     :meta-title="title"
     :meta-subtitle="codeOrRef"
@@ -185,15 +234,18 @@ const showMetaRail = computed(() => !['users', 'roles'].includes(props.config.ke
     :meta-favorite="isFavorite"
     :toggling-favorite="togglingFavorite"
     :more-items="moreItems"
+    :exporting="exporting"
     @update:comment-body="commentBody = $event"
     @update:attachments="attachments = $event"
-    @save="save"
-    @refresh="load"
+    @save="saveDocument"
+    @refresh="refreshDocument"
     @submit-comment="submitComment"
     @update-comment="updateComment"
     @delete-comment="deleteComment"
+    @load-more-feed="loadMoreFeed"
     @navigate-previous="navigatePreviousRecord"
     @navigate-next="navigateNextRecord"
     @toggle-favorite="toggleFavorite"
+    @export="exportDocument"
   />
 </template>

@@ -38,9 +38,15 @@ Primary orchestrators for Organization, User Management, Meeting History, Portal
 
 Provide breadcrumb, localized title/description, result count, primary create action, overflow actions, sticky toolbar, and content slot. The create action navigates to the entity’s `/new` route.
 
+The shared header reload icon calls the active page's own `refresh`/`load` function without changing routes. Workspace, board, configuration, dashboard, settings, and document pages publish their pending state through `AppHeaderPageActions`, show the icon as loading, and block duplicate refresh clicks until the current request finishes. A document refresh reloads the record and the related data handled by that page loader.
+
+Do not expose Print actions in shared headers, document overflow menus, or role permission controls. Export opens one reusable dialog with optional start/end dates, scope (`all_matching`, `current_page`, or `selected`), and permission-safe field codes. The dialog emits a typed `ExportRequest`; the future export API must recheck record and field permissions before generating the file, while mock mode exercises the same request flow.
+
 ### `AppWorkspaceToolbar`
 
-Provide debounced live search (`AppLiveSearch`), select/multiselect filters (`AppFilterSelect`), date range (`AppDateRangeFilter`), sort, and table/Kanban/hierarchy view toggle. Selected filters show an active grey border on the control (no filter chip row) via `utils/filter/select-ui.ts`. Synchronize supported state with URL query parameters via `useEntityWorkspace`.
+Provide debounced live search (`AppLiveSearch`), select/multiselect filters (`AppFilterSelect`), date range (`AppDateRangeFilter`), sort, and table/Kanban/hierarchy/timeline view toggle. Selected filters show an active grey border on the control (no filter chip row) via `utils/filter/select-ui.ts`. Synchronize supported state with URL query parameters via `useEntityWorkspace`.
+
+Meeting History enables two modes over one list contract: the server-paginated table and `AppMeetingHistoryTimeline`. The timeline is vertical, orders cards from newest to oldest by `meetingDate`, and preserves search, filters, page size, page, loading, empty, error, retry, and document navigation. Its default request is `view=timeline&sort=-meetingDate`; HTTP APIs should accept the same query used by the mock adapter.
 
 ### `AppServerTable`
 
@@ -77,6 +83,10 @@ Default actions (i18n under `docetra.rowActions.*`):
 - **Delete** → confirm then delete (omit when read-only)
 
 Use on tables, cards, and boards. Prefer this over one-off dropdowns.
+
+### Role permission matrix
+
+`AppRolePermissionMatrix` is the only editor for structured role capabilities. It always normalizes API/mock rows through `utils/role/permissions.ts`, supports per-action, per-row, Grant all, Clear all, creator-only scope, and access levels 0–9. Any non-view action implies View; clearing View clears the row. On save, `useDocumentPage` sends normalized non-empty `permissionRows`, `permissionSchemaVersion: 1`, a namespaced flat `permissions` list, and `permissionCount`. Backend authorization remains authoritative and must recompute the expansion.
 
 ### `AppKanbanBoard` / `AppKanbanColumn` / `AppKanbanCard`
 
@@ -160,6 +170,10 @@ interface ActivityEvent {
 
 Activity is immutable. Escape untrusted content, redact sensitive metadata, cursor-paginate long timelines, and never expose backend-only audit payloads.
 
+Shared table pagination includes a working rows-per-page selector for 10, 20, 50, 100, and All, resets to page 1 when the size changes, and shows the visible range (`X–Y of Z`) so small datasets do not make the selector appear broken.
+
+Meeting and record board cards render configured metadata fields as compact, softly tinted highlight chips with an icon for every field. Keep semantic colors stable across cards: references/dates use info, people use success, organizations/duration warnings use warning, record type/mode use secondary, and long descriptive text uses neutral. Keep the title and status visually dominant, use stronger chips for body fields and smaller chips for footer facts, and preserve accessible contrast in light and dark themes so users can scan lists quickly.
+
 ### Attachments (document meta rail)
 
 Attachments live on `AppDocumentMetaRail` (upload list + metadata), not a standalone panel. Pair with adapter `listAttachments` / `replaceAttachments`. Do not store binary content in Pinia.
@@ -202,6 +216,8 @@ Topic-style board for Incoming / Outgoing / Document / Master List Request:
 - Left: workflow **Stages** rail (All + stage cards with counts); search stages; collapsible icon-only.
 - Right: 3-column record **cards** with date range + search; drag onto a stage to move; `⋯` Detail / Logs / Move / Delete.
 - Card scan fields driven by `useCardFields(entityKey)`.
+- Stage rail driven by the selected Record Type's saved workflow stages and order; the static entity stage array is fallback-only.
+- Dragging a card onto a configured stage and choosing **Move to stage** use the same transition action and refresh stage counts.
 - Props: `dateField`, `subtitleField`, `stateKey`.
 
 Composable: `useRecordStageBoard`.
@@ -230,11 +246,11 @@ Coordinate route identity, create/read/edit state, schema, initial values, dirty
 
 ### `useRecordTypeDrivenTabs`
 
-For record entities (`incomingDocuments`, `outgoingDocuments`, `documents`, `masterListRequests`), merge static document tabs with attributes from the selected record type (catalog via configuration repositories).
+This composable is the current partial implementation for `incomingDocuments`, `outgoingDocuments`, `documents`, and `masterListRequests`. Replace its entity-key allowlist with the general `useRecordSchema` contract in `00C-dynamic-record-fields.md`. Every entity marked `recordBacked: true`, including meetings and meeting topics, resolves published fields by `recordTypeId`. The resolver must drive add, detail, edit, list/filter, and board-card eligibility without pruning inaccessible or temporarily hidden values.
 
 ### `useMenu` / `useUserMenu`
 
-- `useMenu` — sidebar links only (no System Monitor group). Order: Dashboard → Meeting → Record → Organization → Portal → User Management → Configuration → Settings.
+- `useMenu` — sidebar links only (no System Monitor group). Order: Dashboard → Meeting → Record → Organization → Portal → User Management → Configuration → Settings. Filter links with the same namespaced `.view` capabilities used by route metadata and remove empty groups.
 - `useUserMenu` — System Log, Language, Font size, About, Appearance, Logout.
 
 ### `useGlobalSearch`
@@ -252,6 +268,16 @@ Cmd+K keyword / semantic search over the local index; permission-filtered groups
 - Unsaved changes require confirmation (`useConfirm`).
 - Previous/next respects the source workspace ordering where available.
 - Backend authorization is authoritative; frontend permission checks control visibility only.
+- Shared permission derivation uses `utils/role/access.ts`: `.view` is the namespace root for `.create`, `.edit`, `.delete`, `.comment`, `.export`, and other supported actions.
+- `AppDocumentPage` accepts `readOnly`, `canSave`, `canComment`, and `canExport`; `EntityWorkspaceView` derives create/delete/export visibility from the entity permission namespace.
+- Use `usePathModel` for schema field access and `useAppPageTitle` for the repeated Settings title/SEO lifecycle.
+
+## Reusable security components
+
+- `utils/security/url.ts` is the shared URL boundary. It rejects executable schemes, protocol-relative internal links, and authenticated cross-origin API/upload endpoints.
+- `utils/security/files.ts` centralizes safe raster types and default document-upload rules.
+- `AppUppyUploader` exposes `maxFileSizeMb`, `maxNumberOfFiles`, and `allowedFileTypes`, applies them to both Uppy and fallback picker flows, and never sends Authorization outside the API origin.
+- `AppImageUploadField`, `AppRichTextNote`, and `ResizableImageView` use the shared raster/source checks. Backend MIME sniffing, malware scanning, storage isolation, and authorization are still mandatory.
 
 ## Acceptance
 

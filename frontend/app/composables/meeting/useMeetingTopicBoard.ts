@@ -4,7 +4,6 @@ import {
   assignMeetingToTopic as assignMeetingToTopicApi,
   reorderMeetingsInTopic,
 } from '~/adapters/meeting-board'
-import { isWithinDateTimeRange } from '~/utils/date-time-range'
 import { mergeMeetingTiming, sortMeetingsForBoard } from '~/utils/meeting/board'
 
 /** Sentinel for the Unassigned row on the topic rail (not a real topic id). */
@@ -33,6 +32,16 @@ export function useMeetingTopicBoard() {
   /** YYYY-MM-DDTHH:mm — empty = open-ended */
   const meetingDateStart = ref('')
   const meetingDateEnd = ref('')
+  const topicPage = ref(1)
+  const topicTotal = ref(0)
+  const meetingPage = ref(1)
+  const meetingTotal = ref(0)
+  const loadingMoreTopics = ref(false)
+  const loadingMoreMeetings = ref(false)
+  const countSummary = ref({ total: 0, unassigned: 0, groups: {} as Record<string, number> })
+  const topicPageSize = 30
+  const meetingPageSize = 24
+  let requestToken = 0
 
   const isAllMeetings = computed(() => selectedTopicId.value == null)
   const isUnassigned = computed(() => selectedTopicId.value === MEETING_BOARD_UNASSIGNED)
@@ -45,95 +54,120 @@ export function useMeetingTopicBoard() {
     return topics.value.find(t => t.id === id) || null
   })
 
-  const filteredTopics = computed(() => {
-    const q = topicSearch.value.trim().toLowerCase()
-    if (!q) return topics.value
-    return topics.value.filter(topic =>
-      topic.title.toLowerCase().includes(q)
-      || String((topic as any).owner?.name || '').toLowerCase().includes(q),
-    )
-  })
+  const filteredTopics = computed(() => topics.value)
 
-  const unassignedMeetings = computed(() =>
-    meetings.value.filter(m => !m.topicId),
-  )
-
-  const unassignedMeetingCount = computed(() => unassignedMeetings.value.length)
-  const allMeetingCount = computed(() => meetings.value.length)
+  const unassignedMeetingCount = computed(() => countSummary.value.unassigned)
+  const allMeetingCount = computed(() => countSummary.value.total)
 
   const filteredMeetings = computed(() => {
-    const q = meetingSearch.value.trim().toLowerCase()
-    let list: MeetingHistory[]
-    if (isAllMeetings.value) {
-      list = meetings.value
-    }
-    else if (isUnassigned.value) {
-      list = unassignedMeetings.value
-    }
-    else {
-      list = meetings.value.filter(m => m.topicId === selectedTopicId.value)
-    }
-    if (meetingDateStart.value || meetingDateEnd.value) {
-      list = list.filter(m =>
-        isWithinDateTimeRange(m.meetingDate, meetingDateStart.value, meetingDateEnd.value),
-      )
-    }
-    if (q) {
-      list = list.filter(m =>
-        m.title.toLowerCase().includes(q)
-        || (m.topicTitle || '').toLowerCase().includes(q)
-        || (m.location || '').toLowerCase().includes(q),
-      )
-    }
-    const withTiming = list.map(m => mergeMeetingTiming(m))
+    const withTiming = meetings.value.map(m => mergeMeetingTiming(m))
     return sortMeetingsForBoard(withTiming, { topicScoped: !isPoolView.value })
   })
 
   const topicMeetingCounts = computed(() => {
-    const map = new Map<string, number>()
-    for (const meeting of meetings.value) {
-      if (!meeting.topicId) continue
-      map.set(meeting.topicId, (map.get(meeting.topicId) || 0) + 1)
-    }
-    return map
+    return new Map(Object.entries(countSummary.value.groups))
   })
 
+  const hasMoreTopics = computed(() => topics.value.length < topicTotal.value)
+  const hasMoreMeetings = computed(() => meetings.value.length < meetingTotal.value)
+
+  function meetingQuery(page = 1) {
+    return {
+      q: meetingSearch.value || undefined,
+      topicId: isUnassigned.value ? '__empty__' : (selectedTopicId.value || undefined),
+      startDate: meetingDateStart.value || undefined,
+      endDate: meetingDateEnd.value || undefined,
+      page,
+      limit: meetingPageSize,
+      sort: isPoolView.value ? 'meetingDate' : 'sortOrder',
+    }
+  }
+
+  async function refreshCounts() {
+    if (!meetingsAdapter.getGroupCounts) return
+    const response = await meetingsAdapter.getGroupCounts('topicId', {
+      q: meetingSearch.value || undefined,
+      startDate: meetingDateStart.value || undefined,
+      endDate: meetingDateEnd.value || undefined,
+    })
+    countSummary.value = response.data
+  }
+
   async function refresh() {
+    const token = ++requestToken
     pending.value = true
     error.value = null
     try {
       const [topicsRes, meetingsRes] = await Promise.all([
-        topicsAdapter.list({ limit: 100, sort: '-updatedAt' }),
-        meetingsAdapter.list({ limit: 200, sort: 'meetingDate' }),
+        topicsAdapter.list({ q: topicSearch.value || undefined, page: 1, limit: topicPageSize, sort: '-updatedAt' }),
+        meetingsAdapter.list(meetingQuery(1)),
+        refreshCounts(),
       ])
+      if (token !== requestToken) return
       topics.value = (topicsRes.data || []) as MeetingTopic[]
       meetings.value = (meetingsRes.data || []) as MeetingHistory[]
+      topicPage.value = 1
+      meetingPage.value = 1
+      topicTotal.value = topicsRes.meta?.total || topics.value.length
+      meetingTotal.value = meetingsRes.meta?.total || meetings.value.length
     }
     catch (e: any) {
-      error.value = e?.message || 'Failed to load meetings'
+      if (token === requestToken) error.value = e?.message || 'Failed to load meetings'
     }
     finally {
-      pending.value = false
+      if (token === requestToken) pending.value = false
     }
+  }
+
+  async function refreshMeetings() {
+    const token = ++requestToken
+    pending.value = true
+    error.value = null
+    try {
+      const [response] = await Promise.all([meetingsAdapter.list(meetingQuery(1)), refreshCounts()])
+      if (token !== requestToken) return
+      meetings.value = (response.data || []) as MeetingHistory[]
+      meetingPage.value = 1
+      meetingTotal.value = response.meta?.total || meetings.value.length
+    }
+    catch (e: any) {
+      if (token === requestToken) error.value = e?.message || 'Failed to load meetings'
+    }
+    finally {
+      if (token === requestToken) pending.value = false
+    }
+  }
+
+  async function loadMoreTopics() {
+    if (!hasMoreTopics.value || loadingMoreTopics.value) return
+    loadingMoreTopics.value = true
+    const nextPage = topicPage.value + 1
+    try {
+      const response = await topicsAdapter.list({ q: topicSearch.value || undefined, page: nextPage, limit: topicPageSize, sort: '-updatedAt' })
+      topics.value.push(...((response.data || []) as MeetingTopic[]))
+      topicPage.value = nextPage
+      topicTotal.value = response.meta?.total || topicTotal.value
+    }
+    finally { loadingMoreTopics.value = false }
+  }
+
+  async function loadMoreMeetings() {
+    if (!hasMoreMeetings.value || loadingMoreMeetings.value) return
+    loadingMoreMeetings.value = true
+    const nextPage = meetingPage.value + 1
+    try {
+      const response = await meetingsAdapter.list(meetingQuery(nextPage))
+      const seen = new Set(meetings.value.map(item => item.id))
+      meetings.value.push(...((response.data || []) as MeetingHistory[]).filter(item => !seen.has(item.id)))
+      meetingPage.value = nextPage
+      meetingTotal.value = response.meta?.total || meetingTotal.value
+    }
+    finally { loadingMoreMeetings.value = false }
   }
 
   function selectTopic(id: string | null) {
     selectedTopicId.value = id
-  }
-
-  async function syncTopicChildren(topicId: string) {
-    const linked = meetings.value
-      .filter(m => m.topicId === topicId)
-      .sort((a, b) => (a.sortOrder ?? 9999) - (b.sortOrder ?? 9999))
-    await topicsAdapter.update(topicId, {
-      childMeetingCount: linked.length,
-      childMeetings: linked.map((m, index) => ({
-        id: m.id,
-        title: m.title,
-        meetingDate: m.meetingDate,
-        sortOrder: m.sortOrder ?? index,
-      })),
-    } as any)
+    void refreshMeetings()
   }
 
   async function assignMeetingToTopic(meetingId: string, topicId: string | null) {
@@ -141,7 +175,6 @@ export function useMeetingTopicBoard() {
     if (!meeting) return
     if ((meeting.topicId || null) === topicId) return
 
-    const previousTopicId = meeting.topicId
     const topic = topicId ? topics.value.find(t => t.id === topicId) : null
     if (topicId && !topic) {
       toast.add({ title: t('docetra.meetingBoard.invalidTopicDrop'), color: 'error' })
@@ -165,8 +198,8 @@ export function useMeetingTopicBoard() {
         topicTitle: meeting.topicTitle,
         sortOrder: meeting.sortOrder,
       })
-      if (previousTopicId) await syncTopicChildren(previousTopicId)
-      if (topicId) await syncTopicChildren(topicId)
+      // The API owns aggregate counts and topic children; the browser only
+      // refreshes its bounded page after the atomic assignment succeeds.
       await refresh()
       toast.add({
         title: topicId
@@ -200,7 +233,6 @@ export function useMeetingTopicBoard() {
         topicId,
         orderedMeetingIds: next.map(m => m.id),
       })
-      await syncTopicChildren(topicId)
       await refresh()
     }
     catch (e: any) {
@@ -208,6 +240,11 @@ export function useMeetingTopicBoard() {
       await refresh()
     }
   }
+
+  const debouncedTopicSearch = useDebounceFn(() => refresh(), 300)
+  const debouncedMeetingFilter = useDebounceFn(() => refreshMeetings(), 300)
+  watch(topicSearch, () => debouncedTopicSearch())
+  watch([meetingSearch, meetingDateStart, meetingDateEnd], () => debouncedMeetingFilter())
 
   function openTopic(id: string) {
     navigateTo(`/meetings/topics/${id}`)
@@ -218,14 +255,15 @@ export function useMeetingTopicBoard() {
   }
 
   function openCreateTopic() {
-    navigateTo('/meetings/topics/new')
+    return navigateTo(`/meetings/topics/new?returnTo=${encodeURIComponent('/meetings/topics')}`)
   }
 
   function openCreateMeeting() {
-    const query: Record<string, string> = {}
+    const params = new URLSearchParams()
+    params.set('returnTo', '/meetings/topics')
     const tid = selectedTopicId.value
-    if (tid && tid !== MEETING_BOARD_UNASSIGNED) query.topicId = tid
-    navigateTo({ path: '/meetings/history/new', query })
+    if (tid && tid !== MEETING_BOARD_UNASSIGNED) params.set('topicId', tid)
+    return navigateTo(`/meetings/history/new?${params.toString()}`)
   }
 
   return {
@@ -247,9 +285,15 @@ export function useMeetingTopicBoard() {
     allMeetingCount,
     unassignedMeetingCount,
     topicMeetingCounts,
+    hasMoreTopics,
+    hasMoreMeetings,
+    loadingMoreTopics,
+    loadingMoreMeetings,
     draggingMeetingId,
     dropTopicId,
     refresh,
+    loadMoreTopics,
+    loadMoreMeetings,
     selectTopic,
     assignMeetingToTopic,
     reorderMeeting,

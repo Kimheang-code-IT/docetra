@@ -85,6 +85,10 @@ export interface RecordLog extends BaseEntity {
   entityType: string
   entityId: string
   entityTitle: string
+  /** Resolved record-type identity supplied by the API or enriched from configuration. */
+  recordTypeId?: string
+  recordTypeCode?: string
+  recordTypeName?: string
   recordStage?: string
   parentRecord?: string
   actor?: PersonSummary
@@ -190,6 +194,8 @@ export interface AppRole extends BaseEntity {
   userCount: number
   permissions?: string[]
   permissionRows?: AppRolePermissionRow[]
+  /** Version of the structured permission matrix contract sent to the API. */
+  permissionSchemaVersion?: number
 }
 
 export interface AppUser extends BaseEntity {
