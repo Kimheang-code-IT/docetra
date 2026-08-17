@@ -39,6 +39,10 @@ const dateUi = computed(() => getFilterDateUi(isActive.value, {
   isRange: false,
 }))
 
+const pickerIcon = computed(() =>
+  isDateTime.value ? 'i-lucide-calendar-clock' : 'i-lucide-calendar',
+)
+
 /** Shared with UInputDate + UCalendar in popover (Nuxt UI pattern). */
 const dateValue = computed({
   get: () => parsePickerValue(props.modelValue, isDateTime.value),
@@ -49,7 +53,11 @@ const dateValue = computed({
 </script>
 
 <template>
-  <div ref="pickerAnchor" class="relative min-w-0" :class="props.class || 'w-full'">
+  <div
+    ref="pickerAnchor"
+    class="app-input-date relative min-w-0"
+    :class="[props.class || 'w-full', isDateTime ? 'app-input-date--datetime' : '']"
+  >
     <UInputDate
       ref="inputDate"
       v-model="dateValue"
@@ -60,34 +68,53 @@ const dateValue = computed({
       :color="color"
       :variant="variant"
       :size="size"
-      class="w-full"
+      class="w-full min-w-0"
       :ui="dateUi"
-    >
-      <template #trailing>
-        <UPopover
-          :reference="pickerAnchor ?? inputDate?.inputsRef?.[0]?.$el"
-          :content="datePickerPopoverContent"
-        >
-          <UButton
-            color="neutral"
-            variant="link"
-            size="sm"
-            :icon="isDateTime ? 'i-lucide-calendar-clock' : 'i-lucide-calendar'"
-            :aria-label="isDateTime ? 'Select date and time' : 'Select a date'"
-            class="shrink-0 px-0"
+    />
+
+    <div class="pointer-events-none absolute inset-y-0 end-0 z-10 flex items-center pe-1.5">
+      <UPopover
+        :reference="pickerAnchor ?? inputDate?.inputsRef?.[0]?.$el"
+        :content="datePickerPopoverContent"
+      >
+        <UButton
+          color="neutral"
+          variant="ghost"
+          size="xs"
+          square
+          :icon="pickerIcon"
+          class="pointer-events-auto size-7 text-muted hover:text-highlighted"
+          :aria-label="isDateTime ? 'Select date and time' : 'Select a date'"
+          :disabled="disabled"
+        />
+
+        <template #content>
+          <CommonAppDatePickerPopover
+            v-model="dateValue"
+            mode="single"
+            :granularity="granularity"
             :disabled="disabled"
           />
-
-          <template #content>
-            <CommonAppDatePickerPopover
-              v-model="dateValue"
-              mode="single"
-              :granularity="granularity"
-              :disabled="disabled"
-            />
-          </template>
-        </UPopover>
-      </template>
-    </UInputDate>
+        </template>
+      </UPopover>
+    </div>
   </div>
 </template>
+
+<style scoped>
+.app-input-date :deep([data-slot="base"]) {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.app-input-date--datetime :deep([data-slot="base"]) {
+  padding-inline-end: 2.75rem;
+}
+
+.app-input-date :deep([data-slot="base"]::-webkit-scrollbar) {
+  display: none;
+}
+</style>

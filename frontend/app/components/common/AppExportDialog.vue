@@ -77,19 +77,17 @@ function submit() {
   >
     <template #body>
       <div class="space-y-5">
-        <div class="grid gap-4 sm:grid-cols-2">
-          <UFormField
-            :label="$t('docetra.exportDialog.startDate')"
-            :error="invalidRange ? $t('docetra.exportDialog.invalidRange') : undefined"
-          >
-            <CommonAppDateRangeFilter
-              v-model:start="startDate"
-              v-model:end="endDate"
-              inline
-              class="w-full"
-            />
-          </UFormField>
-        </div>
+        <UFormField
+          :label="$t('docetra.exportDialog.dateRange')"
+          :error="invalidRange ? $t('docetra.exportDialog.invalidRange') : undefined"
+        >
+          <CommonAppDateRangeFilter
+            v-model:start="startDate"
+            v-model:end="endDate"
+            inline
+            class="w-full"
+          />
+        </UFormField>
 
         <UFormField :label="$t('docetra.exportDialog.scope')">
           <USelect

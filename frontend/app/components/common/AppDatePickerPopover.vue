@@ -198,7 +198,7 @@ const dayRangeCalendar = computed({
 </script>
 
 <template>
-  <div class="w-full max-w-[34rem]">
+  <div class="w-full max-w-136">
     <UCalendar
       v-if="mode === 'single'"
       v-model="singleCalendar"
@@ -249,7 +249,7 @@ const dayRangeCalendar = computed({
         v-else-if="isDateTime && mode === 'range'"
         class="flex min-w-0 flex-1 flex-wrap items-end gap-3"
       >
-        <div class="min-w-[8.5rem] flex-1 space-y-1">
+        <div class="min-w-34 flex-1 space-y-1">
           <label class="block text-xs font-medium text-muted">
             {{ t('docetra.common.startTime') }}
           </label>
@@ -262,7 +262,7 @@ const dayRangeCalendar = computed({
             class="w-full"
           />
         </div>
-        <div class="min-w-[8.5rem] flex-1 space-y-1">
+        <div class="min-w-34 flex-1 space-y-1">
           <label class="block text-xs font-medium text-muted">
             {{ t('docetra.common.endTime') }}
           </label>

@@ -3,6 +3,8 @@
  * Active border uses default grey (`ring-default`), not inverted/black.
  */
 
+import type { AppFontSize } from '~/types/docetra/settings'
+
 const selectChrome = 'rounded-lg bg-elevated/70 font-medium text-highlighted'
 const selectIdle = `${selectChrome} ring-0`
 const selectActive = `${selectChrome} ring-1 ring-inset ring-default`
@@ -31,8 +33,16 @@ export function getFilterSearchUi(active: boolean) {
 
 export function getFilterDateUi(
   active: boolean,
-  options?: { isDateTime?: boolean, isRange?: boolean, fitContent?: boolean },
+  options?: {
+    isDateTime?: boolean
+    isRange?: boolean
+    fitContent?: boolean
+    fullWidth?: boolean
+    fontSize?: AppFontSize
+  },
 ) {
+  const fontSize = options?.fontSize ?? 'md'
+
   const chrome = active
     ? 'rounded-md bg-elevated/70 ring-1 ring-inset ring-default'
     : 'rounded-md bg-elevated/70 ring-0 has-focus:ring-1 has-focus:ring-inset has-focus:ring-default'
@@ -42,17 +52,41 @@ export function getFilterDateUi(
         'data-[segment=hour]:min-w-7',
         'data-[segment=minute]:min-w-7',
         'data-[segment=dayPeriod]:min-w-8',
-      ].join(' ')
+        fontSize === 'lg' || fontSize === 'xl' ? 'data-[segment=day]:w-9 data-[segment=month]:w-9 data-[segment=year]:w-11' : '',
+      ].filter(Boolean).join(' ')
     : undefined
 
-  const width = options?.fitContent
-    ? 'w-auto max-w-full pe-6'
-    : 'w-full min-w-0'
+  const trailingEnd = options?.isDateTime && options?.isRange
+    ? fontSize === 'xl' ? 'pe-12' : fontSize === 'lg' ? 'pe-11' : 'pe-11'
+    : options?.isDateTime
+      ? fontSize === 'xl' ? 'pe-10' : 'pe-9'
+      : options?.isRange
+        ? 'pe-9'
+        : 'pe-8'
+
+  const rangeMinWidth = fontSize === 'xl'
+    ? 'min-w-120'
+    : fontSize === 'lg'
+      ? 'min-w-112'
+      : fontSize === 'sm'
+        ? 'min-w-96'
+        : 'min-w-104'
+
+  const minWidth = options?.fullWidth
+    ? 'w-full min-w-0'
+    : options?.fitContent && options?.isDateTime && options?.isRange
+      ? `w-auto ${rangeMinWidth} max-w-full`
+      : options?.fitContent
+        ? 'w-auto max-w-full'
+        : 'w-full min-w-0'
+
+  const width = `${minWidth} ${trailingEnd}`
 
   return {
     base: `${chrome} ${width}`,
     segment,
-    trailing: 'pe-0',
+    trailing: 'pe-0.5',
+    trailingIcon: 'text-muted',
   }
 }
 

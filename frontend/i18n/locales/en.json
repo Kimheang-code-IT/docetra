@@ -1115,6 +1115,7 @@
       "description": "Choose the date range, records, and fields to include.",
       "startDate": "Start date",
       "endDate": "End date",
+      "dateRange": "Date range",
       "scope": "Data to export",
       "allMatching": "All matching data",
       "currentPage": "Current page",
