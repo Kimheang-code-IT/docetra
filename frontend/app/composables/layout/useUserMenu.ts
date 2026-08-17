@@ -21,9 +21,12 @@ export function useUserMenu() {
   preferences.hydrate()
 
   const aboutOpen = useState('user-menu-about-open', () => false)
+  const profileOpen = useState('user-menu-profile-open', () => false)
 
   const user = computed(() => ({
     name: auth.user?.name || auth.user?.email || 'User',
+    email: auth.user?.email || '',
+    role: auth.user?.role || '',
     avatar: {
       src: auth.user?.avatar
         || `https://ui-avatars.com/api/?name=${encodeURIComponent(auth.user?.name || 'User')}&background=random`,
@@ -34,12 +37,24 @@ export function useUserMenu() {
   const items = computed<DropdownMenuItem[][]>(() => [
     [
       {
-        type: 'label',
         label: user.value.name,
+        description: user.value.email,
         avatar: user.value.avatar,
+        onSelect(e: Event) {
+          e.preventDefault()
+          profileOpen.value = true
+        },
       },
     ],
     [
+      {
+        label: t('docetra.pages.archive'),
+        icon: 'i-lucide-archive',
+        onSelect(e: Event) {
+          e.preventDefault()
+          router.push('/archive')
+        },
+      },
       {
         label: t('docetra.pages.systemLog'),
         icon: 'i-lucide-square-terminal',
@@ -134,5 +149,6 @@ export function useUserMenu() {
     user,
     items,
     aboutOpen,
+    profileOpen,
   }
 }

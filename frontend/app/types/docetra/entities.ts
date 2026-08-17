@@ -9,6 +9,8 @@ export interface MeetingTopic extends BaseEntity {
   childMeetingCount: number
   childMeetings?: Array<{ id: string; title: string; meetingDate?: string; sortOrder?: number }>
   description?: string
+  /** Dynamic attribute values keyed by attribute code (`record_detail`). */
+  details?: Record<string, unknown>
 }
 
 export interface MeetingHistory extends BaseEntity, MeetingBoardTiming {
@@ -38,6 +40,8 @@ export interface MeetingHistory extends BaseEntity, MeetingBoardTiming {
   recordTime?: string
   /** Tags as comma text (`record_tag`); arrays also on `tags`. */
   recordTag?: string
+  /** Dynamic attribute values keyed by attribute code (`record_detail`). */
+  details?: Record<string, unknown>
 }
 
 export interface RecordDocument extends BaseEntity {

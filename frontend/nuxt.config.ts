@@ -59,16 +59,29 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/main.css'],
 
-  // Optimized font loading (no blocking CSS @import from Google)
+  // Google Fonts via @nuxt/fonts — Inter (Latin) + Noto Sans Khmer (Khmer script)
   fonts: {
-    families: [
-      { name: 'Inter', provider: 'google', weights: [400, 500, 600, 700] },
-      { name: 'Noto Sans Khmer', provider: 'google', weights: [400, 500, 600, 700] },
-    ],
+    provider: 'google',
     defaults: {
       weights: [400, 500, 600, 700],
       styles: ['normal'],
+      subsets: ['latin', 'latin-ext'],
     },
+    families: [
+      {
+        name: 'Inter',
+        provider: 'google',
+        weights: [400, 500, 600, 700],
+        subsets: ['latin', 'latin-ext'],
+      },
+      {
+        name: 'Noto Sans Khmer',
+        provider: 'google',
+        weights: [400, 500, 600, 700],
+        subsets: ['khmer'],
+        global: true,
+      },
+    ],
   },
 
   // Menu icons live in .ts/.vue — keep the scan tight for a smaller first client bundle

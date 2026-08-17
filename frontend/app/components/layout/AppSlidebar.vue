@@ -11,8 +11,8 @@ const collapsedModel = computed({
 
 const sidebarUi = computed(() => ({
   root: collapsedModel.value
-    ? 'bg-muted/50 border-e border-default'
-    : 'bg-elevated/25 backdrop-blur-sm border-e border-default dark:bg-[#18191a]',
+    ? 'app-sidebar bg-muted/50 border-e border-default'
+    : 'app-sidebar bg-elevated/25 backdrop-blur-sm border-e border-default dark:bg-[#18191a]',
   header: collapsedModel.value
     ? 'h-auto flex-col items-center justify-center gap-2 px-0 pt-3 pb-2 shrink-0'
     : 'h-auto flex-col items-stretch gap-3 px-3 pt-3 pb-2 shrink-0',
@@ -65,18 +65,25 @@ const sidebarUi = computed(() => ({
           >
         </span>
         <span v-if="!isCollapsed" class="min-w-0">
-          <span class="block truncate text-xl font-semibold tracking-tight">{{ $t('docetra.brand.name') }}</span>
+          <span class="app-sidebar-text block truncate text-xl font-semibold tracking-tight">{{ $t('docetra.brand.name') }}</span>
         </span>
       </NuxtLink>
 
       <UDashboardSearchButton
         :collapsed="isCollapsed"
         tooltip
-        class="bg-transparent"
+        class="bg-transparent app-sidebar-text"
         :class="isCollapsed ? 'mx-auto' : 'ring-default'"
         :ui="isCollapsed
-          ? { base: 'justify-center rounded-md size-9 p-0' }
-          : undefined"
+          ? {
+              base: 'justify-center rounded-md size-9 p-0 app-sidebar-text',
+              leadingIcon: 'app-sidebar-text',
+            }
+          : {
+              base: 'app-sidebar-text',
+              label: 'app-sidebar-text',
+              leadingIcon: 'app-sidebar-text',
+            }"
       />
     </template>
 
@@ -93,11 +100,17 @@ const sidebarUi = computed(() => ({
               list: 'w-full flex flex-col items-center gap-0.5',
               item: 'w-full flex justify-center',
               link: 'justify-center size-9 p-0 rounded-md',
-              linkLeadingIcon: 'size-5 text-muted group-hover:text-highlighted group-data-[active]:text-primary',
+              linkLeadingIcon: 'size-5 app-sidebar-text group-hover:opacity-80 group-data-[active]:text-primary',
             }
           : {
               root: 'w-full',
-              link: 'rounded-md',
+              link: 'rounded-md app-sidebar-text hover:opacity-80 data-[active]:text-primary',
+              linkLeadingIcon: 'size-5 app-sidebar-text group-data-[active]:text-primary',
+              linkLabel: 'app-sidebar-text group-data-[active]:text-primary',
+              childLink: 'app-sidebar-text data-[active]:text-primary',
+              childLinkLabel: 'app-sidebar-text data-[active]:text-primary',
+              childLinkIcon: 'size-5 app-sidebar-text group-data-[active]:text-primary',
+              label: 'app-sidebar-text font-semibold',
             }"
       />
       <UNavigationMenu
@@ -112,9 +125,13 @@ const sidebarUi = computed(() => ({
               list: 'w-full flex flex-col items-center gap-0.5',
               item: 'w-full flex justify-center',
               link: 'justify-center size-9 p-0 rounded-md',
-              linkLeadingIcon: 'size-5 text-muted',
+              linkLeadingIcon: 'size-5 app-sidebar-text',
             }
-          : undefined"
+          : {
+              link: 'app-sidebar-text',
+              linkLeadingIcon: 'size-5 app-sidebar-text',
+              linkLabel: 'app-sidebar-text',
+            }"
       />
     </template>
 

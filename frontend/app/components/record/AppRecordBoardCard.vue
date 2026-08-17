@@ -304,7 +304,7 @@ function onCardClick(event: MouseEvent) {
       <template v-for="slot in bodySlots" :key="slot">
       <div
         v-if="slot === 'referenceNumber' || slot === 'recordType' || slot === 'description'"
-        class="app-card-field-highlight mt-1.5 truncate text-xs text-muted"
+        class="app-card-field-highlight mt-1.5 truncate text-xs app-card-text"
         :class="fieldTone(slot)"
       >
         <span class="flex min-w-0 items-center gap-1.5">
@@ -318,7 +318,7 @@ function onCardClick(event: MouseEvent) {
       </div>
       <div
         v-else-if="slot === 'party' && partyLabel"
-        class="app-card-field-highlight mt-1.5 flex items-center gap-1.5 truncate text-xs text-muted"
+        class="app-card-field-highlight mt-1.5 flex items-center gap-1.5 truncate text-xs app-card-text"
         :class="fieldTone(slot)"
       >
         <UIcon :name="partyLabel.icon" class="size-3 shrink-0" />
@@ -326,7 +326,7 @@ function onCardClick(event: MouseEvent) {
       </div>
       <div
         v-else-if="slot === 'owner'"
-        class="app-card-field-highlight mt-1.5 flex items-center gap-1.5 truncate text-xs text-muted"
+        class="app-card-field-highlight mt-1.5 flex items-center gap-1.5 truncate text-xs app-card-text"
         :class="fieldTone(slot)"
       >
         <UIcon name="i-lucide-user" class="size-3 shrink-0" />
@@ -334,7 +334,7 @@ function onCardClick(event: MouseEvent) {
       </div>
       <div
         v-else-if="slot === 'assignee'"
-        class="app-card-field-highlight mt-1.5 flex items-center gap-1.5 truncate text-xs text-muted"
+        class="app-card-field-highlight mt-1.5 flex items-center gap-1.5 truncate text-xs app-card-text"
         :class="fieldTone(slot)"
       >
         <UIcon name="i-lucide-user-check" class="size-3 shrink-0" />
@@ -363,14 +363,14 @@ function onCardClick(event: MouseEvent) {
       </div>
       <div
         v-else-if="bodySlotText(slot)"
-        class="app-card-field-highlight mt-1.5 flex min-w-0 items-center gap-1.5 text-xs text-muted"
+        class="app-card-field-highlight mt-1.5 flex min-w-0 items-center gap-1.5 text-xs app-card-text"
         :class="fieldTone(slot)"
       >
         <UIcon
           :name="fieldIcon(slot)"
           class="size-3 shrink-0"
         />
-        <span class="shrink-0 font-medium text-toned">{{ $t(`docetra.cardSlots.${slot}`) }}:</span>
+        <span class="shrink-0 font-medium app-card-text">{{ $t(`docetra.cardSlots.${slot}`) }}:</span>
         <span class="min-w-0 truncate">{{ bodySlotText(slot) }}</span>
       </div>
     </template>
@@ -378,7 +378,7 @@ function onCardClick(event: MouseEvent) {
 
     <div
       v-if="footerSlots.length"
-      class="mt-auto flex items-center justify-between gap-2 border-t border-default pt-2 text-xs text-muted"
+      class="mt-auto flex items-center justify-between gap-2 border-t border-default pt-2 text-xs app-card-text"
     >
       <div class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
         <template v-for="slot in footerLeft" :key="`L-${slot}`">

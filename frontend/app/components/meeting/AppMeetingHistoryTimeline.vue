@@ -155,7 +155,7 @@ function openMeeting(meeting: MeetingHistory) {
                     {{ participantCount(meeting) }}
                   </span>
                 </div>
-                <p v-if="listText(meeting.participants)" class="mt-2 line-clamp-1 text-xs text-muted">
+                <p v-if="listText(meeting.participants)" class="mt-2 line-clamp-1 text-xs app-card-text">
                   {{ listText(meeting.participants) }}
                 </p>
               </div>

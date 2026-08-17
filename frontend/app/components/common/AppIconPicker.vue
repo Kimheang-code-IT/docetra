@@ -99,9 +99,8 @@ function clear() {
               <h3 class="text-base font-semibold">
                 {{ t('docetra.common.chooseIcon') }}
               </h3>
-              <UInput
+              <CommonAppLiveSearch
                 v-model="query"
-                icon="i-lucide-search"
                 :placeholder="t('docetra.common.search')"
                 class="max-w-56"
                 size="sm"

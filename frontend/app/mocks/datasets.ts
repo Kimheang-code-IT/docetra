@@ -20,6 +20,7 @@ import type {
   SystemLog,
 } from '~/types/docetra/entities'
 import { dateOnly, daysAgo, org, person } from './seed'
+import { mockDynamicDetails } from './dynamic-field-samples'
 import { permissionRowsToFlatKeys } from '~/utils/role/permissions'
 
 function minutesFromNowIso(minutes: number) {
@@ -86,6 +87,7 @@ export const mockMeetingTopics: MeetingTopic[] = Array.from({ length: 24 }, (_, 
   updatedAt: daysAgo(i % 10),
   attachmentCount: i % 3,
   commentCount: i % 4,
+  details: mockDynamicDetails(i, 'meeting_topic'),
 }))
 
 export const mockMeetingHistory: MeetingHistory[] = Array.from({ length: 30 }, (_, i) => {
@@ -130,7 +132,9 @@ export const mockMeetingHistory: MeetingHistory[] = Array.from({ length: 30 }, (
   owner: person(i),
   createdAt: daysAgo(40 - i),
   updatedAt: daysAgo(i % 8),
-}})
+  details: mockDynamicDetails(i, 'meeting'),
+  }
+})
 
 function makeRecord(kind: RecordDocument['recordKind'], count: number, prefix: string): RecordDocument[] {
   const typeIdByKind: Record<RecordDocument['recordKind'], string> = {
@@ -180,10 +184,7 @@ function makeRecord(kind: RecordDocument['recordKind'], count: number, prefix: s
       : kind === 'outgoing'
         ? dateOnly(i % 18)
         : dateOnly(i % 20),
-    details: {
-      external_ref: `EXT-${1000 + i}`,
-      amount: kind === 'document' || kind === 'master_list_request' ? 1000 + i * 25 : undefined,
-    },
+    details: mockDynamicDetails(i, kind === 'master_list_request' ? 'master_list' : kind),
     createdAt: daysAgo(50 - i),
     updatedAt: daysAgo(i % 12),
     tags: i % 2 === 0 ? ['urgent'] : ['routine'],

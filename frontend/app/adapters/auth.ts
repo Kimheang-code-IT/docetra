@@ -52,3 +52,27 @@ export async function resetPasswordWithCode(input: {
   }
   return ok({ reset: true })
 }
+
+export async function changePassword(input: {
+  currentPassword: string
+  password: string
+  passwordConfirmation: string
+}) {
+  if (!usesMockData()) {
+    return useApi().post<ApiResponse<{ changed: boolean }>>(ApiEndpoints.AUTH_CHANGE_PASSWORD, input)
+  }
+  const auth = useAuthStore()
+  const email = auth.user?.email
+  if (!email) throw createError({ statusCode: 401, statusMessage: 'Not signed in' })
+  if (input.password !== input.passwordConfirmation) {
+    throw createError({ statusCode: 400, statusMessage: 'Passwords do not match' })
+  }
+  const { findMockLoginAccount } = await import('~/utils/auth/mock-login')
+  await mockLatency(null, 80)
+  const account = findMockLoginAccount(email)
+  if (!account || account.password !== input.currentPassword) {
+    throw createError({ statusCode: 401, statusMessage: 'Current password is incorrect' })
+  }
+  account.password = input.password
+  return ok({ changed: true })
+}

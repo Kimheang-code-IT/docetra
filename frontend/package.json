@@ -5,8 +5,10 @@
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",
+    "dev:clean": "nuxt cleanup && nuxt prepare && nuxt dev",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
+    "prepare:nuxt": "nuxt prepare",
     "typecheck": "nuxt typecheck"
   },
   "dependencies": {

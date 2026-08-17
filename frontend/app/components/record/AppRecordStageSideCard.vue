@@ -77,7 +77,7 @@ function onDrop(event: DragEvent) {
             <h3 class="text-sm font-semibold text-highlighted wrap-break-word">
               {{ stageName }}
             </h3>
-            <p class="mt-1 truncate text-xs text-muted">
+            <p class="mt-1 truncate text-xs app-card-text">
               {{ $t('docetra.recordStageBoard.stageHint') }}
             </p>
           </div>

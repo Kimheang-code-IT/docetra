@@ -1,4 +1,5 @@
 import type { AuthUser } from '~/types/auth-user'
+import { getAllSystemPermissionKeys } from '~/utils/auth/user-permissions'
 
 export type MockLoginAccount = {
   email: string
@@ -18,6 +19,7 @@ export const MOCK_LOGIN_ACCOUNTS: MockLoginAccount[] = [
       role: 'SuperAdmin',
       avatar: 'https://ui-avatars.com/api/?name=System+Administrator&background=e8472a&color=fff',
       pageAccess: ['ALL_PAGES'],
+      permissions: getAllSystemPermissionKeys(),
     },
   },
   {
@@ -30,15 +32,20 @@ export const MOCK_LOGIN_ACCOUNTS: MockLoginAccount[] = [
       role: 'Admin',
       avatar: 'https://ui-avatars.com/api/?name=Docetra+Admin&background=3a539f&color=fff',
       pageAccess: ['ALL_PAGES'],
+      permissions: getAllSystemPermissionKeys(),
     },
   },
 ]
 
 export const MOCK_AUTH_TOKEN = 'mock-docetra-frontend-token'
 
-export function authenticateMock(email: string, password: string): AuthUser | null {
+export function findMockLoginAccount(email: string) {
   const normalized = email.trim().toLowerCase()
-  const account = MOCK_LOGIN_ACCOUNTS.find(a => a.email.toLowerCase() === normalized)
+  return MOCK_LOGIN_ACCOUNTS.find(a => a.email.toLowerCase() === normalized) ?? null
+}
+
+export function authenticateMock(email: string, password: string): AuthUser | null {
+  const account = findMockLoginAccount(email)
   if (!account || account.password !== password) return null
   return account.user
 }

@@ -4,6 +4,7 @@ export const ApiEndpoints = {
   AUTH_RESET_VERIFY: '/api/v2/auth/forgot-password/verify',
   AUTH_RESET_RESEND: '/api/v2/auth/forgot-password/resend',
   AUTH_RESET_PASSWORD: '/api/v2/auth/forgot-password/reset',
+  AUTH_CHANGE_PASSWORD: '/api/v2/auth/change-password',
 
   DASHBOARD_SUMMARY: '/api/v2/dashboard/summary',
 

@@ -298,7 +298,7 @@ function onDrop(event: DragEvent) {
         </div>
         <div
           v-if="bodySlots.includes('topicTitle')"
-          class="app-card-field-highlight mt-1 flex min-w-0 items-center gap-1.5 text-xs text-muted"
+          class="app-card-field-highlight mt-1 flex min-w-0 items-center gap-1.5 text-xs app-card-text"
           :class="fieldTone('topicTitle')"
         >
           <UIcon :name="fieldIcon('topicTitle')" class="size-3 shrink-0" />
@@ -322,7 +322,7 @@ function onDrop(event: DragEvent) {
       <template v-for="slot in bodySlots" :key="slot">
       <div
         v-if="slot === 'letterNumber'"
-        class="app-card-field-highlight mt-1.5 flex min-w-0 items-center gap-1.5 text-xs text-muted"
+        class="app-card-field-highlight mt-1.5 flex min-w-0 items-center gap-1.5 text-xs app-card-text"
         :class="fieldTone(slot)"
       >
         <UIcon :name="fieldIcon(slot)" class="size-3 shrink-0" />
@@ -348,7 +348,7 @@ function onDrop(event: DragEvent) {
       </div>
       <div
         v-else-if="slot === 'participants' || slot === 'internalUnits' || slot === 'externalUnits'"
-        class="app-card-field-highlight mt-1.5 flex min-w-0 items-center gap-1.5 truncate text-xs text-muted"
+        class="app-card-field-highlight mt-1.5 flex min-w-0 items-center gap-1.5 truncate text-xs app-card-text"
         :class="fieldTone(slot)"
       >
         <UIcon
@@ -365,7 +365,7 @@ function onDrop(event: DragEvent) {
       </div>
       <div
         v-else-if="slot === 'meetingMode'"
-        class="app-card-field-highlight mt-1.5 flex items-center gap-1.5 text-xs text-muted"
+        class="app-card-field-highlight mt-1.5 flex items-center gap-1.5 text-xs app-card-text"
         :class="fieldTone(slot)"
       >
         <UIcon :name="fieldIcon(slot)" class="size-3 shrink-0" />
@@ -386,7 +386,7 @@ function onDrop(event: DragEvent) {
       </div>
       <div
         v-else-if="slot === 'durationMinutes' && meeting.durationMinutes != null"
-        class="app-card-field-highlight mt-1.5 flex items-center gap-1.5 text-xs text-muted"
+        class="app-card-field-highlight mt-1.5 flex items-center gap-1.5 text-xs app-card-text"
         :class="fieldTone(slot)"
       >
         <UIcon :name="fieldIcon(slot)" class="size-3 shrink-0" />
@@ -408,7 +408,7 @@ function onDrop(event: DragEvent) {
 
     <div
       v-if="footerSlots.length"
-      class="mt-auto flex items-center justify-between gap-2 border-t border-default pt-2 text-xs text-muted"
+      class="mt-auto flex items-center justify-between gap-2 border-t border-default pt-2 text-xs app-card-text"
     >
       <div class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
         <template v-for="slot in footerLeft" :key="slot">

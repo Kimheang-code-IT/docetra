@@ -4,6 +4,7 @@
 
 @theme static {
   --font-sans: "Inter", "Noto Sans Khmer", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+  --font-khmer: "Noto Sans Khmer", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
 
 
   /* Logo coral-red primary palette — must be @theme static for Nuxt UI */
@@ -54,11 +55,18 @@
     background-color: #18191a !important;
   }
 
+  /* Khmer locale — prefer Noto Sans Khmer from Google Fonts */
+  html[lang="km"],
+  html[lang="km"] body,
+  html[lang="km"] #__nuxt {
+    font-family: var(--font-khmer) !important;
+  }
+
   /* Khmer Font Readability Enhancements */
   :lang(km) {
     line-height: 1.6;
     letter-spacing: normal;
-    font-family: var(--font-sans) !important;
+    font-family: var(--font-khmer) !important;
   }
 
   [lang="km"] .tracking-tighter,
@@ -92,6 +100,7 @@
     border-radius: 0.375rem;
     background: color-mix(in oklab, var(--ui-primary) 16%, var(--ui-bg));
     padding: 0.25rem 0.5rem;
+    color: #171717;
   }
 
   .app-card-field-highlight--compact {
@@ -99,6 +108,21 @@
     border-radius: 0.375rem;
     background: color-mix(in oklab, var(--ui-primary) 13%, var(--ui-bg));
     padding: 0.1875rem 0.375rem;
+    color: #171717;
+  }
+
+  .dark .app-card-field-highlight,
+  .dark .app-card-field-highlight--compact {
+    color: var(--ui-text);
+  }
+
+  /* Board / kanban card body text — high contrast for scan fields. */
+  .app-card-text {
+    color: #171717;
+  }
+
+  .dark .app-card-text {
+    color: var(--ui-text);
   }
 
   .app-card-field-highlight--info {
@@ -124,6 +148,54 @@
   .app-card-field-highlight--neutral {
     border-color: var(--ui-border);
     background: var(--ui-bg-elevated);
+  }
+}
+
+/* Sidebar — override Nuxt UI text-muted / text-dimmed on nav + footer controls. */
+@layer utilities {
+  .app-sidebar .app-sidebar-text {
+    color: #171717;
+  }
+
+  .dark .app-sidebar .app-sidebar-text {
+    color: var(--ui-text);
+  }
+
+  .app-sidebar [data-active="true"].app-sidebar-text,
+  .app-sidebar [data-active="true"] .app-sidebar-text,
+  .app-sidebar .group[data-active] .app-sidebar-text {
+    color: var(--ui-primary);
+  }
+
+  /* User menu dropdown (teleported outside sidebar). */
+  .app-user-menu .app-sidebar-text {
+    color: #171717;
+  }
+
+  .dark .app-user-menu .app-sidebar-text {
+    color: var(--ui-text);
+  }
+
+  .app-user-menu .text-error.app-sidebar-text,
+  .app-user-menu .text-error .app-sidebar-text {
+    color: var(--ui-error);
+  }
+
+  /* Live search: hide native browser clear — AppLiveSearch renders its own X. */
+  .app-live-search [data-slot="base"]::-ms-clear,
+  .app-live-search [data-slot="base"]::-ms-reveal {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+
+  .app-live-search [data-slot="base"]::-webkit-search-cancel-button,
+  .app-live-search [data-slot="base"]::-webkit-search-decoration,
+  .app-live-search [data-slot="base"]::-webkit-search-results-button,
+  .app-live-search [data-slot="base"]::-webkit-search-results-decoration {
+    -webkit-appearance: none;
+    appearance: none;
+    display: none;
   }
 }
 

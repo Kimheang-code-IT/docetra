@@ -111,7 +111,7 @@ function onDragEnd() {
           size="xs"
           :text="person.name.slice(0, 1)"
         />
-        <p class="truncate text-xs text-muted">
+        <p class="truncate text-xs app-card-text">
           {{ person?.name || statusLabel }}
         </p>
       </div>
@@ -130,7 +130,7 @@ function onDragEnd() {
         </UBadge>
         <span
           v-if="attachmentCount"
-          class="inline-flex items-center gap-0.5 text-[11px] text-muted"
+          class="inline-flex items-center gap-0.5 text-[11px] app-card-text"
           :title="$t('docetra.fields.attachments')"
         >
           <UIcon name="i-lucide-paperclip" class="size-3" />
@@ -138,7 +138,7 @@ function onDragEnd() {
         </span>
         <span
           v-if="commentCount"
-          class="inline-flex items-center gap-0.5 text-[11px] text-muted"
+          class="inline-flex items-center gap-0.5 text-[11px] app-card-text"
           :title="$t('docetra.comments.title')"
         >
           <UIcon name="i-lucide-message-square" class="size-3" />

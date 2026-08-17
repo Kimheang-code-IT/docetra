@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { normalizeToMenuRows } from '~/utils/filter/menu-items'
-import { getFilterSelectUi, isFilterValueActive } from '~/utils/filter/select-ui'
+import { getFilterSelectUi, getFilterSearchInputConfig, isFilterValueActive } from '~/utils/filter/select-ui'
 
 const modelValue = defineModel<string | number | boolean | undefined>({ default: undefined })
 
@@ -48,10 +48,7 @@ const selectUi = computed(() => getFilterSelectUi(isActive.value))
 
 const searchInput = computed(() => {
   if (!props.searchable) return false
-  return {
-    placeholder: t('components.filterSearch'),
-    icon: 'i-lucide-search',
-  }
+  return getFilterSearchInputConfig(t)
 })
 </script>
 

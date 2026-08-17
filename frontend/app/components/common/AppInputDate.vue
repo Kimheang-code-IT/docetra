@@ -1,13 +1,18 @@
 <script setup lang="ts">
-import { CalendarDate, CalendarDateTime, parseDate, parseDateTime } from '@internationalized/date'
 import type { DateValue } from '@internationalized/date'
+import type { DatePickerGranularity } from '~/utils/date-picker'
+import {
+  isDateTimeGranularity,
+  parsePickerValue,
+  serializePickerValue,
+} from '~/utils/date-picker'
 import { getFilterDateUi, isFilterValueActive } from '~/utils/filter/select-ui'
 
 const props = withDefaults(defineProps<{
   modelValue?: string | null
   disabled?: boolean
   required?: boolean
-  granularity?: 'day' | 'hour' | 'minute' | 'second'
+  granularity?: DatePickerGranularity
   color?: 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'error' | 'neutral'
   variant?: 'outline' | 'soft' | 'subtle' | 'ghost' | 'none'
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl'
@@ -25,136 +30,19 @@ const emit = defineEmits<{
 
 const inputDate = useTemplateRef<{ inputsRef?: Array<{ $el?: HTMLElement }> } | null>('inputDate')
 
-const isDateTime = computed(() => props.granularity !== 'day')
-
+const isDateTime = computed(() => isDateTimeGranularity(props.granularity))
 const isActive = computed(() => isFilterValueActive(props.modelValue))
-const dateUi = computed(() => getFilterDateUi(isActive.value))
-
-const hourItems = Array.from({ length: 24 }, (_, i) => ({
-  label: String(i).padStart(2, '0'),
-  value: i,
+const dateUi = computed(() => getFilterDateUi(isActive.value, {
+  isDateTime: isDateTime.value,
+  isRange: false,
 }))
 
-const minuteItems = Array.from({ length: 60 }, (_, i) => ({
-  label: String(i).padStart(2, '0'),
-  value: i,
-}))
-
-function parseValue(value?: string | null): DateValue | undefined {
-  if (!value) return undefined
-  try {
-    if (isDateTime.value) {
-      const normalized = value.includes('T')
-        ? value.slice(0, 16)
-        : `${value.slice(0, 10)}T00:00`
-      return parseDateTime(normalized)
-    }
-    return parseDate(value.slice(0, 10))
-  }
-  catch {
-    return undefined
-  }
-}
-
-function serializeValue(value?: DateValue | null): string {
-  if (!value) return ''
-  if ('hour' in value) {
-    const dt = value as CalendarDateTime
-    const hh = String(dt.hour).padStart(2, '0')
-    const mm = String(dt.minute).padStart(2, '0')
-    return `${dt.toString().slice(0, 10)}T${hh}:${mm}`
-  }
-  return value.toString()
-}
-
+/** Shared with UInputDate + UCalendar in popover (Nuxt UI pattern). */
 const dateValue = computed({
-  get: () => parseValue(props.modelValue) as any,
+  get: () => parsePickerValue(props.modelValue, isDateTime.value),
   set: (value: DateValue | null | undefined) => {
-    emit('update:modelValue', serializeValue(value))
+    emit('update:modelValue', serializePickerValue(value))
   },
-})
-
-const calendarRef = computed({
-  get: () => {
-    const value = dateValue.value
-    if (!value) return undefined
-    if ('hour' in value) {
-      return new CalendarDate(value.year, value.month, value.day)
-    }
-    return value
-  },
-  set: (value: CalendarDate | undefined | null) => {
-    if (!value) {
-      dateValue.value = null
-      return
-    }
-    if (isDateTime.value) {
-      const current = dateValue.value as CalendarDateTime | undefined
-      dateValue.value = new CalendarDateTime(
-        value.year,
-        value.month,
-        value.day,
-        current?.hour ?? 0,
-        current?.minute ?? 0,
-      )
-      return
-    }
-    dateValue.value = value
-  },
-})
-
-const selectedHour = computed({
-  get: () => {
-    const value = dateValue.value as CalendarDateTime | undefined
-    return value && 'hour' in value ? value.hour : 0
-  },
-  set: (hour: number) => {
-    const current = dateValue.value as CalendarDateTime | CalendarDate | undefined
-    const base = current || new CalendarDateTime(
-      new Date().getFullYear(),
-      new Date().getMonth() + 1,
-      new Date().getDate(),
-      0,
-      0,
-    )
-    dateValue.value = new CalendarDateTime(
-      base.year,
-      base.month,
-      base.day,
-      hour,
-      'minute' in base ? base.minute : 0,
-    )
-  },
-})
-
-const selectedMinute = computed({
-  get: () => {
-    const value = dateValue.value as CalendarDateTime | undefined
-    return value && 'minute' in value ? value.minute : 0
-  },
-  set: (minute: number) => {
-    const current = dateValue.value as CalendarDateTime | CalendarDate | undefined
-    const base = current || new CalendarDateTime(
-      new Date().getFullYear(),
-      new Date().getMonth() + 1,
-      new Date().getDate(),
-      0,
-      0,
-    )
-    dateValue.value = new CalendarDateTime(
-      base.year,
-      base.month,
-      base.day,
-      'hour' in base ? base.hour : 0,
-      minute,
-    )
-  },
-})
-
-const trailingReference = computed(() => {
-  const inputs = inputDate.value?.inputsRef || []
-  const el = inputs[inputs.length - 1]?.$el || inputs[0]?.$el
-  return el
 })
 </script>
 
@@ -162,6 +50,7 @@ const trailingReference = computed(() => {
   <UInputDate
     ref="inputDate"
     v-model="dateValue"
+    fixed
     :granularity="granularity"
     :disabled="disabled"
     :required="required"
@@ -172,46 +61,24 @@ const trailingReference = computed(() => {
     :ui="dateUi"
   >
     <template #trailing>
-      <UPopover :reference="trailingReference">
+      <UPopover :reference="inputDate?.inputsRef?.[0]?.$el">
         <UButton
           color="neutral"
           variant="link"
           size="sm"
           :icon="isDateTime ? 'i-lucide-calendar-clock' : 'i-lucide-calendar'"
           :aria-label="isDateTime ? 'Select date and time' : 'Select a date'"
-          class="px-0"
+          class="shrink-0 px-0"
           :disabled="disabled"
         />
+
         <template #content>
-          <div class="space-y-2 p-2">
-            <UCalendar v-model="calendarRef" />
-            <div
-              v-if="isDateTime"
-              class="flex items-center gap-2 border-t border-default pt-2"
-            >
-              <USelect
-                v-model="selectedHour"
-                :items="hourItems"
-                value-key="value"
-                label-key="label"
-                size="sm"
-                class="w-20"
-                :disabled="disabled"
-                aria-label="Hour"
-              />
-              <span class="text-sm text-muted" aria-hidden="true">:</span>
-              <USelect
-                v-model="selectedMinute"
-                :items="minuteItems"
-                value-key="value"
-                label-key="label"
-                size="sm"
-                class="w-20"
-                :disabled="disabled"
-                aria-label="Minute"
-              />
-            </div>
-          </div>
+          <CommonAppDatePickerPopover
+            v-model="dateValue"
+            mode="single"
+            :granularity="granularity"
+            :disabled="disabled"
+          />
         </template>
       </UPopover>
     </template>

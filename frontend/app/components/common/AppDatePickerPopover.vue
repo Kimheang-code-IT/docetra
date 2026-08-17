@@ -1,0 +1,266 @@
+<script setup lang="ts">
+import { CalendarDate, CalendarDateTime, Time, getLocalTimeZone, today } from '@internationalized/date'
+import type { DateValue } from '@internationalized/date'
+import type { DatePickerGranularity } from '~/utils/date-picker'
+import {
+  isDateTimeGranularity,
+  mergeDateWithTime,
+  serializePickerValue,
+  toCalendarDate,
+} from '~/utils/date-picker'
+
+const props = withDefaults(defineProps<{
+  mode?: 'single' | 'range'
+  granularity?: DatePickerGranularity
+  disabled?: boolean
+}>(), {
+  mode: 'single',
+  granularity: 'day',
+})
+
+/** Single date / datetime — shared with UInputDate v-model. */
+const modelValue = defineModel<DateValue | undefined>()
+/** Range — shared with UInputDate range v-model. */
+const rangeValue = defineModel<{ start: DateValue, end: DateValue } | undefined>('rangeValue')
+
+const { t } = useI18n()
+
+const isDateTime = computed(() => isDateTimeGranularity(props.granularity))
+const calendarSize = computed(() => 'xs' as const)
+
+const initialPlaceholder = today(getLocalTimeZone())
+const placeholder = ref(new CalendarDate(
+  initialPlaceholder.year,
+  initialPlaceholder.month,
+  initialPlaceholder.day,
+))
+const placeholderBinding = computed({
+  get: () => placeholder.value as unknown as DateValue,
+  set: (value: DateValue | undefined) => {
+    if (!value) return
+    placeholder.value = new CalendarDate(value.year, value.month, value.day)
+  },
+})
+
+const singleCalendar = computed({
+  get: () => toCalendarDate(modelValue.value),
+  set: (value: CalendarDate | undefined | null) => {
+    if (!value) {
+      modelValue.value = undefined
+      return
+    }
+    if (isDateTime.value) {
+      modelValue.value = mergeDateWithTime(value, modelValue.value)
+      return
+    }
+    modelValue.value = value
+  },
+})
+
+const rangeCalendar = computed({
+  get() {
+    if (props.mode !== 'range') return undefined
+    const value = rangeValue.value
+    if (!value?.start && !value?.end) return undefined
+
+    if (!isDateTime.value) {
+      return {
+        start: toCalendarDate(value.start) ?? toCalendarDate(value.end)!,
+        end: toCalendarDate(value.end) ?? toCalendarDate(value.start)!,
+      }
+    }
+
+    return {
+      start: toCalendarDate(value.start) ?? toCalendarDate(value.end)!,
+      end: toCalendarDate(value.end) ?? toCalendarDate(value.start)!,
+    }
+  },
+  set(value: { start: CalendarDate, end: CalendarDate } | null | undefined) {
+    if (props.mode !== 'range') return
+    if (!value?.start && !value?.end) {
+      rangeValue.value = undefined
+      return
+    }
+
+    const current = rangeValue.value
+    if (isDateTime.value) {
+      rangeValue.value = {
+        start: mergeDateWithTime(value.start, current?.start, 0, 0),
+        end: mergeDateWithTime(value.end ?? value.start, current?.end, 23, 59),
+      }
+      return
+    }
+
+    rangeValue.value = {
+      start: value.start,
+      end: value.end ?? value.start,
+    }
+  },
+})
+
+function readTimePart(value: DateValue | undefined, bound: 'start' | 'end') {
+  if (value && 'hour' in value) {
+    return { hour: value.hour, minute: value.minute }
+  }
+  return bound === 'end'
+    ? { hour: 23, minute: 59 }
+    : { hour: 0, minute: 0 }
+}
+
+function writeSingleTime(hour: number, minute: number) {
+  const base = toCalendarDate(modelValue.value) || today(getLocalTimeZone())
+  modelValue.value = new CalendarDateTime(base.year, base.month, base.day, hour, minute)
+}
+
+function writeRangeTime(bound: 'start' | 'end', hour: number, minute: number) {
+  const current = rangeValue.value
+  const source = bound === 'start' ? current?.start : current?.end
+  const base = toCalendarDate(source) || today(getLocalTimeZone())
+  const next = new CalendarDateTime(base.year, base.month, base.day, hour, minute)
+  rangeValue.value = {
+    start: bound === 'start' ? next : (current?.start ?? next),
+    end: bound === 'end' ? next : (current?.end ?? next),
+  }
+}
+
+const singleTime = computed({
+  get: (): Time => {
+    const { hour, minute } = readTimePart(modelValue.value, 'start')
+    return new Time(hour, minute, 0)
+  },
+  set: (value: Time | null | undefined) => {
+    if (!value) return
+    writeSingleTime(value.hour, value.minute)
+  },
+})
+
+const rangeTime = computed({
+  get: () => {
+    const value = rangeValue.value
+    const startPart = readTimePart(value?.start, 'start')
+    const endPart = readTimePart(value?.end, 'end')
+    return {
+      start: new Time(startPart.hour, startPart.minute, 0),
+      end: new Time(endPart.hour, endPart.minute, 0),
+    }
+  },
+  set: (value: { start?: Time, end?: Time } | null | undefined) => {
+    if (!value) return
+    if (value.start) writeRangeTime('start', value.start.hour, value.start.minute)
+    if (value.end) writeRangeTime('end', value.end.hour, value.end.minute)
+  },
+})
+
+function goToday() {
+  const now = today(getLocalTimeZone())
+  placeholder.value = new CalendarDate(now.year, now.month, now.day)
+
+  if (props.mode === 'single') {
+    if (isDateTime.value) {
+      const date = new Date()
+      modelValue.value = new CalendarDateTime(
+        now.year,
+        now.month,
+        now.day,
+        date.getHours(),
+        date.getMinutes(),
+      )
+      return
+    }
+    modelValue.value = now
+    return
+  }
+
+  if (isDateTime.value) {
+    const date = new Date()
+    rangeValue.value = {
+      start: new CalendarDateTime(now.year, now.month, now.day, 0, 0),
+      end: new CalendarDateTime(now.year, now.month, now.day, date.getHours(), date.getMinutes()),
+    }
+    return
+  }
+
+  rangeValue.value = { start: now, end: now }
+}
+
+/** Day-only range: bind UCalendar directly to rangeValue (Nuxt UI pattern). */
+const dayRangeCalendar = computed({
+  get: () => rangeValue.value as { start: CalendarDate, end: CalendarDate } | undefined,
+  set: (value: { start: CalendarDate, end: CalendarDate } | undefined) => {
+    rangeValue.value = value
+  },
+})
+</script>
+
+<template>
+  <div class="w-full max-w-[34rem]">
+    <UCalendar
+      v-if="mode === 'single'"
+      v-model="singleCalendar"
+      v-model:placeholder="placeholderBinding"
+      class="p-2"
+      :number-of-months="2"
+      :paged-navigation="true"
+      :size="calendarSize"
+      :disabled="disabled"
+    />
+    <UCalendar
+      v-else-if="!isDateTime"
+      v-model="dayRangeCalendar"
+      v-model:placeholder="placeholderBinding"
+      class="p-2"
+      range
+      :number-of-months="2"
+      :paged-navigation="true"
+      :size="calendarSize"
+      :disabled="disabled"
+    />
+    <UCalendar
+      v-else
+      v-model="rangeCalendar"
+      v-model:placeholder="placeholderBinding"
+      class="p-2"
+      range
+      :number-of-months="2"
+      :paged-navigation="true"
+      :size="calendarSize"
+      :disabled="disabled"
+    />
+
+    <div
+      class="flex items-center gap-2 border-t border-default px-2 pb-2 pt-2"
+      :class="isDateTime ? 'justify-between' : 'justify-end'"
+    >
+      <UInputTime
+        v-if="isDateTime && mode === 'single'"
+        v-model="singleTime"
+        color="neutral"
+        variant="outline"
+        size="sm"
+        :disabled="disabled"
+        class="min-w-0 flex-1"
+      />
+      <UInputTime
+        v-else-if="isDateTime && mode === 'range'"
+        v-model="rangeTime"
+        range
+        color="neutral"
+        variant="outline"
+        size="sm"
+        :disabled="disabled"
+        class="min-w-0 flex-1"
+      />
+
+      <UButton
+        color="neutral"
+        variant="outline"
+        class="shrink-0 justify-center"
+        size="sm"
+        :disabled="disabled"
+        @click="goToday"
+      >
+        {{ t('docetra.common.today') }}
+      </UButton>
+    </div>
+  </div>
+</template>

@@ -140,7 +140,7 @@ function onDrop(event: DragEvent) {
     </div>
     <div
       v-if="!collapsed && showRecordTime"
-      class="app-card-field-highlight app-card-field-highlight--info mt-2 flex items-center gap-1 text-xs text-muted"
+      class="app-card-field-highlight app-card-field-highlight--info mt-2 flex items-center gap-1 text-xs app-card-text"
     >
       <UIcon name="i-lucide-calendar" class="size-3 shrink-0" />
       <span class="truncate">{{ topic.recordTime || topic.meetingDate || '—' }}</span>

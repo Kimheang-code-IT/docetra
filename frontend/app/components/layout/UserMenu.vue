@@ -2,7 +2,7 @@
 import { useUserMenu } from '~/composables/layout/useUserMenu'
 
 defineProps<{ collapsed?: boolean }>()
-const { user, items, aboutOpen } = useUserMenu()
+const { user, items, aboutOpen, profileOpen } = useUserMenu()
 </script>
 
 <template>
@@ -11,7 +11,12 @@ const { user, items, aboutOpen } = useUserMenu()
       :items="items"
       :content="{ align: collapsed ? 'end' : 'center', collisionPadding: 12, side: collapsed ? 'right' : 'top' }"
       :ui="{
-        content: collapsed ? 'w-52' : 'w-(--reka-dropdown-menu-trigger-width)',
+        content: collapsed ? 'w-52 app-user-menu' : 'w-(--reka-dropdown-menu-trigger-width) app-user-menu',
+        label: 'app-sidebar-text font-semibold',
+        item: 'app-sidebar-text',
+        itemLabel: 'app-sidebar-text',
+        itemLeadingIcon: 'size-5 app-sidebar-text',
+        itemTrailingIcon: 'size-5 app-sidebar-text',
       }"
     >
       <UButton
@@ -38,13 +43,15 @@ const { user, items, aboutOpen } = useUserMenu()
         color="neutral"
         variant="ghost"
         block
-        class="data-[state=open]:bg-elevated"
+        class="data-[state=open]:bg-elevated app-sidebar-text"
         :ui="{
-          trailingIcon: 'text-dimmed',
+          trailingIcon: 'app-sidebar-text',
+          label: 'app-sidebar-text',
         }"
       />
     </UDropdownMenu>
 
     <LayoutAppAboutDialog v-model:open="aboutOpen" />
+    <LayoutAppUserProfileDialog v-model:open="profileOpen" />
   </div>
 </template>

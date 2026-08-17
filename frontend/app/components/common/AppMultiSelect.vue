@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { normalizeToMenuRows } from '~/utils/filter/menu-items'
-import { getFilterSelectUi, isFilterValueActive } from '~/utils/filter/select-ui'
+import { getFilterSelectUi, getFilterSearchInputConfig, isFilterValueActive } from '~/utils/filter/select-ui'
 
 /** Sentinel value for “no filter” — only used when showNoneOption is enabled */
 const MULTISELECT_FILTER_NONE = '__app_multiselect_none__'
@@ -68,10 +68,7 @@ const selectUi = computed(() => getFilterSelectUi(isActive.value))
 
 const searchInput = computed(() => {
   if (!props.searchable) return false
-  return {
-    placeholder: t('components.filterSearch'),
-    icon: 'i-lucide-search',
-  }
+  return getFilterSearchInputConfig(t)
 })
 
 const internalValue = computed<any[]>({

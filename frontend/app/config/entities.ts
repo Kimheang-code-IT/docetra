@@ -228,8 +228,8 @@ export const entityConfigs: Record<string, EntityConfig> = {
       table: '-meetingDate',
       timeline: '-meetingDate',
     },
-    canCreate: true,
-    createLabelKey: 'docetra.meetingBoard.createMeeting',
+    // Create meetings from the Topic board (New Meeting), not this list page.
+    canCreate: false,
     canComment: true,
     recordBacked: true,
     recordTypeCode: 'meeting',

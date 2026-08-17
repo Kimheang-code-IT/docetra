@@ -93,15 +93,13 @@ function parseNum(value: unknown): number | undefined {
 
     <div v-else-if="isDate" class="grid gap-4 md:grid-cols-2">
       <UFormField :label="t('docetra.config.minDate')">
-        <UInput
-          type="date"
+        <CommonAppInputDate
           :model-value="model.minDate || ''"
           @update:model-value="patch({ minDate: String($event || '') || undefined })"
         />
       </UFormField>
       <UFormField :label="t('docetra.config.maxDate')">
-        <UInput
-          type="date"
+        <CommonAppInputDate
           :model-value="model.maxDate || ''"
           @update:model-value="patch({ maxDate: String($event || '') || undefined })"
         />

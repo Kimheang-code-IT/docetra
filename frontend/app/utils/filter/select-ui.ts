@@ -29,11 +29,30 @@ export function getFilterSearchUi(active: boolean) {
   }
 }
 
-export function getFilterDateUi(active: boolean) {
+export function getFilterDateUi(
+  active: boolean,
+  options?: { isDateTime?: boolean, isRange?: boolean, fitContent?: boolean },
+) {
+  const chrome = active
+    ? 'rounded-md bg-elevated/70 ring-1 ring-inset ring-default'
+    : 'rounded-md bg-elevated/70 ring-0 has-focus:ring-1 has-focus:ring-inset has-focus:ring-default'
+
+  const segment = options?.isDateTime
+    ? [
+        'data-[segment=hour]:min-w-7',
+        'data-[segment=minute]:min-w-7',
+        'data-[segment=dayPeriod]:min-w-8',
+      ].join(' ')
+    : undefined
+
+  const width = options?.fitContent
+    ? 'w-auto max-w-full pe-6'
+    : 'w-full min-w-0'
+
   return {
-    base: active
-      ? 'rounded-md bg-elevated/70 ring-1 ring-inset ring-default'
-      : 'rounded-md bg-elevated/70 ring-0 has-focus:ring-1 has-focus:ring-inset has-focus:ring-default',
+    base: `${chrome} ${width}`,
+    segment,
+    trailing: 'pe-0',
   }
 }
 
@@ -42,4 +61,18 @@ export function isFilterValueActive(value: unknown): boolean {
   if (Array.isArray(value)) return value.length > 0
   if (typeof value === 'string') return value.trim().length > 0
   return true
+}
+
+/** Shared search box config for USelectMenu / filter dropdowns. */
+export function getFilterSearchInputConfig(
+  t: (key: string) => string,
+  placeholderKey = 'components.filterSearch',
+) {
+  return {
+    placeholder: t(placeholderKey),
+    icon: 'i-lucide-search',
+    type: 'text' as const,
+    autocomplete: 'off',
+    class: 'app-live-search',
+  }
 }

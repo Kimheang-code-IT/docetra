@@ -21,6 +21,7 @@ const CONFIG_MIGRATION_KEY = 'docetra:mock:config-migration:v2-assigned-attrs'
 const RECORD_BACKED_TYPES_MIGRATION_KEY = 'docetra:mock:config-migration:v3-record-backed-types'
 const RECORD_STAGE_ALIGNMENT_MIGRATION_KEY = 'docetra:mock:config-migration:v4-record-stage-alignment'
 const REMOVE_DEMO_FORM_FIELDS_MIGRATION_KEY = 'docetra:mock:config-migration:v5-remove-demo-form-fields'
+const DYNAMIC_FIELD_UI_TEST_MIGRATION_KEY = 'docetra:mock:config-migration:v6-dynamic-field-ui-test'
 const REMOVED_DEFAULT_FIELD_CODES = new Set(['priority', 'due_date', 'notes', 'confidential'])
 
 const LEGACY_CONFIG_KEYS = [
@@ -71,6 +72,18 @@ function toAssignment(attr: RecordAttribute, order: number, section = 'General')
     section,
     order,
   }
+}
+
+function pickAssignments(
+  byId: Record<string, RecordAttribute>,
+  specs: Array<{ id: string, section?: string }>,
+): RecordTypeAttribute[] {
+  return specs
+    .map((spec, order) => {
+      const attr = byId[spec.id]
+      return attr ? toAssignment(attr, order, spec.section ?? 'General') : null
+    })
+    .filter(Boolean) as RecordTypeAttribute[]
 }
 
 function seedAttributes(): RecordAttribute[] {
@@ -189,6 +202,145 @@ function seedAttributes(): RecordAttribute[] {
       createdAt: now,
       updatedAt: now,
     },
+    {
+      id: 'ra_tags',
+      label: 'Tags',
+      name: 'Tags',
+      code: 'tags',
+      dataType: 'multi_select',
+      required: false,
+      unique: false,
+      readOnly: false,
+      searchable: true,
+      filterable: true,
+      sortable: false,
+      showInList: true,
+      usedByCount: 0,
+      status: 'active',
+      options: [
+        { id: 'opt_tag_internal', label: 'Internal', value: 'internal', active: true, order: 0 },
+        { id: 'opt_tag_external', label: 'External', value: 'external', active: true, order: 1 },
+        { id: 'opt_tag_legal', label: 'Legal', value: 'legal', active: true, order: 2 },
+        { id: 'opt_tag_finance', label: 'Finance', value: 'finance', active: true, order: 3 },
+      ],
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: 'ra_contact_email',
+      label: 'Contact email',
+      name: 'Contact email',
+      code: 'contact_email',
+      dataType: 'email',
+      required: false,
+      unique: false,
+      readOnly: false,
+      searchable: true,
+      filterable: false,
+      sortable: false,
+      showInList: false,
+      usedByCount: 0,
+      status: 'active',
+      placeholder: 'name@organization.gov.kh',
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: 'ra_source_url',
+      label: 'Source URL',
+      name: 'Source URL',
+      code: 'source_url',
+      dataType: 'url',
+      required: false,
+      unique: false,
+      readOnly: false,
+      searchable: false,
+      filterable: false,
+      sortable: false,
+      showInList: false,
+      usedByCount: 0,
+      status: 'active',
+      placeholder: 'https://',
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: 'ra_page_count',
+      label: 'Page count',
+      name: 'Page count',
+      code: 'page_count',
+      dataType: 'integer',
+      required: false,
+      unique: false,
+      readOnly: false,
+      searchable: false,
+      filterable: true,
+      sortable: true,
+      showInList: true,
+      usedByCount: 0,
+      status: 'active',
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: 'ra_budget',
+      label: 'Budget',
+      name: 'Budget',
+      code: 'budget',
+      dataType: 'currency',
+      required: false,
+      unique: false,
+      readOnly: false,
+      searchable: false,
+      filterable: true,
+      sortable: true,
+      showInList: false,
+      usedByCount: 0,
+      status: 'active',
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: 'ra_review_time',
+      label: 'Review time',
+      name: 'Review time',
+      code: 'review_time',
+      dataType: 'datetime',
+      required: false,
+      unique: false,
+      readOnly: false,
+      searchable: false,
+      filterable: true,
+      sortable: true,
+      showInList: false,
+      usedByCount: 0,
+      status: 'active',
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: 'ra_meeting_format',
+      label: 'Meeting format',
+      name: 'Meeting format',
+      code: 'meeting_format',
+      dataType: 'select',
+      required: false,
+      unique: false,
+      readOnly: false,
+      searchable: false,
+      filterable: true,
+      sortable: false,
+      showInList: true,
+      usedByCount: 0,
+      status: 'active',
+      options: [
+        { id: 'opt_fmt_in_person', label: 'In person', value: 'in_person', active: true, order: 0 },
+        { id: 'opt_fmt_online', label: 'Online', value: 'online', active: true, order: 1 },
+        { id: 'opt_fmt_hybrid', label: 'Hybrid', value: 'hybrid', active: true, order: 2 },
+      ],
+      createdAt: now,
+      updatedAt: now,
+    },
   ]
 }
 
@@ -228,63 +380,96 @@ function recordDocumentStages() {
 function seedRecordTypes(attrs: RecordAttribute[]): RecordType[] {
   const now = nowIso()
   const byId = Object.fromEntries(attrs.map(a => [a.id, a])) as Record<string, RecordAttribute>
-  const pick = (...ids: string[]) =>
-    ids
-      .map((id, order) => byId[id] ? toAssignment(byId[id]!, order) : null)
-      .filter(Boolean) as RecordTypeAttribute[]
 
   const seeds: Array<{
     id: string
     name: string
     code: string
     prefix: string
-    attributeIds: string[]
+    assignments: Array<{ id: string, section?: string }>
   }> = [
     {
       id: 'rt_incoming',
       name: 'Incoming Document',
       code: 'incoming',
       prefix: 'IN',
-      attributeIds: ['ra_external_ref'],
+      assignments: [
+        { id: 'ra_external_ref', section: 'Reference' },
+        { id: 'ra_contact_email', section: 'Reference' },
+        { id: 'ra_priority', section: 'Processing' },
+        { id: 'ra_due_date', section: 'Processing' },
+        { id: 'ra_confidential', section: 'Processing' },
+        { id: 'ra_notes', section: 'Processing' },
+      ],
     },
     {
       id: 'rt_outgoing',
       name: 'Outgoing Document',
       code: 'outgoing',
       prefix: 'OUT',
-      attributeIds: ['ra_external_ref'],
+      assignments: [
+        { id: 'ra_external_ref', section: 'Reference' },
+        { id: 'ra_source_url', section: 'Reference' },
+        { id: 'ra_priority', section: 'Processing' },
+        { id: 'ra_due_date', section: 'Processing' },
+        { id: 'ra_notes', section: 'Processing' },
+      ],
     },
     {
       id: 'rt_document',
       name: 'Document',
       code: 'document',
       prefix: 'DOC',
-      attributeIds: ['ra_amount'],
+      assignments: [
+        { id: 'ra_amount', section: 'Financial' },
+        { id: 'ra_budget', section: 'Financial' },
+        { id: 'ra_priority', section: 'Metadata' },
+        { id: 'ra_page_count', section: 'Metadata' },
+        { id: 'ra_tags', section: 'Metadata' },
+        { id: 'ra_notes', section: 'Metadata' },
+      ],
     },
     {
       id: 'rt_master_list',
       name: 'Master List Request',
       code: 'master_list',
       prefix: 'MLR',
-      attributeIds: ['ra_external_ref', 'ra_amount'],
+      assignments: [
+        { id: 'ra_external_ref', section: 'Reference' },
+        { id: 'ra_amount', section: 'Financial' },
+        { id: 'ra_priority', section: 'Processing' },
+        { id: 'ra_due_date', section: 'Processing' },
+        { id: 'ra_confidential', section: 'Processing' },
+        { id: 'ra_notes', section: 'Processing' },
+      ],
     },
     {
       id: 'rt_meeting',
       name: 'Meeting',
       code: 'meeting',
       prefix: 'MTG',
-      attributeIds: [],
+      assignments: [
+        { id: 'ra_meeting_format', section: 'Schedule' },
+        { id: 'ra_review_time', section: 'Schedule' },
+        { id: 'ra_priority', section: 'Notes' },
+        { id: 'ra_notes', section: 'Notes' },
+      ],
     },
     {
       id: 'rt_meeting_topic',
       name: 'Meeting Topic',
       code: 'meeting_topic',
       prefix: 'TOP',
-      attributeIds: [],
+      assignments: [
+        { id: 'ra_priority', section: 'Planning' },
+        { id: 'ra_due_date', section: 'Planning' },
+        { id: 'ra_tags', section: 'Planning' },
+        { id: 'ra_notes', section: 'Planning' },
+      ],
     },
   ]
 
-  return seeds.map(({ id, name, code, prefix, attributeIds }) => ({
+  return seeds.map(({ id, name, code, prefix, assignments }) => ({
     id,
     name,
     code,
@@ -292,12 +477,12 @@ function seedRecordTypes(attrs: RecordAttribute[]): RecordType[] {
     status: 'active',
     features: defaultRecordTypeFeatures(),
     numbering: defaultRecordTypeNumbering(prefix),
-    attributes: pick(...attributeIds),
+    attributes: pickAssignments(byId, assignments),
     stages: ['incoming', 'outgoing', 'document', 'master_list'].includes(code)
       ? recordDocumentStages()
       : defaultStages(),
     transitions: [],
-    attributeCount: attributeIds.length,
+    attributeCount: assignments.length,
     workflowEnabled: true,
     createdAt: now,
     updatedAt: now,
@@ -353,6 +538,34 @@ if (import.meta.client && !localStorage.getItem(REMOVE_DEMO_FORM_FIELDS_MIGRATIO
   })
   writeRows(RECORD_TYPE_KEY, typeRows)
   localStorage.setItem(REMOVE_DEMO_FORM_FIELDS_MIGRATION_KEY, '1')
+}
+
+// Seed richer dynamic-field assignments + catalog entries for manual UI testing.
+if (import.meta.client && !localStorage.getItem(DYNAMIC_FIELD_UI_TEST_MIGRATION_KEY)) {
+  const catalogById = new Map(attributeRows.map(row => [row.id, row]))
+  for (const row of seedAttributes()) {
+    if (!catalogById.has(row.id)) {
+      attributeRows.push(row)
+      catalogById.set(row.id, row)
+    }
+  }
+  writeRows(ATTRIBUTE_KEY, attributeRows)
+
+  const seededAssignments = Object.fromEntries(
+    seedRecordTypes(attributeRows).map(type => [type.id, type]),
+  )
+  typeRows = typeRows.map((type) => {
+    const seeded = seededAssignments[type.id]
+    if (!seeded) return type
+    return {
+      ...type,
+      attributes: seeded.attributes,
+      attributeCount: seeded.attributeCount,
+      updatedAt: nowIso(),
+    }
+  })
+  writeRows(RECORD_TYPE_KEY, typeRows)
+  localStorage.setItem(DYNAMIC_FIELD_UI_TEST_MIGRATION_KEY, '1')
 }
 
 function recalculateUsedByCounts() {

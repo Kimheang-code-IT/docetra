@@ -94,7 +94,7 @@ function previewText(slot: string): string {
     <div class="flex items-start gap-2">
       <span
         v-if="showSortOrder"
-        class="mt-0.5 shrink-0 tabular-nums text-[11px] text-muted"
+        class="mt-0.5 shrink-0 tabular-nums text-[11px] app-card-text"
       >
         1
       </span>
@@ -114,7 +114,7 @@ function previewText(slot: string): string {
         </div>
         <p
           v-if="bodySlots.includes('topicTitle')"
-          class="mt-1 truncate text-xs text-muted"
+          class="mt-1 truncate text-xs app-card-text"
         >
           {{ previewText('topicTitle') }}
         </p>
@@ -133,7 +133,7 @@ function previewText(slot: string): string {
       <template v-for="slot in bodySlots" :key="slot">
       <p
         v-if="slot === 'referenceNumber' || slot === 'recordType' || slot === 'description' || slot === 'letterNumber'"
-        class="mt-1.5 truncate text-xs text-muted"
+        class="mt-1.5 truncate text-xs app-card-text"
       >
         {{ previewText(slot) }}
       </p>
@@ -151,7 +151,7 @@ function previewText(slot: string): string {
       </div>
       <div
         v-else-if="slot === 'party' || slot === 'owner' || slot === 'assignee' || slot === 'participants' || slot === 'internalUnits' || slot === 'externalUnits'"
-        class="mt-1.5 flex items-center gap-1.5 truncate text-xs text-muted"
+        class="mt-1.5 flex items-center gap-1.5 truncate text-xs app-card-text"
       >
         <UIcon
           :name="slot === 'party' || slot === 'internalUnits' ? 'i-lucide-building-2'
@@ -165,7 +165,7 @@ function previewText(slot: string): string {
       </div>
       <div
         v-else
-        class="mt-1.5 flex min-w-0 items-center gap-1.5 truncate text-xs text-muted"
+        class="mt-1.5 flex min-w-0 items-center gap-1.5 truncate text-xs app-card-text"
       >
         <span class="shrink-0 font-medium text-toned">{{ $t(`docetra.cardSlots.${slot}`) }}:</span>
         <span class="truncate">{{ previewText(slot) }}</span>
@@ -175,7 +175,7 @@ function previewText(slot: string): string {
 
     <div
       v-if="footerSlots.length"
-      class="mt-auto flex items-center justify-between gap-2 border-t border-default pt-2 text-xs text-muted"
+      class="mt-auto flex items-center justify-between gap-2 border-t border-default pt-2 text-xs app-card-text"
     >
       <div class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
         <span

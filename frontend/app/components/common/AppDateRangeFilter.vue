@@ -1,53 +1,71 @@
 <script setup lang="ts">
-/**
- * Single unified Date Range filter component for all pages and toolbars.
- * Uses AppInputDate directly for start & end date pickers.
- * Renders inline start/end date inputs on desktop, and a compact filter icon button with popover on mobile.
- */
+import type { DateValue } from '@internationalized/date'
+import type { DatePickerGranularity } from '~/utils/date-picker'
+import {
+  isDateTimeGranularity,
+  parsePickerValue,
+  serializePickerValue,
+} from '~/utils/date-picker'
+import { getFilterDateUi, isFilterValueActive } from '~/utils/filter/select-ui'
+
 const start = defineModel<string>('start', { default: '' })
 const end = defineModel<string>('end', { default: '' })
 
 const props = withDefaults(defineProps<{
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl'
   disabled?: boolean
-  granularity?: 'day' | 'hour' | 'minute' | 'second'
+  granularity?: DatePickerGranularity
   label?: string
   placeholder?: string
-  icon?: string
   class?: string
-  /** Render the inputs directly, useful inside an existing filter popover. */
+  /** Render without extra mobile-only duplicate controls. */
   inline?: boolean
 }>(), {
   size: 'sm',
   granularity: 'minute',
-  icon: 'i-lucide-filter',
 })
 
 const { t } = useI18n()
 
-const isDateTime = computed(() => props.granularity !== 'day')
+const inputDate = useTemplateRef<{ inputsRef?: Array<{ $el?: HTMLElement }> } | null>('inputDate')
+
+const isDateTime = computed(() => isDateTimeGranularity(props.granularity))
 
 const hasActiveFilter = computed(() =>
-  Boolean((start.value || '').trim() || (end.value || '').trim()),
+  isFilterValueActive(start.value) || isFilterValueActive(end.value),
 )
 
-const filterLabel = computed(() =>
-  props.label || t('docetra.fields.meetingDate'),
-)
+const dateUi = computed(() => getFilterDateUi(hasActiveFilter.value, {
+  isDateTime: isDateTime.value,
+  isRange: true,
+  fitContent: true,
+}))
 
-function comparable(value: string) {
-  const v = String(value || '').trim()
-  if (!v) return ''
-  if (v.includes('T')) return v.slice(0, 16)
-  return `${v.slice(0, 10)}T00:00`
-}
+const containerClass = computed(() => {
+  if (props.inline) return 'w-full min-w-0'
+  return 'w-auto max-w-full'
+})
 
-watch([start, end], ([from, to]) => {
-  const a = comparable(String(from || ''))
-  const b = comparable(String(to || ''))
-  if (a && b && a > b) {
-    end.value = start.value
-  }
+/** Shared with UInputDate + UCalendar in popover (Nuxt UI pattern). */
+const dateRangeValue = computed({
+  get() {
+    const startValue = parsePickerValue(start.value, isDateTime.value)
+    const endValue = parsePickerValue(end.value, isDateTime.value)
+    if (!startValue && !endValue) return undefined
+    return {
+      start: startValue ?? endValue!,
+      end: endValue ?? startValue!,
+    }
+  },
+  set(value: { start?: DateValue, end?: DateValue } | null | undefined) {
+    if (!value?.start && !value?.end) {
+      start.value = ''
+      end.value = ''
+      return
+    }
+    start.value = value.start ? serializePickerValue(value.start) : ''
+    end.value = value.end ? serializePickerValue(value.end) : ''
+  },
 })
 
 function clearFilter() {
@@ -57,101 +75,75 @@ function clearFilter() {
 </script>
 
 <template>
-  <div class="inline-flex items-center gap-1.5" :class="props.class">
-    <!-- Desktop inline filter -->
-    <div
-      class="shrink-0 items-center gap-1.5"
-      :class="props.inline ? 'flex' : 'hidden xl:flex'"
+  <div
+    class="app-date-range-filter inline-flex items-center gap-1.5"
+    :class="[props.class, containerClass]"
+  >
+    <UInputDate
+      ref="inputDate"
+      v-model="dateRangeValue"
+      range
+      fixed
+      :granularity="granularity"
+      :disabled="disabled"
+      :size="size"
+      color="neutral"
+      variant="outline"
+      class="w-auto max-w-full shrink-0"
+      :ui="dateUi"
+      :aria-label="label || t('docetra.fields.meetingDate')"
     >
-      <div class="flex flex-nowrap items-center gap-1.5">
-        <CommonAppInputDate
-          v-model="start"
-          :size="size"
-          :disabled="disabled"
-          :granularity="granularity"
-          :class="isDateTime ? 'w-44 sm:w-52' : 'w-36 sm:w-40'"
-          :aria-label="t('docetra.fields.startDate')"
-        />
-        <span class="text-xs text-muted" aria-hidden="true">–</span>
-        <CommonAppInputDate
-          v-model="end"
-          :size="size"
-          :disabled="disabled"
-          :granularity="granularity"
-          :class="isDateTime ? 'w-44 sm:w-52' : 'w-36 sm:w-40'"
-          :aria-label="t('docetra.fields.endDate')"
-        />
-      </div>
-      <UButton
-        v-if="hasActiveFilter"
-        icon="i-lucide-x"
-        color="neutral"
-        variant="ghost"
-        size="xs"
-        square
-        :aria-label="t('docetra.common.clear')"
-        :title="t('docetra.common.clear')"
-        @click="clearFilter"
-      />
-    </div>
+      <template #trailing>
+        <UPopover
+          :reference="inputDate?.inputsRef?.[0]?.$el"
+          :content="{ align: 'end', side: 'bottom', sideOffset: 6 }"
+        >
+          <UButton
+            color="neutral"
+            variant="link"
+            :size="size === 'xs' || size === 'sm' ? 'sm' : size"
+            :icon="isDateTime ? 'i-lucide-calendar-clock' : 'i-lucide-calendar'"
+            :aria-label="label || t('docetra.fields.meetingDate')"
+            class="shrink-0 px-0"
+            :disabled="disabled"
+          />
 
-    <!-- Mobile popover filter icon button -->
-    <UPopover v-if="!props.inline" class="shrink-0 xl:hidden">
-      <div class="relative">
-        <UButton
-          :icon="icon"
-          :color="hasActiveFilter ? 'primary' : 'neutral'"
-          :variant="hasActiveFilter ? 'soft' : 'outline'"
-          :size="size"
-          square
-          :aria-label="filterLabel"
-          :title="filterLabel"
-        />
-        <span
-          v-if="hasActiveFilter"
-          class="absolute -top-1 -right-1 size-2 rounded-full bg-primary ring-2 ring-default"
-        />
-      </div>
-
-      <template #content>
-        <div class="flex max-w-[calc(100vw-2rem)] flex-col gap-2.5 p-3">
-          <div class="flex items-center justify-between gap-2 border-b border-default pb-2">
-            <span class="text-xs font-semibold text-highlighted">
-              {{ filterLabel }}
-            </span>
-            <UButton
-              v-if="hasActiveFilter"
-              color="neutral"
-              variant="ghost"
-              size="xs"
-              class="h-6 px-1.5 text-xs text-muted hover:text-highlighted"
-              @click="clearFilter"
-            >
-              {{ t('docetra.common.clear') }}
-            </UButton>
-          </div>
-
-          <div class="flex max-w-full flex-nowrap items-center gap-1.5 overflow-x-auto">
-            <CommonAppInputDate
-              v-model="start"
-              :size="size"
-              :disabled="disabled"
+          <template #content>
+            <CommonAppDatePickerPopover
+              v-model:range-value="dateRangeValue"
+              mode="range"
               :granularity="granularity"
-              :class="isDateTime ? 'w-44 sm:w-52' : 'w-36 sm:w-40'"
-              :aria-label="t('docetra.fields.startDate')"
-            />
-            <span class="text-xs text-muted" aria-hidden="true">–</span>
-            <CommonAppInputDate
-              v-model="end"
-              :size="size"
               :disabled="disabled"
-              :granularity="granularity"
-              :class="isDateTime ? 'w-44 sm:w-52' : 'w-36 sm:w-40'"
-              :aria-label="t('docetra.fields.endDate')"
             />
-          </div>
-        </div>
+          </template>
+        </UPopover>
       </template>
-    </UPopover>
+    </UInputDate>
+
+    <UButton
+      v-if="hasActiveFilter"
+      icon="i-lucide-x"
+      color="neutral"
+      variant="ghost"
+      size="xs"
+      square
+      class="shrink-0"
+      :aria-label="t('docetra.common.clear')"
+      :title="t('docetra.common.clear')"
+      @click="clearFilter"
+    />
   </div>
 </template>
+
+<style scoped>
+.app-date-range-filter :deep([data-slot="base"]) {
+  width: fit-content;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.app-date-range-filter :deep([data-slot="base"]::-webkit-scrollbar) {
+  display: none;
+}
+</style>
