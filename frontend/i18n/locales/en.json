@@ -280,7 +280,18 @@
       "passwordChanged": "Password updated",
       "passwordChangedDesc": "Use your new password the next time you sign in.",
       "passwordChangeFailed": "Could not update password",
-      "passwordChangeFailedDesc": "Check your current password and try again."
+      "passwordChangeFailedDesc": "Check your current password and try again.",
+      "changePhoto": "Change photo",
+      "viewPhoto": "View profile photo",
+      "removePhoto": "Remove photo",
+      "photoUpdated": "Profile photo updated",
+      "photoUpdatedDesc": "Your new photo is shown in the user menu.",
+      "photoUpdateFailed": "Could not update photo",
+      "photoUpdateFailedDesc": "Choose a JPG, PNG, or WebP image up to 2 MB.",
+      "photoRemoved": "Profile photo removed",
+      "photoRemovedDesc": "Your default initials avatar is shown again.",
+      "photoRemoveFailed": "Could not remove photo",
+      "photoRemoveFailedDesc": "Try again in a moment."
     },
     "common": {
       "confirmTitle": "Confirm",
@@ -291,6 +302,8 @@
       "previous": "Previous",
       "next": "Next",
       "time": "Time",
+      "startTime": "Start time",
+      "endTime": "End time",
       "hour": "Hour",
       "minute": "Minute",
       "search": "Search",

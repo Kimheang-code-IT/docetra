@@ -134,20 +134,25 @@ const singleTime = computed({
   },
 })
 
-const rangeTime = computed({
-  get: () => {
-    const value = rangeValue.value
-    const startPart = readTimePart(value?.start, 'start')
-    const endPart = readTimePart(value?.end, 'end')
-    return {
-      start: new Time(startPart.hour, startPart.minute, 0),
-      end: new Time(endPart.hour, endPart.minute, 0),
-    }
+const rangeStartTime = computed({
+  get: (): Time => {
+    const { hour, minute } = readTimePart(rangeValue.value?.start, 'start')
+    return new Time(hour, minute, 0)
   },
-  set: (value: { start?: Time, end?: Time } | null | undefined) => {
+  set: (value: Time | null | undefined) => {
     if (!value) return
-    if (value.start) writeRangeTime('start', value.start.hour, value.start.minute)
-    if (value.end) writeRangeTime('end', value.end.hour, value.end.minute)
+    writeRangeTime('start', value.hour, value.minute)
+  },
+})
+
+const rangeEndTime = computed({
+  get: (): Time => {
+    const { hour, minute } = readTimePart(rangeValue.value?.end, 'end')
+    return new Time(hour, minute, 0)
+  },
+  set: (value: Time | null | undefined) => {
+    if (!value) return
+    writeRangeTime('end', value.hour, value.minute)
   },
 })
 
@@ -228,7 +233,7 @@ const dayRangeCalendar = computed({
     />
 
     <div
-      class="flex items-center gap-2 border-t border-default px-2 pb-2 pt-2"
+      class="flex flex-wrap items-end gap-2 border-t border-default px-2 pb-2 pt-2"
       :class="isDateTime ? 'justify-between' : 'justify-end'"
     >
       <UInputTime
@@ -240,16 +245,37 @@ const dayRangeCalendar = computed({
         :disabled="disabled"
         class="min-w-0 flex-1"
       />
-      <UInputTime
+      <div
         v-else-if="isDateTime && mode === 'range'"
-        v-model="rangeTime"
-        range
-        color="neutral"
-        variant="outline"
-        size="sm"
-        :disabled="disabled"
-        class="min-w-0 flex-1"
-      />
+        class="flex min-w-0 flex-1 flex-wrap items-end gap-3"
+      >
+        <div class="min-w-[8.5rem] flex-1 space-y-1">
+          <label class="block text-xs font-medium text-muted">
+            {{ t('docetra.common.startTime') }}
+          </label>
+          <UInputTime
+            v-model="rangeStartTime"
+            color="neutral"
+            variant="outline"
+            size="sm"
+            :disabled="disabled"
+            class="w-full"
+          />
+        </div>
+        <div class="min-w-[8.5rem] flex-1 space-y-1">
+          <label class="block text-xs font-medium text-muted">
+            {{ t('docetra.common.endTime') }}
+          </label>
+          <UInputTime
+            v-model="rangeEndTime"
+            color="neutral"
+            variant="outline"
+            size="sm"
+            :disabled="disabled"
+            class="w-full"
+          />
+        </div>
+      </div>
 
       <UButton
         color="neutral"

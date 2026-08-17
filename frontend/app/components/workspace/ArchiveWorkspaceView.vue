@@ -9,6 +9,8 @@ const {
   sourceOptions,
   search,
   sourceFilter,
+  dateStart,
+  dateEnd,
   page,
   limit,
   visibleRows,
@@ -22,6 +24,11 @@ const {
   cellValue,
   onLimitChange,
 } = useArchiveWorkspace()
+
+const hasArchiveFilters = computed(() =>
+  sourceFilter.value !== 'all'
+  || Boolean(dateStart.value.trim() || dateEnd.value.trim()),
+)
 </script>
 
 <template>
@@ -54,24 +61,59 @@ const {
         @retry="refresh"
       >
         <template #toolbar>
-          <div class="flex shrink-0 flex-wrap items-center gap-2 border-b border-default bg-default px-3 py-2.5">
+          <div class="flex shrink-0 items-center gap-2 border-b border-default bg-default px-3 py-2.5 lg:justify-between">
             <CommonAppLiveSearch
               v-model="search"
               :placeholder="$t('docetra.archive.searchPlaceholder')"
               size="md"
-              class="min-w-0 w-full max-w-75 flex-1"
+              class="min-w-0 w-full max-w-[18.75rem] flex-1 lg:flex-none"
             />
-            <USelect
-              v-model="sourceFilter"
-              :items="sourceOptions"
-              value-key="value"
-              size="sm"
-              class="w-52"
-              :aria-label="$t('docetra.archive.type')"
-            />
-            <div class="ms-auto flex items-center gap-2 text-sm text-muted">
-              <UIcon name="i-lucide-archive" class="size-4" />
-              <span>{{ $t('docetra.archive.itemCount', { n: filteredRows.length }) }}</span>
+
+            <UPopover class="ms-auto shrink-0 lg:hidden">
+              <UButton
+                icon="i-lucide-filter"
+                :color="hasArchiveFilters ? 'primary' : 'neutral'"
+                :variant="hasArchiveFilters ? 'soft' : 'outline'"
+                size="sm"
+                square
+                :aria-label="$t('docetra.actions.filter')"
+              />
+              <template #content>
+                <div class="flex w-[calc(100vw-2rem)] max-w-4xl flex-nowrap items-center gap-2 overflow-x-auto p-3">
+                  <CommonAppSingleFilterSelect
+                    v-model="sourceFilter"
+                    :items="sourceOptions"
+                    :label="$t('docetra.archive.type')"
+                    :placeholder="$t('docetra.archive.allTypes')"
+                    :searchable="false"
+                    class="shrink-0"
+                  />
+                  <CommonAppDateRangeFilter
+                    v-model:start="dateStart"
+                    v-model:end="dateEnd"
+                    :label="$t('docetra.archive.archivedAt')"
+                    size="sm"
+                    inline
+                    class="shrink-0"
+                  />
+                </div>
+              </template>
+            </UPopover>
+
+            <div class="hidden ms-auto shrink-0 flex-nowrap items-center gap-2 lg:flex">
+              <CommonAppSingleFilterSelect
+                v-model="sourceFilter"
+                :items="sourceOptions"
+                :label="$t('docetra.archive.type')"
+                :placeholder="$t('docetra.archive.allTypes')"
+                :searchable="false"
+              />
+              <CommonAppDateRangeFilter
+                v-model:start="dateStart"
+                v-model:end="dateEnd"
+                :label="$t('docetra.archive.archivedAt')"
+                size="sm"
+              />
             </div>
           </div>
         </template>

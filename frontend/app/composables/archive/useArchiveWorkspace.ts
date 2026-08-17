@@ -4,6 +4,7 @@ import { getEntityAdapter, getEntityConfig } from '~/config/entities'
 import type { TableColumnDef } from '~/types/docetra/common'
 import type { RowActionItem } from '~/types/docetra/row-actions'
 import { TABLE_PAGE_SIZES, parsePageLimit } from '~/utils/pagination'
+import { isWithinDateTimeRange } from '~/utils/date-time-range'
 
 export type ArchiveRow = Record<string, unknown> & {
   id: string
@@ -61,6 +62,8 @@ export function useArchiveWorkspace(sourceKeys: AdapterKey[] = ARCHIVE_SOURCE_KE
   const error = ref<string | null>(null)
   const search = ref('')
   const sourceFilter = ref<AdapterKey | 'all'>('all')
+  const dateStart = ref('')
+  const dateEnd = ref('')
   const page = ref(1)
   const limit = ref(10)
 
@@ -68,6 +71,7 @@ export function useArchiveWorkspace(sourceKeys: AdapterKey[] = ARCHIVE_SOURCE_KE
     const term = search.value.trim().toLocaleLowerCase()
     return allRows.value.filter((row) => {
       if (sourceFilter.value !== 'all' && row.sourceKey !== sourceFilter.value) return false
+      if (!isWithinDateTimeRange(row.archivedAt, dateStart.value, dateEnd.value)) return false
       if (!term) return true
       return [row.recordName, row.referenceNumber, row.entityType]
         .some(value => String(value || '').toLocaleLowerCase().includes(term))
@@ -79,7 +83,7 @@ export function useArchiveWorkspace(sourceKeys: AdapterKey[] = ARCHIVE_SOURCE_KE
     return filteredRows.value.slice(start, start + limit.value)
   })
 
-  watch([search, sourceFilter], () => { page.value = 1 })
+  watch([search, sourceFilter, dateStart, dateEnd], () => { page.value = 1 })
   watch(() => filteredRows.value.length, (total) => {
     const lastPage = Math.max(1, Math.ceil(total / limit.value))
     if (page.value > lastPage) page.value = lastPage
@@ -207,6 +211,8 @@ export function useArchiveWorkspace(sourceKeys: AdapterKey[] = ARCHIVE_SOURCE_KE
     sourceOptions,
     search,
     sourceFilter,
+    dateStart,
+    dateEnd,
     page,
     limit,
     visibleRows,

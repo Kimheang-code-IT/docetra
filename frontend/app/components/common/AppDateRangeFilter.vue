@@ -5,6 +5,7 @@ import {
   isDateTimeGranularity,
   parsePickerValue,
   serializePickerValue,
+  datePickerPopoverContent,
 } from '~/utils/date-picker'
 import { getFilterDateUi, isFilterValueActive } from '~/utils/filter/select-ui'
 
@@ -28,6 +29,7 @@ const props = withDefaults(defineProps<{
 const { t } = useI18n()
 
 const inputDate = useTemplateRef<{ inputsRef?: Array<{ $el?: HTMLElement }> } | null>('inputDate')
+const pickerAnchor = useTemplateRef<HTMLElement | null>('pickerAnchor')
 
 const isDateTime = computed(() => isDateTimeGranularity(props.granularity))
 
@@ -79,25 +81,26 @@ function clearFilter() {
     class="app-date-range-filter inline-flex items-center gap-1.5"
     :class="[props.class, containerClass]"
   >
-    <UInputDate
-      ref="inputDate"
-      v-model="dateRangeValue"
-      range
-      fixed
-      :granularity="granularity"
-      :disabled="disabled"
-      :size="size"
-      color="neutral"
-      variant="outline"
-      class="w-auto max-w-full shrink-0"
-      :ui="dateUi"
-      :aria-label="label || t('docetra.fields.meetingDate')"
-    >
-      <template #trailing>
-        <UPopover
-          :reference="inputDate?.inputsRef?.[0]?.$el"
-          :content="{ align: 'end', side: 'bottom', sideOffset: 6 }"
-        >
+    <div ref="pickerAnchor" class="relative min-w-0 w-auto max-w-full">
+      <UInputDate
+        ref="inputDate"
+        v-model="dateRangeValue"
+        range
+        fixed
+        :granularity="granularity"
+        :disabled="disabled"
+        :size="size"
+        color="neutral"
+        variant="outline"
+        class="w-auto max-w-full shrink-0"
+        :ui="dateUi"
+        :aria-label="label || t('docetra.fields.meetingDate')"
+      >
+        <template #trailing>
+          <UPopover
+            :reference="pickerAnchor ?? inputDate?.inputsRef?.[0]?.$el"
+            :content="datePickerPopoverContent"
+          >
           <UButton
             color="neutral"
             variant="link"
@@ -119,6 +122,7 @@ function clearFilter() {
         </UPopover>
       </template>
     </UInputDate>
+    </div>
 
     <UButton
       v-if="hasActiveFilter"

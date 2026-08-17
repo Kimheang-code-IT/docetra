@@ -76,3 +76,33 @@ export async function changePassword(input: {
   account.password = input.password
   return ok({ changed: true })
 }
+
+export async function updateProfileAvatar(avatar: string) {
+  if (!usesMockData()) {
+    return useApi().put<ApiResponse<{ avatar: string }>>(ApiEndpoints.AUTH_PROFILE_AVATAR, { avatar })
+  }
+  const auth = useAuthStore()
+  const email = auth.user?.email
+  if (!email) throw createError({ statusCode: 401, statusMessage: 'Not signed in' })
+  const { findMockLoginAccount } = await import('~/utils/auth/mock-login')
+  await mockLatency(null, 80)
+  const account = findMockLoginAccount(email)
+  if (account) account.user.avatar = avatar
+  auth.updateUser({ avatar })
+  return ok({ avatar })
+}
+
+export async function removeProfileAvatar() {
+  if (!usesMockData()) {
+    return useApi().delete<ApiResponse<{ removed: boolean }>>(ApiEndpoints.AUTH_PROFILE_AVATAR)
+  }
+  const auth = useAuthStore()
+  const email = auth.user?.email
+  if (!email) throw createError({ statusCode: 401, statusMessage: 'Not signed in' })
+  const { findMockLoginAccount } = await import('~/utils/auth/mock-login')
+  await mockLatency(null, 80)
+  const account = findMockLoginAccount(email)
+  if (account) delete account.user.avatar
+  auth.updateUser({ avatar: undefined })
+  return ok({ removed: true })
+}

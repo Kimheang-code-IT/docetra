@@ -37,12 +37,22 @@ export const useAuthStore = defineStore('auth', () => {
     return access.includes(pageId)
   }
 
+  function updateUser(partial: Partial<AuthUser>) {
+    if (!user.value) return
+    const next = { ...user.value, ...partial }
+    if ('avatar' in partial && partial.avatar == null) {
+      delete next.avatar
+    }
+    user.value = next
+  }
+
   return {
     token,
     user,
     isLoggedIn,
     login,
     logout,
+    updateUser,
     canAccessPage,
   }
 })

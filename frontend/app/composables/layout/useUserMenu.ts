@@ -2,6 +2,7 @@ import type { DropdownMenuItem } from '@nuxt/ui'
 import { usePreferencesStore } from '~/stores/preferences'
 import type { AppLocale } from '~/stores/preferences'
 import type { AppFontSize } from '~/types/docetra/settings'
+import { resolveUserAvatar } from '~/utils/auth/user-avatar'
 
 const FONT_SIZE_OPTIONS: Array<{ value: AppFontSize, labelKey: string, icon: string }> = [
   { value: 'sm', labelKey: 'docetra.settings.fontSizeSm', icon: 'i-lucide-a-arrow-down' },
@@ -25,11 +26,9 @@ export function useUserMenu() {
 
   const user = computed(() => ({
     name: auth.user?.name || auth.user?.email || 'User',
-    email: auth.user?.email || '',
     role: auth.user?.role || '',
     avatar: {
-      src: auth.user?.avatar
-        || `https://ui-avatars.com/api/?name=${encodeURIComponent(auth.user?.name || 'User')}&background=random`,
+      src: resolveUserAvatar(auth.user),
       alt: auth.user?.name || 'User',
     },
   }))
@@ -38,7 +37,6 @@ export function useUserMenu() {
     [
       {
         label: user.value.name,
-        description: user.value.email,
         avatar: user.value.avatar,
         onSelect(e: Event) {
           e.preventDefault()

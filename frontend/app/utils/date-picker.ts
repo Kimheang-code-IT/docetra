@@ -10,6 +10,15 @@ import type { DateValue } from '@internationalized/date'
 
 export type DatePickerGranularity = 'day' | 'hour' | 'minute' | 'second'
 
+/** Anchor popover to input start (left), not centered on screen. */
+export const datePickerPopoverContent = {
+  side: 'bottom' as const,
+  align: 'start' as const,
+  sideOffset: 4,
+  alignOffset: 0,
+  collisionPadding: 8,
+}
+
 export type CalendarRangeValue = {
   start?: CalendarDate
   end?: CalendarDate

@@ -171,7 +171,18 @@
       "passwordChanged": "បានធ្វើបច្ចុប្បន្នភាពពាក្យសម្ងាត់",
       "passwordChangedDesc": "ប្រើពាក្យសម្ងាត់ថ្មីនៅពេលចូលប្រើបន្ទាប់។",
       "passwordChangeFailed": "មិនអាចធ្វើបច្ចុប្បន្នភាពពាក្យសម្ងាត់បានទេ",
-      "passwordChangeFailedDesc": "ពិនិត្យពាក្យសម្ងាត់បច្ចុប្បន្ន រួចព្យាយាមម្តងទៀត។"
+      "passwordChangeFailedDesc": "ពិនិត្យពាក្យសម្ងាត់បច្ចុប្បន្ន រួចព្យាយាមម្តងទៀត។",
+      "changePhoto": "ប្តូររូបថត",
+      "viewPhoto": "មើលរូបថតប្រវត្តិរូប",
+      "removePhoto": "លុបរូបថត",
+      "photoUpdated": "បានធ្វើបច្ចុប្បន្នភាពរូបថត",
+      "photoUpdatedDesc": "រូបថតថ្មីបង្ហាញក្នុងម៉ឺនុយអ្នកប្រើ។",
+      "photoUpdateFailed": "មិនអាចធ្វើបច្ចុប្បន្នភាពរូបថតបានទេ",
+      "photoUpdateFailedDesc": "ជ្រើស JPG, PNG, ឬ WebP រហូតដល់ 2 MB។",
+      "photoRemoved": "បានលុបរូបថត",
+      "photoRemovedDesc": "រូបអក្សរក្បាលដើមបង្ហាញម្តងទៀត។",
+      "photoRemoveFailed": "មិនអាចលុបរូបថតបានទេ",
+      "photoRemoveFailedDesc": "សូមព្យាយាមម្តងទៀតក្នុងពេលក្រោយ។"
     },
     "common": {
       "confirmTitle": "បញ្ជាក់",
@@ -182,6 +193,8 @@
       "previous": "មុន",
       "next": "បន្ទាប់",
       "time": "ម៉ោង",
+      "startTime": "ម៉ោងចាប់ផ្តើម",
+      "endTime": "ម៉ោងបញ្ចប់",
       "hour": "ម៉ោង",
       "minute": "នាទី",
       "search": "ស្វែងរក",

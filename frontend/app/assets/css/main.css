@@ -149,6 +149,20 @@
     border-color: var(--ui-border);
     background: var(--ui-bg-elevated);
   }
+
+  .app-timeline-point {
+    display: block;
+    width: 0.625rem;
+    height: 0.625rem;
+    flex-shrink: 0;
+    border-radius: 9999px;
+    background: #404040;
+    box-shadow: 0 0 0 4px var(--ui-bg);
+  }
+
+  .dark .app-timeline-point {
+    background: #d4d4d4;
+  }
 }
 
 /* Sidebar — override Nuxt UI text-muted / text-dimmed on nav + footer controls. */

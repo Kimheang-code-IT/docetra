@@ -100,18 +100,36 @@ function openMeeting(meeting: MeetingHistory) {
         <p class="text-sm">{{ $t('docetra.states.empty') }}</p>
       </div>
 
-      <ol v-else class="relative mx-auto max-w-5xl space-y-4 before:absolute before:bottom-5 before:left-[2.35rem] before:top-5 before:w-px before:bg-accented sm:before:left-[8.45rem]">
+      <ol class="mx-auto max-w-5xl space-y-4">
         <li
-          v-for="meeting in meetings"
+          v-for="(meeting, index) in meetings"
           :key="meeting.id"
-          class="relative grid grid-cols-[4.75rem_minmax(0,1fr)] gap-3 sm:grid-cols-[8rem_minmax(0,1fr)] sm:gap-5"
+          class="grid grid-cols-[4.5rem_1.25rem_minmax(0,1fr)] items-start gap-x-2 sm:grid-cols-[7.5rem_1.5rem_minmax(0,1fr)] sm:gap-x-4"
         >
-          <div class="relative z-10 flex items-start justify-between gap-2 sm:block sm:text-right">
+          <div class="pt-1 sm:text-right">
             <div class="rounded-md bg-default px-1 py-1 sm:px-2">
               <div class="text-xl font-bold leading-none text-highlighted">{{ dateParts(meeting.meetingDate).day }}</div>
               <div class="mt-1 text-[0.68rem] font-medium uppercase tracking-wide text-muted">{{ dateParts(meeting.meetingDate).month }}</div>
             </div>
-            <span class="absolute -right-[1.04rem] top-4 size-3 rounded-full border-2 border-primary bg-default shadow-sm sm:-right-[1.78rem]" />
+          </div>
+
+          <div class="relative flex min-h-full justify-center self-stretch">
+            <span
+              v-if="meetings.length > 1"
+              class="absolute w-px bg-accented"
+              :class="
+                index === 0
+                  ? 'top-[1.875rem] bottom-0 sm:top-[2.125rem]'
+                  : index === meetings.length - 1
+                    ? 'top-0 h-[1.875rem] sm:h-[2.125rem]'
+                    : 'inset-y-0'
+              "
+              aria-hidden="true"
+            />
+            <span
+              class="app-timeline-point relative z-10 mt-[1.5625rem] sm:mt-[1.8125rem]"
+              aria-hidden="true"
+            />
           </div>
 
           <button
