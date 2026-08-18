@@ -49,11 +49,14 @@ const PRESETS = [
         :disabled="props.disabled"
         placeholder="#2563eb"
       />
-      <button
+      <UButton
         v-for="swatch in PRESETS"
         :key="swatch"
         type="button"
-        class="size-6 rounded-full ring-1 ring-default transition hover:scale-110"
+        color="neutral"
+        variant="ghost"
+        size="xs"
+        class="size-6 rounded-full p-0 ring-1 ring-default transition hover:scale-110"
         :class="model === swatch ? 'ring-2 ring-primary' : ''"
         :style="{ backgroundColor: swatch }"
         :disabled="props.disabled"

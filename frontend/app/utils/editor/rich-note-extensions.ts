@@ -44,20 +44,3 @@ export function createRichNoteExtensions(): Extensions {
   ]
 }
 
-export async function createOptionalTableExtension(): Promise<Extensions> {
-  try {
-    const { TableKit } = await import('@tiptap/extension-table')
-    return [
-      TableKit.configure({
-        table: {
-          resizable: true,
-          HTMLAttributes: { class: 'rich-note-table' },
-        },
-      }),
-    ]
-  }
-  catch (error) {
-    console.warn('[rich-note] TableKit unavailable', error)
-    return []
-  }
-}

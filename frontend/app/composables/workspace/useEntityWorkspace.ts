@@ -4,6 +4,7 @@ import type { EntityConfig } from '~/config/entities'
 import type { ExportRequest } from '~/types/docetra/export'
 import { createExportJob } from '~/adapters/exports'
 import { getEntityAdapter } from '~/config/entities'
+import { useAppLocalization } from '~/composables/settings/useAppLocalization'
 import {
   parsePageLimit,
   serializePageLimit,
@@ -19,7 +20,8 @@ function getByPath(obj: Record<string, unknown>, path: string): unknown {
 export function useEntityWorkspace(config: EntityConfig) {
   const route = useRoute()
   const router = useRouter()
-  const { t, te, locale } = useI18n()
+  const { t, te } = useI18n()
+  const { formatDate, formatDateTime } = useAppLocalization()
   const adapter = getEntityAdapter(config.key)
 
   const view = computed({
@@ -226,7 +228,7 @@ export function useEntityWorkspace(config: EntityConfig) {
       { ...column, items: column.items.map(item => ({ ...item })) },
     ]))
     // optimistic
-    for (const [code, col] of Object.entries(kanbanColumns.value)) {
+    for (const col of Object.values(kanbanColumns.value)) {
       const idx = col.items.findIndex(i => i.id === id)
       if (idx >= 0) {
         const [card] = col.items.splice(idx, 1)
@@ -311,14 +313,7 @@ export function useEntityWorkspace(config: EntityConfig) {
       || key === 'lastSyncAt'
       || key === 'uploadedAt'
     ) {
-      const date = new Date(text)
-      if (!Number.isNaN(date.getTime())) {
-        const hasTime = text.includes('T')
-        return date.toLocaleString(locale.value === 'km' ? 'km-KH' : 'en-US', {
-          dateStyle: 'medium',
-          ...(hasTime ? { timeStyle: 'short' as const } : {}),
-        })
-      }
+      return text.includes('T') ? formatDateTime(text) : formatDate(text)
     }
 
     return text

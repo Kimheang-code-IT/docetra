@@ -81,13 +81,6 @@ export function sortMeetingsForBoard<
   return copy
 }
 
-export function formatMeetingDateTime(value: unknown): string {
-  if (value == null || value === '') return ''
-  const s = String(value)
-  if (s.includes('T')) return s.slice(0, 16).replace('T', ' ')
-  return s.slice(0, 10)
-}
-
 export function isJoinableMeeting(mode?: string, url?: string): boolean {
   if (!safeExternalUrl(url)) return false
   return mode === 'online' || mode === 'hybrid'

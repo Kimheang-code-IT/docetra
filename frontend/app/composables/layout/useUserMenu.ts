@@ -33,7 +33,8 @@ export function useUserMenu() {
     },
   }))
 
-  const items = computed<DropdownMenuItem[][]>(() => [
+  const items = computed<DropdownMenuItem[][]>(() => {
+    const groups: DropdownMenuItem[][] = [
     [
       {
         label: user.value.name,
@@ -45,28 +46,30 @@ export function useUserMenu() {
       },
     ],
     [
-      {
+      ...(auth.canAccessPage('archive.view') ? [{
         label: t('docetra.pages.archive'),
         icon: 'i-lucide-archive',
         onSelect(e: Event) {
           e.preventDefault()
           router.push('/archive')
         },
-      },
-      {
+      } satisfies DropdownMenuItem] : []),
+      ...(auth.canAccessPage('system.logs.view') ? [{
         label: t('docetra.pages.systemLog'),
         icon: 'i-lucide-square-terminal',
         onSelect(e: Event) {
           e.preventDefault()
           router.push('/system-monitor/system-logs')
         },
-      },
+      } satisfies DropdownMenuItem] : []),
     ],
     [
       {
         label: t('settings.language'),
         icon: 'i-lucide-languages',
-        children: (i18n.locales.value || []).map((loc: { name?: string, icon?: string, code?: string }) => ({
+        children: (i18n.locales.value || [])
+          .filter((loc: { code?: string }) => preferences.availableLocales.includes(loc.code as AppLocale))
+          .map((loc: { name?: string, icon?: string, code?: string }) => ({
           label: loc.name,
           icon: loc.icon,
           type: 'checkbox',
@@ -141,7 +144,9 @@ export function useUserMenu() {
         },
       },
     ],
-  ])
+    ]
+    return groups.filter(group => group.length > 0)
+  })
 
   return {
     user,

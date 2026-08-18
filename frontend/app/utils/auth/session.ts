@@ -7,7 +7,7 @@ import type { AuthUser } from '~/types/auth-user'
 export const useAuthSession = () => {
   const store = useAuthStore()
 
-  const login = (token: string, user: AuthUser) => {
+  const login = (token: string | null | undefined, user: AuthUser) => {
     store.login(token, user)
   }
 

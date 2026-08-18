@@ -5,6 +5,7 @@ import UppyDashboard from '@uppy/vue/dashboard'
 import type { ApiResponse, AttachmentMeta } from '~/types/docetra/common'
 import { useAuthStore } from '~/stores/auth'
 import { createClientId } from '~/utils/client-id'
+import { csrfRequestHeaders } from '~/utils/security/csrf'
 
 import '~/assets/css/uppy.css'
 
@@ -156,12 +157,22 @@ onMounted(() => {
       })
     }
     else {
+      const cookieAuth = config.public.authMode === 'cookie'
       instance.use(XHRUpload, {
         endpoint: uploadUrl.value!,
         fieldName: 'file',
         formData: true,
         bundle: false,
-        headers: authStore.token ? { Authorization: `Bearer ${authStore.token}` } : {},
+        withCredentials: cookieAuth,
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          ...(!cookieAuth && authStore.token ? { Authorization: `Bearer ${authStore.token}` } : {}),
+          ...csrfRequestHeaders(
+            'POST',
+            String(config.public.csrfCookieName),
+            String(config.public.csrfHeaderName),
+          ),
+        },
       })
     }
     instance.on('complete', (result) => {

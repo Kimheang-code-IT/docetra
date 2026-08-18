@@ -2,6 +2,7 @@ import type { EntityConfig } from '~/config/entities'
 import { getEntityAdapter } from '~/config/entities'
 import type { WorkflowStage } from '~/types/docetra/common'
 import { useConfigurationRepositories } from '~/repositories'
+import { useAppLocalization } from '~/composables/settings/useAppLocalization'
 
 function getByPath(obj: Record<string, unknown>, path: string): unknown {
   return path.split('.').reduce<unknown>((acc, key) => {
@@ -23,6 +24,7 @@ export function useRecordStageBoard(
   const route = useRoute()
   const router = useRouter()
   const { t, te } = useI18n()
+  const { formatDate } = useAppLocalization()
   const adapter = getEntityAdapter(config.key)
   const { recordTypes } = useConfigurationRepositories()
   const runtimeStages = ref<WorkflowStage[]>(
@@ -221,7 +223,7 @@ export function useRecordStageBoard(
 
   function dateOf(row: Record<string, unknown>) {
     const value = getByPath(row, options.dateField)
-    return value == null ? '' : String(value).slice(0, 10)
+    return formatDate(value, '')
   }
 
   function labelOf(row: Record<string, unknown>) {

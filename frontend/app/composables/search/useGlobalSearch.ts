@@ -5,13 +5,11 @@ import type { CommandPaletteItem, CommandPaletteGroup } from '@nuxt/ui'
 import type { SearchHit, SearchMode } from '~/types/docetra/search'
 import { askAi, searchKeyword, searchSemantic } from '~/adapters/search'
 import { ensureSearchIndexSeeded } from '~/utils/search/seed-index'
-import { useAuthStore } from '~/stores/auth'
 import { useMenu } from '~/composables/layout/useMenu'
 
 export function useGlobalSearch() {
   const { t } = useI18n()
   const router = useRouter()
-  const auth = useAuthStore()
   const { links, close: closeSidebar } = useMenu()
 
   const open = ref(false)
@@ -53,12 +51,8 @@ export function useGlobalSearch() {
       }
     }
 
-    // Frontend pageAccess: empty/ALL_PAGES → show all nav (auth middleware already gates login)
-    if (!auth.user?.pageAccess?.length || auth.user.pageAccess.includes('ALL_PAGES')) return items
-    return items.filter((item) => {
-      const to = String((item as { to?: string }).to || '')
-      return auth.canAccessPage(to) || auth.canAccessPage(to.replace(/^\//, '').replace(/\//g, '.'))
-    })
+    // `useMenu` already applies the canonical permission keys.
+    return items
   })
 
   async function runSearch(q: string) {

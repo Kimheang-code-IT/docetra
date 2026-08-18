@@ -174,7 +174,7 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
         const recordKind = recordKinds[config.key]
         const now = new Date().toISOString()
         model.value = {
-          status: 'draft',
+          status: 'active',
           stage: config.stages?.[0]?.code || undefined,
           details: {},
           tags: [],
@@ -298,7 +298,7 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
       if (!Array.isArray(payload.childMeetings)) payload.childMeetings = []
     }
     if (isRecordDocument) {
-      for (const key of ['involvedOfficers', 'externalUnits']) {
+      for (const key of ['involvedOfficers', 'externalUnits', 'officeInCharge']) {
         payload[key] = Array.isArray(payload[key])
           ? payload[key].map(String).map(value => value.trim()).filter(Boolean)
           : []
@@ -321,11 +321,12 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
       payload.status = payload.isActive ? 'active' : 'disabled'
     }
     if (config.key === 'meetingHistory') {
-      const participants = Array.isArray(payload.participants)
-        ? payload.participants.map(String).map(name => name.trim()).filter(Boolean)
-        : []
-      payload.participants = participants
-      payload.attendeesCount = participants.length
+      for (const key of ['participants', 'internalUnits', 'externalUnits']) {
+        payload[key] = Array.isArray(payload[key])
+          ? payload[key].map(String).map(value => value.trim()).filter(Boolean)
+          : []
+      }
+      payload.attendeesCount = (payload.participants as string[]).length
       if (payload.meetingDate && !payload.recordTime) payload.recordTime = payload.meetingDate
     }
     if (config.key === 'roles') {

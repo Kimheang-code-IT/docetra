@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { DashboardCalendarEvent } from '~/types/docetra/entities'
+import { useAppLocalization } from '~/composables/settings/useAppLocalization'
 
 const props = withDefaults(
   defineProps<{
@@ -18,7 +19,8 @@ const emit = defineEmits<{
   daySelect: [dateKey: string]
 }>()
 
-const { t, locale } = useI18n()
+const { t } = useI18n()
+const { localization, formatDatePart } = useAppLocalization()
 
 const viewCursor = ref(startOfMonth(new Date()))
 const selectedKey = ref(toDateKey(new Date()))
@@ -28,7 +30,7 @@ const todayKey = computed(() => toDateKey(new Date()))
 
 const monthItems = computed(() =>
   Array.from({ length: 12 }, (_, month) => ({
-    label: new Date(2020, month, 1).toLocaleDateString(locale.value, { month: 'long' }),
+    label: formatDatePart(new Date(2020, month, 1), { month: 'long' }),
     value: month,
   })),
 )
@@ -62,18 +64,18 @@ const selectedYear = computed({
 })
 
 const monthYearLabel = computed(() =>
-  viewCursor.value.toLocaleDateString(locale.value, { month: 'long', year: 'numeric' }),
+  formatDatePart(viewCursor.value, { month: 'long', year: 'numeric' }),
 )
 
 const weekdayLabels = computed(() => {
-  const monday = startOfWeekMonday(new Date())
+  const first = startOfWeek(new Date(), localization.value.firstDayOfWeek)
   return Array.from({ length: 7 }, (_, i) => {
-    const d = addDays(monday, i)
-    return d.toLocaleDateString(locale.value, { weekday: 'short' })
+    const d = addDays(first, i)
+    return formatDatePart(d, { weekday: 'short' })
   })
 })
 
-const weeks = computed(() => buildMonthWeeks(viewCursor.value))
+const weeks = computed(() => buildMonthWeeks(viewCursor.value, localization.value.firstDayOfWeek))
 
 const filteredEvents = computed(() => {
   if (typeFilter.value === 'all') return props.events
@@ -98,7 +100,7 @@ const selectedEvents = computed(() => eventsByDay.value.get(selectedKey.value) |
 
 const selectedLabel = computed(() => {
   const d = parseDateKey(selectedKey.value)
-  return d.toLocaleDateString(locale.value, {
+  return formatDatePart(d, {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
@@ -230,16 +232,17 @@ function addMonths(d: Date, n: number) {
   return new Date(d.getFullYear(), d.getMonth() + n, 1)
 }
 
-function startOfWeekMonday(d: Date) {
+function startOfWeek(d: Date, firstDay: number) {
   const day = d.getDay()
-  const diff = day === 0 ? -6 : 1 - day
+  const normalizedFirstDay = Math.min(6, Math.max(0, Number(firstDay) || 0))
+  const diff = -((day - normalizedFirstDay + 7) % 7)
   return addDays(new Date(d.getFullYear(), d.getMonth(), d.getDate()), diff)
 }
 
-function buildMonthWeeks(monthStart: Date) {
-  const first = startOfWeekMonday(monthStart)
+function buildMonthWeeks(monthStart: Date, firstDay: number) {
+  const first = startOfWeek(monthStart, firstDay)
   const lastDay = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0)
-  const end = addDays(startOfWeekMonday(lastDay), 6)
+  const end = addDays(startOfWeek(lastDay, firstDay), 6)
   const weeks: Date[][] = []
   let cursor = first
   while (cursor.getTime() <= end.getTime()) {

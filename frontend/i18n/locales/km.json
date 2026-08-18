@@ -185,6 +185,7 @@
       "photoRemoveFailedDesc": "សូមព្យាយាមម្តងទៀតក្នុងពេលក្រោយ។"
     },
     "common": {
+      "ok": "យល់ព្រម",
       "confirmTitle": "បញ្ជាក់",
       "confirm": "បញ្ជាក់",
       "cancel": "បោះបង់",
@@ -452,9 +453,12 @@
       "defaultPageSize": "ទំហំទំព័រលំនាំដើម",
       "defaultRecordView": "ទិដ្ឋភាពកំណត់ត្រាលំនាំដើម",
       "defaultLanguage": "ភាសាលំនាំដើម",
+      "availableLanguages": "ភាសាដែលអាចប្រើបាន",
       "timezone": "ម៉ោងតំបន់",
       "dateFormat": "ទម្រង់កាលបរិច្ឆេទ",
       "timeFormat": "ទម្រង់ម៉ោង",
+      "firstDayOfWeek": "ថ្ងៃដំបូងនៃសប្តាហ៍",
+      "numberFormat": "ទម្រង់លេខ",
       "currency": "រូបិយប័ណ្ណ",
       "locale": "តំបន់ភាសា",
       "enableEmail": "បើកអ៊ីមែល",
@@ -562,6 +566,7 @@
       "pending": "រង់ចាំ",
       "completed": "បានបញ្ចប់",
       "archived": "ទុកក្នុងប័ណ្ណសារ",
+      "deleted": "លុប",
       "disabled": "បិទ",
       "failed": "បរាជ័យ"
     },
@@ -738,20 +743,13 @@
         "alignLeft": "ឆ្វេង",
         "alignCenter": "កណ្តាល",
         "alignRight": "ស្តាំ",
-        "alignJustify": "ស្មើ",
-        "table": "តារាង",
-        "insertTable": "បញ្ចូលតារាង",
-        "addColumnBefore": "បន្ថែមជួរឈរមុន",
-        "addColumnAfter": "បន្ថែមជួរឈរក្រោយ",
-        "deleteColumn": "លុបជួរឈរ",
-        "addRowBefore": "បន្ថែមជួរដេកមុន",
-        "addRowAfter": "បន្ថែមជួរដេកក្រោយ",
-        "deleteRow": "លុបជួរដេក",
-        "deleteTable": "លុបតារាង"
+        "alignJustify": "ស្មើ"
       }
     },
     "fields": {
       "number": "ល.រ.",
+      "mentionSearchMore": "វាយ {'@'} ដើម្បីបន្ថែមទៀត...",
+      "mentionAdd": "បន្ថែម {name}",
       "title": "ចំណងជើង",
       "name": "ឈ្មោះ",
       "label": "ស្លាក",
@@ -962,6 +960,8 @@
       "actions": {
         "view": "មើល",
         "edit": "កែប្រែ",
+        "archive": "ដាក់ក្នុងប័ណ្ណសារ",
+        "restore": "ស្ដារឡើងវិញ",
         "assign": "ចាត់តាំង",
         "comment": "មតិយោបល់",
         "transition": "ប្តូរដំណាក់កាល",
@@ -971,6 +971,7 @@
         "write": "សរសេរ",
         "create": "បង្កើត",
         "delete": "លុប",
+        "purge": "លុបជាអចិន្ត្រៃយ៍",
         "print": "បោះពុម្ព",
         "email": "អ៊ីមែល",
         "report": "រាយការណ៍",
@@ -985,7 +986,16 @@
       "emptyColumn": "គ្មានកាតក្នុងដំណាក់កាលនេះ",
       "notFound": "រកមិនឃើញឯកសារ",
       "noAttachments": "មិនទាន់មានឯកសារភ្ជាប់",
-      "loadFailed": "មិនអាចផ្ទុកទិន្នន័យបាន"
+      "loadFailed": "មិនអាចផ្ទុកទិន្នន័យបាន",
+      "accessDeniedTitle": "មិនអាចចូលប្រើបាន",
+      "accessDeniedDescription": "គណនីរបស់អ្នកមិនមានសិទ្ធិបើកទំព័រនេះ ឬអនុវត្តសកម្មភាពនេះទេ។",
+      "sessionExpiredTitle": "សម័យបានផុតកំណត់",
+      "sessionExpiredDescription": "សម័យរបស់អ្នកបានផុតកំណត់។ សូមចូលម្តងទៀតដើម្បីបន្ត។",
+      "signInAgain": "ចូលម្តងទៀត",
+      "requestedPage": "ទំព័រដែលបានស្នើ",
+      "requiredPermission": "សិទ្ធិដែលត្រូវការ",
+      "goBack": "ត្រឡប់ក្រោយ",
+      "uploadPermissionRequired": "អ្នកអាចមើលឯកសារដែលបានផ្ទុកឡើង ប៉ុន្តែតួនាទីរបស់អ្នកមិនអាចផ្ទុកឡើង ឬលុបឯកសារបានទេ។"
     },
     "exportDialog": {
       "title": "នាំចេញទិន្នន័យ",

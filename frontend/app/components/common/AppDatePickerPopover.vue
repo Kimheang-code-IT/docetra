@@ -5,7 +5,6 @@ import type { DatePickerGranularity } from '~/utils/date-picker'
 import {
   isDateTimeGranularity,
   mergeDateWithTime,
-  serializePickerValue,
   toCalendarDate,
 } from '~/utils/date-picker'
 

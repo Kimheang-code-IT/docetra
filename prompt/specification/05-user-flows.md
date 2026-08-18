@@ -88,7 +88,7 @@ The exact transition rules may differ by record type.
 4. User optionally adds meeting topics as linked records or structured sub-items.
 5. A meeting can be dragged into a meeting-topic container. Once linked there, it is removed from the standalone board or list and shown only inside the topic container.
 6. The meeting-topic container displays its child meetings in a vertical list following the configured ordering rule.
-7. Completed or finalized meetings move into history view.
+7. Past or archived meetings appear in history view. `completed` is not a lifecycle status; configured final workflow stages remain separate from `active | archived | deleted`.
 8. Meeting history remains available for review.
 
 ## Document flow

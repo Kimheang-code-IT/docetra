@@ -72,11 +72,9 @@ const statusFilter: FilterDef = {
   labelKey: 'docetra.fields.status',
   type: 'multiselect',
   options: [
-    { label: 'Draft', value: 'draft', labelKey: 'docetra.status.draft' },
     { label: 'Active', value: 'active', labelKey: 'docetra.status.active' },
-    { label: 'Pending', value: 'pending', labelKey: 'docetra.status.pending' },
-    { label: 'Completed', value: 'completed', labelKey: 'docetra.status.completed' },
     { label: 'Archived', value: 'archived', labelKey: 'docetra.status.archived' },
+    { label: 'Delete', value: 'deleted', labelKey: 'docetra.status.deleted' },
   ],
 }
 
@@ -133,9 +131,9 @@ function orgSelectDocumentTabs(options: { dateKey: 'receivedDate' | 'sentDate' |
     {
       key: 'officeInCharge',
       labelKey: 'docetra.fields.involvedOffice',
-      type: 'select',
+      type: 'multiselect',
       optionsEndpoint: `${ApiEndpoints.DEPARTMENTS}/options?valueField=name`,
-      placeholder: 'Choose option ...',
+      placeholder: 'Type @ or a department name ...',
     },
     {
       key: 'involvedOfficers',
@@ -275,9 +273,28 @@ export const entityConfigs: Record<string, EntityConfig> = {
       },
       { key: 'meetingUrl', labelKey: 'docetra.fields.meetingUrl', type: 'url' },
       { key: 'location', labelKey: 'docetra.fields.location', type: 'text' },
-      { key: 'participants', labelKey: 'docetra.fields.participants', type: 'csv-list', colSpan: 2 },
-      { key: 'internalUnits', labelKey: 'docetra.fields.internalUnits', type: 'csv-list' },
-      { key: 'externalUnits', labelKey: 'docetra.fields.externalUnits', type: 'csv-list' },
+      {
+        key: 'participants',
+        labelKey: 'docetra.fields.participants',
+        type: 'multiselect',
+        optionsEndpoint: `${ApiEndpoints.OFFICERS}/options?valueField=name`,
+        placeholder: 'Type @ or an officer name ...',
+        colSpan: 2,
+      },
+      {
+        key: 'internalUnits',
+        labelKey: 'docetra.fields.internalUnits',
+        type: 'multiselect',
+        optionsEndpoint: `${ApiEndpoints.DEPARTMENTS}/options?valueField=name`,
+        placeholder: 'Type @ or a department name ...',
+      },
+      {
+        key: 'externalUnits',
+        labelKey: 'docetra.fields.externalUnits',
+        type: 'multiselect',
+        optionsEndpoint: `${ApiEndpoints.COMPANIES}/options?valueField=name`,
+        placeholder: 'Type @ or a company name ...',
+      },
       { key: 'tags', labelKey: 'docetra.fields.recordTag', type: 'csv-list', colSpan: 2 },
     ]),
   },
@@ -757,7 +774,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
     views: ['table'],
     defaultView: 'table',
     canCreate: true,
-    canComment: false,
+    canComment: true,
     document: { wide: true, metaRail: false },
     titleField: 'name',
     columns: [
@@ -810,7 +827,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
     views: ['table'],
     defaultView: 'table',
     canCreate: true,
-    canComment: false,
+    canComment: true,
     document: { wide: true, metaRail: false },
     titleField: 'name',
     columns: [

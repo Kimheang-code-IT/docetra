@@ -35,11 +35,12 @@ Single document GET/PUT; optional reset to defaults.
 
 | Tab | Backend sections |
 | --- | --- |
-| General | Locale defaults, feature flags |
+| General | Language, locale, timezone, formatting defaults, feature flags |
 | Email | SMTP settings, connection status, last test |
-| Telegram | Bot token (masked), webhook, test |
+| Telegram | Separate Meeting Bot and Development Bot configured/masked status, allowlists, event policy, connection tests |
 | System | Read-only mode, default page size, env info |
 | Display | `cardFields`, `cardFooterAlign` per entity key |
+| Google (future) | Independently enabled Sign-In, Calendar, Drive, and Gmail capability status; approved domains/resources; safe connection health |
 
 **Display settings** feed board UIs:
 
@@ -47,6 +48,10 @@ Single document GET/PUT; optional reset to defaults.
 - `incomingDocuments`, `outgoingDocuments`, `documents`, `masterListRequests`
 
 Frontend cache: `useCardFields` + `invalidateCardFieldsCache()` after save.
+
+**Localization fields are an app-wide contract:** `defaultLanguage`, `availableLanguages`, `locale`, IANA `timezone`, `dateFormat`, `timeFormat`, `firstDayOfWeek`, `numberFormat`, and `currency`. The backend validates supported locale/timezone identifiers and returns UTC ISO 8601 timestamps; the frontend formats them at the display boundary. Pages must not hard-code these values.
+
+**Meeting scheduler settings:** `meetingReminderOffsetsMinutes`, `meetingRecurrenceHorizonDays`, and the imminent-display threshold are validated App Config values consumed by the APScheduler service. Scheduler engine/timezone/misfire/concurrency settings remain deployment configuration and are not editable from ordinary application settings.
 
 ### Storage providers
 
@@ -75,6 +80,17 @@ Frontend cache: `useCardFields` + `invalidateCardFieldsCache()` after save.
 3. **Test connection** endpoints (email/telegram) — side effect only, no full save required.
 4. On display tab save → boards refresh card layout (client invalidates cache).
 
+### Configure notification routing
+
+1. An administrator configures Meeting Bot and Development Bot independently; secret values are write-only.
+2. The backend verifies a Telegram group and adds it to the correct bot's destination allowlist.
+3. The administrator maps meeting events to user groups and technical/version events to private IT groups.
+4. A meeting editor may choose only approved destinations within their organization/department scope.
+5. Each user may customize permitted channels, reminder offsets, quiet hours, timezone, and language without changing organization-wide routing.
+6. Saving invalidates the notification-config cache and writes immutable activity; workers consume the new version without restart.
+
+Google Workspace is configured as a separate future integration surface. App Config stores only non-secret policy and masked connection status; OAuth credentials and tokens remain encrypted on the backend. Follow `../05-google-workspace-integration.md` for connect/revoke, Calendar, Drive, Gmail, scope, queue, and audit behavior.
+
 ### Storage provider lifecycle
 
 ```text
@@ -95,8 +111,12 @@ Upload modules resolve default provider id on each upload
 | PUT/PATCH | `/api/v2/settings/app-config` | Update |
 | POST | `/api/v2/settings/app-config/email/test-connection` | SMTP test |
 | POST | `/api/v2/settings/app-config/email/send-test` | Send test mail |
-| POST | `/api/v2/settings/app-config/telegram/test-connection` | Bot test |
-| POST | `/api/v2/settings/app-config/telegram/send-test` | Send test message |
+| POST | `/api/v2/settings/app-config/telegram/meeting/test-connection` | Meeting Bot connectivity/identity test |
+| POST | `/api/v2/settings/app-config/telegram/meeting/send-test` | Send to an allowlisted Meeting Bot test chat |
+| POST | `/api/v2/settings/app-config/telegram/devops/test-connection` | Development Bot connectivity/identity test |
+| POST | `/api/v2/settings/app-config/telegram/devops/send-test` | Send to an allowlisted private development chat |
+| GET/POST/PATCH | `/api/v2/settings/app-config/telegram/{meeting|devops}/destinations[/{id}]` | Manage verified group allowlists and routing policy |
+| GET/PATCH | `/api/v2/users/me/notification-preferences` | Read/update the signed-in user's allowed notification preferences |
 | GET | `/api/v2/settings/storage` | List providers |
 | GET/PATCH | `/api/v2/settings/storage/{id}` | Detail/update |
 | POST | `/api/v2/settings/storage/{id}/test-connection` | Provider test |
@@ -112,6 +132,7 @@ Upload modules resolve default provider id on each upload
 | Secrets | Write-only fields; GET returns `***` or omit |
 | Permissions | Separate view vs edit for settings |
 | Test endpoints | Rate limited; no arbitrary recipient without permission |
+| Bot isolation | Meeting and Development bots use separate secrets, allowlists, routes, and audit events |
 | Configure actions | Reset, connection tests, set-default, and provider activation require `.configure` |
 | Images | Detect and allow safe raster content; do not trust file extension or browser MIME; reject active SVG for inline branding previews |
 | Read-only mode | System tab flag blocks mutating APIs globally (503 or 403) |
@@ -124,6 +145,7 @@ Upload modules resolve default provider id on each upload
 | --- | --- |
 | `settings.app_info.view` / `.edit` / `.configure` | Read/update/reset app info |
 | `settings.app_config.view` / `.edit` / `.configure` | Read/update/test app config connections |
+| `users.notification_preferences.view` / `.edit` | Read/update personal channels, reminders, quiet hours, timezone, and language |
 | `settings.storage.view` / `.edit` / `.configure` | Read/update/test/default storage providers |
 
 ---
@@ -153,6 +175,7 @@ Upload modules resolve default provider id on each upload
 | Only one default provider | Enforced on set-default |
 | Deactivate default provider | 422 unless new default set |
 | Invalid card field slot name | 422 against allowed catalog |
+| Invalid locale, format, or IANA timezone | 422 with field error |
 
 ---
 
@@ -162,6 +185,7 @@ Upload modules resolve default provider id on each upload
 | --- | --- |
 | `display.cardFields` | Meeting & record boards (Incoming/Outgoing/Document slots include `documentType`, office, officers, external units) |
 | `general.defaultPageSize` | List default limit; UI also offers **All** (`limit=all`, capped server-side) |
+| General localization fields | Every date, time, number, currency, translated label, and calendar control |
 | `system.readOnlyMode` | Write API guard |
 | Storage default | Portal upload, attachments, Drive sync |
 

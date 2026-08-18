@@ -66,9 +66,9 @@ export interface RecordDocument extends BaseEntity {
   documentType?: string
   involvedOfficers?: string[]
   externalUnits?: string[]
-  /** Department id (Involved Office) on Incoming Document forms. */
-  officeInCharge?: string
-  officerInCharge?: string
+  /** Assigned department names; multiple departments are supported. */
+  officeInCharge?: string[]
+  officerInCharge?: string | string[]
   /** Record business timestamp (`record_time`). */
   recordTime?: string
   ownerDepartment?: OrganizationSummary

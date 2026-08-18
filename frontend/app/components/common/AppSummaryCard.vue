@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useAppLocalization } from '~/composables/settings/useAppLocalization'
+
 /**
  * Reusable dashboard / report summary metric card.
  * Matches compact title + value + overflow menu pattern.
@@ -32,6 +34,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { formatNumber } = useAppLocalization()
 
 const displayValue = computed(() => {
   const raw = props.value
@@ -40,11 +43,11 @@ const displayValue = computed(() => {
   if (typeof raw === 'number' || (typeof raw === 'string' && raw.trim() !== '' && !Number.isNaN(num))) {
     if (Number.isNaN(num)) return '—'
     const formatted = props.decimals != null
-      ? num.toLocaleString(undefined, {
+      ? formatNumber(num, {
           minimumFractionDigits: props.decimals,
           maximumFractionDigits: props.decimals,
         })
-      : num.toLocaleString()
+      : formatNumber(num)
     return `${props.prefix}${formatted}${props.suffix}`
   }
   return `${props.prefix}${raw}${props.suffix}`

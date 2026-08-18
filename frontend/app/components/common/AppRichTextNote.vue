@@ -28,7 +28,6 @@ const extensions = shallowRef<Extensions>([])
 const ready = ref(false)
 const bootError = ref<string | null>(null)
 const mountKey = ref(0)
-const enableTables = ref(false)
 
 const ZOOM_STEPS = [50, 75, 100, 125, 150, 175, 200] as const
 type ZoomLevel = (typeof ZOOM_STEPS)[number]
@@ -94,55 +93,6 @@ const handlers = {
       applyCase(editor, item?.case || 'title'),
     isActive: () => false,
     isDisabled: (editor: Editor) => editor.state.selection.empty || !editor.isEditable,
-  },
-  insertTable: {
-    canExecute: (editor: Editor) => editor.can().insertTable?.({ rows: 3, cols: 3, withHeaderRow: true }) ?? false,
-    execute: (editor: Editor) =>
-      editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }),
-    isActive: (editor: Editor) => editor.isActive('table'),
-    isDisabled: (editor: Editor) => !editor.isEditable || !editor.can().insertTable?.({ rows: 3, cols: 3, withHeaderRow: true }),
-  },
-  addColumnBefore: {
-    canExecute: (editor: Editor) => editor.can().addColumnBefore?.() ?? false,
-    execute: (editor: Editor) => editor.chain().focus().addColumnBefore(),
-    isActive: () => false,
-    isDisabled: (editor: Editor) => !(editor.can().addColumnBefore?.() ?? false),
-  },
-  addColumnAfter: {
-    canExecute: (editor: Editor) => editor.can().addColumnAfter?.() ?? false,
-    execute: (editor: Editor) => editor.chain().focus().addColumnAfter(),
-    isActive: () => false,
-    isDisabled: (editor: Editor) => !(editor.can().addColumnAfter?.() ?? false),
-  },
-  deleteColumn: {
-    canExecute: (editor: Editor) => editor.can().deleteColumn?.() ?? false,
-    execute: (editor: Editor) => editor.chain().focus().deleteColumn(),
-    isActive: () => false,
-    isDisabled: (editor: Editor) => !(editor.can().deleteColumn?.() ?? false),
-  },
-  addRowBefore: {
-    canExecute: (editor: Editor) => editor.can().addRowBefore?.() ?? false,
-    execute: (editor: Editor) => editor.chain().focus().addRowBefore(),
-    isActive: () => false,
-    isDisabled: (editor: Editor) => !(editor.can().addRowBefore?.() ?? false),
-  },
-  addRowAfter: {
-    canExecute: (editor: Editor) => editor.can().addRowAfter?.() ?? false,
-    execute: (editor: Editor) => editor.chain().focus().addRowAfter(),
-    isActive: () => false,
-    isDisabled: (editor: Editor) => !(editor.can().addRowAfter?.() ?? false),
-  },
-  deleteRow: {
-    canExecute: (editor: Editor) => editor.can().deleteRow?.() ?? false,
-    execute: (editor: Editor) => editor.chain().focus().deleteRow(),
-    isActive: () => false,
-    isDisabled: (editor: Editor) => !(editor.can().deleteRow?.() ?? false),
-  },
-  deleteTable: {
-    canExecute: (editor: Editor) => editor.can().deleteTable?.() ?? false,
-    execute: (editor: Editor) => editor.chain().focus().deleteTable(),
-    isActive: () => false,
-    isDisabled: (editor: Editor) => !(editor.can().deleteTable?.() ?? false),
   },
 } satisfies EditorCustomHandlers
 
@@ -248,26 +198,6 @@ const items = computed<EditorToolbarItem<typeof handlers>[][]>(() => {
     ],
   ]
 
-  if (enableTables.value) {
-    base.push([
-      {
-        icon: 'i-lucide-table',
-        tooltip: { text: t('docetra.meetingNotes.toolbar.table') },
-        content: { align: 'start' },
-        items: [
-          { kind: 'insertTable', icon: 'i-lucide-table', label: t('docetra.meetingNotes.toolbar.insertTable') },
-          { kind: 'addColumnBefore', icon: 'i-lucide-between-vertical-start', label: t('docetra.meetingNotes.toolbar.addColumnBefore') },
-          { kind: 'addColumnAfter', icon: 'i-lucide-between-vertical-end', label: t('docetra.meetingNotes.toolbar.addColumnAfter') },
-          { kind: 'deleteColumn', icon: 'i-lucide-columns-2', label: t('docetra.meetingNotes.toolbar.deleteColumn') },
-          { kind: 'addRowBefore', icon: 'i-lucide-between-horizontal-start', label: t('docetra.meetingNotes.toolbar.addRowBefore') },
-          { kind: 'addRowAfter', icon: 'i-lucide-between-horizontal-end', label: t('docetra.meetingNotes.toolbar.addRowAfter') },
-          { kind: 'deleteRow', icon: 'i-lucide-rows-2', label: t('docetra.meetingNotes.toolbar.deleteRow') },
-          { kind: 'deleteTable', icon: 'i-lucide-trash-2', label: t('docetra.meetingNotes.toolbar.deleteTable') },
-        ],
-      },
-    ])
-  }
-
   return base
 })
 
@@ -316,10 +246,7 @@ function onEditorCreate({ editor }: { editor: unknown }) {
 
 onMounted(() => {
   try {
-    // Keep tables off until core editor is stable in the modal.
-    // TableKit previously caused blank UEditor (duplicate cell selection plugin).
     extensions.value = createRichNoteExtensions()
-    enableTables.value = false
     mountKey.value += 1
     ready.value = true
   }
@@ -480,50 +407,4 @@ onMounted(() => {
   border-radius: 0.375rem;
 }
 
-.rich-note :deep(table.rich-note-table),
-.rich-note :deep(.ProseMirror table) {
-  border-collapse: collapse;
-  table-layout: fixed;
-  width: 100%;
-  margin: 0.75rem 0;
-  overflow: hidden;
-}
-
-.rich-note :deep(.ProseMirror td),
-.rich-note :deep(.ProseMirror th) {
-  border: 1px solid var(--ui-border);
-  min-width: 2.5rem;
-  padding: 0.4rem 0.55rem;
-  vertical-align: top;
-  position: relative;
-  box-sizing: border-box;
-}
-
-.rich-note :deep(.ProseMirror th) {
-  background: var(--ui-bg-elevated);
-  font-weight: 600;
-}
-
-.rich-note :deep(.ProseMirror .selectedCell::after) {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: color-mix(in oklab, var(--ui-primary) 12%, transparent);
-  pointer-events: none;
-  z-index: 2;
-}
-
-.rich-note :deep(.ProseMirror .column-resize-handle) {
-  position: absolute;
-  right: -2px;
-  top: 0;
-  bottom: -2px;
-  width: 4px;
-  background-color: var(--ui-primary);
-  pointer-events: none;
-}
-
-.rich-note :deep(.ProseMirror.resize-cursor) {
-  cursor: col-resize;
-}
 </style>

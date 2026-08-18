@@ -1,10 +1,12 @@
 import { defineStore } from 'pinia'
 import { computed } from 'vue'
 import type { AppFontSize } from '~/types/docetra/settings'
+import { useAppLocalization } from '~/composables/settings/useAppLocalization'
 
 const THEME_PRIMARY_KEY = 'ui:theme:primary'
 const THEME_NEUTRAL_KEY = 'ui:theme:neutral'
 const LOCALE_KEY = 'ui:locale'
+const LOCALE_EXPLICIT_KEY = 'ui:locale:explicit'
 const FONT_SIZE_KEY = 'ui:font-size'
 
 export type AppLocale = 'en' | 'km'
@@ -32,11 +34,17 @@ function normalizeFontSize(value: string | null | undefined): AppFontSize {
 export const usePreferencesStore = defineStore('preferences', () => {
   const appConfig = useAppConfig()
   const i18n = useI18n()
+  const appLocalization = useAppLocalization()
 
   const isThemeLoaded = useState('ui-theme-loaded', () => false)
   const isLocaleLoaded = useState('ui-locale-loaded', () => false)
   const isFontSizeLoaded = useState('ui-font-size-loaded', () => false)
   const fontSize = useState<AppFontSize>('ui-font-size', () => DEFAULT_FONT_SIZE)
+  const availableLocales = computed<AppLocale[]>(() => {
+    const configured = appLocalization.localization.value.availableLanguages
+      .filter((code): code is AppLocale => code === 'en' || code === 'km')
+    return configured.length ? configured : ['en', 'km']
+  })
 
   const uiColors = computed<UiColorConfig>(() =>
     ((appConfig.ui as { colors?: UiColorConfig }).colors ?? {}),
@@ -94,30 +102,50 @@ export const usePreferencesStore = defineStore('preferences', () => {
     applyFontSizeToDom(next)
   }
 
-  function loadLocaleFromLocal() {
+  async function loadLocaleFromLocal() {
     if (typeof window === 'undefined') return
+    await appLocalization.load()
     const savedLocale = localStorage.getItem(LOCALE_KEY)
-    if (savedLocale === 'en' || savedLocale === 'km') {
+    const isExplicit = localStorage.getItem(LOCALE_EXPLICIT_KEY) === '1'
+    if (isExplicit && (savedLocale === 'en' || savedLocale === 'km') && availableLocales.value.includes(savedLocale)) {
       void i18n.setLocale(savedLocale)
       return
     }
-    localStorage.setItem(LOCALE_KEY, 'en')
-    void i18n.setLocale('en')
+    const configured = appLocalization.localization.value.defaultLanguage
+    void i18n.setLocale(configured === 'km' ? 'km' : 'en')
   }
 
   function setLocale(code: AppLocale) {
-    if (import.meta.client) localStorage.setItem(LOCALE_KEY, code)
-    void i18n.setLocale(code)
+    const next = availableLocales.value.includes(code)
+      ? code
+      : (availableLocales.value.includes(appLocalization.localization.value.defaultLanguage)
+          ? appLocalization.localization.value.defaultLanguage
+          : availableLocales.value[0]!)
+    if (import.meta.client) {
+      localStorage.setItem(LOCALE_KEY, next)
+      localStorage.setItem(LOCALE_EXPLICIT_KEY, '1')
+    }
+    void i18n.setLocale(next)
   }
 
-  function hydrate() {
+  function syncLocaleWithConfig() {
+    const current = i18n.locale.value as AppLocale
+    if (availableLocales.value.includes(current)) return
+    const next = availableLocales.value.includes(appLocalization.localization.value.defaultLanguage)
+      ? appLocalization.localization.value.defaultLanguage
+      : availableLocales.value[0]!
+    if (import.meta.client) localStorage.removeItem(LOCALE_EXPLICIT_KEY)
+    void i18n.setLocale(next)
+  }
+
+  async function hydrate() {
     if (!import.meta.client) return
     if (!isThemeLoaded.value) {
       loadThemeFromLocal()
       isThemeLoaded.value = true
     }
     if (!isLocaleLoaded.value) {
-      loadLocaleFromLocal()
+      await loadLocaleFromLocal()
       isLocaleLoaded.value = true
     }
     if (!isFontSizeLoaded.value) {
@@ -129,10 +157,12 @@ export const usePreferencesStore = defineStore('preferences', () => {
   return {
     uiColors,
     fontSize,
+    availableLocales,
     fontSizePx: FONT_SIZE_PX,
     hydrate,
     applyThemeColor,
     setLocale,
+    syncLocaleWithConfig,
     setFontSize,
   }
 })

@@ -2,6 +2,8 @@ import { useAuthStore } from '~/stores/auth'
 import { ref } from 'vue'
 import type { TableQueryParams } from '~/types/api'
 import { compactQuery } from '~/utils/api/query'
+import { useAccessAlert } from '~/composables/common/useAccessAlert'
+import { csrfRequestHeaders } from '~/utils/security/csrf'
 
 type ApiRequestOptions = {
     method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'
@@ -9,6 +11,7 @@ type ApiRequestOptions = {
     body?: Record<string, any> | BodyInit | null
     query?: Record<string, any> | TableQueryParams
     suppressErrorToast?: boolean
+    suppressAccessAlert?: boolean
     requestKey?: string
     cancelPrevious?: boolean
 }
@@ -36,13 +39,15 @@ const requestControllers = new Map<string, AbortController>()
  */
 export function useApi() {
     const toast = useToast()
+    const { showPermissionDenied, showSessionExpired } = useAccessAlert()
     const { t } = useI18n()
+    const route = useRoute()
     const config = useRuntimeConfig()
-    const pending = ref(false)
+    const activeRequests = ref(0)
+    const pending = computed(() => activeRequests.value > 0)
     const error = ref<string | null>(null)
 
-    // Base URL from nuxt.config (fallback to localhost for dev)
-    const baseURL = config.public.apiBase || 'http://localhost:8000/api'
+    const baseURL = String(config.public.apiBase)
 
     function getRequestKey(url: string, options: ApiRequestOptions): string {
         return options.requestKey || `${options.method || 'GET'}:${url}`
@@ -71,23 +76,51 @@ export function useApi() {
 
         const controller = new AbortController()
         requestControllers.set(requestKey, controller)
+        let handledAccessError = false
 
         try {
-            pending.value = true
+            activeRequests.value += 1
             error.value = null
+            const method = options.method || 'GET'
+            const cookieAuth = config.public.authMode === 'cookie' && config.public.useMockData === false
             return await $fetch<T>(url, {
                 baseURL,
                 ...options,
+                method,
                 query: compactQuery(options.query),
                 signal: controller.signal,
+                timeout: Number(config.public.apiTimeoutMs) || 30000,
+                credentials: cookieAuth ? 'include' : 'same-origin',
                 headers: {
-                    ...(authStore.token ? { Authorization: `Bearer ${authStore.token}` } : {}),
+                    'X-Requested-With': 'XMLHttpRequest',
+                    ...(!cookieAuth && authStore.token ? { Authorization: `Bearer ${authStore.token}` } : {}),
+                    ...csrfRequestHeaders(
+                        method,
+                        String(config.public.csrfCookieName),
+                        String(config.public.csrfHeaderName),
+                    ),
                     ...options.headers,
                 },
                 onResponseError({ response }) {
-                    // Critical: Auto-logout on unauthorized
                     if (response.status === 401) {
-                        authStore.logout()
+                        handledAccessError = true
+                        authStore.clearSession()
+                        if (!options.suppressAccessAlert) {
+                            showSessionExpired()
+                            void navigateTo('/auth/login')
+                        }
+                        return
+                    }
+
+                    if (response.status === 403) {
+                        handledAccessError = true
+                        if (!options.suppressAccessAlert) {
+                            showPermissionDenied({
+                                requestedPath: route.fullPath,
+                                description: response._data?.message,
+                            })
+                        }
+                        return
                     }
 
                     if (!options.suppressErrorToast) {
@@ -109,7 +142,7 @@ export function useApi() {
 
             error.value = fetchError?.message || t('api.requestFailed')
 
-            if (fetchError.name === 'FetchError' && !options.suppressErrorToast) {
+            if (fetchError.name === 'FetchError' && !handledAccessError && !options.suppressErrorToast) {
                 toast.add({
                     title: t('api.connectionErrorTitle'),
                     description: t('api.connectionErrorDescription'),
@@ -123,7 +156,7 @@ export function useApi() {
             if (requestControllers.get(requestKey) === controller) {
                 requestControllers.delete(requestKey)
             }
-            pending.value = false
+            activeRequests.value = Math.max(0, activeRequests.value - 1)
         }
     }
 

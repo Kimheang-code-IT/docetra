@@ -39,7 +39,7 @@ Both entities map to `record` (+ `record_detail`, attachments, links) with fixed
 | --- | --- | --- |
 | `id` | record id | Stable UUID |
 | `title` | record.title | Required |
-| `status`, `stage` | record | Workflow as configured for type |
+| `status`, `stage` | record | Lifecycle is only `active | archived | deleted`; configured workflow stage is separate |
 | `description` | record_content or detail | Optional summary |
 | `record_time` | record | Optional business time for search/timeline; **not shown as a date on Topic rail UI** |
 | `child_meeting_count` | denormalized or computed | Count of linked meetings |
@@ -69,6 +69,8 @@ Topics do **not** require `meetingDate` for the Topic board left rail.
 | Attachments | record_attachment | Files + Drive references (§7) |
 
 Core record columns (`status`, `stage`, `record_tag`, `record_time`) remain available for cards and search.
+
+Participant/assignee fields use arrays of `{ id, label, type }` references (`officer`, `department`, or `company`) and share the mention-search contract in `../00-integration-contract.md`. One selection and many selections use the same payload shape.
 
 ---
 
@@ -177,12 +179,7 @@ Supported frequencies (minimum): `daily`, `weekly`, `monthly`. Exactly one of `u
 
 ### 5.2 Occurrence materialization
 
-Choose one strategy (document in implementation plan):
-
-- **A — Expand on write:** job creates future `meeting` rows (e.g. next 90 days) with same `series_id`, distinct `meeting_date`, shared notes template optional.
-- **B — Expand on read:** store rule only; list endpoint expands virtual occurrences (harder for notes/attachments per instance).
-
-**Recommendation:** **A** for Docetra (each occurrence is a real record with its own notes, attachments, and stage).
+Docetra uses **expand on write**: APScheduler publishes the recurrence-expansion job, and a RabbitMQ worker creates meeting rows for the next configured horizon (default 90 days). Each occurrence is a real record with its own notes, attachments, stage, date, and stable occurrence ID. Expand-on-read virtual occurrences are not used.
 
 ### 5.3 Editing series
 
@@ -190,7 +187,7 @@ Choose one strategy (document in implementation plan):
 - Edit **all future** → update rule + regenerate from cutoff date (job).
 - Delete occurrence vs delete series — separate APIs with confirm semantics.
 
-Background job: `meeting_recurrence_expander` (cron) maintains rolling window of future instances.
+Required engine: APScheduler owns the `meeting_recurrence_expander` interval/cron schedule and publishes due work to RabbitMQ. It also owns one-off meeting reminders and start/end events. Full behavior is defined in `../02-meeting-scheduler.md`.
 
 ---
 
@@ -304,6 +301,11 @@ Under `/api/v2`, names align with REST conventions in `06-api-contracts.md`.
 | POST | `/meetings/{id}/attachments/link` | Link Drive / existing file |
 | POST | `/meetings/{id}/recurrence` | Define or update series |
 | DELETE | `/meetings/{id}/recurrence` | Cancel series (policy: future only) |
+| DELETE | `/meeting-topics/{id}` | Permission-gated card-menu soft delete (`status=deleted`) |
+| DELETE | `/meetings/{id}` | Permission-gated card-menu soft delete (`status=deleted`) |
+| POST | `/meeting-topics/{id}/archive`, `/restore` | Owner-scoped archive/restore; deleted restore requires administrator scope |
+| POST | `/meetings/{id}/archive`, `/restore` | Archive pauses schedules; restore rebuilds eligible schedules |
+| DELETE | `/meeting-topics/{id}/purge`, `/meetings/{id}/purge` | Administrator-only permanent removal after dependency/retention checks |
 
 Generic `/records` CRUD may wrap the same logic if record type is in path: `/records?type=meeting` — pick one public shape and keep adapters stable for the frontend entity keys `meetingTopics` and `meetingHistory`.
 
@@ -319,6 +321,7 @@ Generic `/records` CRUD may wrap the same logic if record type is in path: `/rec
 | `meetings.edit` | Update meeting, notes, URL |
 | `meetings.assign_topic` | Drag-drop assign/reorder |
 | `meetings.notes.edit` | Save notes + attachments |
+| `meetings.topics.delete` / `meetings.delete` | Delete from the card `⋯` menu |
 | `portal.drive_files.view` | Pick Drive files for notes |
 
 Enforce on every mutating route; frontend hides actions but backend is source of truth.
@@ -333,6 +336,8 @@ Emit immutable activity events (for document-style timeline and record logs):
 - `meeting.topic_assigned`, `meeting.topic_unassigned`, `meeting.reordered`
 - `meeting.notes_updated`, `meeting.attachment_added`, `meeting.drive_file_linked`
 - `meeting.recurrence_updated`
+- `meeting.deleted`, `meeting_topic.deleted`
+- `meeting.archived`, `meeting.restored`, `meeting.purged`
 - `meeting.imminent` (optional, once per occurrence)
 
 ---
@@ -363,6 +368,7 @@ Emit immutable activity events (for document-style timeline and record logs):
 | Join link on card | `meeting_url`, `meeting_mode` |
 | Open notes dialog | `GET/PATCH` meeting + attachments APIs |
 | Uppy upload in notes | `POST` attachments |
+| Delete topic/meeting from `⋯` | Confirm, authorize `.delete`, soft delete, remove card, emit audit event |
 | Pick Google Drive file | `attachments/link` + Drive catalog |
 | Card slots from settings | Full field payload + app config display |
 | Create meeting | `POST /meetings` with optional `topicId` |

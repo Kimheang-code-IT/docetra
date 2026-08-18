@@ -1,170 +1,111 @@
 # Docetra v2 API Contracts
 
-## Purpose
+## Purpose and authority
 
-This document defines the API design conventions and contract expectations for Docetra v2. It is intended to keep backend and frontend implementation aligned while maintaining a clean REST-first architecture.
+This document defines the stable REST contract for Docetra v2. Module documents define resource-specific fields; `prompt/backend/00-integration-contract.md` defines the detailed implemented frontend boundary. If wording conflicts, reconcile the documents before implementation rather than silently diverging.
 
-## API principles
+## Base and transport
 
-- REST-first.
-- Versioned from the start.
-- Predictable request and response shapes.
-- Consistent error handling.
-- Server-side authorization on every protected route.
-- Minimal coupling to database structure.
-- Clear resource naming.
+- Base path: `/api/v2`.
+- JSON for normal requests and responses; multipart only for file transfer.
+- TLS is mandatory outside local development.
+- Resource names are plural and stable. Breaking changes require a new API version or a backward-compatible migration.
+- Request IDs flow through proxy, API, jobs, logs, and error responses.
 
-## Base API pattern
+## Authentication and authorization
 
-All public API endpoints should be exposed under a versioned base path such as:
+Browser authentication uses a server-side session in a `Secure`, `HttpOnly`, `SameSite` cookie.
 
-- `/api/v2`
+| Method | Path | Contract |
+| --- | --- | --- |
+| POST | `/auth/login` | Validate credentials, set session/CSRF cookies, return safe user |
+| GET | `/auth/me` | Validate session; return current user and flattened `pageAccess` capabilities |
+| POST | `/auth/logout` | Revoke session and clear cookies |
 
-The exact routing structure may vary by deployment, but versioning must remain explicit.
+The frontend includes credentials and sends `X-CSRF-Token` from the readable `XSRF-TOKEN` cookie on protected mutations. CORS uses an explicit origin allow-list and never wildcard origins with credentials. Session secrets are never returned in JSON, URLs, browser local storage, or logs.
 
-## Resource conventions
+Every protected API performs server-side capability, tenant, ownership, resource, and field checks. Frontend middleware and hidden actions are not security boundaries. `ALL_PAGES` is valid only for a trusted super-admin policy.
 
-Resources should be named using clear plural forms where appropriate.
+## Methods and mutation safety
 
-Examples:
-- `/records`
-- `/record-types`
-- `/organizations`
-- `/officers`
-- `/users`
-- `/roles`
-- `/permissions`
-- `/files`
-- `/settings`
-- `/audit-logs`
+- `GET`: read only.
+- `POST`: create or a documented non-idempotent action.
+- `PATCH`: partial update with optimistic version/ETag.
+- `DELETE`: normal UI delete, implemented as an auditable soft delete unless an endpoint explicitly says purge.
 
-## Standard HTTP methods
+Lifecycle permissions are separate: `.archive`, `.restore`, `.delete`, and `.purge`. Creator-scoped users may restore their own archived records but never purge. A soft-deleted record is recoverable only by an administrator. Permanent purge uses `DELETE /{resource}/{id}/purge`, is never creator-scoped, and enforces dependency, retention, legal-hold, and last-administrator protections.
 
-Use standard REST semantics where possible:
-- `GET` for reading.
-- `POST` for creating.
-- `PUT` or `PATCH` for updating.
-- `DELETE` for deleting or archiving when allowed.
+Use idempotency keys for retryable creates, uploads, exports, and other operations that could be duplicated. Return `409` for stale versions or uniqueness conflicts.
 
-## Response shape
+## Response envelopes
 
-Responses should be consistent across modules.
+Detail: `{ "data": { ... } }`.
 
-A recommended structure is:
-- `data` for the main payload.
-- `meta` for pagination or context.
-- `errors` for validation or business errors.
+List: `{ "data": [ ... ], "meta": { "page": 1, "limit": 20, "total": 100, "totalPages": 5 } }`.
 
-The implementation team may refine the exact schema, but it should remain stable across the API.
+Error: `{ "error": { "code": "machine_code", "message": "Safe message", "fields": {}, "requestId": "req_..." } }`.
 
-## Error handling
+Status meanings:
 
-API errors should be:
-- clear.
-- machine-readable.
-- safe for clients.
-- free from internal stack details.
+- `400` malformed request.
+- `401` missing or expired session; the client opens the session dialog.
+- `403` authenticated but forbidden; the client opens the permission dialog and does not navigate to a special page.
+- `404` missing or deliberately concealed resource.
+- `409` uniqueness, state, or optimistic-version conflict.
+- `422` typed field validation.
+- `429` rate limited.
+- `5xx` server failure without internal implementation details.
 
-Recommended categories:
-- validation error.
-- authentication error.
-- authorization error.
-- not found.
-- conflict.
-- server error.
+## Pagination, filtering, and search
 
-## Pagination and filtering
+All list and option endpoints are bounded. They consistently accept `page`, `limit`, `q`, `sort`, and documented filters; cursor pagination may replace page pagination for logs. Apply permission and tenant filters before counts and pagination. Search and AI-assisted search must never reveal redacted resources or fields.
 
-List endpoints should support:
-- pagination.
-- search terms where relevant.
-- sorting where relevant.
-- filters by type, stage, status, organization, or access scope.
+## Lifecycle and workflow
 
-Pagination behavior should be consistent across list endpoints.
+Business records, meetings/topics, and configuration/master-data cards expose only `active`, `archived`, and `deleted`. “Completed” is not a lifecycle status. Workflow uses a separate `stageId`; terminal behavior belongs to stage metadata such as `isFinal`. User-account and asynchronous-job state machines remain separate domain-specific enums.
 
-## Record APIs
+## Assignment references
 
-Record APIs should support:
-- list records.
-- create record.
-- retrieve record detail.
-- update record.
-- retrieve record history.
-- retrieve linked records.
-- manage record attachments.
-- manage record details or dynamic attributes.
+Assignee values are arrays of `{ id, label, type }`, where type is `officer`, `department`, or `company`. The server resolves labels, de-duplicates references, preserves order, validates scope, and permission-filters option search. Option endpoints accept indexed `q`, optional `type`, and bounded `limit` parameters.
 
-The exact endpoints should be defined per implementation, but the behavior must support the unified record model.
+## Resource families
 
-## Organization APIs
+- Meetings: topics, history, reorder, assignment, attachments, links, card soft delete.
+- Records: incoming, outgoing, documents, master list, dynamic details, history, links, logs, attachments.
+- Organization: departments, companies, purposes, sectors, officers, hierarchy.
+- People/access: users, roles, permission catalog, identity resolution.
+- Configuration/settings: record types, attributes, app information, localization, storage, integrations.
+- Portal/operations: uploads, Drive sync, jobs, portal/system audit logs.
+- Shared: comments, activity, attachments, exports, and permission-aware search.
 
-Organization APIs should support:
-- list organizations.
-- create organization.
-- retrieve organization detail.
-- update organization.
-- retrieve organization history.
-- manage hierarchy and relationships.
+## Localization and time
 
-## People and access APIs
+App configuration supplies language, locale, IANA timezone, date/time formats, first day of week, number format, currency, page size, and card-field defaults. Store timestamps in UTC and serialize ISO 8601. Never hard-code display locale or timezone in a page or endpoint.
 
-People and access APIs should support:
-- officer management.
-- user account mapping.
-- role management.
-- permission assignment.
-- access lookup.
-- identity resolution.
+## Uploads, audit, and asynchronous work
 
-## Storage APIs
+The server enforces upload count, size, extension, detected MIME, malware scanning, tenant ownership, and storage policy. Long exports, scans, syncs, notifications, and indexing work publish durable RabbitMQ jobs and return `202` with a job ID and bounded polling contract. Consumers are idempotent because delivery is at least once; retry is bounded and exhausted work moves to a dead-letter queue. Permission, configuration, upload, archive, restore, soft delete, purge, workflow, comment, attachment, and sensitive-setting changes produce immutable activity/audit events.
 
-Storage APIs should support:
-- file upload.
-- file metadata retrieval.
-- file association with records.
-- storage sync operations where enabled.
+APScheduler is the authoritative timer engine for meetings. Meeting writes upsert or remove persistent schedules after commit; due callbacks publish RabbitMQ events. Meeting responses expose timezone, reminder offsets, next scheduled action, and operational schedule state. Browser timers are presentation-only and must never be authoritative.
 
-## Configuration APIs
+Telegram Meeting Bot, Telegram Development Bot, and email are separate provider adapters and RabbitMQ routes. Forgot-password always returns a uniform accepted response, stores only a short-lived single-use token hash, sends through the configured third-party email provider, and revokes active sessions after reset. Bot/provider secrets are never returned by APIs.
 
-Configuration APIs should support:
-- record type management.
-- record attribute management.
-- document type management.
-- application setting management.
-- setting visibility and access rules.
+Optional Google Sign-In, Calendar, Drive, and Gmail capabilities are independently enabled backend adapters. OAuth authorization-code/PKCE state is server-bound; tokens are encrypted backend-only. Calendar and Drive commands are asynchronous, idempotent, permission-checked projections through RabbitMQ, while Docetra remains the authoritative business record. Safe status/connect/revoke/sync APIs follow `prompt/backend/05-google-workspace-integration.md`.
 
-## Audit APIs
+Safe GETs may use tenant/permission-scoped Redis cache-aside reads. Frequently changing resources use the short tier; stable configuration/reference data uses the long tier. Mutations invalidate impacted cache keys after commit, with transactional-outbox events repairing other instances. Authentication/authorization truth and sensitive response bodies are never served from an unsafe shared cache.
 
-Audit APIs should support:
-- audit log listing.
-- audit log detail retrieval.
-- filtering by entity, action, actor, and date range.
+## Contract verification
 
-## Search APIs
-
-Search APIs should support:
-- global search.
-- resource-specific search.
-- permission-aware result filtering.
-
-## API version stability
-
-The v2 API should be treated as the stable contract for this rewrite. Breaking changes should be handled through explicit versioning or backward-compatible migration steps.
-
-## Implementation notes
-
-- Keep endpoint behavior consistent with role and access rules.
-- Prefer resource-oriented endpoints over action-heavy custom routes unless the business case requires otherwise.
-- Document request and response schemas for each endpoint in the module-level API docs.
-- Use contract tests to protect endpoint behavior.
+- Publish OpenAPI schemas for all non-mock endpoints.
+- Test success/error envelopes, session/CSRF behavior, capability boundaries, field redaction, lifecycle values, option scoping, and version conflicts.
+- Test cache isolation/invalidation/fallback and duplicate/retried/dead-lettered job delivery.
+- Keep frontend adapter contract tests and backend schema tests in CI.
+- Disable mock data in deployed environments.
 
 ## Related documents
 
-- `00-overview.md`
-- `01-system-architecture.md`
-- `03-functional-requirements.md`
-- `04-permissions-and-access.md`
-- `05-user-flows.md`
-- `07-data-model.md`
-- `modules/*`
+- [`01-system-architecture.md`](./01-system-architecture.md)
+- [`04-permissions-and-access.md`](./04-permissions-and-access.md)
+- [`05-user-flows.md`](./05-user-flows.md)
+- [`07-data-model.md`](./07-data-model.md)
+- [`../backend/00-integration-contract.md`](../backend/00-integration-contract.md)

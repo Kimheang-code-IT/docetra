@@ -7,6 +7,8 @@ import { useEntityWorkspace } from '~/composables/workspace/useEntityWorkspace'
 import { ApiEndpoints } from '~/utils/constants/api-endpoints'
 import { adapters } from '~/adapters'
 import { useAuthStore } from '~/stores/auth'
+import { permissionForAction } from '~/utils/role/access'
+import type { RowActionItem } from '~/types/docetra/row-actions'
 
 const config = getEntityConfig('fileUploads')
 
@@ -32,6 +34,18 @@ const { t } = useI18n()
 const { confirm } = useConfirm()
 const runtimeConfig = useRuntimeConfig()
 const authStore = useAuthStore()
+const canUpload = computed(() => authStore.canAccessPage(permissionForAction(config.permission, 'create')))
+const canDelete = computed(() => authStore.canAccessPage(permissionForAction(config.permission, 'delete')))
+const canViewLogs = computed(() => authStore.canAccessPage('records.logs.view'))
+const rowActions = computed<RowActionItem[]>(() => [
+  { key: 'detail', labelKey: 'docetra.rowActions.detail', icon: 'i-lucide-eye' },
+  ...(canViewLogs.value
+    ? [{ key: 'logs', labelKey: 'docetra.rowActions.logs', icon: 'i-lucide-scroll-text' } satisfies RowActionItem]
+    : []),
+  ...(canDelete.value
+    ? [{ key: 'delete', labelKey: 'docetra.rowActions.delete', icon: 'i-lucide-trash-2', color: 'error' } satisfies RowActionItem]
+    : []),
+])
 
 const leftCollapsed = useState('file-upload-left-collapsed', () => false)
 const mobileUploadExpanded = ref(false)
@@ -93,7 +107,7 @@ function toggleUploadPanel() {
 }
 
 async function onUploadComplete(metas: AttachmentMeta[]) {
-  if (!metas.length) return
+  if (!canUpload.value || !metas.length) return
   uploading.value = true
   try {
     if (runtimeConfig.public.useMockData !== false) {
@@ -135,7 +149,7 @@ async function onUploadComplete(metas: AttachmentMeta[]) {
 }
 
 async function onDeleteSelected(ids = selectedIds.value) {
-  if (!ids.length) return
+  if (!canDelete.value || !ids.length) return
   const ok = await confirm({ kind: 'delete', count: ids.length })
   if (!ok) return
 
@@ -166,6 +180,7 @@ function onRowAction(payload: { key: string, row: Record<string, unknown> }) {
     return
   }
   if (key === 'logs') {
+    if (!canViewLogs.value) return
     const id = String(row.id || '')
     navigateTo({
       path: '/records/record-logs',
@@ -263,6 +278,7 @@ onMounted(() => {
               <UIcon name="i-lucide-loader-circle" class="size-5 animate-spin text-primary" />
             </div>
             <LazyCommonAppUppyUploader
+              v-if="canUpload"
               class="flex h-full min-h-0 flex-col [&_.uppy-host]:min-h-0 [&_.uppy-host]:flex-1"
               entity-id="portal-file-upload"
               :endpoint="ApiEndpoints.FILE_UPLOADS"
@@ -271,10 +287,18 @@ onMounted(() => {
               :disabled="uploading"
               @complete="onUploadComplete"
             />
+            <UAlert
+              v-else
+              color="neutral"
+              variant="soft"
+              icon="i-lucide-lock-keyhole"
+              :title="$t('docetra.states.accessDeniedTitle')"
+              :description="$t('docetra.states.uploadPermissionRequired')"
+            />
           </div>
 
           <div
-            v-if="uploadPanelCollapsed"
+            v-if="uploadPanelCollapsed && canUpload"
             class="flex min-h-0 flex-1 flex-col items-center gap-1.5 p-1.5"
           >
             <UTooltip
@@ -380,9 +404,10 @@ onMounted(() => {
             :pending="pending"
             :error="error"
             :cell-value="cellValue"
-            :can-delete="true"
-            :selectable="true"
+            :can-delete="canDelete"
+            :selectable="canDelete"
             :show-meta="true"
+            :row-actions="rowActions"
             @update:page="page = $event"
             @update:limit="limit = $event"
             @update:selection="selectedIds = $event"

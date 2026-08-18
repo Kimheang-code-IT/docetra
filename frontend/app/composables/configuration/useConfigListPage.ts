@@ -5,6 +5,8 @@ import { useConfirm } from '~/composables/common/useConfirm'
 import { parsePageLimit, serializePageLimit } from '~/utils/pagination'
 import type { ExportRequest } from '~/types/docetra/export'
 import { createExportJob } from '~/adapters/exports'
+import { permissionForAction } from '~/utils/role/access'
+import { useAppLocalization } from '~/composables/settings/useAppLocalization'
 
 export const CONFIG_ROW_ACTIONS: RowActionItem[] = [
   { key: 'detail', labelKey: 'docetra.rowActions.detail', icon: 'i-lucide-eye' },
@@ -31,6 +33,7 @@ export function useConfigListPage(options: {
   descriptionKey: string
   icon: string
   routeBase: string
+  viewPermission: string
   exportResource: string
   columns: TableColumnDef[]
   load: (query: Record<string, unknown>) => Promise<{ data: Record<string, unknown>[], total: number }>
@@ -40,11 +43,18 @@ export function useConfigListPage(options: {
   setActive?: (id: string, active: boolean) => Promise<unknown>
   cellValue?: (row: Record<string, unknown>, key: string) => string
 }) {
+  const { formatDate, formatDateTime } = useAppLocalization()
   const { t } = useI18n()
   const toast = useToast()
   const router = useRouter()
   const route = useRoute()
   const { confirm, setLoading } = useConfirm()
+  const auth = useAuthStore()
+
+  const canCreate = computed(() => auth.canAccessPage(permissionForAction(options.viewPermission, 'create')))
+  const canDelete = computed(() => auth.canAccessPage(permissionForAction(options.viewPermission, 'delete')))
+  const canExport = computed(() => auth.canAccessPage(permissionForAction(options.viewPermission, 'export')))
+  const canConfigure = computed(() => auth.canAccessPage(permissionForAction(options.viewPermission, 'configure')))
 
   const q = ref(String(route.query.q || ''))
   const page = ref(Math.max(1, Number(route.query.page || 1)))
@@ -136,6 +146,7 @@ export function useConfigListPage(options: {
   }
 
   function openCreate() {
+    if (!canCreate.value) return
     void router.push(`${options.routeBase}/new`)
   }
 
@@ -148,19 +159,13 @@ export function useConfigListPage(options: {
     const value = row[key]
     if (value == null) return '—'
     if (typeof value === 'boolean') return value ? t('docetra.common.yes') : t('docetra.common.no')
-    if (key.endsWith('At') || key.includes('Date')) {
-      try {
-        return new Date(String(value)).toLocaleString()
-      }
-      catch {
-        return String(value)
-      }
-    }
+    if (key.endsWith('At') || key.includes('Date'))
+      return String(value).includes('T') ? formatDateTime(value) : formatDate(value)
     return String(value)
   }
 
   async function requestDelete(ids: string[]) {
-    if (!options.remove || !ids.length) return
+    if (!canDelete.value || !options.remove || !ids.length) return
     const ok = await confirm({ kind: 'delete', count: ids.length })
     if (!ok) return
 
@@ -183,6 +188,7 @@ export function useConfigListPage(options: {
   }
 
   async function exportData(request: ExportRequest, ids: string[] = selectedIds.value) {
+    if (!canExport.value) return
     exporting.value = true
     try {
       return await createExportJob({
@@ -205,6 +211,7 @@ export function useConfigListPage(options: {
       return
     }
     if (payload.key === 'duplicate' && options.duplicate) {
+      if (!canCreate.value) return
       try {
         const created = await options.duplicate(id) as unknown as { id?: string }
         toast.add({ title: t('docetra.common.duplicated'), color: 'success' })
@@ -217,6 +224,7 @@ export function useConfigListPage(options: {
       return
     }
     if (payload.key === 'toggleActive' && options.setActive) {
+      if (!canConfigure.value) return
       const active = String(payload.row.status) !== 'active'
       try {
         await options.setActive(id, active)
@@ -232,6 +240,7 @@ export function useConfigListPage(options: {
       return
     }
     if (payload.key === 'delete') {
+      if (!canDelete.value) return
       requestDelete([id])
     }
   }
@@ -248,7 +257,16 @@ export function useConfigListPage(options: {
     descriptionKey: options.descriptionKey,
     icon: options.icon,
     columns: options.columns,
-    rowActions: CONFIG_ROW_ACTIONS,
+    rowActions: computed(() => CONFIG_ROW_ACTIONS.filter((action) => {
+      if (action.key === 'duplicate') return canCreate.value
+      if (action.key === 'toggleActive') return canConfigure.value
+      if (action.key === 'delete') return canDelete.value
+      return true
+    })),
+    canCreate,
+    canDelete,
+    canExport,
+    canConfigure,
     q,
     page,
     limit,

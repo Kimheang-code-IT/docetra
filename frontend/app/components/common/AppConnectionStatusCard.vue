@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ConnectionStatus } from '~/types/docetra/settings'
+import { useAppLocalization } from '~/composables/settings/useAppLocalization'
 
 const props = defineProps<{
   status: ConnectionStatus
@@ -11,6 +12,7 @@ const props = defineProps<{
 }>()
 
 const { t, te } = useI18n()
+const { formatDateTime } = useAppLocalization()
 
 const titleText = computed(() => {
   if (props.title) return props.title
@@ -50,7 +52,7 @@ const statusMeta = computed(() => {
 
     <p v-if="lastTestedAt" class="text-xs text-muted">
       {{ t('docetra.connection.lastTested') }}:
-      {{ new Date(lastTestedAt).toLocaleString() }}
+      {{ formatDateTime(lastTestedAt) }}
     </p>
 
     <dl v-if="details?.length" class="grid gap-2 text-sm sm:grid-cols-2">

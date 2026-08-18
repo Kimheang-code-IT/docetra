@@ -24,14 +24,15 @@ Use only Nuxt UI components and existing project dependencies. Do not introduce 
 | Meeting topics | Topic/meeting split board (1+3); notes fullscreen dialog (TipTap 3.29 notes **3 cols** + Uppy 5 files **1 col**) | Full document page using the same record-type field resolver | Comments + activity |
 | Meeting history | Switchable server-backed **table** and **vertical timeline cards** (newest meeting first, top to bottom) | Full meeting document page | Comments + activity |
 | Organization master data | Table; hierarchy/card view where useful | Full document page | Activity; comments where collaboration helps |
-
-Department Ancestor is a self-join selector. Options are tree ordered and prefixed with one spaced `-` per user-created depth (`- Child`, `- - Sub-child`, `- - - Third level`, continuing without a fixed depth limit). Edit mode excludes the current department and its complete descendant subtree, and both frontend and API validation reject cycles.
 | Users and roles | Table | Full document page or permission editor page using the same wide content shell as Settings for add/detail/edit | Security activity; no casual comments |
+| Archive | Cross-entity table with search, type/date filters, restore, detail, and confirmed permanent deletion | Opens the original entity detail route | Source entity activity |
 | Configuration reference data | Table | Full document page | Comments + immutable configuration activity |
 | Upload and sync operations | File Upload: **1+3 split** (Uppy left + table right); Drive Sync: status + table (dedicated UI still open) | Full detail/configuration page | Job/file activity |
 | Logs and history | Read-only **1+3 split board** (`/records/record-logs`) or table; System Log via user menu | Read-only event page | Activity itself; no comment composer |
 | Dashboard | KPI and aggregate widgets | No create page | Recent activity feed |
 | Authentication | Focused form | Dedicated auth page under `/auth/*` | None |
+
+Department Ancestor is a self-join selector. Options are tree ordered and prefixed with one spaced `-` per user-created depth (`- Child`, `- - Sub-child`, `- - - Third level`, continuing without a fixed depth limit). Edit mode excludes the current department and its complete descendant subtree, and both frontend and API validation reject cycles.
 
 Kanban is used only when an entity has meaningful workflow stages.
 
@@ -97,6 +98,10 @@ Meeting and record board cards show **summary + important scan fields** from App
 - List pages use `px-1.5 pt-1.5 pb-0`; document detail/create pages use `p-0`.
 - Record / Portal page titles are plural **Logs** (`/records/record-logs`, `/portal/portal-logs`).
 - System Log is opened from the user menu, not the sidebar.
+- Archive is opened from the user menu and aggregates only source entities the user may view.
+- The user identity opens the shared profile dialog for avatar, password, and effective-permission views; it is not a separate settings page.
+- Date/date-time inputs and ranges use the shared picker utilities. Toolbar ranges collapse to an icon/modal on small screens or at large application font sizes.
+- English uses Inter first; Khmer uses Noto Sans Khmer first. All layouts must remain usable at the persisted 14, 16, 18, and 20 px root font sizes.
 - Table rows expose a reusable `⋯` menu (`AppRowActionsMenu`) for Detail, Logs, and Delete when permitted.
 - **Cmd+K** opens app-wide search (`useGlobalSearch`); it does not replace per-page `AppLiveSearch` toolbars.
 - Sidebar links and document/list actions are capability-filtered, but backend authorization remains authoritative.

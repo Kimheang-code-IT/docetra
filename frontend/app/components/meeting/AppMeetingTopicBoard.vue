@@ -6,6 +6,7 @@ import {
 } from '~/composables/meeting/useMeetingTopicBoard'
 import { consumeListStale } from '~/utils/workspace-list-stale'
 import { permissionForAction } from '~/utils/role/access'
+import { useConfirm } from '~/composables/common/useConfirm'
 
 const {
   pending,
@@ -38,6 +39,8 @@ const {
   selectTopic,
   assignMeetingToTopic,
   reorderMeeting,
+  deleteTopic,
+  deleteMeeting,
   openTopic,
   openMeeting,
   openCreateTopic,
@@ -45,6 +48,8 @@ const {
 } = useMeetingTopicBoard()
 
 const { t } = useI18n()
+const toast = useToast()
+const { confirm } = useConfirm()
 const auth = useAuthStore()
 
 const notesOpen = ref(false)
@@ -70,6 +75,18 @@ const canCreateTopic = computed(() =>
 )
 const canCreateMeeting = computed(() =>
   auth.canAccessPage(permissionForAction('meetings.history.view', 'create')),
+)
+const canAssignMeeting = computed(() =>
+  auth.canAccessPage(permissionForAction('meetings.history.view', 'assign')),
+)
+const canEditMeeting = computed(() =>
+  auth.canAccessPage(permissionForAction('meetings.history.view', 'edit')),
+)
+const canDeleteTopic = computed(() =>
+  auth.canAccessPage(permissionForAction('meetings.topics.view', 'delete')),
+)
+const canDeleteMeeting = computed(() =>
+  auth.canAccessPage(permissionForAction('meetings.history.view', 'delete')),
 )
 
 /** Add Topic always (when allowed); Add Meeting on All / Unassigned pool views. */
@@ -113,6 +130,7 @@ onActivated(() => {
 })
 
 function openMeetingNotes(id: string) {
+  if (!canEditMeeting.value) return
   notesMeetingId.value = id
   notesOpen.value = true
 }
@@ -129,6 +147,7 @@ function onNotesClosed() {
 }
 
 function onMeetingDragStart(id: string) {
+  if (!canAssignMeeting.value) return
   draggingMeetingId.value = id
 }
 
@@ -138,11 +157,13 @@ function onMeetingDragEnd() {
 }
 
 function onTopicDrop(topicId: string, meetingId: string) {
+  if (!canAssignMeeting.value) return
   dropTopicId.value = null
   assignMeetingToTopic(meetingId, topicId)
 }
 
 function onUnassignedDrop(event: DragEvent) {
+  if (!canAssignMeeting.value) return
   event.preventDefault()
   dropTopicId.value = null
   if (!draggingMeetingId.value) return
@@ -150,7 +171,7 @@ function onUnassignedDrop(event: DragEvent) {
 }
 
 async function onReorderBefore(beforeId: string | null) {
-  if (!draggingMeetingId.value || isPoolView.value) return
+  if (!canAssignMeeting.value || !draggingMeetingId.value || isPoolView.value) return
   await reorderMeeting(draggingMeetingId.value, beforeId)
   draggingMeetingId.value = null
 }
@@ -159,6 +180,30 @@ function onMeetingsPanelDrop(event: DragEvent) {
   event.preventDefault()
   if (isPoolView.value || !draggingMeetingId.value) return
   onReorderBefore(null)
+}
+
+async function onDeleteTopic(id: string) {
+  if (!canDeleteTopic.value) return
+  const accepted = await confirm({ kind: 'delete', count: 1 })
+  if (!accepted) return
+  try {
+    await deleteTopic(id)
+  }
+  catch (e: any) {
+    toast.add({ title: e?.message || t('docetra.actions.deleteFailed'), color: 'error' })
+  }
+}
+
+async function onDeleteMeeting(id: string) {
+  if (!canDeleteMeeting.value) return
+  const accepted = await confirm({ kind: 'delete', count: 1 })
+  if (!accepted) return
+  try {
+    await deleteMeeting(id)
+  }
+  catch (e: any) {
+    toast.add({ title: e?.message || t('docetra.actions.deleteFailed'), color: 'error' })
+  }
 }
 </script>
 
@@ -307,11 +352,14 @@ function onMeetingsPanelDrop(event: DragEvent) {
               :selected="selectedTopicId === topic.id"
               :collapsed="topicPanelCollapsed"
               :drop-active="dropTopicId === topic.id"
+              :can-drop="canAssignMeeting"
+              :can-delete="canDeleteTopic"
               @select="selectTopicFromPanel(topic.id)"
               @open="openTopic(topic.id)"
               @drag-over="dropTopicId = topic.id"
               @drag-leave="dropTopicId = dropTopicId === topic.id ? null : dropTopicId"
               @drop-meeting="(id) => onTopicDrop(topic.id, id)"
+              @delete="onDeleteTopic(topic.id)"
             />
 
             <UButton
@@ -391,12 +439,16 @@ function onMeetingsPanelDrop(event: DragEvent) {
                 :topics="topics"
                 :dragging="draggingMeetingId === meeting.id"
                 :show-topic="isPoolView"
+                :can-assign="canAssignMeeting"
+                :can-edit-notes="canEditMeeting"
+                :can-delete="canDeleteMeeting"
                 @open="openMeeting(meeting.id)"
                 @open-notes="openMeetingNotes(meeting.id)"
                 @drag-start="onMeetingDragStart"
                 @drag-end="onMeetingDragEnd"
-                @assign="(topicId) => assignMeetingToTopic(meeting.id, topicId)"
+                @assign="(topicId) => canAssignMeeting && assignMeetingToTopic(meeting.id, topicId)"
                 @reorder-before="onReorderBefore"
+                @delete="onDeleteMeeting(meeting.id)"
               />
             </div>
 

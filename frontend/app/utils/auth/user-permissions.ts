@@ -28,6 +28,7 @@ export function getAllSystemPermissionKeys(): string[] {
 /** Resolve flat permission keys for the signed-in user. */
 export function resolveUserPermissionKeys(user: AuthUser | null | undefined): string[] {
   if (!user) return []
+  if (user.pageAccess?.includes('ALL_PAGES')) return getAllSystemPermissionKeys()
   if (user.permissions?.length) return [...user.permissions].sort()
   if (!user.pageAccess?.length || user.pageAccess.includes('ALL_PAGES')) {
     return getAllSystemPermissionKeys()

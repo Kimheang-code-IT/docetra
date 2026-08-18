@@ -2,9 +2,11 @@
 import { useConfigurationRepositories } from '~/repositories'
 import { useConfigListPage } from '~/composables/configuration/useConfigListPage'
 import type { FilterDef, TableColumnDef } from '~/types/docetra/common'
+import { useAppLocalization } from '~/composables/settings/useAppLocalization'
 
 const { attributes } = useConfigurationRepositories()
 const { t } = useI18n()
+const { formatDateTime } = useAppLocalization()
 
 const columns: TableColumnDef[] = [
   { key: '_rowNumber', labelKey: 'docetra.fields.number' },
@@ -53,6 +55,7 @@ const list = useConfigListPage({
   descriptionKey: 'docetra.descriptions.recordAttribute',
   icon: 'i-lucide-list-tree',
   routeBase: '/configuration/record-attributes',
+  viewPermission: 'configuration.record_attributes.view',
   exportResource: 'recordAttributes',
   columns,
   async load(query) {
@@ -86,7 +89,7 @@ const list = useConfigListPage({
       return updater?.name || t('docetra.activity.system')
     }
     if (key === 'updatedAt') {
-      return row.updatedAt ? new Date(String(row.updatedAt)).toLocaleString() : '—'
+      return formatDateTime(row.updatedAt)
     }
     return row[key] == null ? '—' : String(row[key])
   },
@@ -102,6 +105,9 @@ watch(() => list.q, v => { searchInput.value = v })
     :description-key="list.descriptionKey"
     :icon="list.icon"
     create-label-key="docetra.config.createRecordAttribute"
+    :can-create="list.canCreate"
+    :can-delete="list.canDelete"
+    :can-export="list.canExport"
     :columns="list.columns"
     :rows="list.items"
     :total="list.total"

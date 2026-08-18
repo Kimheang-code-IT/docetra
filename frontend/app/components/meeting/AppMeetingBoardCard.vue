@@ -6,16 +6,23 @@ import { useCardFields } from '~/composables/settings/useCardFields'
 import { isCardFooterSlot, splitCardSlots } from '~/utils/card-fields'
 import {
   computeMeetingTiming,
-  formatMeetingDateTime,
   isJoinableMeeting,
 } from '~/utils/meeting/board'
+import { useAppLocalization } from '~/composables/settings/useAppLocalization'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   meeting: MeetingHistory
   topics: MeetingTopic[]
   dragging?: boolean
   showTopic?: boolean
-}>()
+  canAssign?: boolean
+  canEditNotes?: boolean
+  canDelete?: boolean
+}>(), {
+  canAssign: true,
+  canEditNotes: true,
+  canDelete: false,
+})
 
 const emit = defineEmits<{
   open: []
@@ -24,9 +31,11 @@ const emit = defineEmits<{
   dragEnd: []
   assign: [topicId: string | null]
   reorderBefore: [beforeId: string | null]
+  delete: []
 }>()
 
 const { t, te } = useI18n()
+const { formatDate, formatDateTime } = useAppLocalization()
 const { show, visibleSlots, footerAlign } = useCardFields('meetingHistory')
 
 const timing = computed(() => {
@@ -58,7 +67,7 @@ const statusColor = computed(() => {
   const status = String(props.meeting.status || '').toLowerCase()
   if (status === 'active' || status === 'completed') return 'success' as const
   if (status === 'pending' || status === 'draft') return 'warning' as const
-  if (status === 'disabled' || status === 'failed') return 'error' as const
+  if (status === 'deleted' || status === 'disabled' || status === 'failed') return 'error' as const
   return 'info' as const
 })
 
@@ -78,13 +87,21 @@ const recordTimeLabel = computed(() =>
 )
 
 function listText(value: unknown) {
-  return Array.isArray(value) ? value.map(String).filter(Boolean).join(', ') : String(value || '')
+  if (!Array.isArray(value)) {
+    return value && typeof value === 'object' && 'name' in value
+      ? String(value.name || '')
+      : String(value || '')
+  }
+  return value.map((item) => {
+    if (item && typeof item === 'object' && 'name' in item) return String(item.name || '')
+    return String(item || '')
+  }).map(item => item.trim()).filter(Boolean).join(', ')
 }
 
 function footerDate(slot: string) {
-  if (slot === 'letterDate') return day(props.meeting.letterDate)
-  if (slot === 'meetingDate') return formatMeetingDateTime(props.meeting.meetingDate)
-  if (slot === 'recordTime') return formatMeetingDateTime(props.meeting.recordTime || props.meeting.meetingDate)
+  if (slot === 'letterDate') return formatDate(props.meeting.letterDate, '')
+  if (slot === 'meetingDate') return formatDateTime(props.meeting.meetingDate)
+  if (slot === 'recordTime') return formatDateTime(props.meeting.recordTime || props.meeting.meetingDate)
   return recordTimeLabel.value
 }
 
@@ -175,11 +192,11 @@ const assignItems = computed(() => {
       label: t('docetra.meetingBoard.openMeeting'),
       icon: 'i-lucide-external-link',
       onSelect: () => emit('open'),
-    }, {
+    }, ...(props.canEditNotes ? [{
       label: t('docetra.meetingBoard.openNotes'),
       icon: 'i-lucide-notebook-pen',
       onSelect: () => emit('openNotes'),
-    },
+    }] : []),
     ...(canJoin.value
       ? [{
           label: t('docetra.meetingBoard.joinMeeting'),
@@ -187,7 +204,7 @@ const assignItems = computed(() => {
           onSelect: () => joinMeeting(),
         }]
       : [])],
-    [
+    ...(props.canAssign ? [[
       {
         label: t('docetra.meetingBoard.assignToTopic'),
         icon: 'i-lucide-link',
@@ -201,16 +218,22 @@ const assignItems = computed(() => {
         disabled: !props.meeting.topicId,
         onSelect: () => emit('assign', null),
       },
-    ],
+    ]] : []),
+    ...(props.canDelete ? [[{
+      label: t('docetra.rowActions.delete'),
+      icon: 'i-lucide-trash-2',
+      color: 'error' as const,
+      onSelect: () => emit('delete'),
+    }]] : []),
   ]
 })
 
 function day(value: unknown) {
-  if (value == null || value === '') return ''
-  return String(value).slice(0, 10)
+  return formatDate(value, '')
 }
 
 function onDragStart(event: DragEvent) {
+  if (!props.canAssign) return
   event.dataTransfer?.setData('text/plain', props.meeting.id)
   event.dataTransfer?.setData('application/x-meeting-id', props.meeting.id)
   if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move'
@@ -221,7 +244,9 @@ const pointerDrop = usePointerDrop({
   selector: '[data-meeting-topic-drop]',
   dataKey: 'meetingTopicDrop',
   onDragStart: () => emit('dragStart', props.meeting.id),
-  onDrop: topicId => emit('assign', topicId === MEETING_BOARD_UNASSIGNED ? null : topicId),
+  onDrop: topicId => {
+    if (props.canAssign) emit('assign', topicId === MEETING_BOARD_UNASSIGNED ? null : topicId)
+  },
   onDragEnd: () => emit('dragEnd'),
 })
 
@@ -245,9 +270,10 @@ function onDrop(event: DragEvent) {
 
 <template>
   <article
-    draggable="true"
-    class="group relative flex h-full min-h-30 cursor-grab touch-pan-y flex-col rounded-lg border border-default bg-default p-3 text-left shadow-xs transition active:cursor-grabbing"
+    :draggable="canAssign"
+    class="group relative flex h-full min-h-30 touch-pan-y flex-col rounded-lg border border-default bg-default p-3 text-left shadow-xs transition"
     :class="[
+      canAssign ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer',
       dragging ? 'opacity-40 ring-2 ring-primary/30' : 'hover:border-primary/35 hover:shadow-sm',
       isImminent ? 'meeting-card--imminent border-primary/60' : '',
     ]"
@@ -255,10 +281,10 @@ function onDrop(event: DragEvent) {
     role="button"
     @dragstart="onDragStart"
     @dragend="emit('dragEnd')"
-    @pointerdown="pointerDrop.onPointerDown"
-    @pointermove="pointerDrop.onPointerMove"
-    @pointerup="pointerDrop.onPointerUp"
-    @pointercancel="pointerDrop.onPointerCancel"
+    @pointerdown="canAssign && pointerDrop.onPointerDown($event)"
+    @pointermove="canAssign && pointerDrop.onPointerMove($event)"
+    @pointerup="canAssign && pointerDrop.onPointerUp($event)"
+    @pointercancel="canAssign && pointerDrop.onPointerCancel($event)"
     @dragover="onDragOver"
     @drop="onDrop"
     @click="onCardClick"

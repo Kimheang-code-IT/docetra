@@ -16,12 +16,3 @@ export function readRememberMe(): RememberMeState {
   return { enabled, email }
 }
 
-export function writeRememberMe(email: string, enabled: boolean) {
-  if (enabled) {
-    localStore.set(AuthKeys.REMEMBER_ENABLED, '1')
-    localStore.set(AuthKeys.REMEMBER_EMAIL, email)
-    return
-  }
-  localStore.remove(AuthKeys.REMEMBER_ENABLED)
-  localStore.remove(AuthKeys.REMEMBER_EMAIL)
-}

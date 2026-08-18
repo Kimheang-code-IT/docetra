@@ -1,6 +1,6 @@
 # Prompt 00C — Dynamic Record Fields and Attribute Catalog
 
-> **Status:** Required architecture extension. Implement this contract across every record-backed frontend flow.
+> **Status:** Frontend/mock form flow implemented across record-backed entities; schema-driven list/filter/search/card/export consumers and the production HTTP backend remain.
 > **Product source:** `prompt/idea/` and `prompt/specification/`, especially the unified `record`, `record_type`, `record_attribute`, `record_template`, and typed `record_detail` model.
 > **Existing foundation to extend:** `AppRecordAttributeList`, `AppRecordAttributeEditor`, `AppRecordTypeEditor`, `AppDynamicFieldRenderer`, `EntityDocumentView`, `useRecordTypeDrivenTabs`, and configuration repositories.
 
@@ -92,7 +92,7 @@ Existing Record Type and Attribute detail pages include the shared Comments & Ac
 
 All normal entities use one schema-driven document implementation (`EntityDocumentView` + `useDocumentPage`) for add, detail, edit, update, save, reload, navigation, comments, activity, and attachments. Entity configuration controls layout such as wide content and metadata rail visibility; do not add entity-specific form-page implementations. For Meeting and Record entities, the resolved Record Type schema—not only the static base schema—must drive rendering and required-field validation in every mode. Dynamic values remain under `details`, and reload refetches both the record data and its current Record Type schema.
 
-Mock Record Types start without demo assignments for Priority, Due date, Notes, or Confidential, so these fields and an otherwise empty General section do not appear automatically on Meeting or Record add/detail/edit pages. The attributes remain in Attribute Catalog and appear only after a user explicitly assigns them to a Record Type. Existing mock configuration is migrated once by removing those obsolete default assignments without deleting catalog entries.
+Mock mode intentionally seeds a broad Attribute Catalog plus record-type-specific assignments for manual UI coverage. Incoming, Outgoing, Document, Master List Request, Meeting, and Meeting Topic examples exercise text, email, URL, integer, currency, date, date-time, select, multi-select, boolean, and notes controls under named sections. The `v6-dynamic-field-ui-test` migration updates mock assignments without deleting catalog entries or saved record values. Production configuration remains administrator-owned; these demo assignments are not business defaults for the HTTP backend.
 
 ## Dynamic workflow stages and record boards
 
@@ -122,7 +122,7 @@ Editing a published type creates a draft revision. Existing records retain their
 
 ## Resolved schema contract
 
-Replace the four-entity allowlist in `useRecordTypeDrivenTabs` with a general resolver such as `useRecordSchema`. Enable it by entity metadata (`recordBacked: true`) and `recordTypeId`, not by a hardcoded entity-key set.
+`useRecordTypeDrivenTabs` is enabled by entity metadata (`recordBacked: true`), not a hardcoded entity-key set. It resolves by `recordTypeId` when present or the entity's stable `recordTypeCode`, briefly caches the resolved schema, and merges assigned sections into the shared Details tab. Keep this metadata-driven boundary when extracting or renaming the resolver.
 
 The resolver combines:
 

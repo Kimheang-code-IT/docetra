@@ -13,6 +13,7 @@ import { listIndexedDocuments } from '~/utils/search/search-index'
 import { ensureSearchIndexSeeded, sourceLabelFor } from '~/utils/search/seed-index'
 import { makeSnippet } from '~/utils/search/text-extract'
 import { mockLatency } from '~/mocks/query'
+import { ApiEndpoints } from '~/utils/constants/api-endpoints'
 
 /** Simple synonym map for mock semantic ranking. */
 const SEMANTIC_SYNONYMS: Record<string, string[]> = {
@@ -122,7 +123,7 @@ function filterAndRank(
 export async function searchKeyword(query: string, options: SearchQueryOptions = {}) {
   const limit = options.limit ?? 12
   if (!usesMockData()) {
-    return useApi().get<{ data: SearchHit[] }>('/api/v2/search', {
+    return useApi().get<{ data: SearchHit[] }>(ApiEndpoints.SEARCH, {
       query: { q: query, mode: 'keyword', limit },
       requestKey: 'search-keyword',
       cancelPrevious: true,
@@ -135,7 +136,7 @@ export async function searchKeyword(query: string, options: SearchQueryOptions =
 export async function searchSemantic(query: string, options: SearchQueryOptions = {}) {
   const limit = options.limit ?? 12
   if (!usesMockData()) {
-    return useApi().get<{ data: SearchHit[] }>('/api/v2/search', {
+    return useApi().get<{ data: SearchHit[] }>(ApiEndpoints.SEARCH, {
       query: { q: query, mode: 'semantic', limit },
       requestKey: 'search-semantic',
       cancelPrevious: true,
@@ -147,7 +148,7 @@ export async function searchSemantic(query: string, options: SearchQueryOptions 
 
 export async function askAi(query: string, hits: SearchHit[]): Promise<AiSearchAnswer> {
   if (!usesMockData()) {
-    return useApi().post<{ data: AiSearchAnswer }>('/api/v2/search/ask', {
+    return useApi().post<{ data: AiSearchAnswer }>(ApiEndpoints.SEARCH_ASK, {
       q: query,
       hitIds: hits.map(h => h.id),
     }, {

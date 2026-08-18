@@ -1,5 +1,7 @@
 export const ApiEndpoints = {
   AUTH_LOGIN: '/api/v2/auth/login',
+  AUTH_LOGOUT: '/api/v2/auth/logout',
+  AUTH_ME: '/api/v2/auth/me',
   AUTH_FORGOT_PASSWORD: '/api/v2/auth/forgot-password',
   AUTH_RESET_VERIFY: '/api/v2/auth/forgot-password/verify',
   AUTH_RESET_RESEND: '/api/v2/auth/forgot-password/resend',
@@ -16,6 +18,8 @@ export const ApiEndpoints = {
     `/api/v2/meetings/history/${encodeURIComponent(meetingId)}/assign-topic`,
   MEETING_ATTACHMENTS_LINK: (meetingId: string) =>
     `/api/v2/meetings/history/${encodeURIComponent(meetingId)}/attachments/link`,
+  MEETING_ATTACHMENTS: (meetingId: string) =>
+    `/api/v2/meetings/history/${encodeURIComponent(meetingId)}/attachments`,
   PORTAL_DRIVE_FILES: '/api/v2/portal/drive-files',
 
   INCOMING_DOCUMENTS: '/api/v2/records/incoming-documents',
@@ -57,7 +61,8 @@ export const ApiEndpoints = {
   SYSTEM_LOGS: '/api/v2/system/logs',
 
   EXPORT_JOBS: '/api/v2/exports',
-  EXPORT_JOB: (id: string) => `/api/v2/exports/${encodeURIComponent(id)}`,
+  SEARCH: '/api/v2/search',
+  SEARCH_ASK: '/api/v2/search/ask',
 
   COMMENTS: (entityType: string, entityId: string) =>
     `/api/v2/${entityType}/${entityId}/comments`,

@@ -10,14 +10,16 @@
 
 Record operational pages share one pattern:
 
-| Route | UI | Backend role |
-| --- | --- | --- |
-| `/records/incoming-documents` | `AppRecordStageBoard` | Workflow stages + card grid; drag to stage |
-| `/records/outgoing-documents` | same | same |
-| `/records/documents` | same | same |
-| `/records/master-list-requests` | same | same |
-| `/records/record-logs` | `AppRecordLogBoard` | Read-only log views + dynamic table |
-| `/*/new`, `/*/:id` | `EntityDocumentView` | Create / detail / edit (form schema below) |
+
+| Route                           | UI                    | Backend role                               |
+| ------------------------------- | --------------------- | ------------------------------------------ |
+| `/records/incoming-documents`   | `AppRecordStageBoard` | Workflow stages + card grid; drag to stage |
+| `/records/outgoing-documents`   | same                  | same                                       |
+| `/records/documents`            | same                  | same                                       |
+| `/records/master-list-requests` | same                  | same                                       |
+| `/records/record-logs`          | `AppRecordLogBoard`   | Read-only log views + dynamic table        |
+| `/*/new`, `/*/:id`              | `EntityDocumentView`  | Create / detail / edit (form schema below) |
+
 
 **Stage boards (1+3):**
 
@@ -42,26 +44,30 @@ Record operational pages share one pattern:
 
 ## 2. Domain entities
 
-| Entity key | API base (current frontend) | `recordKind` |
-| --- | --- | --- |
-| `incomingDocuments` | `/api/v2/records/incoming-documents` | `incoming` |
-| `outgoingDocuments` | `/api/v2/records/outgoing-documents` | `outgoing` |
-| `documents` | `/api/v2/records/documents` | `document` |
-| `masterListRequests` | `/api/v2/records/master-list-requests` | `master_list_request` |
-| `recordLogs` | `/api/v2/records/logs` | audit events (not creatable) |
+
+| Entity key           | API base (current frontend)            | `recordKind`                 |
+| -------------------- | -------------------------------------- | ---------------------------- |
+| `incomingDocuments`  | `/api/v2/records/incoming-documents`   | `incoming`                   |
+| `outgoingDocuments`  | `/api/v2/records/outgoing-documents`   | `outgoing`                   |
+| `documents`          | `/api/v2/records/documents`            | `document`                   |
+| `masterListRequests` | `/api/v2/records/master-list-requests` | `master_list_request`        |
+| `recordLogs`         | `/api/v2/records/logs`                 | audit events (not creatable) |
+
 
 ### Core / shared columns
 
-| Field | Role |
-| --- | --- |
-| `title`, `status`, `stage` | Identity + workflow |
-| `referenceNumber` | Letter / scan number (Incoming / Outgoing / Document) |
-| `recordTime`, `recordTag` / `tags` | Unified record columns |
-| `documentType` | **Company name** (classification select — not record-type code) |
-| `officeInCharge` | **Involved office** — department name |
-| `involvedOfficers` | string[] — officer names |
-| `externalUnits` | string[] — company names |
-| `details` | Dynamic attributes from Configuration (optional) |
+
+| Field                              | Role                                                            |
+| ---------------------------------- | --------------------------------------------------------------- |
+| `title`, `status`, `stage`         | Identity + workflow. `status` is only `active                   |
+| `referenceNumber`                  | Letter / scan number (Incoming / Outgoing / Document)           |
+| `recordTime`, `recordTag` / `tags` | Unified record columns                                          |
+| `documentType`                     | **Company name** (classification select — not record-type code) |
+| `officeInCharge`                   | Involved departments as a reference array                       |
+| `involvedOfficers`                 | Officer reference array                                         |
+| `externalUnits`                    | Company reference array                                         |
+| `details`                          | Dynamic attributes from Configuration (optional)                |
+
 
 **Removed from create/edit UI (do not require on POST for these three kinds):**
 
@@ -85,39 +91,45 @@ Frontend builder: `orgSelectDocumentTabs` / `masterListRequestTabs` in `entities
 
 ### 3.1 Incoming / Outgoing / Document (shared shape)
 
-| Field | UI | Options API | Required |
-| --- | --- | --- | --- |
-| `status` | select | enum | yes |
-| `title` | text | — | yes |
-| `documentType` | select | `GET .../companies/options?valueField=name` | yes |
-| `referenceNumber` | text | — | yes |
-| `letterSubject` | text | — | yes |
-| Date | date | — | yes |
-| `directorGeneralDate` | date | — | no |
-| `directorDate` | date | — | no |
-| `officeInCharge` (label: Involved office) | select | `GET .../departments/options?valueField=name` | no |
-| `involvedOfficers` | multiselect | `GET .../officers/options?valueField=name` | no |
-| `externalUnits` | multiselect | `GET .../companies/options?valueField=name` | no |
-| `tags` / `recordTag` | csv-list / tags | — | no |
+
+| Field                                     | UI                  | Options API                                 | Required |
+| ----------------------------------------- | ------------------- | ------------------------------------------- | -------- |
+| `status`                                  | select              | enum                                        | yes      |
+| `title`                                   | text                | —                                           | yes      |
+| `documentType`                            | select              | `GET .../companies/options?valueField=name` | yes      |
+| `referenceNumber`                         | text                | —                                           | yes      |
+| `letterSubject`                           | text                | —                                           | yes      |
+| Date                                      | date                | —                                           | yes      |
+| `directorGeneralDate`                     | date                | —                                           | no       |
+| `directorDate`                            | date                | —                                           | no       |
+| `officeInCharge` (label: Involved office) | mention multi-input | `GET .../departments/options`               | no       |
+| `involvedOfficers`                        | mention multi-input | `GET .../officers/options`                  | no       |
+| `externalUnits`                           | mention multi-input | `GET .../companies/options`                 | no       |
+| `tags` / `recordTag`                      | csv-list / tags     | —                                           | no       |
+
 
 **Date field by kind:**
 
-| Kind | Field |
-| --- | --- |
+
+| Kind     | Field          |
+| -------- | -------------- |
 | Incoming | `receivedDate` |
-| Outgoing | `sentDate` |
+| Outgoing | `sentDate`     |
 | Document | `documentDate` |
 
-**Lookup options:** `valueField=name` means option `value` and `label` are the display name (stored on the record for cards). Prefer also accepting ids later with denormalized `*Name` fields if the API migrates to FKs.
+
+**Lookup and assignment:** all three fields are arrays of `{ id, label, type }` references, even for one selection. Typing `@` or normal text sends indexed `q` search with bounded `limit`; the API permission-filters results, validates tenant scope, resolves authoritative labels, and de-duplicates `(type,id)`. Cards may show labels joined by commas; UI tag colors are presentation-only.
 
 ### 3.2 Master List Request (minimal)
 
-| Field | UI | Required |
-| --- | --- | --- |
-| `status` | select | yes |
-| `title` | text | yes |
-| `recordTime` | datetime | yes |
-| `tags` / `recordTag` | csv-list | no |
+
+| Field                | UI       | Required |
+| -------------------- | -------- | -------- |
+| `status`             | select   | yes      |
+| `title`              | text     | yes      |
+| `recordTime`         | datetime | yes      |
+| `tags` / `recordTag` | csv-list | no       |
+
 
 No letter number, office/officer, external units, or document-type fields on this form.
 
@@ -127,50 +139,60 @@ No letter number, office/officer, external units, or document-type fields on thi
 
 ### Stage board
 
-| Query | Meaning |
-| --- | --- |
-| `stage` | Filter one stage (null = All) |
-| `dateFrom`, `dateTo` | Filter on kind date field |
-| `search` / `q` | Title, reference, tags, org fields |
-| `sort` | Default by `record_time` / updated |
-| `page`, `limit` | Pagination; `limit=all` → large fetch (cap e.g. 10_000) |
+
+| Query                | Meaning                                                 |
+| -------------------- | ------------------------------------------------------- |
+| `stage`              | Filter one stage (null = All)                           |
+| `dateFrom`, `dateTo` | Filter on kind date field                               |
+| `search` / `q`       | Title, reference, tags, org fields                      |
+| `sort`               | Default by `record_time` / updated                      |
+| `page`, `limit`      | Pagination; `limit=all` → large fetch (cap e.g. 10_000) |
+
 
 List payloads must include card slots from App Config (`documentType`, `officeInCharge`, `involvedOfficers`, `externalUnits`, etc.).
 
 ### Record logs board
 
-| Query | Meaning |
-| --- | --- |
-| `view` | `all`, `created`, `updated`, `stage`, `shared`, `incoming`, `outgoing`, `errors` |
-| `dateFrom`, `dateTo` | Event time |
-| `search` | Summary, entity title, actor |
-| `page`, `limit` | Including `all` |
+
+| Query                | Meaning                                                                          |
+| -------------------- | -------------------------------------------------------------------------------- |
+| `view`               | `all`, `created`, `updated`, `stage`, `shared`, `incoming`, `outgoing`, `errors` |
+| `dateFrom`, `dateTo` | Event time                                                                       |
+| `search`             | Summary, entity title, actor                                                     |
+| `page`, `limit`      | Including `all`                                                                  |
+
 
 Log rows are **immutable**.
+
+Lifecycle behavior is independent of `stage`: creator-scoped users may archive and restore their own archived documents; normal delete is a recoverable tombstone that only an administrator may restore; permanent purge is administrator-only and retention/legal-hold protected. Archive preserves the last stage and freezes transitions. Restore returns to that stage or a configured recovery stage. Every transition and lifecycle action creates immutable activity; comments remain available while Active/Archived and become read-only when Deleted.
 
 ---
 
 ## 5. Key operations
 
-| Operation | Behavior |
-| --- | --- |
-| Create | `POST` collection; set `recordKind` from route; validate form fields in §3; initial `stage` |
-| Update | `PATCH` id; validate org select values exist when using FKs |
-| Stage move | Validate transition; rollback on 409 |
-| Delete | Soft-delete / archive; permission-gated |
-| Comments / activity / attachments | Shared sub-resources (§7) |
+
+| Operation                         | Behavior                                                                                    |
+| --------------------------------- | ------------------------------------------------------------------------------------------- |
+| Create                            | `POST` collection; set `recordKind` from route; validate form fields in §3; initial `stage` |
+| Update                            | `PATCH` id; validate org select values exist when using FKs                                 |
+| Stage move                        | Validate transition; rollback on 409                                                        |
+| Delete                            | Soft-delete / archive; permission-gated                                                     |
+| Comments / activity / attachments | Shared sub-resources (§7)                                                                   |
+
 
 ---
 
 ## 6. Permissions (minimum)
 
-| Code | Use |
-| --- | --- |
-| `records.incoming_documents.view` / `.edit` | Incoming |
-| `records.outgoing_documents.view` / `.edit` | Outgoing |
-| `records.documents.view` / `.edit` | Document |
-| `records.master_list_requests.view` / `.edit` | Master list |
-| `records.logs.view` | Record logs (read-only) |
+
+| Code                                          | Use                     |
+| --------------------------------------------- | ----------------------- |
+| `records.incoming_documents.view` / `.edit`   | Incoming                |
+| `records.outgoing_documents.view` / `.edit`   | Outgoing                |
+| `records.documents.view` / `.edit`            | Document                |
+| `records.master_list_requests.view` / `.edit` | Master list             |
+| `records.logs.view`                           | Record logs (read-only) |
+
 
 Also need read on Organization options used by the form (`organizations.companies.view`, `departments.view`, `officers.view`) or a dedicated options permission.
 
@@ -178,11 +200,13 @@ Also need read on Organization options used by the form (`organizations.companie
 
 ## 7. Shared sub-resources
 
-| Resource | Method | Path pattern |
-| --- | --- | --- |
-| Comments | GET/POST | `/api/v2/{entityPath}/{id}/comments` |
-| Activity | GET | `/api/v2/{entityPath}/{id}/activity` |
+
+| Resource    | Method   | Path pattern                            |
+| ----------- | -------- | --------------------------------------- |
+| Comments    | GET/POST | `/api/v2/{entityPath}/{id}/comments`    |
+| Activity    | GET      | `/api/v2/{entityPath}/{id}/activity`    |
 | Attachments | GET/POST | `/api/v2/{entityPath}/{id}/attachments` |
+
 
 ---
 
@@ -197,11 +221,13 @@ Also need read on Organization options used by the form (`organizations.companie
 
 Form selects consume Organization module options:
 
-| Endpoint | Used for |
-| --- | --- |
-| `/api/v2/organizations/companies/options` | Document type, External units |
-| `/api/v2/organizations/departments/options` | Involved office |
-| `/api/v2/organizations/officers/options` | Involved officers |
+
+| Endpoint                                    | Used for                      |
+| ------------------------------------------- | ----------------------------- |
+| `/api/v2/organizations/companies/options`   | Document type, External units |
+| `/api/v2/organizations/departments/options` | Involved office               |
+| `/api/v2/organizations/officers/options`    | Involved officers             |
+
 
 See `prompt/backend/modules/organization-master-data.md` §3 (lookup options). Support query `valueField=name` (or return both `id` + `name` and let clients choose).
 
@@ -209,15 +235,17 @@ See `prompt/backend/modules/organization-master-data.md` §3 (lookup options). S
 
 ## 10. Frontend contract (implemented)
 
-| Concern | Code |
-| --- | --- |
+
+| Concern               | Code                                                                    |
+| --------------------- | ----------------------------------------------------------------------- |
 | Entity + form schemas | `config/entities.ts` → `orgSelectDocumentTabs`, `masterListRequestTabs` |
-| Stage board | `useRecordStageBoard.ts`, `AppRecordStageBoard.vue` |
-| Log board | `useRecordLogBoard.ts`, `AppRecordLogBoard.vue` |
-| Document page | `useDocumentPage.ts`, `EntityDocumentView` |
-| Reference options | `adapters/reference-options.ts` |
-| Card slots | `utils/card-fields.ts`, `useCardFields` |
-| Pagination All | `utils/pagination.ts`, `AppServerTable` |
+| Stage board           | `useRecordStageBoard.ts`, `AppRecordStageBoard.vue`                     |
+| Log board             | `useRecordLogBoard.ts`, `AppRecordLogBoard.vue`                         |
+| Document page         | `useDocumentPage.ts`, `EntityDocumentView`                              |
+| Reference options     | `adapters/reference-options.ts`                                         |
+| Card slots            | `utils/card-fields.ts`, `useCardFields`                                 |
+| Pagination All        | `utils/pagination.ts`, `AppServerTable`                                 |
+
 
 **Mock → HTTP:** `NUXT_PUBLIC_USE_MOCK_DATA=false`.
 
@@ -225,14 +253,16 @@ See `prompt/backend/modules/organization-master-data.md` §3 (lookup options). S
 
 ## 11. Validation summary
 
-| Case | Result |
-| --- | --- |
-| Missing required form field (§3) | 422 |
+
+| Case                                      | Result    |
+| ----------------------------------------- | --------- |
+| Missing required form field (§3)          | 422       |
 | Invalid company/department/officer option | 422 / 404 |
-| Invalid stage transition | 422 |
-| Edit without permission | 403 |
-| Log row mutate from client | 405 |
+| Invalid stage transition                  | 422       |
+| Edit without permission                   | 403       |
+| Log row mutate from client                | 405       |
+
 
 ---
 
-*Keep Incoming / Outgoing / Document form fields in sync with `orgSelectDocumentTabs`; Master List with `masterListRequestTabs`.*
+*Keep Incoming / Outgoing / Document form fields in sync with* `orgSelectDocumentTabs`*; Master List with* `masterListRequestTabs`*.*

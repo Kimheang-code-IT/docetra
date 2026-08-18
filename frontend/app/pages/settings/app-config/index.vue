@@ -6,6 +6,7 @@ import { useSettingsRepositories } from '~/repositories'
 import { useConfirm } from '~/composables/common/useConfirm'
 import { useAppPageTitle } from '~/composables/layout/useAppPageTitle'
 import { getByPath, setByPath } from '~/utils/object-path'
+import { useAppLocalization } from '~/composables/settings/useAppLocalization'
 
 definePageMeta({
   titleKey: 'docetra.pages.appConfig',
@@ -19,6 +20,7 @@ const { confirm } = useConfirm()
 const auth = useAuthStore()
 const canEdit = computed(() => auth.canAccessPage('settings.app_config.edit'))
 const canConfigure = computed(() => auth.canAccessPage('settings.app_config.configure'))
+const appLocalization = useAppLocalization()
 
 const pending = ref(true)
 const saving = ref(false)
@@ -67,7 +69,7 @@ function fieldValue(key: string): unknown {
   if (key === '__securityAlert') return null
 
   // Select options use string values; coerce number fields for USelect match.
-  if (key === 'general.defaultPageSize' || key === 'system.paginationDefault') {
+  if (key === 'general.defaultPageSize' || key === 'system.paginationDefault' || key === 'localization.firstDayOfWeek') {
     const raw = getByPath(model.value, key)
     return raw == null || raw === '' ? undefined : String(raw)
   }
@@ -96,9 +98,10 @@ async function setFieldValue(key: string, value: unknown) {
     return
   }
 
-  if (key === 'general.defaultPageSize' || key === 'system.paginationDefault') {
+  if (key === 'general.defaultPageSize' || key === 'system.paginationDefault' || key === 'localization.firstDayOfWeek') {
     const n = Number(value)
-    setByPath(model.value as any, key, Number.isFinite(n) ? n : 20)
+    const fallback = key === 'localization.firstDayOfWeek' ? 1 : 20
+    setByPath(model.value as any, key, Number.isFinite(n) ? n : fallback)
     return
   }
 
@@ -110,6 +113,8 @@ async function save() {
   saving.value = true
   try {
     model.value = await appConfig.update(model.value)
+    appLocalization.apply(model.value.localization)
+    usePreferencesStore().syncLocaleWithConfig()
     const { invalidateCardFieldsCache } = await import('~/composables/settings/useCardFields')
     invalidateCardFieldsCache()
     toast.add({ title: t('docetra.common.saved'), color: 'success' })

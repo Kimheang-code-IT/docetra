@@ -65,14 +65,16 @@ function onDragEnd() {
       @dragend="onDragEnd"
     >
       <div class="flex items-stretch gap-2 p-2">
-        <button
+        <UButton
           type="button"
-          class="flex cursor-grab items-center px-1 text-muted active:cursor-grabbing"
+          icon="i-lucide-grip-vertical"
+          color="neutral"
+          variant="ghost"
+          size="xs"
+          class="cursor-grab text-muted active:cursor-grabbing"
           :disabled="disabled"
-          :aria-label="'Reorder'"
-        >
-          <UIcon name="i-lucide-grip-vertical" class="size-4" />
-        </button>
+          aria-label="Reorder"
+        />
         <div class="min-w-0 flex-1">
           <slot :item="item" />
         </div>

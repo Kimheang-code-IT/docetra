@@ -866,16 +866,14 @@ function removeDestination(id: string) {
           :loading="optionsPending"
           class="w-full"
         />
-        <USelect
+        <CommonAppMentionMultiInput
           v-else-if="field.type === 'multiselect'"
           v-model="multiValue"
           :items="selectItems"
-          value-key="value"
-          multiple
           :placeholder="placeholderText"
           :disabled="disabled || field.readOnly"
           :loading="optionsPending"
-          class="w-full"
+          @search="searchRemoteOptions"
         />
         <UInput
           v-else-if="field.type === 'csv-list'"

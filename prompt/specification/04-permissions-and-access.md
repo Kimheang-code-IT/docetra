@@ -51,7 +51,8 @@ Examples of role-driven capabilities:
 - view records.
 - create records.
 - update records.
-- delete or archive records where allowed.
+- archive and restore owned records where allowed.
+- soft-delete records where allowed; this is recoverable only by an administrator.
 - manage configuration.
 - manage users and permissions.
 - access reports.
@@ -65,7 +66,7 @@ Permissions should be assignable to roles for:
 - navigation visibility.
 - create actions.
 - edit actions.
-- delete actions.
+- archive, restore, soft-delete, and administrator-purge actions.
 - view actions.
 - approve or finalize actions if introduced later.
 - configuration actions.
@@ -111,13 +112,18 @@ The following actions should be independently controlled:
 - view.
 - create.
 - edit.
+- archive.
+- restore.
 - delete.
+- purge (administrator-only and never creator-scoped).
 - assign.
 - share.
 - export.
 - configure.
 - manage access.
 - review or finalize if a workflow requires it.
+
+Lifecycle authorization is status-aware. An owner may restore their own archived record, but cannot read or restore a soft-deleted tombstone. An administrator with `.restore` may recover a tombstone. `.purge` permanently removes eligible data only after retention, legal-hold, dependency, and last-administrator safeguards; it must never be granted through creator-only scope. Shared Role definitions are administrator-managed configuration, while a user's self-delete request disables their account and revokes all sessions.
 
 ## Administrative access
 
@@ -139,6 +145,7 @@ Access-related actions should be logged when they are significant, especially:
 - sharing changes.
 - external access changes.
 - configuration changes affecting visibility.
+- archive, restore, soft-delete, purge, comment, and account-disable actions.
 
 ## External access model
 

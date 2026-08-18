@@ -3,9 +3,11 @@ import { useConfigurationRepositories } from '~/repositories'
 import { useConfigListPage } from '~/composables/configuration/useConfigListPage'
 import type { FilterDef, TableColumnDef } from '~/types/docetra/common'
 import type { RowActionItem } from '~/types/docetra/row-actions'
+import { useAppLocalization } from '~/composables/settings/useAppLocalization'
 
 const { recordTypes } = useConfigurationRepositories()
 const { t } = useI18n()
+const { formatDateTime } = useAppLocalization()
 
 const columns: TableColumnDef[] = [
   { key: 'name', labelKey: 'docetra.fields.name', sortable: true },
@@ -43,6 +45,7 @@ const list = useConfigListPage({
   descriptionKey: 'docetra.descriptions.recordType',
   icon: 'i-lucide-shapes',
   routeBase: '/configuration/record-types',
+  viewPermission: 'configuration.record_types.view',
   exportResource: 'recordTypes',
   columns,
   async load(query) {
@@ -64,7 +67,7 @@ const list = useConfigListPage({
       const i18nKey = `docetra.status.${s}`
       return t(i18nKey) !== i18nKey ? t(i18nKey) : s
     }
-    if (key === 'updatedAt') return row.updatedAt ? new Date(String(row.updatedAt)).toLocaleString() : '—'
+    if (key === 'updatedAt') return formatDateTime(row.updatedAt)
     return row[key] == null ? '—' : String(row[key])
   },
 })
@@ -72,16 +75,17 @@ const list = useConfigListPage({
 const searchInput = ref('')
 const router = useRouter()
 const rowActions = computed<RowActionItem[]>(() => [
-  {
+  ...(list.canConfigure ? [{
     key: 'assignFields',
     labelKey: 'docetra.rowActions.assignFields',
     icon: 'i-lucide-list-plus',
-  },
+  } satisfies RowActionItem] : []),
   ...list.rowActions,
 ])
 
 function onRowAction(payload: { key: string, row: Record<string, unknown> }) {
   if (payload.key === 'assignFields') {
+    if (!list.canConfigure) return
     const id = String(payload.row.id || '')
     if (id) {
       void router.push({
@@ -103,6 +107,9 @@ watch(() => list.q, v => { searchInput.value = v })
     :description-key="list.descriptionKey"
     :icon="list.icon"
     create-label-key="docetra.config.createRecordType"
+    :can-create="list.canCreate"
+    :can-delete="list.canDelete"
+    :can-export="list.canExport"
     :columns="list.columns"
     :rows="list.items"
     :total="list.total"

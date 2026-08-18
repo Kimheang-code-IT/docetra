@@ -9,6 +9,7 @@ import type {
   RecordType,
   RecordTypeAttribute,
 } from '~/types/docetra/configuration'
+import { ApiEndpoints } from '~/utils/constants/api-endpoints'
 
 const DATA_TYPE_TO_FIELD: Record<AttributeDataType, FieldType> = {
   short_text: 'text',
@@ -30,9 +31,9 @@ const DATA_TYPE_TO_FIELD: Record<AttributeDataType, FieldType> = {
   checkbox_group: 'multiselect',
   file: 'file',
   image: 'image',
-  organization: 'organization',
-  officer: 'officer',
-  user: 'officer',
+  organization: 'multiselect',
+  officer: 'multiselect',
+  user: 'multiselect',
   record_reference: 'relation',
 }
 
@@ -65,6 +66,13 @@ export function mapTypeAttributeToField(
   const fieldType = attributeDataTypeToFieldType(dataType)
   const label = assigned.attributeLabel || catalog?.label || assigned.attributeCode
   const options = optionsFromCatalog(catalog)
+  const assignmentEndpoint = dataType === 'officer'
+    ? `${ApiEndpoints.OFFICERS}/options?valueField=name`
+    : dataType === 'user'
+      ? `${ApiEndpoints.USERS}/options?valueField=name`
+      : dataType === 'organization'
+        ? `${ApiEndpoints.COMPANIES}/options?valueField=name`
+        : undefined
 
   return {
     key: detailFieldKey(assigned.attributeCode),
@@ -75,8 +83,9 @@ export function mapTypeAttributeToField(
     readOnly: assigned.readOnly,
     colSpan: fieldType === 'textarea' || fieldType === 'file' || fieldType === 'image' ? 2 : 1,
     options,
+    optionsEndpoint: assignmentEndpoint,
     help: catalog?.helpText || undefined,
-    placeholder: catalog?.placeholder || undefined,
+    placeholder: catalog?.placeholder || (assignmentEndpoint ? 'Type @ or a name ...' : undefined),
     rows: dataType === 'long_text' || dataType === 'rich_text' ? 4 : undefined,
     meta: {
       attributeId: assigned.attributeId,
@@ -85,17 +94,6 @@ export function mapTypeAttributeToField(
       section: assigned.section,
     },
   }
-}
-
-export function mapTypeAttributesToFields(
-  attributes: RecordTypeAttribute[],
-  catalog?: RecordAttribute[],
-): DocumentFieldSchema[] {
-  const byId = new Map((catalog || []).map(a => [a.id, a]))
-  return [...attributes]
-    .sort((a, b) => a.order - b.order)
-    .map(a => mapTypeAttributeToField(a, byId))
-    .filter((f): f is DocumentFieldSchema => Boolean(f))
 }
 
 /** Group assigned attributes into form sections (by `section` name). */

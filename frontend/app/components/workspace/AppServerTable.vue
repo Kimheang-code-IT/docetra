@@ -4,6 +4,7 @@ import type { TableColumn } from '@nuxt/ui'
 import type { Row, RowSelectionState } from '@tanstack/vue-table'
 import type { TableColumnDef } from '~/types/docetra/common'
 import type { RowActionItem } from '~/types/docetra/row-actions'
+import { useAppLocalization } from '~/composables/settings/useAppLocalization'
 import { DEFAULT_ROW_ACTIONS } from '~/types/docetra/row-actions'
 import {
   TABLE_PAGE_SIZES,
@@ -25,6 +26,8 @@ const props = withDefaults(defineProps<{
   canDelete?: boolean
   /** Row checkboxes. Off for read-only audit lists. */
   selectable?: boolean
+  /** Optional per-row selection gate for mixed-permission tables. */
+  canSelectRow?: (row: DataRow) => boolean
   /** Owner/comments meta rail. Off for log tables. */
   showMeta?: boolean
   /** Per-row ⋯ action menu. Pass `false` to hide. */
@@ -46,6 +49,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { formatNumber } = useAppLocalization()
 
 const UBadge = resolveComponent('UBadge')
 const UButton = resolveComponent('UButton')
@@ -64,6 +68,7 @@ const resolvedRowActions = computed(() => {
 })
 
 const rowSelection = ref<RowSelectionState>({})
+const selectableRows = computed(() => props.rows.filter(row => props.canSelectRow?.(row) !== false))
 
 const pageSizeItems = computed(() => [
   ...TABLE_PAGE_SIZES.map(size => ({ label: String(size), value: String(size) })),
@@ -75,7 +80,7 @@ const pageSizeModel = computed({
 })
 
 const effectiveItemsPerPage = computed(() =>
-  paginationItemsPerPage(props.limit, props.total),
+  paginationItemsPerPage(props.limit),
 )
 
 const visibleRange = computed(() => {
@@ -88,8 +93,8 @@ const visibleRange = computed(() => {
 })
 
 const allVisibleSelected = computed(() => {
-  if (!props.rows.length) return false
-  return props.rows.every(row => rowSelection.value[String(row.id)])
+  if (!selectableRows.value.length) return false
+  return selectableRows.value.every(row => rowSelection.value[String(row.id)])
 })
 
 const metaHeaderLabel = computed(() => {
@@ -102,13 +107,14 @@ const metaHeaderLabel = computed(() => {
     || asPerson(row.uploader),
   ).length
   const total = props.rows.length || 0
-  return `${assigned} of ${total}`
+  return `${formatNumber(assigned)} of ${formatNumber(total)}`
 })
 
 const selectedIds = computed(() =>
   Object.entries(rowSelection.value)
     .filter(([, selected]) => selected)
-    .map(([id]) => id),
+    .map(([id]) => id)
+    .filter(id => selectableRows.value.some(row => String(row.id) === id)),
 )
 
 const selectedCount = computed(() => selectedIds.value.length)
@@ -130,7 +136,7 @@ function onLimitChange(value: unknown) {
 
 function selectAllVisibleRows() {
   const next: RowSelectionState = {}
-  for (const row of props.rows) {
+  for (const row of selectableRows.value) {
     next[String(row.id)] = true
   }
   rowSelection.value = next
@@ -181,7 +187,7 @@ function badgeColor(key: string, raw: unknown): 'primary' | 'secondary' | 'succe
   if (key === 'status') {
     if (value === 'completed' || value === 'active') return 'success'
     if (value === 'pending' || value === 'draft') return 'warning'
-    if (value === 'failed' || value === 'disabled') return 'error'
+    if (value === 'deleted' || value === 'failed' || value === 'disabled') return 'error'
     return 'neutral'
   }
   if (key === 'stage' || key === 'recordStage') {
@@ -245,9 +251,11 @@ const tableColumns = computed<TableColumn<DataRow>[]>(() => {
       },
       cell: ({ row }) => h(UCheckbox, {
         'modelValue': row.getIsSelected(),
-        'disabled': !row.getCanSelect(),
-        'onUpdate:modelValue': (value: boolean | 'indeterminate') =>
-          row.toggleSelected(!!value),
+        'disabled': !row.getCanSelect() || props.canSelectRow?.(row.original) === false,
+        'onUpdate:modelValue': (value: boolean | 'indeterminate') => {
+          if (props.canSelectRow?.(row.original) === false) return
+          row.toggleSelected(!!value)
+        },
         'aria-label': t('docetra.actions.selectRow'),
         'onClick': (e: Event) => e.stopPropagation(),
       }),
@@ -275,10 +283,12 @@ const tableColumns = computed<TableColumn<DataRow>[]>(() => {
       },
     },
     cell: ({ row }) => {
-      const value = props.cellValue(row.original, col.key)
+      const raw = rawCellValue(row.original, col.key)
+      const value = typeof raw === 'number'
+        ? formatNumber(raw)
+        : props.cellValue(row.original, col.key)
       const mode = cellMode(col)
       if (mode === 'badge') {
-        const raw = rawCellValue(row.original, col.key)
         return h(UBadge, {
           color: badgeColor(col.key, raw),
           variant: 'subtle',

@@ -3,6 +3,7 @@ import type { EntityConfig } from '~/config/entities'
 import { useConfirm } from '~/composables/common/useConfirm'
 import { useEntityWorkspace } from '~/composables/workspace/useEntityWorkspace'
 import { consumeListStale } from '~/utils/workspace-list-stale'
+import type { RowActionItem } from '~/types/docetra/row-actions'
 
 const props = defineProps<{
   config: EntityConfig
@@ -64,16 +65,17 @@ const canDelete = computed(() => props.config.canDelete !== false
   && !props.config.readOnly
   && auth.canAccessPage(permissionForAction(props.config.permission, 'delete')))
 const canExport = computed(() => auth.canAccessPage(permissionForAction(props.config.permission, 'export')))
+const canViewLogs = computed(() => auth.canAccessPage('records.logs.view'))
 
-const tableRowActions = computed(() => {
-  if (props.config.readOnly) {
-    return [
-      { key: 'detail', labelKey: 'docetra.rowActions.detail', icon: 'i-lucide-eye' },
-      { key: 'logs', labelKey: 'docetra.rowActions.logs', icon: 'i-lucide-scroll-text' },
-    ]
-  }
-  return undefined
-})
+const tableRowActions = computed<RowActionItem[]>(() => [
+  { key: 'detail', labelKey: 'docetra.rowActions.detail', icon: 'i-lucide-eye' },
+  ...(canViewLogs.value
+    ? [{ key: 'logs', labelKey: 'docetra.rowActions.logs', icon: 'i-lucide-scroll-text' } satisfies RowActionItem]
+    : []),
+  ...(canDelete.value
+    ? [{ key: 'delete', labelKey: 'docetra.rowActions.delete', icon: 'i-lucide-trash-2', color: 'error' } satisfies RowActionItem]
+    : []),
+])
 
 async function onMove(id: string, stage: string) {
   try {
@@ -116,6 +118,7 @@ function onRowAction(payload: { key: string, row: Record<string, unknown> }) {
     return
   }
   if (key === 'logs') {
+    if (!canViewLogs.value) return
     const id = String(row.id || '')
     navigateTo({
       path: '/records/record-logs',

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { PersonSummary } from '~/types/docetra/common'
+import { useAppLocalization } from '~/composables/settings/useAppLocalization'
 
 const props = defineProps<{
   owner?: PersonSummary | null
@@ -9,17 +10,18 @@ const props = defineProps<{
 }>()
 
 const { t } = useI18n()
+const { formatNumber } = useAppLocalization()
 
 const relativeShort = computed(() => {
   if (!props.updatedAt) return '—'
   const diff = Date.now() - new Date(props.updatedAt).getTime()
   const mins = Math.floor(diff / 60000)
   if (mins < 1) return t('docetra.meta.justNow')
-  if (mins < 60) return `${Math.max(1, mins)} m`
+  if (mins < 60) return t('docetra.meta.minutesAgo', { n: formatNumber(Math.max(1, mins)) })
   const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours} h`
+  if (hours < 24) return t('docetra.meta.hoursAgo', { n: formatNumber(hours) })
   const days = Math.floor(hours / 24)
-  return `${days} d`
+  return t('docetra.meta.daysAgo', { n: formatNumber(days) })
 })
 </script>
 
@@ -39,7 +41,7 @@ const relativeShort = computed(() => {
     <div class="flex shrink-0 items-center gap-1 text-muted">
       <span class="inline-flex items-center gap-0.5">
         <UIcon name="i-lucide-message-square" class="size-3.5" />
-        <span class="tabular-nums">{{ commentCount || 0 }}</span>
+        <span class="tabular-nums">{{ formatNumber(commentCount || 0) }}</span>
       </span>
       <span class="text-muted/70">·</span>
       <UIcon

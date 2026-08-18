@@ -9,14 +9,16 @@
 
 Organization is the **master-data** layer for administrative structure:
 
-| Route | UI | Backend role |
-| --- | --- | --- |
-| `/organizations/departments` | `EntityWorkspaceView` table | Internal hierarchy (parent department) |
-| `/organizations/companies` | table | External/partner companies + sector/purpose |
-| `/organizations/company-purposes` | table | Reference list for companies |
-| `/organizations/company-sectors` | table | Reference tree for companies |
-| `/organizations/officers` | table | People linked to org/department (+ optional user) |
-| `/*/new`, `/*/:id` | `EntityDocumentView` | Create / detail / edit |
+
+| Route                             | UI                          | Backend role                                      |
+| --------------------------------- | --------------------------- | ------------------------------------------------- |
+| `/organizations/departments`      | `EntityWorkspaceView` table | Internal hierarchy (parent department)            |
+| `/organizations/companies`        | table                       | External/partner companies + sector/purpose       |
+| `/organizations/company-purposes` | table                       | Reference list for companies                      |
+| `/organizations/company-sectors`  | table                       | Reference tree for companies                      |
+| `/organizations/officers`         | table                       | People linked to org/department (+ optional user) |
+| `/*/new`, `/*/:id`                | `EntityDocumentView`        | Create / detail / edit                            |
+
 
 These entities are **not** workflow records. They feed:
 
@@ -29,6 +31,8 @@ These entities are **not** workflow records. They feed:
 
 ---
 
+
+
 ## 2. Domain entities
 
 Unified product idea: organizations share a conceptual `organization` model. Current UI splits into five resources that map cleanly to REST collections (and optionally to one polymorphic table with `type`).
@@ -37,13 +41,15 @@ Unified product idea: organizations share a conceptual `organization` model. Cur
 
 Internal administrative unit with optional parent (ancestor).
 
-| Field | Role |
-| --- | --- |
-| `id`, `code`, `name` | Identity (`name` required) |
-| `parentId`, `parentName` | Hierarchy; denormalized name for lists |
-| `isActive` / `status` | Soft enable (`isActive` ↔ `status` active/disabled) |
-| `taxId`, contacts, address, logo | Profile |
-| `officerCount`, `relatedRecordCount` | Computed / denormalized counters |
+
+| Field                                | Role                                                                                             |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| `id`, `code`, `name`                 | Identity (`name` required)                                                                       |
+| `parentId`, `parentName`             | Hierarchy; denormalized name for lists                                                           |
+| `status`                             | Canonical `active` / `archived` / `deleted`; do not maintain a second `isActive` source of truth |
+| `taxId`, contacts, address, logo     | Profile                                                                                          |
+| `officerCount`, `relatedRecordCount` | Computed / denormalized counters                                                                 |
+
 
 **Rules:**
 
@@ -51,36 +57,46 @@ Internal administrative unit with optional parent (ancestor).
 - Hierarchy must be **cycle-safe** (reject if new parent is a descendant).
 - Deactivating a department does not auto-delete children; optional policy: block deactivate when children exist.
 
+
+
 ### 2.2 Company
 
 External or partner organization.
 
-| Field | Role |
-| --- | --- |
-| `name` | Required |
-| `sectorId`, `sectorName` | FK → company sector |
-| `purposeId`, `purposeName` | FK → company purpose |
-| `taxId`, `registrationNumber` | Identifiers |
-| Contacts, address, logo, `isActive` | Profile |
-| `relatedRecordCount` | Usage counter |
+
+| Field                               | Role                 |
+| ----------------------------------- | -------------------- |
+| `name`                              | Required             |
+| `sectorId`, `sectorName`            | FK → company sector  |
+| `purposeId`, `purposeName`          | FK → company purpose |
+| `taxId`, `registrationNumber`       | Identifiers          |
+| Contacts, address, logo, `isActive` | Profile              |
+| `relatedRecordCount`                | Usage counter        |
+
+
+
 
 ### 2.3 Company purpose
 
-| Field | Role |
-| --- | --- |
-| `name` | Required |
-| `description`, `isActive` | Optional |
-| `usageCount` | How many companies reference it |
+
+| Field                     | Role                            |
+| ------------------------- | ------------------------------- |
+| `name`                    | Required                        |
+| `description`, `isActive` | Optional                        |
+| `usageCount`              | How many companies reference it |
+
 
 Disable rather than hard-delete when `usageCount > 0` (or return 409).
 
 ### 2.4 Company sector
 
-| Field | Role |
-| --- | --- |
-| `name` | Required |
-| `parentId`, `parentName` | Optional sector tree |
+
+| Field                                   | Role                     |
+| --------------------------------------- | ------------------------ |
+| `name`                                  | Required                 |
+| `parentId`, `parentName`                | Optional sector tree     |
 | `description`, `isActive`, `usageCount` | Same patterns as purpose |
+
 
 Same cycle and usage rules as departments/purposes.
 
@@ -88,15 +104,17 @@ Same cycle and usage rules as departments/purposes.
 
 Business person (not the login account itself).
 
-| Field | Role |
-| --- | --- |
-| `name` | Required |
-| `email`, `phone`, `code` | Contact / HR id |
-| `departmentId` / `organizationId` | Belonging |
-| `roleId`, `roleName` | Optional job/system role label |
-| `userId` | Optional link to User Management account |
-| `authenticationEnabled` | True when `userId` is set (UI derived) |
-| `isActive` | Soft enable |
+
+| Field                             | Role                                     |
+| --------------------------------- | ---------------------------------------- |
+| `name`                            | Required                                 |
+| `email`, `phone`, `code`          | Contact / HR id                          |
+| `departmentId` / `organizationId` | Belonging                                |
+| `roleId`, `roleName`              | Optional job/system role label           |
+| `userId`                          | Optional link to User Management account |
+| `authenticationEnabled`           | True when `userId` is set (UI derived)   |
+| `isActive`                        | Soft enable                              |
+
 
 **Identity rules** (from people-access):
 
@@ -106,7 +124,11 @@ Business person (not the login account itself).
 
 ---
 
+
+
 ## 3. List & document flows
+
+
 
 ### List (all five)
 
@@ -114,13 +136,15 @@ Business person (not the login account itself).
 GET /api/v2/organizations/{resource}?q=&page=&limit=&sort=&isActive=&startDate=&endDate=
 ```
 
-| Query | Behavior |
-| --- | --- |
-| `q` | Search name, code, email, tax id, etc. |
+
+| Query           | Behavior                                                                     |
+| --------------- | ---------------------------------------------------------------------------- |
+| `q`             | Search name, code, email, tax id, etc.                                       |
 | `page`, `limit` | Server pagination; `limit=all` → large fetch (see frontend pagination utils) |
-| `sort` | Default `-updatedAt` |
-| `isActive` | Boolean filter |
-| Date range | Filter on `updatedAt` (UI date filter) |
+| `sort`          | Default `-updatedAt`                                                         |
+| `isActive`      | Boolean filter                                                               |
+| Date range      | Filter on `updatedAt` (UI date filter)                                       |
+
 
 List rows should include denormalized names (`parentName`, `sectorName`, …) and `rowNumber` when requested by UI.
 
@@ -137,13 +161,15 @@ After create → client navigates to `/:id`. Comments/activity/attachments use s
 
 Used by Organization forms **and** Record Incoming/Outgoing/Document forms:
 
-| Method | Path | Purpose |
-| --- | --- | --- |
-| GET | `/api/v2/organizations/departments/options` | Parent department; **Involved office** on records |
-| GET | `/api/v2/organizations/companies/options` | **Document type** + **External units** on records |
-| GET | `/api/v2/organizations/company-sectors/options` | Active sectors |
-| GET | `/api/v2/organizations/company-purposes/options` | Active purposes |
-| GET | `/api/v2/organizations/officers/options` | **Involved officers** on records |
+
+| Method | Path                                             | Purpose                                           |
+| ------ | ------------------------------------------------ | ------------------------------------------------- |
+| GET    | `/api/v2/organizations/departments/options`      | Parent department; **Involved office** on records |
+| GET    | `/api/v2/organizations/companies/options`        | **Document type** + **External units** on records |
+| GET    | `/api/v2/organizations/company-sectors/options`  | Active sectors                                    |
+| GET    | `/api/v2/organizations/company-purposes/options` | Active purposes                                   |
+| GET    | `/api/v2/organizations/officers/options`         | **Involved officers** on records                  |
+
 
 **Query:** `valueField=name` → option `value` is the display name (current Record UI stores names on the record). Default / omit → `value` is `id` (preferred for FK storage + denormalized `*Name`).
 
@@ -151,70 +177,88 @@ Options should be **bounded**, searchable, active-only by default, and exclude t
 
 ---
 
+
+
 ## 4. API surface (aligned with frontend)
 
-| Resource | Base path (current) |
-| --- | --- |
-| Departments | `/api/v2/organizations/departments` |
-| Companies | `/api/v2/organizations/companies` |
+
+| Resource         | Base path (current)                      |
+| ---------------- | ---------------------------------------- |
+| Departments      | `/api/v2/organizations/departments`      |
+| Companies        | `/api/v2/organizations/companies`        |
 | Company purposes | `/api/v2/organizations/company-purposes` |
-| Company sectors | `/api/v2/organizations/company-sectors` |
-| Officers | `/api/v2/organizations/officers` |
+| Company sectors  | `/api/v2/organizations/company-sectors`  |
+| Officers         | `/api/v2/organizations/officers`         |
+
 
 Standard CRUD per resource:
 
-| Method | Path | Purpose |
-| --- | --- | --- |
-| GET | `{base}` | List |
-| GET | `{base}/{id}` | Detail |
-| POST | `{base}` | Create |
-| PATCH | `{base}/{id}` | Update |
-| DELETE | `{base}/{id}` | Soft-delete / archive |
-| POST | `{base}/bulk-delete` | Optional multi-delete |
-| GET | `{base}/options` | Lookup |
+
+| Method | Path                 | Purpose               |
+| ------ | -------------------- | --------------------- |
+| GET    | `{base}`             | List                  |
+| GET    | `{base}/{id}`        | Detail                |
+| POST   | `{base}`             | Create                |
+| PATCH  | `{base}/{id}`        | Update                |
+| DELETE | `{base}/{id}`        | Soft-delete / archive |
+| POST   | `{base}/bulk-delete` | Optional multi-delete |
+| GET    | `{base}/options`     | Lookup                |
+
 
 Shared:
 
-| Method | Path |
-| --- | --- |
-| GET/POST | `/api/v2/{entityPath}/{id}/comments` |
-| GET | `/api/v2/{entityPath}/{id}/activity` |
+
+| Method   | Path                                    |
+| -------- | --------------------------------------- |
+| GET/POST | `/api/v2/{entityPath}/{id}/comments`    |
+| GET      | `/api/v2/{entityPath}/{id}/activity`    |
 | GET/POST | `/api/v2/{entityPath}/{id}/attachments` |
+
 
 ---
 
+
+
 ## 5. Key operations & validations
 
-| Case | Result |
-| --- | --- |
-| Missing `name` | 422 |
-| Duplicate `code` (when used) | 409 |
-| Parent = self | 422 |
-| Parent creates cycle | 422 |
-| Invalid sector/purpose id | 422 / 404 |
-| Deactivate sector/purpose still in use | 409 or force-disable with warning |
+
+| Case                                    | Result                            |
+| --------------------------------------- | --------------------------------- |
+| Missing `name`                          | 422                               |
+| Duplicate `code` (when used)            | 409                               |
+| Parent = self                           | 422                               |
+| Parent creates cycle                    | 422                               |
+| Invalid sector/purpose id               | 422 / 404                         |
+| Deactivate sector/purpose still in use  | 409 or force-disable with warning |
 | Delete department with officers/records | 409 unless cascade policy defined |
-| Officer email uniqueness (optional) | 409 |
-| Link officer to user already linked | 422 |
-| Edit without permission | 403 |
+| Officer email uniqueness (optional)     | 409                               |
+| Link officer to user already linked     | 422                               |
+| Edit without permission                 | 403                               |
+
 
 Frontend already guards some cases (e.g. department cannot be own ancestor) — **backend must enforce** the same.
 
 ---
 
+
+
 ## 6. Permissions
 
-| Code | Use |
-| --- | --- |
-| `organizations.departments.view` / `.edit` | Departments |
-| `organizations.companies.view` / `.edit` | Companies |
-| `organizations.company_purposes.view` / `.edit` | Purposes |
-| `organizations.company_sectors.view` / `.edit` | Sectors |
-| `organizations.officers.view` / `.edit` | Officers |
+
+| Code                                            | Use         |
+| ----------------------------------------------- | ----------- |
+| `organizations.departments.view` / `.edit`      | Departments |
+| `organizations.companies.view` / `.edit`        | Companies   |
+| `organizations.company_purposes.view` / `.edit` | Purposes    |
+| `organizations.company_sectors.view` / `.edit`  | Sectors     |
+| `organizations.officers.view` / `.edit`         | Officers    |
+
 
 Exact strings match `entityConfigs.*.permission` in the frontend.
 
 ---
+
+
 
 ## 7. Activity & audit
 
@@ -228,6 +272,8 @@ Record **logs** deep-link may open `/records/record-logs` with search on entity 
 
 ---
 
+
+
 ## 8. Cross-module relationships
 
 ```text
@@ -239,32 +285,40 @@ Department ───────┼──▶ Officer ──▶ User (optional)
                   └──▶ Record (owner department / office)
 ```
 
-| Consumer | Uses |
-| --- | --- |
-| **Record** | Org FKs / names on documents (`documentType`, involved office/officers, external units); lookup options |
-| **Meeting** | Units / participants labels |
-| **User management** | `officerId` on user; officer may show `userId` |
-| **Reporting** | Filters by department/company/sector |
+
+| Consumer            | Uses                                                                                                    |
+| ------------------- | ------------------------------------------------------------------------------------------------------- |
+| **Record**          | Org FKs / names on documents (`documentType`, involved office/officers, external units); lookup options |
+| **Meeting**         | Units / participants labels                                                                             |
+| **User management** | `officerId` on user; officer may show `userId`                                                          |
+| **Reporting**       | Filters by department/company/sector                                                                    |
+
 
 Organization APIs must stay **lookup-friendly** (stable ids, active flags, denormalized labels).
 
 ---
 
+
+
 ## 9. Frontend contract (implemented)
 
-| Concern | Code |
-| --- | --- |
-| Entity configs | `frontend/app/config/entities.ts` → `departments`, `companies`, `companyPurposes`, `companySectors`, `officers` |
-| Types | `frontend/app/types/docetra/entities.ts` |
-| List/detail pages | `pages/organizations/**` → `EntityWorkspaceView` / `EntityDocumentView` |
-| Adapter | `adapters/index.ts` + `createEntityAdapter` |
-| Endpoints | `api-endpoints.ts` → `DEPARTMENTS`, `COMPANIES`, `COMPANY_PURPOSES`, `COMPANY_SECTORS`, `OFFICERS` |
-| Parent/options load | `adapters/reference-options.ts`, document page save resolves `parentName` |
-| Status sync | `isActive` ↔ `status` in `useDocumentPage` |
+
+| Concern             | Code                                                                                                            |
+| ------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Entity configs      | `frontend/app/config/entities.ts` → `departments`, `companies`, `companyPurposes`, `companySectors`, `officers` |
+| Types               | `frontend/app/types/docetra/entities.ts`                                                                        |
+| List/detail pages   | `pages/organizations/**` → `EntityWorkspaceView` / `EntityDocumentView`                                         |
+| Adapter             | `adapters/index.ts` + `createEntityAdapter`                                                                     |
+| Endpoints           | `api-endpoints.ts` → `DEPARTMENTS`, `COMPANIES`, `COMPANY_PURPOSES`, `COMPANY_SECTORS`, `OFFICERS`              |
+| Parent/options load | `adapters/reference-options.ts`, document page save resolves `parentName`                                       |
+| Status              | UI and API use the canonical lifecycle directly; legacy `isActive` is migrated once, not synchronized forever   |
+
 
 **Mock → HTTP:** `NUXT_PUBLIC_USE_MOCK_DATA=false` uses the same paths.
 
 ---
+
+
 
 ## 10. Implementation notes
 
@@ -276,4 +330,4 @@ Organization APIs must stay **lookup-friendly** (stable ids, active flags, denor
 
 ---
 
-*Align with `prompt/specification/modules/organization.md` for ownership; this file defines the screen-level API contract matching current Nuxt routes.*
+*Align with* `prompt/specification/modules/organization.md` *for ownership; this file defines the screen-level API contract matching current Nuxt routes.*

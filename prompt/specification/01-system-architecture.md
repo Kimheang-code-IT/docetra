@@ -41,11 +41,25 @@ PostgreSQL is the primary database. It stores operational data, configuration da
 
 ### Cache
 
-Redis is used for caching and short-lived operational data where appropriate. It should not replace the database for durable business state.
+Redis provides three logical responsibilities: operational/session coordination, a short TTL cache for frequently changing reads, and a long TTL cache for stable configuration/reference reads. Cache keys are tenant- and permission-scoped, every entry expires, and writes invalidate affected keys after the database transaction commits. Redis must not replace PostgreSQL for durable business state or authorization truth.
+
+### Message broker and workers
+
+RabbitMQ carries durable asynchronous jobs and domain events. Separate worker processes handle file scanning, Drive sync, exports, notifications, search/index projections, recurrence expansion, and cross-instance cache invalidation. Delivery is at least once, so workers must be idempotent and use bounded retry/backoff plus dead-letter queues. A transactional outbox connects PostgreSQL commits to reliable message publication.
+
+### Meeting scheduler
+
+APScheduler is mandatory for meeting reminders, start/end timers, recurrence expansion, cleanup, and schedule reconciliation. It runs as a dedicated process with persistent PostgreSQL schedule storage and UTC as its scheduler timezone. Due callbacks remain short and publish durable RabbitMQ messages; workers perform notifications and business side effects. Do not run a scheduler inside each API process.
+
+### External notification integrations
+
+Provider adapters connect to a transactional email service and two isolated Telegram bots. Meeting Bot sends permission-checked user reminders from APScheduler events. Development Bot sends private deployment/version/code/docs and operational monitoring alerts from signed CI/CD or internal monitoring events. Password-reset email uses single-use hashed tokens, uniform responses, short expiry, and session revocation. External delivery always runs through RabbitMQ workers and cannot block core transactions.
 
 ### File storage
 
 Cloudflare object storage is used for uploaded files, while Google Drive integration remains part of the storage-related workflow where required by the product.
+
+Future Google Workspace capabilities are isolated provider adapters: scoped Google Sign-In, Calendar meeting projection, existing Drive synchronization, and optional Gmail delivery. Each capability is independently enabled through backend OAuth 2.0 authorization-code flow with PKCE; credentials and refresh tokens never enter the frontend. Docetra remains authoritative for permissions, lifecycle, workflow, activity, and APScheduler reminders. See `prompt/backend/05-google-workspace-integration.md`.
 
 ## Module structure
 
@@ -138,7 +152,7 @@ PostgreSQL is the source of truth for business data. The database should store:
 - audit log entries.
 - storage metadata.
 
-Use Redis only for non-durable operational acceleration, such as caching or short-lived workflow state if needed.
+Use Redis only for non-durable operational acceleration and coordination. Use RabbitMQ for delivery, not as the source of job/business state; persist job status, audit, and the transactional outbox in PostgreSQL.
 
 ## Audit and history
 
@@ -168,16 +182,11 @@ Storage handling should separate:
 
 ## Deployment model
 
-The system should be deployed as Dockerized services on DigitalOcean. The deployment should be straightforward enough for repeatable environments and manageable operations.
+Local development deliberately uses a split topology: the Nuxt frontend runs on the developer computer for HMR, while the API, APScheduler process, backend worker, PostgreSQL, Redis, RabbitMQ, and MinIO/S3-compatible storage run in Docker through `compose.backend.yml`. The API explicitly allows only the configured local frontend origin for credentialed requests.
 
-Recommended deployment shape:
+Production remains independently deployable on DigitalOcean: the built frontend may use a managed host or container, and backend services run as containers behind a TLS reverse proxy. PostgreSQL, Redis, RabbitMQ, object storage, workers, and scheduled jobs use private networking and separate credentials. API and worker processes scale independently; frontend hosting is not coupled to the backend Compose topology.
 
-- backend container.
-- frontend container.
-- PostgreSQL.
-- Redis.
-- object storage integration.
-- supporting runtime services as needed.
+See `prompt/backend/00-integration-contract.md` and `frontend/docs/local-frontend-docker-backend.md` for the operational boundary.
 
 
 
@@ -234,4 +243,3 @@ The design should avoid premature microservice decomposition while still keeping
 - `06-api-contracts.md`
 - `07-data-model.md`
 - `08-shared-standards.md`
-

@@ -68,7 +68,7 @@ Do **not** recreate removed stubs: `AppFormSection`, `AppStatusBadge`, `AppUnsav
 
 Field rendering uses `AppDynamicFieldRenderer` (no separate Field/Form Preview panels). Record document pages also consume record-type attributes via `useRecordTypeDrivenTabs`.
 
-`prompt/frontend/00C-dynamic-record-fields.md` is the authoritative extension for dynamic fields. Treat `/configuration/record-attributes` as the global **Attribute Catalog**, and extend `AppRecordTypeEditor` with versioned Fields & layout composition. The current four-entity `useRecordTypeDrivenTabs` behavior is transitional; all record-backed entities, including Meeting and Meeting Topic, must consume the same resolved published schema.
+`prompt/frontend/00C-dynamic-record-fields.md` is the authoritative extension for dynamic fields. Treat `/configuration/record-attributes` as the global **Attribute Catalog**, and keep `AppRecordTypeEditor` as the versioned Fields & layout composer. `useRecordTypeDrivenTabs` now resolves the published form schema for every entity marked `recordBacked: true`, including Meeting and Meeting Topic; future list/filter/search/card/export consumers must reuse that same resolved schema rather than add entity-specific switches.
 
 Each Record Type table row includes **Assign fields**, which deep-links to its assignment editor. Assigned-field rows and workflow-stage rows are drag-sortable; each field row may optionally reference a configured stage. Incoming, Outgoing, Document, and Master List Request boards resolve this saved stage list and order at runtime.
 
@@ -83,6 +83,8 @@ Compose with `AppDocumentPage` + schemas in `settings-schemas.ts`. No dedicated 
 | `/settings/storage` | Storage backends via `storageSettingsTabs` |
 
 Settings routes require `.view`; editing requires `.edit`; reset, connection tests, activation, and set-default controls require `.configure`. Apply `readOnly` and `canSave` through `AppDocumentPage` instead of duplicating disabled-state logic in every page.
+
+The App Config Localization tab controls application-wide presentation: default and available languages, timezone, date and time formats, first day of week, number format, currency, and locale. All visible formatting must go through `useAppLocalization`; ISO transport/storage values remain unchanged. Saving applies localization immediately and language selectors must hide languages that are not enabled.
 
 ### Settings display / card fields (`app/components/settings/`)
 
@@ -112,6 +114,7 @@ Sidebar group label must be **Settings** (`docetra.navigation.settings`), routes
 9. Do not hard-delete published/used attributes or silently mutate stable attribute/option codes.
 10. Use the shared safe raster image rules for branding uploads; do not allow SVG/active content in inline previews.
 11. Frontend permission visibility is advisory. The Settings and Configuration APIs must enforce the same action key.
+12. Do not hardcode visible date/time/number formatting in pages; use `useAppLocalization` and keep canonical ISO conversion limited to API/storage utilities.
 
 ### Acceptance
 

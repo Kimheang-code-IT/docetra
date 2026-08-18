@@ -27,7 +27,7 @@ const defaultOgImage = computed(() => absoluteUrl('/og-image.png'))
 const pageUrl = computed(() => absolutePageUrl())
 
 onMounted(() => {
-  preferences.hydrate()
+  void preferences.hydrate()
   // Non-blocking branding hydrate — do not stall first paint
   void useSettingsRepositories().appInfo.get()
     .then(info => applyFromAppInfo(info))
@@ -85,6 +85,7 @@ useSeoMeta({
     <NuxtLayout>
       <NuxtPage :page-key="pageKey" />
     </NuxtLayout>
+    <CommonAppAccessAlertHost />
     <CommonAppConfirmHost />
   </UApp>
 </template>

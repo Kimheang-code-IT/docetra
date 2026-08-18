@@ -1,10 +1,8 @@
 import {
   CalendarDate,
   CalendarDateTime,
-  getLocalTimeZone,
   parseDate,
   parseDateTime,
-  today,
 } from '@internationalized/date'
 import type { DateValue } from '@internationalized/date'
 
@@ -19,17 +17,8 @@ export const datePickerPopoverContent = {
   collisionPadding: 8,
 }
 
-export type CalendarRangeValue = {
-  start?: CalendarDate
-  end?: CalendarDate
-}
-
 export function isDateTimeGranularity(granularity: DatePickerGranularity) {
   return granularity !== 'day'
-}
-
-export function todayCalendarDate() {
-  return today(getLocalTimeZone())
 }
 
 export function parsePickerValue(
@@ -79,38 +68,3 @@ export function mergeDateWithTime(
   return new CalendarDateTime(date.year, date.month, date.day, fallbackHour, fallbackMinute)
 }
 
-export function parseCalendarRange(
-  start?: string | null,
-  end?: string | null,
-): CalendarRangeValue {
-  return {
-    start: toCalendarDate(parsePickerValue(start, false)),
-    end: toCalendarDate(parsePickerValue(end, false)),
-  }
-}
-
-export function formatPickerLabel(
-  value: string,
-  locale: string,
-  includeTime: boolean,
-): string {
-  const raw = String(value || '').trim()
-  if (!raw) return ''
-
-  const date = raw.includes('T')
-    ? new Date(raw.length === 16 ? `${raw}:00` : raw)
-    : new Date(`${raw.slice(0, 10)}T00:00:00`)
-
-  if (Number.isNaN(date.getTime())) return raw
-
-  if (includeTime) {
-    return date.toLocaleString(locale === 'km' ? 'km-KH' : 'en-US', {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    })
-  }
-
-  return date.toLocaleDateString(locale === 'km' ? 'km-KH' : 'en-US', {
-    dateStyle: 'medium',
-  })
-}

@@ -36,17 +36,6 @@ export function upsertIndexedDocuments(docs: IndexedDocument[]) {
   writeAll([...map.values()])
 }
 
-export function removeIndexedDocument(id: string) {
-  if (!import.meta.client) return
-  writeAll(readAll().filter(d => d.id !== id))
-}
-
-export function clearSearchIndex() {
-  if (!import.meta.client) return
-  localStore.remove(INDEX_KEY)
-  localStore.remove(SEEDED_KEY)
-}
-
 export function isSearchIndexSeeded(): boolean {
   if (!import.meta.client) return false
   return localStore.get<boolean>(SEEDED_KEY) === true

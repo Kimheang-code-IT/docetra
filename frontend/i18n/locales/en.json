@@ -294,6 +294,7 @@
       "photoRemoveFailedDesc": "Try again in a moment."
     },
     "common": {
+      "ok": "OK",
       "confirmTitle": "Confirm",
       "confirm": "Confirm",
       "cancel": "Cancel",
@@ -561,9 +562,12 @@
       "defaultPageSize": "Default page size",
       "defaultRecordView": "Default record view",
       "defaultLanguage": "Default language",
+      "availableLanguages": "Available languages",
       "timezone": "Timezone",
       "dateFormat": "Date format",
       "timeFormat": "Time format",
+      "firstDayOfWeek": "First day of week",
+      "numberFormat": "Number format",
       "currency": "Currency",
       "locale": "Locale",
       "enableEmail": "Enable email",
@@ -671,6 +675,7 @@
       "pending": "Pending",
       "completed": "Completed",
       "archived": "Archived",
+      "deleted": "Delete",
       "disabled": "Disabled",
       "failed": "Failed"
     },
@@ -856,20 +861,13 @@
         "alignLeft": "Align left",
         "alignCenter": "Align center",
         "alignRight": "Align right",
-        "alignJustify": "Justify",
-        "table": "Table",
-        "insertTable": "Insert table",
-        "addColumnBefore": "Add column before",
-        "addColumnAfter": "Add column after",
-        "deleteColumn": "Delete column",
-        "addRowBefore": "Add row before",
-        "addRowAfter": "Add row after",
-        "deleteRow": "Delete row",
-        "deleteTable": "Delete table"
+        "alignJustify": "Justify"
       }
     },
     "fields": {
       "number": "No.",
+      "mentionSearchMore": "Type {'@'} to add more...",
+      "mentionAdd": "Add {name}",
       "title": "Title",
       "name": "Name",
       "label": "Label",
@@ -1085,6 +1083,8 @@
       "actions": {
         "view": "View",
         "edit": "Edit",
+        "archive": "Archive",
+        "restore": "Restore",
         "assign": "Assign",
         "comment": "Comment",
         "transition": "Change stage",
@@ -1094,6 +1094,7 @@
         "write": "Write",
         "create": "Create",
         "delete": "Delete",
+        "purge": "Delete permanently",
         "print": "Print",
         "email": "Email",
         "report": "Report",
@@ -1108,7 +1109,16 @@
       "emptyColumn": "No cards in this stage",
       "notFound": "Document not found",
       "noAttachments": "No attachments yet",
-      "loadFailed": "Failed to load data"
+      "loadFailed": "Failed to load data",
+      "accessDeniedTitle": "Access denied",
+      "accessDeniedDescription": "Your account does not have permission to open this page or perform this action.",
+      "sessionExpiredTitle": "Session expired",
+      "sessionExpiredDescription": "Your session has expired. Please sign in again to continue.",
+      "signInAgain": "Sign in again",
+      "requestedPage": "Requested page",
+      "requiredPermission": "Required permission",
+      "goBack": "Go back",
+      "uploadPermissionRequired": "You can review uploaded files, but your role cannot upload or delete files."
     },
     "exportDialog": {
       "title": "Export data",

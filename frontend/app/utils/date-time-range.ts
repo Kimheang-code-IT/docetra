@@ -38,23 +38,3 @@ export function isWithinDateTimeRange(
   return true
 }
 
-/**
- * Single-picker filter: same calendar day as `filter`.
- * If `filter` includes a non-midnight time, also require value >= filter.
- */
-export function matchesDateTimeDayFilter(
-  value: string | null | undefined,
-  filter: string | null | undefined,
-): boolean {
-  const bound = toComparableDateTime(filter, 'start')
-  if (!bound) return true
-
-  const point = toComparableDateTime(value, 'value')
-  if (!point) return false
-  if (point.slice(0, 10) !== bound.slice(0, 10)) return false
-
-  const raw = String(filter || '').trim()
-  const timePart = raw.includes('T') ? raw.slice(11, 16) : ''
-  if (timePart && timePart !== '00:00' && point < bound) return false
-  return true
-}

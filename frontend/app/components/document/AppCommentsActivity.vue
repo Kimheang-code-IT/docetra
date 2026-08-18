@@ -149,7 +149,7 @@ const editingBody = ref('')
 const submittedEditBody = ref<string | null>(null)
 
 function canManageComment(comment?: EntityComment) {
-  if (!comment || !props.currentUser) return false
+  if (!props.canComment || !comment || !props.currentUser) return false
   return comment.author.id === props.currentUser.id
     || Boolean(comment.author.email && comment.author.email === props.currentUser.email)
     || comment.author.name === props.currentUser.name

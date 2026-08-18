@@ -132,14 +132,19 @@ usePageSeo({
   title: () => title.value,
 })
 
-const moreItems = computed(() => [[
+const canDuplicateDocument = computed(() => auth.canAccessPage(permissionForAction(
+  props.config.permission,
+  'create',
+)))
+
+const moreItems = computed(() => canDuplicateDocument.value ? [[
   {
     label: t('docetra.document.duplicate'),
     icon: 'i-lucide-copy',
     disabled: isCreate.value,
     onSelect: () => toast.add({ title: t('docetra.document.comingSoon'), color: 'neutral' }),
   },
-]])
+]] : [])
 
 const currentUser = computed(() => ({
   id: String(auth.user?.id || auth.user?.email || 'current'),

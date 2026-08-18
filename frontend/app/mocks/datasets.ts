@@ -52,7 +52,7 @@ const recordStages = [
   'reply',
   'finished_final',
 ] as const
-const statuses = ['draft', 'active', 'pending', 'completed', 'archived'] as const
+const statuses = ['active', 'archived', 'deleted'] as const
 
 function meetingStage(i: number) {
   return meetingStages[i % meetingStages.length]!
@@ -171,7 +171,7 @@ function makeRecord(kind: RecordDocument['recordKind'], count: number, prefix: s
     directorDate: kind !== 'master_list_request' ? dateOnly((i + 1) % 18) : undefined,
     involvedOfficers: kind !== 'master_list_request' ? [person(i).name, person(i + 1).name] : undefined,
     externalUnits: [org((i + 2) % 5).name],
-    officeInCharge: kind === 'master_list_request' ? org((i + 1) % 5).name : undefined,
+    officeInCharge: kind === 'master_list_request' ? [org((i + 1) % 5).name] : undefined,
     officerInCharge: kind === 'master_list_request' ? person(i).name : undefined,
     ownerDepartment: org((i + 1) % 5),
     owner: person(i),
@@ -459,14 +459,14 @@ export const mockFileUploads: FileUploadItem[] = Array.from({ length: 24 }, (_, 
   id: `fu_${i + 1}`,
   fileName: `upload-${i + 1}.pdf`,
   name: `upload-${i + 1}.pdf`,
-  status: ['completed', 'pending', 'failed', 'active'][i % 4]!,
+  status: status(i),
   mimeType: 'application/pdf',
   sizeBytes: 50_000 + i * 12_000,
   uploader: person(i),
   linkedRecordId: i % 3 === 0 ? undefined : `inc_${(i % 20) + 1}`,
   linkedRecordTitle: i % 3 === 0 ? undefined : `incoming record ${(i % 20) + 1}`,
   storageSource: i % 2 === 0 ? 'local' : 'google_drive',
-  progress: i % 4 === 1 ? 62 : 100,
+  progress: status(i) === 'active' ? 62 : 100,
   createdAt: daysAgo(20 - (i % 20)),
   updatedAt: daysAgo(i % 7),
 }))
@@ -474,12 +474,12 @@ export const mockFileUploads: FileUploadItem[] = Array.from({ length: 24 }, (_, 
 export const mockGoogleDriveSync: GoogleDriveSyncJob[] = Array.from({ length: 10 }, (_, i) => ({
   id: `gds_${i + 1}`,
   name: `Sync folder ${i + 1}`,
-  status: ['active', 'completed', 'failed', 'pending'][i % 4]!,
+  status: status(i),
   folderId: `folder_${i + 1}`,
   folderName: `Docetra Folder ${i + 1}`,
   lastSyncAt: daysAgo(i),
   filesSynced: 10 + i * 4,
-  errorMessage: i % 4 === 2 ? 'Quota exceeded' : undefined,
+  errorMessage: undefined,
   createdAt: daysAgo(40 - i),
   updatedAt: daysAgo(i),
 }))
@@ -539,7 +539,7 @@ export function getDashboardSummary(): DashboardSummary {
       href: `/records/incoming-documents/${doc.id}`,
     }))
 
-  const historyEvents = mockMeetingHistory.slice(0, 10).map((m, i) => ({
+  const historyEvents = mockMeetingHistory.slice(0, 10).map(m => ({
     id: `ev_mh_${m.id}`,
     title: m.title,
     start: m.meetingDate,

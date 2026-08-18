@@ -14,8 +14,13 @@ export interface EntityAdapter<T> {
   get: (id: string) => Promise<ApiResponse<T>>
   create: (payload: Partial<T>) => Promise<ApiResponse<T>>
   update: (id: string, payload: Partial<T>) => Promise<ApiResponse<T>>
+  archive?: (id: string) => Promise<ApiResponse<T>>
+  restore?: (id: string) => Promise<ApiResponse<T>>
+  /** Soft delete. The backend retains data for an authorized administrator restore. */
   delete?: (id: string) => Promise<ApiResponse<{ id: string }>>
   deleteMany?: (ids: string[]) => Promise<ApiResponse<{ ids: string[] }>>
+  /** Irreversible administrative purge after retention/dependency checks. */
+  purge?: (id: string) => Promise<ApiResponse<{ id: string }>>
   transitionStage?: (id: string, stage: string) => Promise<ApiResponse<T>>
   listByStage?: (stage: string, query?: ListQuery) => Promise<ApiResponse<T[]>>
   /** One aggregate request; avoids one count request per board column. */

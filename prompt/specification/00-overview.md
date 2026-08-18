@@ -82,6 +82,8 @@ The default technical baseline from v1 is:
 - Frontend: selected by the frontend team.
 - Database: PostgreSQL.
 - Cache: Redis.
+- Messaging: RabbitMQ with independently scalable background workers.
+- Scheduling: APScheduler for persistent meeting timers and recurrence orchestration.
 - Storage: Cloudflare object storage plus Google Drive integration.
 - Architecture style: modular monolith.
 

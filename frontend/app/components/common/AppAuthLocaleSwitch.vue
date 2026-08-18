@@ -13,7 +13,9 @@ const currentLabel = computed(() => {
 })
 
 const items = computed<DropdownMenuItem[][]>(() => [
-  (locales.value || []).map((loc: { name?: string; code?: string }) => ({
+  (locales.value || [])
+    .filter((loc: { code?: string }) => preferences.availableLocales.includes(loc.code as AppLocale))
+    .map((loc: { name?: string; code?: string }) => ({
     label: loc.name || loc.code,
     type: 'checkbox' as const,
     checked: locale.value === loc.code,
@@ -23,7 +25,7 @@ const items = computed<DropdownMenuItem[][]>(() => [
         preferences.setLocale(loc.code as AppLocale)
       }
     },
-  })),
+    })),
 ])
 </script>
 

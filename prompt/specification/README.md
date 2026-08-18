@@ -47,6 +47,6 @@ Recommended reading order for implementation:
 
 - v2 should be treated as a replacement for v1.
 - The docs assume an engineering-only audience.
-- The baseline stack is FastAPI, PostgreSQL, Redis, and Docker-based deployment on DigitalOcean.
+- The baseline stack is FastAPI, PostgreSQL, Redis short/long cache tiers, RabbitMQ workers, APScheduler meeting scheduling, and Docker-based backend deployment on DigitalOcean.
 - API versioning should start at `/api/v2`.
 - Migration-specific details should stay brief and isolated in `10-migration-notes.md`.

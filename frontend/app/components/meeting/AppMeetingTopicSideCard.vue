@@ -9,6 +9,8 @@ const props = defineProps<{
   selected?: boolean
   dropActive?: boolean
   collapsed?: boolean
+  canDrop?: boolean
+  canDelete?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -17,6 +19,7 @@ const emit = defineEmits<{
   dropMeeting: [meetingId: string]
   dragOver: []
   dragLeave: []
+  delete: []
 }>()
 
 const { t, te } = useI18n()
@@ -37,7 +40,7 @@ const statusColor = computed(() => {
   const status = String(props.topic.status || '').toLowerCase()
   if (status === 'active' || status === 'completed') return 'success' as const
   if (status === 'pending' || status === 'draft') return 'warning' as const
-  if (status === 'disabled' || status === 'failed') return 'error' as const
+  if (status === 'deleted' || status === 'disabled' || status === 'failed') return 'error' as const
   return 'info' as const
 })
 
@@ -51,15 +54,22 @@ const showStage = computed(() => cardSlots.value.body.includes('stage'))
 const showTags = computed(() => cardSlots.value.body.includes('tags'))
 const showRecordTime = computed(() => cardSlots.value.footer.includes('recordTime'))
 
-const menuItems = computed(() => [[
-  {
+const menuItems = computed(() => [
+  [{
     label: t('docetra.meetingBoard.openTopic'),
     icon: 'i-lucide-external-link',
     onSelect: () => emit('open'),
-  },
-]])
+  }],
+  ...(props.canDelete ? [[{
+    label: t('docetra.rowActions.delete'),
+    icon: 'i-lucide-trash-2',
+    color: 'error' as const,
+    onSelect: () => emit('delete'),
+  }]] : []),
+])
 
 function onDragOver(event: DragEvent) {
+  if (!props.canDrop) return
   event.preventDefault()
   if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move'
   if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
@@ -67,6 +77,7 @@ function onDragOver(event: DragEvent) {
 }
 
 function onDrop(event: DragEvent) {
+  if (!props.canDrop) return
   event.preventDefault()
   const id = event.dataTransfer?.getData('text/plain') || ''
   if (id) emit('dropMeeting', id)
@@ -75,7 +86,7 @@ function onDrop(event: DragEvent) {
 
 <template>
   <article
-    :data-meeting-topic-drop="topic.id"
+    :data-meeting-topic-drop="canDrop ? topic.id : undefined"
     role="button"
     tabindex="0"
     class="group cursor-pointer transition"

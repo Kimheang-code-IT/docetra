@@ -1,0 +1,177 @@
+name: docetra-backend
+
+services:
+  api:
+    image: ${DOCETRA_BACKEND_IMAGE:-docetra-backend:local}
+    restart: unless-stopped
+    env_file:
+      - ${BACKEND_ENV_FILE:-backend.env}
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-docetra}:${POSTGRES_PASSWORD:-docetra_local_only}@postgres:5432/${POSTGRES_DB:-docetra}
+      REDIS_URL: redis://redis:6379/0
+      CACHE_SHORT_URL: redis://redis:6379/1
+      CACHE_LONG_URL: redis://redis:6379/2
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-docetra}:${RABBITMQ_PASSWORD:-docetra_rabbit_local_only}@rabbitmq:5672/${RABBITMQ_VHOST:-docetra}
+      S3_ENDPOINT: http://minio:9000
+    ports:
+      - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m,noexec,nosuid
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - edge
+      - private
+
+  worker:
+    image: ${DOCETRA_BACKEND_IMAGE:-docetra-backend:local}
+    restart: unless-stopped
+    command: ["sh", "-c", "${BACKEND_WORKER_COMMAND:-python -m app.worker}"]
+    env_file:
+      - ${BACKEND_ENV_FILE:-backend.env}
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-docetra}:${POSTGRES_PASSWORD:-docetra_local_only}@postgres:5432/${POSTGRES_DB:-docetra}
+      REDIS_URL: redis://redis:6379/0
+      CACHE_SHORT_URL: redis://redis:6379/1
+      CACHE_LONG_URL: redis://redis:6379/2
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-docetra}:${RABBITMQ_PASSWORD:-docetra_rabbit_local_only}@rabbitmq:5672/${RABBITMQ_VHOST:-docetra}
+      S3_ENDPOINT: http://minio:9000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m,noexec,nosuid
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - private
+
+  scheduler:
+    image: ${DOCETRA_BACKEND_IMAGE:-docetra-backend:local}
+    restart: unless-stopped
+    command: ["sh", "-c", "${BACKEND_SCHEDULER_COMMAND:-python -m app.scheduler}"]
+    env_file:
+      - ${BACKEND_ENV_FILE:-backend.env}
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-docetra}:${POSTGRES_PASSWORD:-docetra_local_only}@postgres:5432/${POSTGRES_DB:-docetra}
+      REDIS_URL: redis://redis:6379/0
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-docetra}:${RABBITMQ_PASSWORD:-docetra_rabbit_local_only}@rabbitmq:5672/${RABBITMQ_VHOST:-docetra}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m,noexec,nosuid
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - private
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-docetra}
+      POSTGRES_USER: ${POSTGRES_USER:-docetra}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-docetra_local_only}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - private
+
+  redis:
+    image: redis:8-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--save", "60", "1"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - private
+
+  rabbitmq:
+    image: ${RABBITMQ_IMAGE:-rabbitmq:4-management-alpine}
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-docetra}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-docetra_rabbit_local_only}
+      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VHOST:-docetra}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    ports:
+      - "127.0.0.1:${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks:
+      - private
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address :9001
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-docetra}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-docetra_minio_local_only}
+    volumes:
+      - minio_data:/data
+    ports:
+      - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - private
+
+networks:
+  edge:
+  private:
+    internal: true
+
+volumes:
+  postgres_data:
+  redis_data:
+  rabbitmq_data:
+  minio_data:

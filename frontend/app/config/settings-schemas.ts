@@ -1,11 +1,12 @@
 import type { DocumentTabSchema } from '~/types/docetra/common'
-import type { StorageProviderType } from '~/types/docetra/settings'
 import {
   AWS_REGION_OPTIONS,
   CURRENCY_OPTIONS,
   DATE_FORMAT_OPTIONS,
+  FIRST_DAY_OF_WEEK_OPTIONS,
   LANDING_PAGE_OPTIONS,
   LOCALE_OPTIONS,
+  NUMBER_FORMAT_OPTIONS,
   PAGE_SIZE_OPTIONS,
   SYNC_SCHEDULE_OPTIONS,
   TIME_FORMAT_OPTIONS,
@@ -97,6 +98,15 @@ export const appConfigTabs: DocumentTabSchema[] = [
             ],
           },
           {
+            key: 'localization.availableLanguages',
+            labelKey: 'docetra.settings.availableLanguages',
+            type: 'multiselect',
+            options: [
+              { label: 'English', value: 'en' },
+              { label: 'Khmer', value: 'km' },
+            ],
+          },
+          {
             key: 'localization.timezone',
             labelKey: 'docetra.settings.timezone',
             type: 'select',
@@ -113,6 +123,18 @@ export const appConfigTabs: DocumentTabSchema[] = [
             labelKey: 'docetra.settings.timeFormat',
             type: 'select',
             options: TIME_FORMAT_OPTIONS,
+          },
+          {
+            key: 'localization.firstDayOfWeek',
+            labelKey: 'docetra.settings.firstDayOfWeek',
+            type: 'select',
+            options: FIRST_DAY_OF_WEEK_OPTIONS,
+          },
+          {
+            key: 'localization.numberFormat',
+            labelKey: 'docetra.settings.numberFormat',
+            type: 'select',
+            options: NUMBER_FORMAT_OPTIONS,
           },
           {
             key: 'localization.currency',
@@ -394,7 +416,3 @@ export const storageSettingsTabs: DocumentTabSchema[] = [
   },
 ]
 
-/** @deprecated Use `storageSettingsTabs` — kept for any leftover imports. */
-export function storageProviderTabs(_type?: StorageProviderType | null): DocumentTabSchema[] {
-  return storageSettingsTabs
-}

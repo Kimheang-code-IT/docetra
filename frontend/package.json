@@ -9,7 +9,8 @@
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "prepare:nuxt": "nuxt prepare",
-    "typecheck": "nuxt typecheck"
+    "typecheck": "nuxt typecheck",
+    "typecheck:unused": "vue-tsc --noEmit --noUnusedLocals --noUnusedParameters -p .nuxt/tsconfig.json"
   },
   "dependencies": {
     "@iconify-json/lucide": "^1.2.96",
@@ -23,8 +24,6 @@
     "@tiptap/core": "3.29.2",
     "@tiptap/extension-color": "3.29.2",
     "@tiptap/extension-highlight": "3.29.2",
-    "@tiptap/extension-image": "3.29.2",
-    "@tiptap/extension-table": "3.29.2",
     "@tiptap/extension-text-align": "3.29.2",
     "@tiptap/extension-text-style": "3.29.2",
     "@tiptap/extension-underline": "3.29.2",
@@ -57,8 +56,6 @@
       "@tiptap/pm": "3.29.2",
       "@tiptap/vue-3": "3.29.2",
       "@tiptap/starter-kit": "3.29.2",
-      "@tiptap/extension-image": "3.29.2",
-      "@tiptap/extension-table": "3.29.2",
       "@tiptap/extension-bubble-menu": "3.29.2",
       "@tiptap/extension-floating-menu": "3.29.2",
       "@tiptap/extension-placeholder": "3.29.2",

@@ -195,7 +195,7 @@ function updateLevel(documentType: string, value: string | number) {
             <td class="px-3 py-3">
               <UCheckbox
                 :model-value="Boolean(row.onlyIfCreator)"
-                :disabled="disabled || row.actions.length === 0"
+                :disabled="disabled || row.actions.length === 0 || row.actions.includes('purge')"
                 :label="$t('docetra.rolePermissions.creatorOnly')"
                 @update:model-value="updateCreatorScope(row.documentType, $event)"
               />

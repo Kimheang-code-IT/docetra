@@ -12,6 +12,10 @@ Use Nuxt UI primitives for the complete interface. Do not add another UI framewo
 
 Nuxt auto-imports by folder prefix (e.g. `components/common/AppLiveSearch.vue` → `CommonAppLiveSearch`). Prefer those prefixes in templates.
 
+Assignment fields use `CommonAppMentionMultiInput`. Values are arrays and accept multiple people or organizations. Typing `@` or normal text searches the corresponding reference endpoint; Enter selects the highlighted result, duplicates are ignored, and selected values render as removable mention chips. Cards show officers in green, departments in blue, and partner companies in amber, with multiple names joined by commas.
+
+The HTTP payload for every assignment is an array of `{ id, label, type }`, including a single selection. Option search is server-indexed, bounded, permission-filtered, and tenant-scoped; do not ship an unrestricted people directory to the browser.
+
 ## Page composition paths
 
 ```text
@@ -22,6 +26,10 @@ Generic CRUD list/detail
 Special board UX (topics, stages, logs, upload)
   → App*Board in meeting|record|portal
   → domain composable (useMeetingTopicBoard, useRecordStageBoard, useRecordLogBoard, …)
+
+Cross-entity archive
+  → ArchiveWorkspaceView
+  → useArchiveWorkspace + source entity adapters
 
 Config admin (record types / attributes)
   → AppConfigEntityList + AppRecord*List / *Editor
@@ -47,6 +55,12 @@ Do not expose Print actions in shared headers, document overflow menus, or role 
 Provide debounced live search (`AppLiveSearch`), select/multiselect filters (`AppFilterSelect`), date range (`AppDateRangeFilter`), sort, and table/Kanban/hierarchy/timeline view toggle. Selected filters show an active grey border on the control (no filter chip row) via `utils/filter/select-ui.ts`. Synchronize supported state with URL query parameters via `useEntityWorkspace`.
 
 Meeting History enables two modes over one list contract: the server-paginated table and `AppMeetingHistoryTimeline`. The timeline is vertical, orders cards from newest to oldest by `meetingDate`, and preserves search, filters, page size, page, loading, empty, error, retry, and document navigation. Its default request is `view=timeline&sort=-meetingDate`; HTTP APIs should accept the same query used by the mock adapter.
+
+`AppDateRangeFilter` is the shared range control for toolbars, boards, exports, and archive filters. It delegates the calendar/time panel to `AppDatePickerPopover`, uses `utils/date-picker.ts` for canonical values, and adapts to constrained layouts: below 640 px or at `lg`/`xl` application font size, non-inline usage becomes an icon-triggered modal; `inline` usage remains a full-width input. Do not recreate paired date inputs in a page component.
+
+### `ArchiveWorkspaceView`
+
+The `/archive` workspace composes `AppWorkspacePage`, `AppServerTable`, `AppLiveSearch`, `AppSingleFilterSelect`, and `AppDateRangeFilter`. `useArchiveWorkspace` discovers only source entities the signed-in user may view, loads authorized archived and recoverably deleted rows, and exposes detail, `.restore`, confirmed administrator-only `.purge`, filtering, and paging actions. Owners may restore their own archived rows; only administrators may see or restore tombstones. Keep source-specific behavior behind the existing entity adapters. For production-scale archives, replace the bounded multi-source client aggregation with one authorized server-paginated archive query.
 
 ### `AppServerTable`
 
@@ -86,7 +100,7 @@ Use on tables, cards, and boards. Prefer this over one-off dropdowns.
 
 ### Role permission matrix
 
-`AppRolePermissionMatrix` is the only editor for structured role capabilities. It always normalizes API/mock rows through `utils/role/permissions.ts`, supports per-action, per-row, Grant all, Clear all, creator-only scope, and access levels 0–9. Any non-view action implies View; clearing View clears the row. On save, `useDocumentPage` sends normalized non-empty `permissionRows`, `permissionSchemaVersion: 1`, a namespaced flat `permissions` list, and `permissionCount`. Backend authorization remains authoritative and must recompute the expansion.
+`AppRolePermissionMatrix` is the only editor for structured role capabilities. It includes Dashboard and Archive alongside entity/configuration rows, normalizes API/mock rows through `utils/role/permissions.ts`, and supports per-action, per-row, Grant all, Clear all, creator-only scope, and access levels 0–9. Any non-view action implies View; clearing View clears the row. Configuration rows include Export because their list UI exposes export. On save, `useDocumentPage` sends normalized non-empty `permissionRows`, `permissionSchemaVersion: 1`, a namespaced flat `permissions` list, and `permissionCount`. Backend authorization remains authoritative and must recompute the expansion.
 
 ### `AppKanbanBoard` / `AppKanbanColumn` / `AppKanbanCard`
 
@@ -95,6 +109,8 @@ Reusable Jira / GitHub Projects–style board:
 - Board area scrolls on **Y** when a column has many cards (toolbar stays fixed). Columns grow with cards; stages still scroll on **X**.
 - Horizontal stage scrolling, drop-target highlight, drag-and-drop plus keyboard/menu “Move to stage”.
 - Cards size to content (title, assignee, status/waiting, attachment/comment counts). Override via `#card` / `#column-header-actions` slots.
+- Business-card status is exactly Active, Archived, or Deleted. Keep final workflow stages, account states, and job states in their own fields.
+- Topic and meeting cards place permission-gated Delete in the `⋯` menu, use the shared confirmation dialog, and optimistically remove the card only after the adapter accepts the soft delete.
 - Bounded per-column loading with “Load more”; optimistic move/rollback stays in the workspace composable.
 - Card activation navigates to the canonical document route.
 
@@ -246,12 +262,12 @@ Coordinate route identity, create/read/edit state, schema, initial values, dirty
 
 ### `useRecordTypeDrivenTabs`
 
-This composable is the current partial implementation for `incomingDocuments`, `outgoingDocuments`, `documents`, and `masterListRequests`. Replace its entity-key allowlist with the general `useRecordSchema` contract in `00C-dynamic-record-fields.md`. Every entity marked `recordBacked: true`, including meetings and meeting topics, resolves published fields by `recordTypeId`. The resolver must drive add, detail, edit, list/filter, and board-card eligibility without pruning inaccessible or temporarily hidden values.
+This composable is the current form-schema resolver for every entity marked `recordBacked: true`, including meetings, meeting topics, incoming/outgoing documents, documents, and master-list requests. It resolves the published schema by `recordTypeId` or configured stable code, caches it briefly, injects assigned sections into the shared Details tab, resolves workflow-stage options, and prunes values only when the user intentionally changes record type. Extend the same resolved-schema result to list/filter/search/card/export eligibility without reintroducing an entity-key allowlist or pruning inaccessible/temporarily hidden values.
 
 ### `useMenu` / `useUserMenu`
 
 - `useMenu` — sidebar links only (no System Monitor group). Order: Dashboard → Meeting → Record → Organization → Portal → User Management → Configuration → Settings. Filter links with the same namespaced `.view` capabilities used by route metadata and remove empty groups.
-- `useUserMenu` — System Log, Language, Font size, About, Appearance, Logout.
+- `useUserMenu` — user profile, Archive, System Log, Language, Font size, About, Appearance, and Logout. The identity item opens `AppUserProfileDialog`; avatar mutations use the auth adapter and update the auth store immediately.
 
 ### `useGlobalSearch`
 
@@ -268,8 +284,11 @@ Cmd+K keyword / semantic search over the local index; permission-filtered groups
 - Unsaved changes require confirmation (`useConfirm`).
 - Previous/next respects the source workspace ordering where available.
 - Backend authorization is authoritative; frontend permission checks control visibility only.
-- Shared permission derivation uses `utils/role/access.ts`: `.view` is the namespace root for `.create`, `.edit`, `.delete`, `.comment`, `.export`, and other supported actions.
+- Shared permission derivation uses `utils/role/access.ts`: `.view` is the namespace root for `.create`, `.edit`, `.archive`, `.restore`, `.delete`, `.purge`, `.comment`, `.export`, and other supported actions. `.purge` is never creator-scoped.
 - `AppDocumentPage` accepts `readOnly`, `canSave`, `canComment`, and `canExport`; `EntityWorkspaceView` derives create/delete/export visibility from the entity permission namespace.
+- `AppServerTable.canSelectRow` supports mixed-permission tables such as Archive; hidden row actions and disabled selection must agree.
+- Specialized boards must hide and disable the interaction itself: no draggable record without `.transition`, no meeting assignment/reorder without `.assign`, and no meeting notes editor without `.edit`.
+- Denied routes and API `403` responses open the localized global access dialog over the current or first authorized page. Expired API sessions (`401`) clear authentication and show the session-expired dialog on sign-in; do not create a dedicated forbidden page.
 - Use `usePathModel` for schema field access and `useAppPageTitle` for the repeated Settings title/SEO lifecycle.
 
 ## Reusable security components

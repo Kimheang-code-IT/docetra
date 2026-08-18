@@ -5,7 +5,10 @@ export const ROLE_PERMISSION_ACTIONS = [
   'view',
   'create',
   'edit',
+  'archive',
+  'restore',
   'delete',
+  'purge',
   'assign',
   'share',
   'export',
@@ -24,11 +27,13 @@ export interface RoleDocumentTypeDefinition {
 }
 
 /** Matrix rows map to the same namespace used by page and API authorization. */
-const WORKFLOW_ACTIONS: readonly RolePermissionAction[] = ['view', 'create', 'edit', 'delete', 'assign', 'share', 'export', 'comment', 'transition']
+const WORKFLOW_ACTIONS: readonly RolePermissionAction[] = ['view', 'create', 'edit', 'archive', 'restore', 'delete', 'purge', 'assign', 'share', 'export', 'comment', 'transition']
 const MASTER_DATA_ACTIONS: readonly RolePermissionAction[] = ['view', 'create', 'edit', 'delete', 'export', 'comment']
 const AUDIT_ACTIONS: readonly RolePermissionAction[] = ['view', 'export']
-const CONFIG_ACTIONS: readonly RolePermissionAction[] = ['view', 'create', 'edit', 'delete', 'comment', 'configure']
+const CONFIG_ACTIONS: readonly RolePermissionAction[] = ['view', 'create', 'edit', 'delete', 'export', 'comment', 'configure']
 export const ROLE_DOCUMENT_TYPES: readonly RoleDocumentTypeDefinition[] = [
+  { value: 'dashboard', labelKey: 'docetra.pages.dashboard', permissionPrefix: 'dashboard', actions: ['view'] },
+  { value: 'archive', labelKey: 'docetra.pages.archive', permissionPrefix: 'archive', actions: ['view'] },
   { value: 'incoming_document', labelKey: 'docetra.pages.incomingDocument', permissionPrefix: 'records.incoming_documents', actions: WORKFLOW_ACTIONS },
   { value: 'outgoing_document', labelKey: 'docetra.pages.outgoingDocument', permissionPrefix: 'records.outgoing_documents', actions: WORKFLOW_ACTIONS },
   { value: 'document', labelKey: 'docetra.pages.document', permissionPrefix: 'records.documents', actions: WORKFLOW_ACTIONS },
@@ -40,8 +45,8 @@ export const ROLE_DOCUMENT_TYPES: readonly RoleDocumentTypeDefinition[] = [
   { value: 'company_purpose', labelKey: 'docetra.pages.companyPurpose', permissionPrefix: 'organizations.company_purposes', actions: MASTER_DATA_ACTIONS },
   { value: 'company_sector', labelKey: 'docetra.pages.companySector', permissionPrefix: 'organizations.company_sectors', actions: MASTER_DATA_ACTIONS },
   { value: 'officer', labelKey: 'docetra.pages.officer', permissionPrefix: 'organizations.officers', actions: MASTER_DATA_ACTIONS },
-  { value: 'user', labelKey: 'docetra.pages.user', permissionPrefix: 'users.users', actions: ['view', 'create', 'edit', 'delete', 'configure'] },
-  { value: 'role', labelKey: 'docetra.pages.role', permissionPrefix: 'users.roles', actions: ['view', 'create', 'edit', 'delete', 'configure'] },
+  { value: 'user', labelKey: 'docetra.pages.user', permissionPrefix: 'users.users', actions: ['view', 'create', 'edit', 'archive', 'restore', 'delete', 'purge', 'comment', 'configure'] },
+  { value: 'role', labelKey: 'docetra.pages.role', permissionPrefix: 'users.roles', actions: ['view', 'create', 'edit', 'archive', 'restore', 'delete', 'purge', 'comment', 'configure'] },
   { value: 'record_type', labelKey: 'docetra.pages.recordType', permissionPrefix: 'configuration.record_types', actions: CONFIG_ACTIONS },
   { value: 'record_attribute', labelKey: 'docetra.pages.recordAttribute', permissionPrefix: 'configuration.record_attributes', actions: CONFIG_ACTIONS },
   { value: 'record_log', labelKey: 'docetra.pages.recordLog', permissionPrefix: 'records.logs', actions: AUDIT_ACTIONS },
@@ -77,16 +82,6 @@ export function normalizePermissionActions(actions: readonly string[] | null | u
   return ROLE_PERMISSION_ACTIONS.filter(action => normalized.has(action))
 }
 
-export function createEmptyPermissionRow(documentType: string): AppRolePermissionRow {
-  return {
-    id: `perm_${documentType}`,
-    documentType,
-    onlyIfCreator: false,
-    level: 0,
-    actions: [],
-  }
-}
-
 /** Merge API rows with the current matrix catalog and discard unknown rows/actions. */
 export function normalizePermissionRows(
   rows: readonly AppRolePermissionRow[] | null | undefined,
@@ -100,7 +95,7 @@ export function normalizePermissionRows(
     return {
       id: existing?.id || `perm_${definition.value}`,
       documentType: definition.value,
-      onlyIfCreator: actions.length ? Boolean(existing?.onlyIfCreator) : false,
+      onlyIfCreator: actions.length && !actions.includes('purge') ? Boolean(existing?.onlyIfCreator) : false,
       level: Math.min(9, Math.max(0, Number(existing?.level || 0))),
       actions,
     }
@@ -133,7 +128,7 @@ export function setPermissionAction(
   return {
     ...row,
     actions: ordered,
-    onlyIfCreator: ordered.length ? Boolean(row.onlyIfCreator) : false,
+    onlyIfCreator: ordered.length && !ordered.includes('purge') ? Boolean(row.onlyIfCreator) : false,
   }
 }
 

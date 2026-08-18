@@ -89,7 +89,7 @@ See `prompt/frontend/17-portal-google-drive-sync.md` for UI. Backend should prov
 | POST | `/api/v2/portal/google-drive-sync/sources/{id}/sync` | Manual job (async) |
 | GET | `/api/v2/portal/google-drive-sync/jobs/{id}` | Job status polling |
 
-Jobs run **async**; API returns job id; client polls or subscribes to events. Long jobs must not block HTTP worker.
+Jobs run **async** through RabbitMQ; API returns `202` plus job id and the client polls with backoff or subscribes to events. Long jobs must not block an HTTP worker. Drive sync uses its own durable queue, bounded retries, an idempotency key, manual acknowledgement, and dead-letter routing; durable job status remains in PostgreSQL.
 
 ---
 
@@ -158,7 +158,7 @@ No comment composer; activity **is** the audit product.
 | Allowed MIME/types | Provider allow-list |
 | Content validation | Server-side signature/MIME sniffing; reject SVG/active content where inline preview is possible |
 | Malware | Quarantine and scan before status becomes `ready` |
-| Upload origin | Signed URLs are issued only for approved storage origins; normal bearer uploads stay on the API origin |
+| Upload origin | Signed URLs are issued only for approved storage origins; normal cookie-authenticated uploads stay on the configured API origin and include CSRF protection |
 | File names | Store an opaque key; sanitize display/download headers and prevent path traversal |
 | Secrets in API responses | Strip always |
 | Cross-tenant file access | 403 on link if user lacks file scope |

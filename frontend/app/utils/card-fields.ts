@@ -8,7 +8,6 @@
  * Title is always shown. sortOrder + status render in the title row.
  * Footer slots render in the bordered footer with left/right alignment.
  */
-import type { FieldOption } from '~/types/docetra/common'
 import type { CardDisplayEntityKey } from '~/types/docetra/settings'
 
 export const TOPIC_CARD_SLOTS = [
@@ -197,17 +196,6 @@ export const RECORD_CARD_BLOCKS: CardSlotBlock[] = [
     ],
   },
 ]
-
-function slotOption(value: string): FieldOption {
-  return {
-    value,
-    label: value,
-    labelKey: `docetra.cardSlots.${value}`,
-  }
-}
-
-export const MEETING_CARD_FIELD_OPTIONS: FieldOption[] = MEETING_CARD_SLOTS.map(slotOption)
-export const RECORD_CARD_FIELD_OPTIONS: FieldOption[] = RECORD_CARD_SLOTS.map(slotOption)
 
 export function catalogForEntity(entityKey: CardDisplayEntityKey): readonly string[] {
   if (entityKey === 'meetingTopics') return TOPIC_CARD_SLOTS

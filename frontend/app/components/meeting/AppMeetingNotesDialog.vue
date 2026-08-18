@@ -5,6 +5,7 @@ import { getEntityAdapter } from '~/config/entities'
 import { linkMeetingDriveFile } from '~/adapters/meeting-board'
 import { useConfirm } from '~/composables/common/useConfirm'
 import type { DriveFileCatalogItem } from '~/types/docetra/meeting-api'
+import { ApiEndpoints } from '~/utils/constants/api-endpoints'
 
 const open = defineModel<boolean>('open', { default: false })
 
@@ -288,7 +289,7 @@ async function save() {
             v-if="meetingId && !pending"
             :key="`uppy-${meetingId}`"
             :entity-id="meetingId"
-            :endpoint="`/api/v2/meetings/history/${encodeURIComponent(meetingId)}/attachments`"
+            :endpoint="ApiEndpoints.MEETING_ATTACHMENTS(meetingId)"
             :height="260"
             @complete="onUploadsComplete"
           />

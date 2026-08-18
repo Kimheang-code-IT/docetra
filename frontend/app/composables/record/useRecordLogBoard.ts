@@ -4,6 +4,7 @@ import type { RecordType } from '~/types/docetra/configuration'
 import { getEntityAdapter } from '~/config/entities'
 import { useConfigurationRepositories } from '~/repositories'
 import { toComparableDateTime } from '~/utils/date-time-range'
+import { useAppLocalization } from '~/composables/settings/useAppLocalization'
 import {
   parsePageLimit,
   serializePageLimit,
@@ -71,7 +72,8 @@ function getByPath(obj: Record<string, unknown>, path: string): unknown {
 export function useRecordLogBoard() {
   const route = useRoute()
   const router = useRouter()
-  const { t, te, locale } = useI18n()
+  const { t, te } = useI18n()
+  const { formatDateTime } = useAppLocalization()
   const adapter = getEntityAdapter('recordLogs')
   const { recordTypes: recordTypeRepository } = useConfigurationRepositories()
 
@@ -219,13 +221,7 @@ export function useRecordLogBoard() {
       return te(categoryKey) ? t(categoryKey) : text
     }
     if (key.endsWith('At') || key === 'occurredAt') {
-      const date = new Date(text)
-      if (!Number.isNaN(date.getTime())) {
-        return date.toLocaleString(locale.value === 'km' ? 'km-KH' : 'en-US', {
-          dateStyle: 'medium',
-          timeStyle: 'short',
-        })
-      }
+      return formatDateTime(text)
     }
     return text
   }

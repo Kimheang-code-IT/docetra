@@ -11,7 +11,7 @@ import type {
 import { applyListQuery, createId, mockLatency, nowIso, ok } from '~/mocks/query'
 import { person, seedActivity, seedAttachments, seedComments } from '~/mocks/seed'
 
-type EntityRecord = { id: string; stage?: string; updatedAt?: string; createdAt?: string }
+type EntityRecord = { id: string; status?: string; stage?: string; updatedAt?: string; createdAt?: string }
 
 type MockStore<T extends EntityRecord> = {
   items: T[]
@@ -40,13 +40,29 @@ export function createEntityAdapter<T extends EntityRecord>(options: {
 }): EntityAdapter<T> {
   const { endpoint, store, searchKeys } = options
   const resource = (id: string) => `${endpoint}/${encodeURIComponent(id)}`
+  const prependActivity = (id: string, action: string, summary: string) => {
+    store.activity[id] = [
+      { id: createId('act'), entityType: endpoint, entityId: id, action, actor: person(0), summary, occurredAt: nowIso() },
+      ...(store.activity[id] || []),
+    ]
+  }
+
+  const purgeMockRecord = (id: string) => {
+    const index = store.items.findIndex(row => row.id === id)
+    if (index < 0) throw createError({ statusCode: 404, statusMessage: 'Not found' })
+    store.items.splice(index, 1)
+    delete store.comments[id]
+    delete store.activity[id]
+    delete store.attachments[id]
+    for (const favorites of Object.values(store.favorites)) favorites.delete(id)
+  }
 
   return {
     async list(query) {
       if (!usesMockData()) {
         // Keep independent board columns concurrent while replacing stale
         // searches/page requests for the same list consumer.
-        const listScope = [query?.view || 'list', query?.stage || 'all'].join(':')
+        const listScope = [query?.view || 'list', query?.stage || 'all', query?.status || 'all-status'].join(':')
         return useApi().get<ApiResponse<T[]>>(endpoint, {
           query,
           requestKey: `list:${endpoint}:${listScope}`,
@@ -89,10 +105,29 @@ export function createEntityAdapter<T extends EntityRecord>(options: {
       if (index < 0) throw createError({ statusCode: 404, statusMessage: 'Not found' })
       const item = { ...store.items[index]!, ...payload, updatedAt: nowIso() } as T
       store.items[index] = item
-      store.activity[id] = [
-        { id: createId('act'), entityType: endpoint, entityId: id, action: 'updated', actor: person(0), summary: `${person(0).name} updated this record`, occurredAt: nowIso() },
-        ...(store.activity[id] || []),
-      ]
+      prependActivity(id, 'updated', `${person(0).name} updated this record`)
+      return ok(structuredClone(item))
+    },
+
+    async archive(id) {
+      if (!usesMockData()) return useApi().post<ApiResponse<T>>(`${resource(id)}/archive`, {})
+      await mockLatency(null)
+      const index = store.items.findIndex(row => row.id === id)
+      if (index < 0) throw createError({ statusCode: 404, statusMessage: 'Not found' })
+      const item = { ...store.items[index]!, status: 'archived', archivedAt: nowIso(), updatedAt: nowIso() } as T
+      store.items[index] = item
+      prependActivity(id, 'archived', `${person(0).name} archived this record`)
+      return ok(structuredClone(item))
+    },
+
+    async restore(id) {
+      if (!usesMockData()) return useApi().post<ApiResponse<T>>(`${resource(id)}/restore`, {})
+      await mockLatency(null)
+      const index = store.items.findIndex(row => row.id === id)
+      if (index < 0) throw createError({ statusCode: 404, statusMessage: 'Not found' })
+      const item = { ...store.items[index]!, status: 'active', restoredAt: nowIso(), updatedAt: nowIso() } as T
+      store.items[index] = item
+      prependActivity(id, 'restored', `${person(0).name} restored this record`)
       return ok(structuredClone(item))
     },
 
@@ -101,26 +136,28 @@ export function createEntityAdapter<T extends EntityRecord>(options: {
       await mockLatency(null)
       const index = store.items.findIndex(row => row.id === id)
       if (index < 0) throw createError({ statusCode: 404, statusMessage: 'Not found' })
-      store.items.splice(index, 1)
-      delete store.comments[id]
-      delete store.activity[id]
-      delete store.attachments[id]
-      for (const favorites of Object.values(store.favorites)) favorites.delete(id)
+      store.items[index] = { ...store.items[index]!, status: 'deleted', deletedAt: nowIso(), updatedAt: nowIso() } as T
+      prependActivity(id, 'deleted', `${person(0).name} soft deleted this record`)
       return ok({ id })
     },
 
     async deleteMany(ids) {
       if (!usesMockData()) return useApi().post<ApiResponse<{ ids: string[] }>>(`${endpoint}/bulk-delete`, { ids })
       await mockLatency(null)
-      const idSet = new Set(ids)
-      store.items = store.items.filter(row => !idSet.has(row.id))
       for (const id of ids) {
-        delete store.comments[id]
-        delete store.activity[id]
-        delete store.attachments[id]
-        for (const favorites of Object.values(store.favorites)) favorites.delete(id)
+        const index = store.items.findIndex(row => row.id === id)
+        if (index < 0) continue
+        store.items[index] = { ...store.items[index]!, status: 'deleted', deletedAt: nowIso(), updatedAt: nowIso() } as T
+        prependActivity(id, 'deleted', `${person(0).name} soft deleted this record`)
       }
       return ok({ ids })
+    },
+
+    async purge(id) {
+      if (!usesMockData()) return useApi().delete<ApiResponse<{ id: string }>>(`${resource(id)}/purge`)
+      await mockLatency(null)
+      purgeMockRecord(id)
+      return ok({ id })
     },
 
     async transitionStage(id, stage) {
@@ -176,6 +213,7 @@ export function createEntityAdapter<T extends EntityRecord>(options: {
       await mockLatency(null)
       const comment: EntityComment = { id: createId('cmt'), entityType: endpoint, entityId: id, body, author: author || person(0), createdAt: nowIso() }
       store.comments[id] = [comment, ...(store.comments[id] || [])]
+      prependActivity(id, 'comment.added', `${comment.author.name} added a comment`)
       return ok(comment)
     },
 
@@ -192,6 +230,7 @@ export function createEntityAdapter<T extends EntityRecord>(options: {
       if (index < 0) throw createError({ statusCode: 404, statusMessage: 'Comment not found' })
       const comment = { ...store.comments[id][index]!, body, editedAt: nowIso() }
       store.comments[id][index] = comment
+      prependActivity(id, 'comment.updated', `${person(0).name} updated a comment`)
       return ok(structuredClone(comment))
     },
 
@@ -206,6 +245,7 @@ export function createEntityAdapter<T extends EntityRecord>(options: {
       const index = store.comments[id].findIndex(comment => comment.id === commentId)
       if (index < 0) throw createError({ statusCode: 404, statusMessage: 'Comment not found' })
       store.comments[id].splice(index, 1)
+      prependActivity(id, 'comment.deleted', `${person(0).name} deleted a comment`)
       return ok({ id: commentId })
     },
 
@@ -278,6 +318,7 @@ export function createEntityAdapter<T extends EntityRecord>(options: {
       if (!usesMockData()) return useApi().put<ApiResponse<AttachmentMeta[]>>(`${resource(id)}/attachments`, { files })
       await mockLatency(null)
       store.attachments[id] = structuredClone(files)
+      prependActivity(id, 'attachments.updated', `${person(0).name} updated attachments`)
       return ok(structuredClone(files))
     },
   }

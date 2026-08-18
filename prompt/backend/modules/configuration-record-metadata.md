@@ -35,7 +35,8 @@ Configuration is capability-restricted. The current frontend release uses localS
 | Field | Role |
 | --- | --- |
 | `id`, `name`, `code` | Identity; `code` stable for API |
-| `status` | active / draft / disabled |
+| `status` | `active` / `archived` / `deleted` business lifecycle |
+| `publicationState` | Optional separate `draft` / `published` metadata lifecycle |
 | `workflowStages` | Ordered stages + transitions |
 | `numberingRule` | Reserved API-compatible numbering metadata; the current editor intentionally has no Numbering tab |
 | `assignedAttributeIds` | Many-to-many to attributes |
@@ -50,7 +51,7 @@ Configuration is capability-restricted. The current frontend release uses localS
 | `options` | Enum values (options builder) |
 | `validationRules` | min/max/required/custom |
 | `visibilityRules` | show/hide based on other fields |
-| `status` | active / disabled |
+| `status` | `active` / `archived` / `deleted` business lifecycle |
 
 ### Relationship
 

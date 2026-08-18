@@ -17,9 +17,14 @@
 | Put shared styles for filters in `utils/filter/select-ui.ts`                                            | Hard-code ring/border classes in each page                                         |
 | Keep domain cards in `meeting/` / `record/` / `configuration/`                                          | Move meeting-only cards into `common/` “just in case”                              |
 | Use `useConfirm`, `useAppHeader`, composables for state                                                 | Duplicate confirm dialogs or header action wiring                                  |
+| Derive actions with `permissionForAction(viewPermission, action)`                                      | Check roles by name or show a button that the user cannot execute                  |
 
 
 **Reuse test:** If two features need the same control and the props stay generic (no entity-specific fields), it belongs in `common/` or `workspace/`. If the card knows about topics, stages, or record types, keep it feature-specific.
+
+**Permission rule:** route metadata, sidebar/user-menu links, search results, row actions, bulk selection, drag/drop, editors, and API requests must use the same flat capability keys. `AuthUser.permissions` is authoritative; `pageAccess` is legacy compatibility. Use the global access dialog for denied navigation and `AppServerTable.canSelectRow` when permissions differ per row.
+
+**Multi-assignment rule:** Use `CommonAppMentionMultiInput` for officer, user, department, company, and other multi-assignment fields. It stores an array, searches reference options when the user types with or without `@`, prevents duplicates, supports keyboard selection, and renders removable mention chips. Cards summarize each assignment category as a color-coded row with comma-separated names.
 
 ---
 
@@ -35,6 +40,10 @@ Generic CRUD list/detail
 Special board UX (topics, stages, logs, upload)
   → App*Board in meeting|record|portal
   → domain composable (useMeetingTopicBoard, useRecordStageBoard, …)
+
+Cross-entity archive
+  → ArchiveWorkspaceView
+  → useArchiveWorkspace + source entity adapters
 
 Config admin (record types / attributes)
   → AppConfigEntityList + AppRecord*List / *Editor
@@ -71,8 +80,8 @@ Nuxt auto-imports components by folder:
 | `AppFilterSelect`       | Entity `FilterDef` (select / multiselect) | Pass `filter` + `v-model`. Wraps single/multi internals.                         |
 | `AppSingleFilterSelect` | One value (status, sort)                  | `items: { label, value }[]` + `v-model`.                                         |
 | `AppMultiSelect`        | Multi value filter                        | Same items shape; optional `showNoneOption`.                                     |
-| `AppInputDate`          | Date or date-time field/filter            | `v-model`, `granularity: 'day' | 'minute'`, …                                    |
-| `AppInputDateRange`     | Start–end filter pair                     | `v-model:start` / `v-model:end`.                                                 |
+| `AppInputDate`          | Date or date-time field/filter            | `v-model` + granularity (`day`, `minute`, etc.); uses `AppDatePickerPopover`.     |
+| `AppDateRangeFilter`    | Start–end range filter                    | `v-model:start` / `v-model:end`; responsive toolbar modal, or `inline` full width. |
 | `AppWorkspaceToolbar`   | Standard list toolbar                     | search, filters, sort, view tabs; emit `setFilter` / `update:*`.                 |
 
 
@@ -81,6 +90,7 @@ Nuxt auto-imports components by folder:
 - `getFilterSelectUi(active)`, `getFilterSearchUi(active)`, `getFilterDateUi(active)`
 - `isFilterValueActive(value)`
 - Active border = default grey (`ring-default`), not primary/black
+- Date parsing/serialization and popover geometry live in `utils/date-picker.ts` and `AppDatePickerPopover`; do not duplicate them in feature pages.
 
 ```vue
 <CommonAppLiveSearch v-model="search" :placeholder="t('common.search')" />
@@ -329,7 +339,7 @@ Deleted as unused duplicates of live flows:
 
 ### New board-style page
 
-1. Compose `AppWorkspacePage` + `AppLiveSearch` / `AppInputDateRange` + domain cards.
+1. Compose `AppWorkspacePage` + `AppLiveSearch` / `AppDateRangeFilter` + domain cards.
 2. Put state in `composables/<domain>/use…`.
 3. Keep cards in `components/<domain>/`.
 

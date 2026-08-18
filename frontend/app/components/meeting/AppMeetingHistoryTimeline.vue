@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { MeetingHistory } from '~/types/docetra/entities'
+import { useAppLocalization } from '~/composables/settings/useAppLocalization'
 import {
   TABLE_PAGE_SIZES,
   paginationItemsPerPage,
@@ -22,7 +23,8 @@ const emit = defineEmits<{
   retry: []
 }>()
 
-const { t, te, locale } = useI18n()
+const { t, te } = useI18n()
+const { formatDatePart, formatDateTime } = useAppLocalization()
 
 const meetings = computed(() => props.rows as unknown as MeetingHistory[])
 const pageSizeItems = computed(() => [
@@ -32,7 +34,7 @@ const pageSizeModel = computed({
   get: () => String(props.limit),
   set: value => emit('update:limit', parsePageLimit(value, 10)),
 })
-const effectiveItemsPerPage = computed(() => paginationItemsPerPage(props.limit, props.total))
+const effectiveItemsPerPage = computed(() => paginationItemsPerPage(props.limit))
 const visibleRange = computed(() => {
   if (!props.total || !props.rows.length) return { start: 0, end: 0 }
   const start = ((props.page - 1) * props.limit) + 1
@@ -42,11 +44,10 @@ const visibleRange = computed(() => {
 function dateParts(value?: string) {
   const date = value ? new Date(value) : null
   if (!date || Number.isNaN(date.getTime())) return { day: '—', month: '', full: '—' }
-  const code = locale.value === 'km' ? 'km-KH' : 'en-US'
   return {
-    day: new Intl.DateTimeFormat(code, { day: '2-digit' }).format(date),
-    month: new Intl.DateTimeFormat(code, { month: 'short', year: 'numeric' }).format(date),
-    full: new Intl.DateTimeFormat(code, { dateStyle: 'medium', timeStyle: 'short' }).format(date),
+    day: formatDatePart(date, { day: '2-digit' }),
+    month: formatDatePart(date, { month: 'short', year: 'numeric' }),
+    full: formatDateTime(value),
   }
 }
 
@@ -60,7 +61,7 @@ function badgeColor(value?: string): 'neutral' | 'primary' | 'success' | 'warnin
   const normalized = String(value || '').toLowerCase()
   if (normalized === 'completed' || normalized === 'active') return 'success'
   if (normalized === 'draft' || normalized === 'pending' || normalized === 'review') return 'warning'
-  if (normalized === 'failed' || normalized === 'disabled') return 'error'
+  if (normalized === 'deleted' || normalized === 'failed' || normalized === 'disabled') return 'error'
   if (normalized === 'approval') return 'primary'
   return 'info'
 }

@@ -8,6 +8,8 @@ const props = withDefaults(defineProps<{
   descriptionKey?: string
   icon?: string
   canCreate?: boolean
+  canDelete?: boolean
+  canExport?: boolean
   createLabelKey?: string
   columns: TableColumnDef[]
   rows: Record<string, unknown>[]
@@ -26,6 +28,8 @@ const props = withDefaults(defineProps<{
   cellValue: (row: Record<string, unknown>, key: string) => string
 }>(), {
   canCreate: true,
+  canDelete: true,
+  canExport: true,
   showMeta: true,
 })
 
@@ -49,6 +53,7 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const selectedIds = ref<string[]>([])
 const exportFields = computed(() => props.columns
+  .filter(() => props.canExport)
   .filter(column => column.key !== '_rowNumber' && column.key !== 'rowNumber')
   .map(column => ({ label: t(column.labelKey), value: column.key })))
 
@@ -66,7 +71,7 @@ function updateSelection(ids: string[]) {
     :can-create="props.canCreate === true"
     :create-label-key="props.createLabelKey"
     :refreshing="props.pending"
-    :export-fields="exportFields"
+    :export-fields="props.canExport ? exportFields : []"
     :selected-count="selectedIds.length"
     :exporting="props.exporting"
     @create="emit('create')"
@@ -98,6 +103,8 @@ function updateSelection(ids: string[]) {
         :error="props.error"
         :cell-value="props.cellValue"
         :row-actions="props.rowActions"
+        :can-delete="props.canDelete"
+        :selectable="props.canDelete"
         :show-meta="props.showMeta"
         @update:page="emit('update:page', $event)"
         @update:limit="emit('update:limit', $event)"

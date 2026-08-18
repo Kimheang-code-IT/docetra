@@ -219,7 +219,7 @@ export interface FilterDef {
   endKey?: string
 }
 
-export type EntityStatus = 'draft' | 'active' | 'archived' | 'disabled' | 'pending' | 'completed' | 'failed'
+export type EntityStatus = 'draft' | 'active' | 'archived' | 'deleted' | 'disabled' | 'pending' | 'completed' | 'failed'
 
 export interface BaseEntity {
   id: string

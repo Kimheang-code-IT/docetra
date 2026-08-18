@@ -241,6 +241,21 @@ export function useMeetingTopicBoard() {
     }
   }
 
+  async function deleteTopic(id: string) {
+    if (!topicsAdapter.delete) throw new Error(t('docetra.actions.deleteFailed'))
+    await topicsAdapter.delete(id)
+    if (selectedTopicId.value === id) selectedTopicId.value = null
+    await refresh()
+    toast.add({ title: t('docetra.actions.deletedItems', { n: 1 }), color: 'success' })
+  }
+
+  async function deleteMeeting(id: string) {
+    if (!meetingsAdapter.delete) throw new Error(t('docetra.actions.deleteFailed'))
+    await meetingsAdapter.delete(id)
+    await refresh()
+    toast.add({ title: t('docetra.actions.deletedItems', { n: 1 }), color: 'success' })
+  }
+
   const debouncedTopicSearch = useDebounceFn(() => refresh(), 300)
   const debouncedMeetingFilter = useDebounceFn(() => refreshMeetings(), 300)
   watch(topicSearch, () => debouncedTopicSearch())
@@ -297,6 +312,8 @@ export function useMeetingTopicBoard() {
     selectTopic,
     assignMeetingToTopic,
     reorderMeeting,
+    deleteTopic,
+    deleteMeeting,
     openTopic,
     openMeeting,
     openCreateTopic,

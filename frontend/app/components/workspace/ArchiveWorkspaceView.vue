@@ -6,6 +6,8 @@ import {
 
 const {
   rowActions,
+  canDeleteAny,
+  canDeleteRow,
   sourceOptions,
   search,
   sourceFilter,
@@ -50,7 +52,9 @@ const hasArchiveFilters = computed(() =>
         :pending="pending"
         :error="error"
         :cell-value="cellValue"
-        :can-delete="true"
+        :can-delete="canDeleteAny"
+        :selectable="canDeleteAny"
+        :can-select-row="canDeleteRow"
         :show-meta="false"
         :row-actions="rowActions"
         @update:page="page = $event"

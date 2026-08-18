@@ -5,6 +5,8 @@ import type { TableColumnDef } from '~/types/docetra/common'
 import type { RowActionItem } from '~/types/docetra/row-actions'
 import { TABLE_PAGE_SIZES, parsePageLimit } from '~/utils/pagination'
 import { isWithinDateTimeRange } from '~/utils/date-time-range'
+import { permissionForAction } from '~/utils/role/access'
+import { useAppLocalization } from '~/composables/settings/useAppLocalization'
 
 export type ArchiveRow = Record<string, unknown> & {
   id: string
@@ -12,6 +14,7 @@ export type ArchiveRow = Record<string, unknown> & {
   sourceKey: AdapterKey
   entityType: string
   recordName: string
+  status: 'archived' | 'deleted'
   archivedAt: string
 }
 
@@ -27,6 +30,7 @@ export const ARCHIVE_SOURCE_KEYS: AdapterKey[] = [
 export const ARCHIVE_COLUMNS: TableColumnDef[] = [
   { key: 'recordName', labelKey: 'docetra.archive.record', priority: 'high' },
   { key: 'entityType', labelKey: 'docetra.archive.type', cell: 'badge' },
+  { key: 'status', labelKey: 'docetra.fields.status', cell: 'badge' },
   { key: 'referenceNumber', labelKey: 'docetra.fields.referenceNumber', priority: 'medium' },
   { key: 'archivedAt', labelKey: 'docetra.archive.archivedAt', cell: 'datetime' },
   { key: 'owner.name', labelKey: 'docetra.fields.owner', cell: 'person', priority: 'low' },
@@ -37,7 +41,8 @@ function displayName(row: Record<string, unknown>, titleField: string) {
 }
 
 export function useArchiveWorkspace(sourceKeys: AdapterKey[] = ARCHIVE_SOURCE_KEYS) {
-  const { t, locale } = useI18n()
+  const { t } = useI18n()
+  const { formatDateTime } = useAppLocalization()
   const auth = useAuthStore()
   const toast = useToast()
   const { confirm } = useConfirm()
@@ -51,10 +56,38 @@ export function useArchiveWorkspace(sourceKeys: AdapterKey[] = ARCHIVE_SOURCE_KE
     ...sources.value.map(source => ({ label: t(source.titleKey), value: source.key })),
   ])
 
+  function canRestoreRow(row: ArchiveRow | Record<string, unknown>) {
+    const sourceKey = String(row.sourceKey || '') as AdapterKey
+    if (!sourceKey) return false
+    return auth.canAccessPage(permissionForAction(getEntityConfig(sourceKey).permission, 'restore'))
+  }
+
+  function canDeleteRow(row: ArchiveRow | Record<string, unknown>) {
+    const sourceKey = String(row.sourceKey || '') as AdapterKey
+    if (!sourceKey) return false
+    return auth.canAccessPage(permissionForAction(getEntityConfig(sourceKey).permission, 'purge'))
+  }
+
+  const canDeleteAny = computed(() => sources.value.some(source =>
+    auth.canAccessPage(permissionForAction(source.permission, 'purge')),
+  ))
+
   const rowActions: RowActionItem[] = [
-    { key: 'restore', labelKey: 'docetra.archive.restore', icon: 'i-lucide-archive-restore', color: 'success' },
+    {
+      key: 'restore',
+      labelKey: 'docetra.archive.restore',
+      icon: 'i-lucide-archive-restore',
+      color: 'success',
+      hidden: row => !canRestoreRow(row),
+    },
     { key: 'detail', labelKey: 'docetra.rowActions.detail', icon: 'i-lucide-eye' },
-    { key: 'delete', labelKey: 'docetra.archive.deletePermanently', icon: 'i-lucide-trash-2', color: 'error' },
+    {
+      key: 'delete',
+      labelKey: 'docetra.archive.deletePermanently',
+      icon: 'i-lucide-trash-2',
+      color: 'error',
+      hidden: row => !canDeleteRow(row),
+    },
   ]
 
   const allRows = ref<ArchiveRow[]>([])
@@ -92,20 +125,20 @@ export function useArchiveWorkspace(sourceKeys: AdapterKey[] = ARCHIVE_SOURCE_KE
   async function loadSource(sourceKey: AdapterKey) {
     const config = getEntityConfig(sourceKey)
     const adapter = getEntityAdapter<Record<string, unknown> & { id: string }>(sourceKey)
-    const response = await adapter.list({
-      status: 'archived',
-      page: 1,
-      limit: TABLE_PAGE_SIZES.at(-1) || 100,
-      sort: '-updatedAt',
-    })
-    return (response.data || []).map((row): ArchiveRow => ({
+    const limit = TABLE_PAGE_SIZES.at(-1) || 100
+    const [archivedResponse, deletedResponse] = await Promise.all([
+      adapter.list({ status: 'archived', page: 1, limit, sort: '-updatedAt' }),
+      adapter.list({ status: 'deleted', page: 1, limit, sort: '-updatedAt' }),
+    ])
+    return [...(archivedResponse.data || []), ...(deletedResponse.data || [])].map((row): ArchiveRow => ({
       ...row,
       id: `${sourceKey}:${row.id}`,
       recordId: String(row.id),
       sourceKey,
       entityType: t(config.titleKey),
       recordName: displayName(row, config.titleField),
-      archivedAt: String(row.archivedAt || row.updatedAt || row.createdAt || ''),
+      status: String(row.status) === 'deleted' ? 'deleted' : 'archived',
+      archivedAt: String(row.deletedAt || row.archivedAt || row.updatedAt || row.createdAt || ''),
     }))
   }
 
@@ -133,6 +166,7 @@ export function useArchiveWorkspace(sourceKeys: AdapterKey[] = ARCHIVE_SOURCE_KE
   }
 
   async function restoreRow(row: ArchiveRow) {
+    if (!canRestoreRow(row)) return
     const accepted = await confirm({
       kind: 'update',
       titleKey: 'docetra.archive.restoreTitle',
@@ -141,7 +175,9 @@ export function useArchiveWorkspace(sourceKeys: AdapterKey[] = ARCHIVE_SOURCE_KE
     })
     if (!accepted) return
     try {
-      await getEntityAdapter(row.sourceKey).update(row.recordId, { status: 'active' })
+      const adapter = getEntityAdapter(row.sourceKey)
+      if (adapter.restore) await adapter.restore(row.recordId)
+      else await adapter.update(row.recordId, { status: 'active' })
       allRows.value = allRows.value.filter(item => item.id !== row.id)
       toast.add({ title: t('docetra.archive.restored'), color: 'success' })
     }
@@ -151,24 +187,25 @@ export function useArchiveWorkspace(sourceKeys: AdapterKey[] = ARCHIVE_SOURCE_KE
   }
 
   async function permanentlyDelete(rows: ArchiveRow[]) {
-    if (!rows.length) return
+    const permittedRows = rows.filter(canDeleteRow)
+    if (!permittedRows.length) return
     const accepted = await confirm({
       kind: 'delete',
       titleKey: 'docetra.archive.deleteTitle',
       descriptionKey: 'docetra.archive.deleteDescription',
-      descriptionParams: { n: rows.length },
+      descriptionParams: { n: permittedRows.length },
       confirmLabelKey: 'docetra.archive.deletePermanently',
     })
     if (!accepted) return
     try {
-      await Promise.all(rows.map(async (row) => {
+      await Promise.all(permittedRows.map(async (row) => {
         const adapter = getEntityAdapter(row.sourceKey)
-        if (!adapter.delete) throw new Error(t('docetra.archive.deleteUnsupported'))
-        await adapter.delete(row.recordId)
+        if (!adapter.purge) throw new Error(t('docetra.archive.deleteUnsupported'))
+        await adapter.purge(row.recordId)
       }))
-      const deletedIds = new Set(rows.map(row => row.id))
+      const deletedIds = new Set(permittedRows.map(row => row.id))
       allRows.value = allRows.value.filter(row => !deletedIds.has(row.id))
-      toast.add({ title: t('docetra.archive.deleted', { n: rows.length }), color: 'success' })
+      toast.add({ title: t('docetra.archive.deleted', { n: permittedRows.length }), color: 'success' })
     }
     catch (cause: any) {
       toast.add({ title: cause?.message || t('docetra.archive.deleteFailed'), color: 'error' })
@@ -193,7 +230,7 @@ export function useArchiveWorkspace(sourceKeys: AdapterKey[] = ARCHIVE_SOURCE_KE
       return undefined
     }, row)
     if (key === 'archivedAt' && value) {
-      return new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(String(value)))
+      return formatDateTime(value)
     }
     return String(value || '')
   }
@@ -208,6 +245,8 @@ export function useArchiveWorkspace(sourceKeys: AdapterKey[] = ARCHIVE_SOURCE_KE
   return {
     columns: ARCHIVE_COLUMNS,
     rowActions,
+    canDeleteAny,
+    canDeleteRow,
     sourceOptions,
     search,
     sourceFilter,

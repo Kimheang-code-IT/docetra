@@ -29,6 +29,10 @@ const canCreate = computed(() => props.config.canCreate !== false
   && auth.canAccessPage(
     props.config.createPermission || permissionForAction(props.config.permission, 'create'),
   ))
+const canTransition = computed(() => auth.canAccessPage(permissionForAction(props.config.permission, 'transition')))
+const canDelete = computed(() => props.config.canDelete !== false
+  && auth.canAccessPage(permissionForAction(props.config.permission, 'delete')))
+const canViewLogs = computed(() => auth.canAccessPage('records.logs.view'))
 
 const {
   filteredStages,
@@ -87,6 +91,7 @@ onActivated(() => {
 })
 
 async function onDropRecord(stageCode: string, id: string) {
+  if (!canTransition.value) return
   dropStageCode.value = null
   draggingId.value = null
   try {
@@ -105,6 +110,7 @@ async function onDropRecord(stageCode: string, id: string) {
 }
 
 async function onMoveStage(id: string, stageCode: string) {
+  if (!canTransition.value) return
   try {
     await moveToStage(id, stageCode)
     toast.add({
@@ -121,6 +127,7 @@ async function onMoveStage(id: string, stageCode: string) {
 }
 
 function onLogs(row: Record<string, unknown>) {
+  if (!canViewLogs.value) return
   const id = String(row.id || '')
   const recordTypeCode = props.config.recordTypeCode
   navigateTo({
@@ -133,6 +140,7 @@ function onLogs(row: Record<string, unknown>) {
 }
 
 async function onDelete(row: Record<string, unknown>) {
+  if (!canDelete.value) return
   const id = String(row.id || '')
   if (!id) return
   const ok = await confirm({ kind: 'delete', count: 1 })
@@ -360,6 +368,9 @@ async function onDelete(row: Record<string, unknown>) {
                 :stages="stages"
                 :dragging="draggingId === row.id"
                 :entity-key="cardEntityKey"
+                :can-move="canTransition"
+                :can-view-logs="canViewLogs"
+                :can-delete="canDelete"
                 @open="openRow(row)"
                 @drag-start="draggingId = $event"
                 @drag-end="draggingId = null; dropStageCode = null"

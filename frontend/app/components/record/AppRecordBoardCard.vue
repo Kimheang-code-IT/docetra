@@ -4,6 +4,7 @@ import type { WorkflowStage } from '~/types/docetra/common'
 import type { CardDisplayEntityKey } from '~/types/docetra/settings'
 import { useCardFields } from '~/composables/settings/useCardFields'
 import { isCardFooterSlot, splitCardSlots } from '~/utils/card-fields'
+import { useAppLocalization } from '~/composables/settings/useAppLocalization'
 
 const props = withDefaults(defineProps<{
   row: Record<string, unknown>
@@ -13,8 +14,14 @@ const props = withDefaults(defineProps<{
   stages: WorkflowStage[]
   dragging?: boolean
   entityKey?: CardDisplayEntityKey
+  canMove?: boolean
+  canViewLogs?: boolean
+  canDelete?: boolean
 }>(), {
   entityKey: 'documents',
+  canMove: true,
+  canViewLogs: true,
+  canDelete: true,
 })
 
 const emit = defineEmits<{
@@ -27,6 +34,7 @@ const emit = defineEmits<{
 }>()
 
 const { t, te } = useI18n()
+const { formatDate } = useAppLocalization()
 const { show, visibleSlots, footerAlign } = useCardFields(() => props.entityKey)
 
 function orgName(value: unknown) {
@@ -42,14 +50,18 @@ function personName(value: unknown) {
 }
 
 function day(value: unknown) {
-  if (value == null || value === '') return ''
-  return String(value).slice(0, 10)
+  return formatDate(value, '')
 }
 
 function listText(value: unknown) {
   return Array.isArray(value)
-    ? value.map(String).map(item => item.trim()).filter(Boolean).join(', ')
-    : String(value || '')
+    ? value.map((item) => {
+        if (item && typeof item === 'object' && 'name' in item) return String(item.name || '')
+        return String(item || '')
+      }).map(item => item.trim()).filter(Boolean).join(', ')
+    : (value && typeof value === 'object' && 'name' in value)
+        ? String(value.name || '')
+        : String(value || '')
 }
 
 const referenceNumber = computed(() => String(props.row.referenceNumber || ''))
@@ -79,7 +91,7 @@ const sender = computed(() => orgName(props.row.senderOrganization))
 const recipient = computed(() => orgName(props.row.recipientOrganization))
 const ownerDepartment = computed(() => orgName(props.row.ownerDepartment))
 const owner = computed(() => personName(props.row.owner))
-const assignee = computed(() => personName(props.row.assignee))
+const assignee = computed(() => listText(props.row.assignees || props.row.assignee))
 const waiting = computed(() => Boolean(props.row.waiting))
 const attachmentCount = computed(() => Number(props.row.attachmentCount || 0))
 const commentCount = computed(() => Number(props.row.commentCount || 0))
@@ -88,7 +100,7 @@ const statusColor = computed(() => {
   const status = String(props.row.status || '').toLowerCase()
   if (status === 'active' || status === 'completed') return 'success' as const
   if (status === 'pending' || status === 'draft') return 'warning' as const
-  if (status === 'disabled' || status === 'failed') return 'error' as const
+  if (status === 'deleted' || status === 'disabled' || status === 'failed') return 'error' as const
   return 'info' as const
 })
 
@@ -101,8 +113,8 @@ function bodySlotText(slot: string) {
     letterSubject: props.row.letterSubject,
     involvedOfficers: listText(props.row.involvedOfficers),
     externalUnits: listText(props.row.externalUnits),
-    officeInCharge: props.row.officeInCharge,
-    officerInCharge: props.row.officerInCharge,
+    officeInCharge: listText(props.row.officeInCharge),
+    officerInCharge: listText(props.row.officerInCharge),
   }
   return String(values[slot] || '').trim()
 }
@@ -125,7 +137,8 @@ function footerDate(slot: string) {
 function fieldTone(slot: string) {
   if (slot === 'referenceNumber' || slot === 'letterNumber') return 'app-card-field-highlight--info'
   if (slot === 'recordType' || slot === 'documentType') return 'app-card-field-highlight--secondary'
-  if (slot === 'party' || slot === 'externalUnits' || slot === 'officeInCharge') return 'app-card-field-highlight--warning'
+  if (slot === 'party' || slot === 'externalUnits') return 'app-card-field-highlight--warning'
+  if (slot === 'officeInCharge') return 'app-card-field-highlight--info'
   if (slot === 'owner' || slot === 'assignee' || slot === 'involvedOfficers' || slot === 'officerInCharge') return 'app-card-field-highlight--success'
   if (slot === 'description' || slot === 'recordContent') return 'app-card-field-highlight--neutral'
   return ''
@@ -136,7 +149,8 @@ function fieldIcon(slot: string) {
   if (slot === 'recordType' || slot === 'documentType') return 'i-lucide-shapes'
   if (slot === 'description' || slot === 'recordContent' || slot === 'letterSubject') return 'i-lucide-align-left'
   if (slot === 'involvedOfficers' || slot === 'officerInCharge') return 'i-lucide-user-round'
-  if (slot === 'externalUnits' || slot === 'officeInCharge') return 'i-lucide-building-2'
+  if (slot === 'externalUnits') return 'i-lucide-landmark'
+  if (slot === 'officeInCharge') return 'i-lucide-building-2'
   return 'i-lucide-file-text'
 }
 
@@ -212,12 +226,12 @@ const menuItems = computed(() => [
     label: t('docetra.rowActions.detail'),
     icon: 'i-lucide-eye',
     onSelect: () => emit('open'),
-  }, {
+  }, ...(props.canViewLogs ? [{
     label: t('docetra.rowActions.logs'),
     icon: 'i-lucide-scroll-text',
     onSelect: () => emit('logs'),
-  }],
-  [{
+  }] : [])],
+  ...(props.canMove ? [[{
     label: t('docetra.recordStageBoard.moveToStage'),
     icon: 'i-lucide-layers',
     children: props.stages.map(stage => ({
@@ -225,16 +239,17 @@ const menuItems = computed(() => [
       icon: String(props.row.stage) === stage.code ? 'i-lucide-check' : 'i-lucide-circle',
       onSelect: () => emit('moveStage', stage.code),
     })),
-  }],
-  [{
+  }]] : []),
+  ...(props.canDelete ? [[{
     label: t('docetra.rowActions.delete'),
     icon: 'i-lucide-trash-2',
     color: 'error' as const,
     onSelect: () => emit('delete'),
-  }],
+  }]] : []),
 ])
 
 function onDragStart(event: DragEvent) {
+  if (!props.canMove) return
   const id = String(props.row.id || '')
   event.dataTransfer?.setData('text/plain', id)
   if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move'
@@ -245,7 +260,9 @@ const pointerDrop = usePointerDrop({
   selector: '[data-record-stage-drop]',
   dataKey: 'recordStageDrop',
   onDragStart: () => emit('dragStart', String(props.row.id || '')),
-  onDrop: stage => emit('moveStage', stage),
+  onDrop: stage => {
+    if (props.canMove) emit('moveStage', stage)
+  },
   onDragEnd: () => emit('dragEnd'),
 })
 
@@ -256,17 +273,20 @@ function onCardClick(event: MouseEvent) {
 
 <template>
   <article
-    draggable="true"
-    class="group relative flex h-full min-h-30 cursor-grab touch-pan-y flex-col rounded-lg border border-default bg-default p-3 text-left shadow-xs transition active:cursor-grabbing"
-    :class="dragging ? 'opacity-40 ring-2 ring-primary/30' : 'hover:border-primary/35 hover:shadow-sm'"
+    :draggable="canMove"
+    class="group relative flex h-full min-h-30 touch-pan-y flex-col rounded-lg border border-default bg-default p-3 text-left shadow-xs transition"
+    :class="[
+      canMove ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer',
+      dragging ? 'opacity-40 ring-2 ring-primary/30' : 'hover:border-primary/35 hover:shadow-sm',
+    ]"
     tabindex="0"
     role="button"
     @dragstart="onDragStart"
     @dragend="emit('dragEnd')"
-    @pointerdown="pointerDrop.onPointerDown"
-    @pointermove="pointerDrop.onPointerMove"
-    @pointerup="pointerDrop.onPointerUp"
-    @pointercancel="pointerDrop.onPointerCancel"
+    @pointerdown="canMove && pointerDrop.onPointerDown($event)"
+    @pointermove="canMove && pointerDrop.onPointerMove($event)"
+    @pointerup="canMove && pointerDrop.onPointerUp($event)"
+    @pointercancel="canMove && pointerDrop.onPointerCancel($event)"
     @click="onCardClick"
     @keydown.enter.prevent="emit('open')"
   >
@@ -360,6 +380,14 @@ function onCardClick(event: MouseEvent) {
         >
           {{ tag }}
         </UBadge>
+      </div>
+      <div
+        v-else-if="['involvedOfficers', 'externalUnits', 'officeInCharge', 'officerInCharge'].includes(slot) && bodySlotText(slot)"
+        class="app-card-field-highlight mt-1.5 flex min-w-0 items-center gap-1.5 text-xs app-card-text"
+        :class="fieldTone(slot)"
+      >
+        <UIcon :name="fieldIcon(slot)" class="size-3 shrink-0" />
+        <span class="min-w-0 truncate">{{ bodySlotText(slot) }}</span>
       </div>
       <div
         v-else-if="bodySlotText(slot)"
