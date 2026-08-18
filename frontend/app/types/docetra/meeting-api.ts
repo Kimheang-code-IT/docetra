@@ -1,5 +1,5 @@
 /**
- * Meeting Topic board API contracts — shared by mock adapters and future HTTP backend.
+ * Meeting Topic board API contracts used by the HTTP meeting-board adapter.
  * Spec: prompt/backend/modules/meeting-topic-board.md
  */
 

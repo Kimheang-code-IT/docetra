@@ -120,3 +120,13 @@ Use graceful shutdown so the scheduler stops acquiring work, finishes the curren
 - Multi-instance test before enabling production scheduler high availability.
 
 Reference: [APScheduler user guide](https://apscheduler.readthedocs.io/en/master/userguide.html).
+
+## 11. Frontend contract
+
+Timers are server-owned. Meeting writes hit `/api/v2/meetings/history`. The browser only displays `meetingDate`, `timezone`, `nextScheduledActionAt`.
+
+| Concern | Code |
+| --- | --- |
+| Board | `frontend/app/composables/meeting/useMeetingTopicBoard.ts` |
+| Adapter | `frontend/app/adapters/meeting-board.ts` |
+| List dates | `startDate` / `endDate` on `GET /meetings/history` |

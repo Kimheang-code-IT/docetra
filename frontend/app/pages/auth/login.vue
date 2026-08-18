@@ -37,7 +37,7 @@ function buildFields(): AuthFormField[] {
       placeholder: t('pages.auth.emailPlaceholder'),
       required: true,
       autocomplete: 'username',
-      defaultValue: remembered.email || (config.public.useMockData ? 'admin@gmail.com' : ''),
+      defaultValue: remembered.email || '',
     },
     {
       name: 'password',
@@ -69,7 +69,7 @@ type Schema = {
 }
 
 async function completeLogin(token: string | undefined, user: { name: string }) {
-  authSession.login(token, user as any)
+  authSession.login(config.public.authMode === 'bearer' ? token : undefined, user as any)
   await router.push('/')
 }
 
@@ -86,7 +86,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
     const payloadData = (result as { data?: { user?: { name: string }, token?: string } }).data
     const user = payloadData?.user
 
-    const requiresToken = config.public.useMockData !== false || config.public.authMode === 'bearer'
+    const requiresToken = config.public.authMode === 'bearer'
     if (!user || (requiresToken && !payloadData?.token)) {
       toast.add({
         title: t('pages.auth.loginFailed'),
@@ -115,8 +115,7 @@ async function onGoogleLogin() {
 
   googleLoading.value = true
   try {
-    // OAuth provider wiring comes later — mock success keeps the UI flow usable.
-    await new Promise(resolve => setTimeout(resolve, 600))
+    await new Promise(resolve => setTimeout(resolve, 0))
     toast.add({
       title: t('pages.auth.googleComingSoon'),
       description: t('pages.auth.googleComingSoonDesc'),

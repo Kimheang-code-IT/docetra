@@ -7,7 +7,7 @@ This document defines how Docetra uses Redis and RabbitMQ to keep interactive pa
 
 | Component  | Responsibility                                             | Never use it for               |
 | ---------- | ---------------------------------------------------------- | ------------------------------ |
-| Redis DB 0 | Session/operational coordination, rate limits, short locks | Durable business records       |
+| Redis DB 0 | JWT allowlist (`jwt:{jti}`, `user-tokens:{userId}`), CSRF bind, rate limits, short locks | Durable business records |
 | Redis DB 1 | Short cache tier for frequently changing reads             | Secrets or authorization proof |
 | Redis DB 2 | Long cache tier for stable reference/configuration reads   | Indefinite storage             |
 | RabbitMQ   | Durable delivery of background work and domain events      | Request/response data storage  |
@@ -128,3 +128,13 @@ Production uses private networking, TLS for Redis/AMQP where supported, unique l
 - Worker tests prove duplicate delivery, retry/backoff, poison messages, dead-letter routing, and restart recovery.
 - Load tests verify API latency while exports, uploads, and Drive sync run concurrently.
 - Operational drills verify Redis loss, RabbitMQ restart, worker scale-out, queue backlog recovery, and safe job replay.
+
+## 10. Frontend contract
+
+Nuxt never talks to Redis or RabbitMQ. Long work returns `202` + job id; lists use `startDate`/`endDate`.
+
+| Concern | Code |
+| --- | --- |
+| HTTP client | `frontend/app/composables/useApi.ts` |
+| List query | `frontend/app/types/docetra/common.ts` (`startDate`, `endDate`) |
+| Exports | `frontend/app/adapters/exports.ts` |

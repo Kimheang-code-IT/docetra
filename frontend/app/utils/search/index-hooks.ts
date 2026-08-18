@@ -4,7 +4,9 @@
 import type { SearchEntityType } from '~/types/docetra/search'
 import { upsertIndexedDocument } from '~/utils/search/search-index'
 import { extractText } from '~/utils/search/text-extract'
-import { nowIso } from '~/mocks/query'
+function nowIso() {
+  return new Date().toISOString()
+}
 
 export function indexFileForSearch(input: {
   entityId: string

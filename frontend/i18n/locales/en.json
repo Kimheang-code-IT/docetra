@@ -353,7 +353,7 @@
     },
     "connection": {
       "title": "Connection status",
-      "mockHint": "Connection tests are simulated in mock mode — no real backend call.",
+      "mockHint": "Connection tests call the configured storage API.",
       "notTested": "Not tested",
       "testing": "Testing",
       "connected": "Connected",

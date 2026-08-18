@@ -4,12 +4,12 @@ Architecture references for the Docetra v2 UI in `frontend/`. Align product pres
 
 ## Status
 
-Most page prompts are **removed** — those routes already have working UI and logic (mock adapters / repositories).
+Most page prompts are **removed** — those routes already have working UI wired to `/api/v2` HTTP adapters and repositories.
 
 | Area | Status |
 | --- | --- |
 | Shared shell, workspace kit, config/settings kit | Done — see `00-*.md` as architecture reference |
-| Dynamic Attribute Catalog + record schemas | Frontend/mock flow implemented; HTTP backend remains — see `00C-dynamic-record-fields.md` |
+| Dynamic Attribute Catalog + record schemas | Frontend HTTP flow implemented — see `00C-dynamic-record-fields.md` |
 | Pages `01`–`16`, `18`–`28` | Done — prompts deleted |
 | Google Drive Sync (`17`) | **Partial** — remaining prompt kept |
 
@@ -33,7 +33,7 @@ Keep these as “how the app is built” docs, not copy/paste build tickets:
 
 Developer inventory (code-side): `frontend/docs/reusable-components-guide.md`.
 
-Backend handoff documents: [`../backend/00-integration-contract.md`](../backend/00-integration-contract.md), `frontend/docs/api-integration-guide.md`, and `frontend/docs/local-frontend-docker-backend.md`.
+Backend handoff documents: [`../backend/00-integration-contract.md`](../backend/00-integration-contract.md), [`../backend/06-backend-file-structure.md`](../backend/06-backend-file-structure.md), `frontend/docs/api-integration-guide.md`, and `frontend/docs/local-frontend-docker-backend.md`.
 
 ## Implemented route inventory
 

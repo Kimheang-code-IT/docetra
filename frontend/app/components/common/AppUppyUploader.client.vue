@@ -94,25 +94,10 @@ function attachmentFromResponse(body: unknown): AttachmentMeta | null {
   return candidate as AttachmentMeta
 }
 
-function mockAttachment(file: { name?: string | null; type?: string | null; size?: number | null }): AttachmentMeta {
-  return {
-    id: createClientId('att'),
-    name: file.name || 'file',
-    mimeType: file.type || 'application/octet-stream',
-    sizeBytes: file.size || 0,
-    uploadedAt: new Date().toISOString(),
-    storageSource: 'local',
-  }
-}
-
 async function onFallbackPicked(event: Event) {
   const input = event.target as HTMLInputElement
   const files = Array.from(input.files || []).filter(validFile).slice(0, props.maxNumberOfFiles)
   input.value = ''
-  if (config.public.useMockData !== false) {
-    if (files.length) emit('complete', files.map(mockAttachment))
-    return
-  }
   if (!uploadUrl.value) {
     bootError.value = 'Upload endpoint must use the configured API origin'
     return
@@ -130,7 +115,7 @@ async function onFallbackPicked(event: Event) {
 
 onMounted(() => {
   try {
-    if (config.public.useMockData === false && !uploadUrl.value) {
+    if (!uploadUrl.value) {
       throw new Error('Upload endpoint must use the configured API origin')
     }
     const instance = new Uppy({
@@ -143,38 +128,23 @@ onMounted(() => {
       },
     })
 
-    if (config.public.useMockData !== false) {
-      instance.addUploader(async (fileIds) => {
-        for (const id of fileIds) {
-          const file = instance.getFile(id)
-          if (!file) continue
-          const size = file.size || 0
-          instance.setFileState(id, {
-            progress: { uploadComplete: true, uploadStarted: Date.now(), percentage: 100, bytesUploaded: size, bytesTotal: size },
-          })
-          instance.emit('upload-success', file, { body: { data: mockAttachment(file) }, status: 200 } as any)
-        }
-      })
-    }
-    else {
-      const cookieAuth = config.public.authMode === 'cookie'
-      instance.use(XHRUpload, {
-        endpoint: uploadUrl.value!,
-        fieldName: 'file',
-        formData: true,
-        bundle: false,
-        withCredentials: cookieAuth,
-        headers: {
-          'X-Requested-With': 'XMLHttpRequest',
-          ...(!cookieAuth && authStore.token ? { Authorization: `Bearer ${authStore.token}` } : {}),
-          ...csrfRequestHeaders(
-            'POST',
-            String(config.public.csrfCookieName),
-            String(config.public.csrfHeaderName),
-          ),
-        },
-      })
-    }
+    const cookieAuth = config.public.authMode !== 'bearer'
+    instance.use(XHRUpload, {
+      endpoint: uploadUrl.value!,
+      fieldName: 'file',
+      formData: true,
+      bundle: false,
+      withCredentials: cookieAuth,
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        ...(!cookieAuth && authStore.token ? { Authorization: `Bearer ${authStore.token}` } : {}),
+        ...csrfRequestHeaders(
+          'POST',
+          String(config.public.csrfCookieName),
+          String(config.public.csrfHeaderName),
+        ),
+      },
+    })
     instance.on('complete', (result) => {
       const metas = (result.successful || [])
         .map(file => attachmentFromResponse(file.response?.body))

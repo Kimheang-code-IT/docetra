@@ -32,7 +32,6 @@ const {
 const toast = useToast()
 const { t } = useI18n()
 const { confirm } = useConfirm()
-const runtimeConfig = useRuntimeConfig()
 const authStore = useAuthStore()
 const canUpload = computed(() => authStore.canAccessPage(permissionForAction(config.permission, 'create')))
 const canDelete = computed(() => authStore.canAccessPage(permissionForAction(config.permission, 'delete')))
@@ -110,33 +109,6 @@ async function onUploadComplete(metas: AttachmentMeta[]) {
   if (!canUpload.value || !metas.length) return
   uploading.value = true
   try {
-    if (runtimeConfig.public.useMockData !== false) {
-      const { indexFileForSearch } = await import('~/utils/search/index-hooks')
-      for (const meta of metas) {
-        const created = await adapters.fileUploads.create({
-          fileName: meta.name,
-          name: meta.name,
-          mimeType: meta.mimeType,
-          sizeBytes: meta.sizeBytes,
-          status: 'completed',
-          storageSource: meta.storageSource || 'local',
-          progress: 100,
-          uploader: authStore.user
-            ? { id: String(authStore.user.id), name: authStore.user.name, email: authStore.user.email }
-            : undefined,
-        } as any)
-        const row = (created as { data?: { id?: string } })?.data
-        const id = row?.id || meta.id
-        indexFileForSearch({
-          entityId: String(id),
-          fileName: meta.name,
-          mimeType: meta.mimeType,
-          url: `/portal/file-upload/${id}`,
-          permission: 'portal.file_upload.view',
-          contextTitle: meta.name,
-        })
-      }
-    }
     toast.add({ title: t('docetra.attachments.uploaded'), color: 'success' })
     await refresh()
   }

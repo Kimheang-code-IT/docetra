@@ -194,15 +194,18 @@ Options should be **bounded**, searchable, active-only by default, and exclude t
 Standard CRUD per resource:
 
 
-| Method | Path                 | Purpose               |
-| ------ | -------------------- | --------------------- |
-| GET    | `{base}`             | List                  |
-| GET    | `{base}/{id}`        | Detail                |
-| POST   | `{base}`             | Create                |
-| PATCH  | `{base}/{id}`        | Update                |
-| DELETE | `{base}/{id}`        | Soft-delete / archive |
-| POST   | `{base}/bulk-delete` | Optional multi-delete |
-| GET    | `{base}/options`     | Lookup                |
+| Method | Path                  | Purpose                          |
+| ------ | --------------------- | -------------------------------- |
+| GET    | `{base}`              | List                             |
+| GET    | `{base}/{id}`         | Detail                           |
+| POST   | `{base}`              | Create                           |
+| PATCH  | `{base}/{id}`         | Update                           |
+| POST   | `{base}/{id}/archive` | Archive (`status=archived`)      |
+| POST   | `{base}/{id}/restore` | Restore to `active`              |
+| DELETE | `{base}/{id}`         | Soft delete (`status=deleted`)   |
+| DELETE | `{base}/{id}/purge`   | Administrator purge              |
+| POST   | `{base}/bulk-delete`  | Optional multi soft-delete       |
+| GET    | `{base}/options`      | Lookup                           |
 
 
 Shared:
@@ -316,17 +319,20 @@ Organization APIs must stay **lookup-friendly** (stable ids, active flags, denor
 
 **Mock → HTTP:** `NUXT_PUBLIC_USE_MOCK_DATA=false` uses the same paths.
 
+**Backend files (later):** `app/api/v2/organizations.py`, `app/modules/organization/`, `app/api/v2/mentions.py`.
+
 ---
 
 
 
 ## 10. Implementation notes
 
-- Prefer **soft disable** (`isActive=false`) over hard delete for master data.
+- Prefer **archive** (`status=archived`) over hard delete for master data; purge is administrator-only.
 - Keep hierarchy and sector trees **cycle-safe** in one shared service.
 - Options endpoints should be indexed and capped (never return unbounded catalogs).
 - Do not embed record workflow logic in this module.
 - Counters (`officerCount`, `usageCount`, `relatedRecordCount`) may be maintained async or computed on read.
+- Standard lifecycle on `{base}`: `POST {id}/archive`, `POST {id}/restore`, `DELETE {id}` (soft), `DELETE {id}/purge`. Do not treat `DELETE {id}` as archive.
 
 ---
 

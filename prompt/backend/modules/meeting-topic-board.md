@@ -86,7 +86,7 @@ The client uses three meeting pools (query params on list endpoint):
 
 Topic list endpoint: paginated topics, optional search on title/owner; **no date filter on topic list** for this screen.
 
-Meeting list endpoint: must support `topic_id`, `unassigned_only`, `date_from`, `date_to`, `search`, `limit`, `sort`.
+Meeting list endpoint: must support `topicId`, `unassignedOnly`, `startDate`, `endDate`, `q`, `limit`, `sort`. Path is `GET /api/v2/meetings/history` (never `/meetings`).
 
 ---
 
@@ -94,7 +94,7 @@ Meeting list endpoint: must support `topic_id`, `unassigned_only`, `date_from`, 
 
 ### 4.1 Assign meeting to topic (drag-drop or menu)
 
-**Operation:** `PATCH /api/v2/meetings/{id}` or dedicated `POST .../assign-topic`
+**Operation:** `PATCH /api/v2/meetings/history/{id}` or `POST /api/v2/meetings/history/{id}/assign-topic`
 
 Body:
 
@@ -225,7 +225,7 @@ Optional: WebSocket or SSE `meeting.imminent` for desktop notifications (out of 
 
 Standard record attachments via storage module:
 
-- `GET /api/v2/meetings/{id}/attachments`
+- `GET /api/v2/meetings/history/{id}/attachments`
 - `PUT` or `POST` replace/upload (multipart or signed URL flow)
 
 Metadata: `AttachmentMeta` (id, name, mime, size, url, source).
@@ -237,7 +237,7 @@ User selects files **already imported** via Google Drive Sync (Portal), not re-u
 Backend:
 
 1. **Catalog endpoint:** `GET /api/v2/portal/drive-files?search=&page=` (permission: portal + meeting edit).
-2. **Link to meeting:** `POST /api/v2/meetings/{id}/attachments/link`
+2. **Link to meeting:** `POST /api/v2/meetings/history/{id}/attachments/link`
 
 ```json
 {
@@ -280,34 +280,34 @@ Topic board rule: **topic rail must not expose date slots** in default topic car
 
 ---
 
-## 10. API surface (proposed)
+## 10. API surface (aligned with frontend)
 
-Under `/api/v2`, names align with REST conventions in `06-api-contracts.md`.
+Under `/api/v2`. Do **not** publish `/meeting-topics` or `/meetings` as public aliases; the Nuxt adapters already call the paths below.
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| GET | `/meeting-topics` | Topic rail list |
-| GET | `/meeting-topics/{id}` | Topic detail document |
-| POST | `/meeting-topics` | Create topic |
-| PATCH | `/meeting-topics/{id}` | Update topic |
-| GET | `/meetings` | Board pools (filters §3) |
-| GET | `/meetings/{id}` | Meeting detail + notes fields |
-| POST | `/meetings` | Create (optional topicId, recurrence) |
-| PATCH | `/meetings/{id}` | Update fields, topic, URL, notes |
+| GET | `/meetings/topics` | Topic rail list |
+| GET | `/meetings/topics/{id}` | Topic detail document |
+| POST | `/meetings/topics` | Create topic |
+| PATCH | `/meetings/topics/{id}` | Update topic |
+| GET | `/meetings/history` | Board pools (filters §3) |
+| GET | `/meetings/history/{id}` | Meeting detail + notes fields |
+| POST | `/meetings/history` | Create (optional topicId, recurrence) |
+| PATCH | `/meetings/history/{id}` | Update fields, topic, URL, notes |
 | POST | `/meetings/reorder` | Batch order within topic |
-| POST | `/meetings/{id}/assign-topic` | Shortcut assign/unassign |
-| GET | `/meetings/{id}/attachments` | List attachments |
-| POST | `/meetings/{id}/attachments` | Upload |
-| POST | `/meetings/{id}/attachments/link` | Link Drive / existing file |
-| POST | `/meetings/{id}/recurrence` | Define or update series |
-| DELETE | `/meetings/{id}/recurrence` | Cancel series (policy: future only) |
-| DELETE | `/meeting-topics/{id}` | Permission-gated card-menu soft delete (`status=deleted`) |
-| DELETE | `/meetings/{id}` | Permission-gated card-menu soft delete (`status=deleted`) |
-| POST | `/meeting-topics/{id}/archive`, `/restore` | Owner-scoped archive/restore; deleted restore requires administrator scope |
-| POST | `/meetings/{id}/archive`, `/restore` | Archive pauses schedules; restore rebuilds eligible schedules |
-| DELETE | `/meeting-topics/{id}/purge`, `/meetings/{id}/purge` | Administrator-only permanent removal after dependency/retention checks |
+| POST | `/meetings/history/{id}/assign-topic` | Shortcut assign/unassign |
+| GET | `/meetings/history/{id}/attachments` | List attachments |
+| POST | `/meetings/history/{id}/attachments` | Upload |
+| POST | `/meetings/history/{id}/attachments/link` | Link Drive / existing file |
+| DELETE | `/meetings/topics/{id}` | Permission-gated card-menu soft delete (`status=deleted`) |
+| DELETE | `/meetings/history/{id}` | Permission-gated card-menu soft delete (`status=deleted`) |
+| POST | `/meetings/topics/{id}/archive`, `/restore` | Owner-scoped archive/restore |
+| POST | `/meetings/history/{id}/archive`, `/restore` | Archive pauses schedules; restore rebuilds eligible schedules |
+| DELETE | `/meetings/topics/{id}/purge`, `/meetings/history/{id}/purge` | Administrator-only purge |
 
-Generic `/records` CRUD may wrap the same logic if record type is in path: `/records?type=meeting` — pick one public shape and keep adapters stable for the frontend entity keys `meetingTopics` and `meetingHistory`.
+Shared entity sub-resources (`comments`, `activity`, `neighbors`, `favorite`, `counts`, `options`) follow [`06-backend-file-structure.md`](../06-backend-file-structure.md) §5.2.
+
+Generic `/records?type=meeting` is an internal implementation option only. Public JSON and paths stay on `meetingTopics` / `meetingHistory`.
 
 ---
 
@@ -361,7 +361,7 @@ Emit immutable activity events (for document-style timeline and record logs):
 | UI behavior | Backend |
 | --- | --- |
 | Left rail topics, no date on topic | Topic list without date-driven sort; card config excludes date slots for `meetingTopics` |
-| All / Unassigned / topic filters | `GET /meetings` query params |
+| All / Unassigned / topic filters | `GET /meetings/history` query params |
 | Drag card to topic | `assign-topic` + `sort_order` |
 | Drag reorder in topic | `POST /meetings/reorder` |
 | Border animation / top sort | `imminent`, `minutes_until_start`, sort param |
@@ -371,7 +371,7 @@ Emit immutable activity events (for document-style timeline and record logs):
 | Delete topic/meeting from `⋯` | Confirm, authorize `.delete`, soft delete, remove card, emit audit event |
 | Pick Google Drive file | `attachments/link` + Drive catalog |
 | Card slots from settings | Full field payload + app config display |
-| Create meeting | `POST /meetings` with optional `topicId` |
+| Create meeting | `POST /meetings/history` with optional `topicId` |
 
 ---
 
@@ -413,4 +413,6 @@ List/detail meeting payloads should include optional server fields: `imminent`, 
 
 ---
 
-*Last aligned with frontend: `useMeetingTopicBoard`, `AppMeetingBoardCard`, `AppMeetingNotesDialog`, `AppMeetingDriveFilePicker`, `card-fields.ts`, `meeting-board` adapter.*
+**Mock → HTTP:** `NUXT_PUBLIC_USE_MOCK_DATA=false`. Date filters use `startDate`/`endDate` ([`07-datetime-and-list-query.md`](../07-datetime-and-list-query.md)).
+
+**Backend files (later):** `app/api/v2/meetings.py`, `app/modules/meetings/`, `app/scheduler_jobs/`.

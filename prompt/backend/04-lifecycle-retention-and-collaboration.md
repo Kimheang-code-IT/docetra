@@ -74,7 +74,7 @@ For lifecycle-enabled resources:
 | PATCH/DELETE | `/{resource}/{id}/comments/{commentId}` | Author or moderator `.comment` scope |
 | GET | `/{resource}/{id}/activity` | `.view` plus field/event redaction |
 
-List APIs exclude archived/deleted rows by default. The Archive workspace endpoint returns only rows the current user may recover: own archived rows for creator-scoped users, plus archived/deleted rows for authorized administrators.
+List APIs exclude archived/deleted rows by default. There is **no** dedicated `/archive` collection. The Archive workspace lists each source twice with `status=archived` and `status=deleted`. Those filters are required.
 
 ## 7. Verification
 
@@ -85,3 +85,10 @@ List APIs exclude archived/deleted rows by default. The Archive workspace endpoi
 - Meeting schedule cancellation/rebuild and document stage preservation are tested.
 - Role assignment and last-admin protections are tested.
 - Every action produces a safe immutable activity event; comment permissions and redaction are tested.
+
+## 8. Frontend contract
+
+| Concern | Code |
+| --- | --- |
+| Archive workspace | `frontend/app/composables/archive/useArchiveWorkspace.ts` |
+| Entity lifecycle | `frontend/app/adapters/createEntityAdapter.ts` (`archive`, `restore`, `delete`, `purge`) |

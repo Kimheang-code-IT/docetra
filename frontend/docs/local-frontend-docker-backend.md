@@ -4,7 +4,7 @@ The Nuxt frontend runs directly on the developer computer at `http://localhost:3
 
 ## Current repository boundary
 
-This repository does not yet contain the FastAPI source or a built backend image. `compose.backend.yml` defines the required runtime boundary and expects an image named `docetra-backend:local` by default. Build or load that image from the backend repository before starting the stack. The image must provide the API entrypoint, `python -m app.worker`, and `python -m app.scheduler`; override the latter commands with `BACKEND_WORKER_COMMAND` and `BACKEND_SCHEDULER_COMMAND` when necessary.
+This repository includes the FastAPI source in `backend/` and image `docetra-backend:local`. `compose.backend.yml` builds that image and runs the API, `python -m app.worker`, and `python -m app.scheduler`.
 
 ## Local startup
 
@@ -22,7 +22,7 @@ Then configure and run the frontend:
 ```powershell
 Set-Location frontend
 Copy-Item .env.example .env
-# Set NUXT_PUBLIC_USE_MOCK_DATA=false in .env.
+# Confirm NUXT_PUBLIC_API_BASE=http://localhost:8000 and NUXT_PUBLIC_AUTH_MODE=cookie.
 pnpm install
 pnpm dev
 ```

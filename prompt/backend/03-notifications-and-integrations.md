@@ -110,7 +110,7 @@ Configuration is layered so it can be customized safely from the UI later:
 | User preference | Opt in/out by allowed event/channel, personal reminder offsets, quiet hours, timezone, and language | authenticated self-service |
 | IT routing | Environment/service filters, minimum severity, grouping/dedup window, and recovery messages | administrator/operations configure |
 
-Suggested APIs are `GET/PATCH /api/v2/users/me/notification-preferences`, `GET /api/v2/notification-destinations?channel=telegram&scope=meeting`, and administrator CRUD/test endpoints under `/api/v2/settings/app-config/telegram/{meeting|devops}`. Meeting responses reference internal destination IDs, never Telegram chat IDs.
+Shipped frontend test routes (do not replace): `POST /api/v2/settings/app-config/email/test-connection`, `.../email/send-test`, `.../telegram/test-connection`, `.../telegram/send-test`. Optional later split paths may add `/telegram/meeting|devops/...`. Meeting payloads reference internal destination IDs, never Telegram chat IDs.
 
 App Config may expose non-secret templates, enabled event types, reminder offsets, quiet-hour policy, and safe sender display names. Bot tokens, SMTP/API credentials, webhook secrets, and provider signing keys live only in environment/secret management. GET APIs return configured/not-configured status and masked identifiers, never secret values. Every settings, preference, destination, and routing change creates immutable activity/audit with actor, time, before/after-safe fields, and request ID.
 
@@ -119,3 +119,10 @@ App Config may expose non-secret templates, enabled event types, reminder offset
 Measure queued, sent, delivered where supported, failed, retried, dead-lettered, suppressed, provider latency, rate limits, and oldest-message age by channel and environment. Correlate notification ID, meeting/job ID, request/event ID, and deployment version without logging secret content.
 
 Test account enumeration, token replay/expiry, redirect injection, session revocation, Telegram chat verification/revocation, permission changes before delivery, duplicate messages, provider timeout/429/5xx, signed webhook replay, secret redaction, dead-letter recovery, and separation between Bot 1 and Bot 2.
+
+## 9. Frontend contract
+
+| Concern | Code |
+| --- | --- |
+| Email/Telegram tests | `frontend/app/repositories/http/settings.ts` |
+| Endpoints | `APP_CONFIG_TEST_EMAIL`, `APP_CONFIG_SEND_TEST_EMAIL`, `APP_CONFIG_TEST_TELEGRAM`, `APP_CONFIG_SEND_TEST_TELEGRAM` |

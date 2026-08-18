@@ -2,6 +2,7 @@ export const ApiEndpoints = {
   AUTH_LOGIN: '/api/v2/auth/login',
   AUTH_LOGOUT: '/api/v2/auth/logout',
   AUTH_ME: '/api/v2/auth/me',
+  AUTH_REFRESH: '/api/v2/auth/refresh',
   AUTH_FORGOT_PASSWORD: '/api/v2/auth/forgot-password',
   AUTH_RESET_VERIFY: '/api/v2/auth/forgot-password/verify',
   AUTH_RESET_RESEND: '/api/v2/auth/forgot-password/resend',

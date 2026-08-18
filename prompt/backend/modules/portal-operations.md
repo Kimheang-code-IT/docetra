@@ -148,6 +148,8 @@ No comment composer; activity **is** the audit product.
 | Endpoints | `api-endpoints.ts` → `FILE_UPLOADS`, `GOOGLE_DRIVE_SYNC`, `PORTAL_LOGS`, `PORTAL_DRIVE_FILES` |
 | Link helper | `adapters/meeting-board.ts` → `listPortalDriveFiles`, `linkMeetingDriveFile` |
 
+**Backend files:** `backend/app/api/v2/portal.py`, `backend/app/modules/storage_integration/`. List filters: `startDate`/`endDate`. Drive catalog: `GET /api/v2/portal/drive-files`. Sync collection: `GOOGLE_DRIVE_SYNC`.
+
 ---
 
 ## 10. Validation & safety

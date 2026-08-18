@@ -33,9 +33,11 @@ Optional Google Workspace support is isolated behind backend provider adapters a
 
 ## 2. Authentication, session, and CSRF
 
-- `POST /api/v2/auth/login` validates credentials, creates a server-side session, sets a `Secure`, `HttpOnly`, `SameSite` cookie, and returns the safe user profile. It does not return a session secret in JSON.
+- `POST /api/v2/auth/login` validates credentials, issues a signed JWT, sets it on a `Secure`, `HttpOnly`, `SameSite` cookie (`docetra_session`), sets a refresh JWT on `docetra_refresh`, sets a readable CSRF cookie, and returns the safe user profile. It does not return the JWT in JSON.
+- JWT claims are `sub`, `jti`, `iat`, `exp`, `typ`. Permissions are not embedded; `/auth/me` reloads them from PostgreSQL. Redis `jwt:{jti}` binds CSRF and enables instant revoke.
 - `GET /api/v2/auth/me` is the authoritative session and capability probe.
-- `POST /api/v2/auth/logout` revokes the session and clears authentication cookies.
+- `POST /api/v2/auth/refresh` rotates `jti` using the refresh cookie and re-sets cookies. The frontend calls this when `/auth/me` fails with `token_expired`.
+- `POST /api/v2/auth/logout` revokes Redis `jti` keys and clears authentication cookies. Password change and reset also revoke outstanding JWTs.
 - Cookie-authenticated mutations require same-origin validation plus a CSRF token. The frontend reads `XSRF-TOKEN` and sends `X-CSRF-Token`.
 - The frontend sends `credentials: include`. Do not require bearer tokens in local storage or a JavaScript-readable auth cookie.
 - `401` means missing/expired session. The frontend opens the shared session dialog, then redirects to login.
@@ -123,23 +125,31 @@ Mention/assignment option endpoints accept indexed text search (`q`), optional `
 
 Store timestamps in UTC and return ISO 8601. Format dates, times, numbers, and currency at the frontend boundary with the resolved app/user locale and timezone. Validate locale and IANA timezone identifiers server-side.
 
+List and export filters use `startDate` / `endDate`. Picker values may be `YYYY-MM-DD` or `YYYY-MM-DDTHH:mm` without offset; interpret datetime-local strings in the App Config timezone. Full rules: [`07-datetime-and-list-query.md`](./07-datetime-and-list-query.md).
+
 ## 7. Required endpoint families
 
+Canonical paths are `frontend/app/utils/constants/api-endpoints.ts`. Do not shorten them. Folder mapping: [`06-backend-file-structure.md`](./06-backend-file-structure.md).
 
-| Area          | Prefix / key routes                                                                              |
-| ------------- | ------------------------------------------------------------------------------------------------ |
-| Auth          | `/auth/login`, `/auth/me`, `/auth/logout`, password/profile routes                               |
-| Meetings      | `/meetings/topics`, `/meetings/history`, reorder, assignment, attachments, links                 |
-| Records       | `/records/incoming`, `/outgoing`, `/documents`, `/master-list`, record logs                      |
-| Organization  | `/organizations/departments`, `/companies`, `/company-purposes`, `/company-sectors`, `/officers` |
-| Access        | `/users/roles`, `/users`, `/users/permission-catalog`                                            |
-| Configuration | `/configuration/record-types`, `/record-attributes`                                              |
-| Settings      | `/settings/app-info`, `/app-config`, `/storage`, integration tests                               |
-| Portal        | file uploads, Drive sync, portal logs                                                            |
-| Shared        | comments, activity, attachments, search, exports, system logs                                    |
+| Area | Prefix / key routes |
+| --- | --- |
+| Auth | `/auth/login`, `/auth/me`, `/auth/refresh`, `/auth/logout`, `/auth/forgot-password` (+ verify/resend/reset), `/auth/change-password`, `/auth/profile/avatar` |
+| Dashboard | `/dashboard/summary` |
+| Meetings | `/meetings/topics`, `/meetings/history`, `/meetings/reorder`, `/meetings/history/{id}/assign-topic`, `/meetings/history/{id}/attachments`, `/meetings/history/{id}/attachments/link` |
+| Records | `/records/incoming-documents`, `/outgoing-documents`, `/documents`, `/master-list-requests`, `/records/logs` |
+| Organization | `/organizations/departments`, `/companies`, `/company-purposes`, `/company-sectors`, `/officers` |
+| Access | `/users/roles`, `/users`, `/users/permission-catalog` |
+| Configuration | `/configuration/record-types`, `/record-attributes` |
+| Settings | `/settings/app-info`, `/app-config`, `/storage` (+ test/set-default/set-active) |
+| Portal | `/portal/file-uploads`, `/portal/google-drive-sync`, `/portal/drive-files`, `/portal/logs` |
+| System | `/system/logs` |
+| Shared | `{base}/{id}/comments`, `/activity`, `/attachments`, `/neighbors`, `/favorite`; `/search`, `/search/ask`; `/exports`; `{base}/options`; `/mentions` |
 
+Every lifecycle-enabled collection also implements `POST {id}/archive`, `POST {id}/restore`, `DELETE {id}` (soft), `POST /bulk-delete`, `DELETE {id}/purge`, `PATCH {id}/stage`, and `GET {base}/counts`.
 
 Topic and meeting cards expose a permission-gated `⋯` menu with Delete. Delete is an auditable soft delete to `deleted` by default; permanent purge is a distinct privileged operation and is not exposed by the normal card menu.
+
+Archive (`/archive`) currently aggregates by listing each source with `status=archived` and `status=deleted`. Those list filters are required; a dedicated `/archive` API is optional later.
 
 ## 8. Production acceptance checklist
 

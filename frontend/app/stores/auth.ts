@@ -5,16 +5,13 @@ import { publishAuthSessionEvent } from '~/utils/auth/session-sync'
 
 export const useAuthStore = defineStore('auth', () => {
   const config = useRuntimeConfig()
-  const usesCookieSession = computed(() =>
-    config.public.useMockData === false && config.public.authMode === 'cookie',
-  )
+  const usesCookieSession = computed(() => config.public.authMode !== 'bearer')
   const cookieOptions = {
     default: () => null,
     path: '/',
     sameSite: 'strict' as const,
     secure: import.meta.env.PROD,
   }
-  // The access token remains JS-readable until the API supports an HttpOnly session cookie.
   const token = useCookie<string | null>('auth_token', cookieOptions)
   const user = useCookie<AuthUser | null>('auth_user', cookieOptions)
   const sessionChecked = useState('auth-session-checked', () => false)
@@ -38,10 +35,8 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function logout() {
     try {
-      if (config.public.useMockData === false) {
-        const { logoutSession } = await import('~/adapters/auth')
-        await logoutSession()
-      }
+      const { logoutSession } = await import('~/adapters/auth')
+      await logoutSession()
     }
     catch {
       // Always clear the browser snapshot; the backend session expires independently.
@@ -53,18 +48,22 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function validateSession() {
-    if (config.public.useMockData !== false) {
-      sessionChecked.value = true
-      return isLoggedIn.value
-    }
     if (sessionChecking.value) return isLoggedIn.value
     sessionChecking.value = true
     try {
-      const { getCurrentSession } = await import('~/adapters/auth')
-      const response = await getCurrentSession()
-      user.value = response.data
-      sessionChecked.value = true
-      return true
+      const { getCurrentSession, refreshSession } = await import('~/adapters/auth')
+      try {
+        const response = await getCurrentSession()
+        user.value = response.data
+        sessionChecked.value = true
+        return true
+      }
+      catch {
+        const refreshed = await refreshSession()
+        user.value = refreshed.data
+        sessionChecked.value = true
+        return true
+      }
     }
     catch {
       clearSession(false)

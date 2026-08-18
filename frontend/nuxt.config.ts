@@ -39,8 +39,7 @@ export default defineNuxtConfig({
       authMode: import.meta.env.NUXT_PUBLIC_AUTH_MODE === 'bearer' ? 'bearer' : 'cookie',
       csrfCookieName: import.meta.env.NUXT_PUBLIC_CSRF_COOKIE_NAME || 'XSRF-TOKEN',
       csrfHeaderName: import.meta.env.NUXT_PUBLIC_CSRF_HEADER_NAME || 'X-CSRF-Token',
-      // Current release is mock-first. Set false later when the HTTP API is available.
-      useMockData: import.meta.env.NUXT_PUBLIC_USE_MOCK_DATA !== 'false',
+      useMockData: false,
       appVersion: import.meta.env.NUXT_PUBLIC_APP_VERSION || '0.1.0',
       // Canonical public origin for Open Graph / Twitter image URLs (no trailing slash).
       // Example: https://app.docetra.com — required for link previews to show images.

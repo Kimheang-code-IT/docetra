@@ -111,10 +111,12 @@ Upload modules resolve default provider id on each upload
 | PUT/PATCH | `/api/v2/settings/app-config` | Update |
 | POST | `/api/v2/settings/app-config/email/test-connection` | SMTP test |
 | POST | `/api/v2/settings/app-config/email/send-test` | Send test mail |
-| POST | `/api/v2/settings/app-config/telegram/meeting/test-connection` | Meeting Bot connectivity/identity test |
-| POST | `/api/v2/settings/app-config/telegram/meeting/send-test` | Send to an allowlisted Meeting Bot test chat |
-| POST | `/api/v2/settings/app-config/telegram/devops/test-connection` | Development Bot connectivity/identity test |
-| POST | `/api/v2/settings/app-config/telegram/devops/send-test` | Send to an allowlisted private development chat |
+| POST | `/api/v2/settings/app-config/telegram/test-connection` | **Implemented frontend path** — test the configured Telegram adapter |
+| POST | `/api/v2/settings/app-config/telegram/send-test` | **Implemented frontend path** — send a test message |
+| POST | `/api/v2/settings/app-config/telegram/meeting/test-connection` | Optional split Meeting Bot test (keep plus the combined paths above) |
+| POST | `/api/v2/settings/app-config/telegram/meeting/send-test` | Optional split Meeting Bot send-test |
+| POST | `/api/v2/settings/app-config/telegram/devops/test-connection` | Optional split Development Bot test |
+| POST | `/api/v2/settings/app-config/telegram/devops/send-test` | Optional split Development Bot send-test |
 | GET/POST/PATCH | `/api/v2/settings/app-config/telegram/{meeting|devops}/destinations[/{id}]` | Manage verified group allowlists and routing policy |
 | GET/PATCH | `/api/v2/users/me/notification-preferences` | Read/update the signed-in user's allowed notification preferences |
 | GET | `/api/v2/settings/storage` | List providers |
@@ -165,6 +167,8 @@ Upload modules resolve default provider id on each upload
 
 **App version display:** `NUXT_PUBLIC_APP_VERSION` / `runtimeConfig.public.appVersion` — not stored in app config unless product adds explicit override field.
 
+**Backend files (later):** `app/api/v2/settings.py`, `app/modules/admin_config/` (settings), `app/core/datetime.py` for timezone validation. Localization/date rules: [`07-datetime-and-list-query.md`](../07-datetime-and-list-query.md).
+
 ---
 
 ## 8. Validation
@@ -190,5 +194,9 @@ Upload modules resolve default provider id on each upload
 | Storage default | Portal upload, attachments, Drive sync |
 
 ---
+
+## 10. Frontend contract
+
+Email/Telegram tests use the combined paths in `api-endpoints.ts` (`APP_CONFIG_TEST_EMAIL`, `APP_CONFIG_TEST_TELEGRAM`, send-test variants). Storage uses `STORAGE_PROVIDERS` plus `test-connection`, `set-default`, `set-active`.
 
 *Settings UI uses document-page pattern, not entity workspace tables — backend can still expose one JSON document per aggregate.*

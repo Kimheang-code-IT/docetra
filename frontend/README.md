@@ -43,16 +43,21 @@ Nuxt auto-imports components by folder prefix. For example, `common/AppEchart.vu
 
 Do not add one-off page scaffolds. Extend the shared workspace, document, or meeting components.
 
-## Mock development and API mode
+## API mode
 
-- Mock mode is enabled by default with `NUXT_PUBLIC_USE_MOCK_DATA=true`.
-- Development login: `admin@gmail.com` / `123456`.
-- Set `NUXT_PUBLIC_USE_MOCK_DATA=false` and `NUXT_PUBLIC_API_BASE` to use the versioned `/api/v2` backend.
-- Mock providers and HTTP providers implement the same typed adapter/repository contracts, so pages do not change when switching modes.
-- Lists use bounded server pagination, sorting, filters, debounced search cancellation, and URL-backed state.
-- API responses follow `{ data, meta, errors }`; list `meta` includes `page`, `limit`, and `total`.
-- Add resources through typed adapters or repositories instead of fetching directly in page components.
-- File uploads are simulated in mock mode; API mode streams them to the backend and uses server-returned metadata.
+The UI always calls FastAPI. There is no in-browser mock dataset.
+
+```env
+NUXT_PUBLIC_USE_MOCK_DATA=false
+NUXT_PUBLIC_AUTH_MODE=cookie
+NUXT_PUBLIC_API_BASE=http://localhost:8000
+```
+
+1. Start the backend: `docker compose --env-file backend.env -f compose.backend.yml up --build -d`
+2. Start Nuxt: `pnpm dev` (port 3000; CORS already allows this origin)
+3. Sign in with `admin@gmail.com` / `123456` (HttpOnly JWT cookies; no token in JSON)
+
+Lists use bounded server pagination. Adapters/repositories are the only `$fetch` boundary. Uploads go to `/api/v2/portal/file-uploads` with cookies + CSRF.
 
 ## Commands
 

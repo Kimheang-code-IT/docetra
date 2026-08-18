@@ -19,10 +19,8 @@ export default defineNuxtPlugin(async () => {
   window.addEventListener('storage', onStorage)
   if (import.meta.hot) import.meta.hot.dispose(() => window.removeEventListener('storage', onStorage))
 
-  if (auth.isLoggedIn && useRuntimeConfig().public.useMockData === false) {
-    const valid = await auth.validateSession()
-    if (!valid && !route.path.startsWith('/auth/')) {
-      await navigateTo('/auth/login', { replace: true })
-    }
+  const valid = await auth.validateSession()
+  if (!valid && !route.path.startsWith('/auth/')) {
+    await navigateTo('/auth/login', { replace: true })
   }
 })

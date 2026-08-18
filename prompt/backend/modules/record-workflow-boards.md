@@ -143,7 +143,7 @@ No letter number, office/officer, external units, or document-type fields on thi
 | Query                | Meaning                                                 |
 | -------------------- | ------------------------------------------------------- |
 | `stage`              | Filter one stage (null = All)                           |
-| `dateFrom`, `dateTo` | Filter on kind date field                               |
+| `startDate`, `endDate` | Filter on resolved `recordTime`                       |
 | `search` / `q`       | Title, reference, tags, org fields                      |
 | `sort`               | Default by `record_time` / updated                      |
 | `page`, `limit`      | Pagination; `limit=all` → large fetch (cap e.g. 10_000) |
@@ -157,7 +157,7 @@ List payloads must include card slots from App Config (`documentType`, `officeIn
 | Query                | Meaning                                                                          |
 | -------------------- | -------------------------------------------------------------------------------- |
 | `view`               | `all`, `created`, `updated`, `stage`, `shared`, `incoming`, `outgoing`, `errors` |
-| `dateFrom`, `dateTo` | Event time                                                                       |
+| `startDate`, `endDate` | Event time (`recordTime` / `occurredAt`)                                      |
 | `search`             | Summary, entity title, actor                                                     |
 | `page`, `limit`      | Including `all`                                                                  |
 
@@ -247,7 +247,9 @@ See `prompt/backend/modules/organization-master-data.md` §3 (lookup options). S
 | Pagination All        | `utils/pagination.ts`, `AppServerTable`                                 |
 
 
-**Mock → HTTP:** `NUXT_PUBLIC_USE_MOCK_DATA=false`.
+**Mock → HTTP:** `NUXT_PUBLIC_USE_MOCK_DATA=false`. List date filters: `startDate` / `endDate`.
+
+**Backend files (later):** `app/api/v2/records.py`, `app/modules/record/`, `app/modules/collaboration/`.
 
 ---
 

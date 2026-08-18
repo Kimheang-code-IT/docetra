@@ -4,6 +4,7 @@ import type { TableQueryParams } from '~/types/api'
 import { compactQuery } from '~/utils/api/query'
 import { useAccessAlert } from '~/composables/common/useAccessAlert'
 import { csrfRequestHeaders } from '~/utils/security/csrf'
+import { sameOriginApiUrl } from '~/utils/security/url'
 
 type ApiRequestOptions = {
     method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'
@@ -33,7 +34,7 @@ const requestControllers = new Map<string, AbortController>()
  * Standard API Fetching Composable
  * ───────────────────────────────────────
  * Use this for all backend requests. It automatically:
- * 1. Attaches the auth token (if user is logged in)
+ * 1. Sends credentialed cookies (and a bearer token only in explicit bearer mode)
  * 2. Handles global error notifications
  * 3. Supports standard REST methods
  */
@@ -82,7 +83,7 @@ export function useApi() {
             activeRequests.value += 1
             error.value = null
             const method = options.method || 'GET'
-            const cookieAuth = config.public.authMode === 'cookie' && config.public.useMockData === false
+            const cookieAuth = config.public.authMode !== 'bearer'
             return await $fetch<T>(url, {
                 baseURL,
                 ...options,

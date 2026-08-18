@@ -393,7 +393,6 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
     saving.value = true
     try {
       const payload = prepareModelForSave()
-      const useMockData = useRuntimeConfig().public.useMockData !== false
       if (config.key === 'meetingHistory' && payload.topicId && !payload.topicTitle) {
         try {
           const topicRes = await getEntityAdapter('meetingTopics').get(String(payload.topicId))
@@ -404,7 +403,7 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
           // Topic title is optional for save; board can still show the meeting.
         }
       }
-      if (config.key === 'departments' && useMockData) {
+      if (config.key === 'departments') {
         const parentId = String(payload.parentId || '')
         const exclude = !isCreate.value && id.value
           ? `&excludeId=${encodeURIComponent(id.value)}`
@@ -420,7 +419,7 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
         payload.parentName = String(parentOption?.meta?.name || parentOption?.label || '')
           .replace(/^(?:(?:—|-)\s*)+/, '')
       }
-      if (config.key === 'companies' && useMockData) {
+      if (config.key === 'companies') {
         const [sectorOptions, purposeOptions] = await Promise.all([
           loadReferenceOptions(`${ApiEndpoints.COMPANY_SECTORS}/options`),
           loadReferenceOptions(`${ApiEndpoints.COMPANY_PURPOSES}/options`),
@@ -428,11 +427,11 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
         payload.sectorName = sectorOptions.find(option => option.value === String(payload.sectorId || ''))?.label || ''
         payload.purposeName = purposeOptions.find(option => option.value === String(payload.purposeId || ''))?.label || ''
       }
-      if (config.key === 'companySectors' && useMockData) {
+      if (config.key === 'companySectors') {
         const sectorOptions = await loadReferenceOptions(`${ApiEndpoints.COMPANY_SECTORS}/options`)
         payload.parentName = sectorOptions.find(option => option.value === String(payload.parentId || ''))?.label || ''
       }
-      if (config.key === 'officers' && useMockData) {
+      if (config.key === 'officers') {
         const [organizationOptions, roleOptions] = await Promise.all([
           loadReferenceOptions(`${ApiEndpoints.DEPARTMENTS}/options`),
           loadReferenceOptions(`${ApiEndpoints.ROLES}/options`),
@@ -444,9 +443,6 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
         if (typeof payload.authenticationEnabled !== 'boolean') {
           payload.authenticationEnabled = Boolean(payload.userId)
         }
-      }
-      else if (config.key === 'officers' && typeof payload.authenticationEnabled !== 'boolean') {
-        payload.authenticationEnabled = Boolean(payload.userId)
       }
       if (isCreate.value) {
         const res = await adapter.create(payload as any)

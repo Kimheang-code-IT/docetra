@@ -151,11 +151,17 @@ The backend must treat `permissionRows` as the canonical write model, recompute 
 | GET    | `/api/v2/users/{id}`               | User detail                                                                           |
 | POST   | `/api/v2/users`                    | Create (invite/set password flow TBD)                                                 |
 | PATCH  | `/api/v2/users/{id}`               | Update roles, status, officer link                                                    |
-| POST   | `/api/v2/auth/login`               | Create session cookie and return safe user profile                                    |
-| GET    | `/api/v2/auth/me`                  | Validate session and return user plus `pageAccess`                                    |
+| POST   | `/api/v2/auth/login`               | Issue JWT cookies (`docetra_session`, `docetra_refresh`) and return safe user profile |
+| GET    | `/api/v2/auth/me`                  | Validate JWT and return user plus `permissions` / `pageAccess`                        |
+| POST   | `/api/v2/auth/refresh`             | Rotate `jti` using refresh cookie                                                     |
 | POST   | `/api/v2/auth/logout`              | Revoke session and clear auth/CSRF cookies                                            |
 | POST   | `/api/v2/auth/forgot-password`     | Uniform accepted response; enqueue reset email when eligible                          |
-| POST   | `/api/v2/auth/reset-password`      | Consume one-time reset token, change password, revoke sessions                        |
+| POST   | `/api/v2/auth/forgot-password/verify` | Verify reset code                                                                  |
+| POST   | `/api/v2/auth/forgot-password/resend` | Resend reset code                                                                 |
+| POST   | `/api/v2/auth/forgot-password/reset` | Consume one-time code, change password, revoke sessions                             |
+| POST   | `/api/v2/auth/change-password`     | Signed-in password change                                                             |
+| PUT    | `/api/v2/auth/profile/avatar`      | Upload profile photo                                                                  |
+| DELETE | `/api/v2/auth/profile/avatar`      | Remove profile photo                                                                  |
 
 
 List endpoints: pagination, search on name/email/code, sort.
@@ -235,6 +241,8 @@ Exact strings match `entityConfigs.roles.permission` and `users.permission` in f
 
 
 Document pages use shared comments/activity when enabled on entity config.
+
+**Backend files (later):** `app/api/v2/auth.py`, `app/api/v2/users.py`, `app/modules/identity/`, `app/modules/people_access/`, `app/core/permissions.py`.
 
 ---
 

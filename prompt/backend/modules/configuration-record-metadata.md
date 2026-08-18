@@ -147,6 +147,10 @@ Optional: `GET /record-types/{id}/attributes` expanded catalog for document page
 
 **Mock keys:** `docetra:config:record-types`, `docetra:config:record-attributes` in localStorage.
 
+**Backend files:** `backend/app/api/v2/configuration.py`, `backend/app/modules/record/validation.py`.
+
+List query uses `startDate`/`endDate`. Lifecycle: archive/restore/soft-delete/purge on the entity adapter.
+
 ---
 
 ## 8. Dependency boundaries

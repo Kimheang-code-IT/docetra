@@ -1,13 +1,12 @@
 # Frontend API integration guide
 
-The frontend is mock-first but API-ready. Pages and components must not call `$fetch` directly or contain API endpoint strings.
+The frontend always calls FastAPI at `NUXT_PUBLIC_API_BASE`. Pages and components must not call `$fetch` directly or contain API endpoint strings. There is no in-browser mock dataset.
 
 ## Enable the backend
 
 Set these environment values and restart Nuxt:
 
 ```env
-NUXT_PUBLIC_USE_MOCK_DATA=false
 NUXT_PUBLIC_API_BASE=https://api.example.com
 NUXT_PUBLIC_AUTH_MODE=cookie
 ```
@@ -27,9 +26,9 @@ Page/component
 - `app/utils/constants/api-endpoints.ts` is the only endpoint catalog.
 - `app/composables/useApi.ts` is the only `$fetch` caller. It sends credentialed session cookies, adds CSRF headers to mutations, compacts query values, cancels stale requests, and handles 401/403 dialogs globally. Bearer headers are used only when `NUXT_PUBLIC_AUTH_MODE=bearer` is explicitly selected.
 - `app/repositories/contracts/` defines Settings and Configuration contracts.
-- `app/repositories/mock/` and `app/repositories/http/` implement the same contracts.
+- `app/repositories/http/` implements those contracts. There is no mock repository layer.
 - `app/adapters/createEntityAdapter.ts` provides the shared CRUD, stage, comments, activity, attachment, neighbor, and favorite boundary for entity pages.
-- `app/adapters/index.ts` selects entity endpoints and mock datasets without leaking the selected data mode into pages.
+- `app/adapters/index.ts` maps entity keys to `/api/v2` endpoints.
 
 ## Response contract
 
@@ -70,7 +69,7 @@ Entity lifecycle endpoints are explicit: `POST /{id}/archive`, `POST /{id}/resto
 3. Implement `/auth/login`, `/auth/me`, and `/auth/logout` with an HttpOnly session cookie, CSRF protection, and consistent 401/403 responses.
 4. Keep all list operations server-paginated; never require the frontend to fetch an entire dataset.
 5. Verify uploads accept multipart requests at the configured same-origin endpoint.
-6. Run the frontend with mock mode disabled and test list, detail, create, archive/restore, soft delete/admin restore, administrator purge, permissions, session expiry, comments/activity, attachments, export, and search.
+6. Run the frontend against FastAPI and test list, detail, create, archive/restore, soft delete/admin restore, administrator purge, permissions, session expiry, comments/activity, attachments, export, and search.
 7. Test short/long cache invalidation and RabbitMQ job success, retry, duplicate delivery, dead-letter, and recovery paths.
 
 When an API shape changes, update the repository/adapter implementation and its type—not individual pages.
