@@ -2,12 +2,15 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, dev]
   pull_request:
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   fast:
@@ -153,3 +156,31 @@ jobs:
         env:
           DOCETRA_BACKEND_IMAGE: docetra-backend:ci
         run: docker compose --env-file backend.env -f compose.backend.yml down -v
+
+  promote:
+    name: Merge tested dev into main
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    needs: e2e
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fast-forward or merge into main
+        env:
+          TESTED_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git checkout -B main origin/main
+          if git merge-base --is-ancestor origin/main "$TESTED_SHA"; then
+            git merge --ff-only "$TESTED_SHA"
+          else
+            git merge --no-ff "$TESTED_SHA" -m "ci: merge tested dev (${TESTED_SHA:0:7}) into main"
+          fi
+          git push origin main
