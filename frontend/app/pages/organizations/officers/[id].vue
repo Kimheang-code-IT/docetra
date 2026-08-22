@@ -1,14 +1,8 @@
 <script setup lang="ts">
-import { getEntityConfig } from '~/config/entities'
-
-const config = getEntityConfig('officers')
-
 definePageMeta({
   titleKey: 'docetra.pages.officer',
   permission: 'organizations.officers.view',
 })
+const id = String(useRoute().params.id || '')
+await navigateTo(`/officers/${encodeURIComponent(id)}`, { replace: true })
 </script>
-
-<template>
-  <DocumentEntityDocumentView :config="config" />
-</template>

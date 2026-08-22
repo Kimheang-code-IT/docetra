@@ -5,6 +5,7 @@ import { useAuthSession } from '~/utils/auth/session'
 import { readRememberMe } from '~/utils/auth/remember-me'
 import { loginWithCredentials } from '~/adapters/auth'
 import { usePageSeo } from '~/composables/usePageSeo'
+import type { AuthUser } from '~/types/auth-user'
 
 definePageMeta({
   layout: 'auth',
@@ -68,8 +69,8 @@ type Schema = {
   password: string
 }
 
-async function completeLogin(token: string | undefined, user: { name: string }) {
-  authSession.login(config.public.authMode === 'bearer' ? token : undefined, user as any)
+async function completeLogin(token: string | undefined, user: AuthUser) {
+  authSession.login(config.public.authMode === 'bearer' ? token : undefined, user)
   await router.push('/')
 }
 
@@ -83,11 +84,20 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
     const password = String(payload.data?.password ?? formState.password ?? '')
 
     const result = await loginWithCredentials(email, password)
-    const payloadData = (result as { data?: { user?: { name: string }, token?: string } }).data
-    const user = payloadData?.user
+    const envelope = result as { data?: { user?: AuthUser, token?: string } | AuthUser, user?: AuthUser, token?: string }
+    const data = envelope.data
+    const nestedUser = data && typeof data === 'object' && 'user' in data
+      ? (data as { user?: AuthUser, token?: string }).user
+      : undefined
+    const user = nestedUser
+      || (data && typeof data === 'object' && 'email' in data ? data as AuthUser : undefined)
+      || envelope.user
+    const token = (data && typeof data === 'object' && 'token' in data
+      ? (data as { token?: string }).token
+      : undefined) || envelope.token
 
     const requiresToken = config.public.authMode === 'bearer'
-    if (!user || (requiresToken && !payloadData?.token)) {
+    if (!user?.email || (requiresToken && !token)) {
       toast.add({
         title: t('pages.auth.loginFailed'),
         description: t('pages.auth.loginFailedDesc'),
@@ -96,12 +106,13 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
       return
     }
 
-    await completeLogin(payloadData.token, user)
+    await completeLogin(token, user)
   }
-  catch {
+  catch (error: unknown) {
+    const message = error instanceof Error ? error.message : ''
     toast.add({
       title: t('pages.auth.loginFailed'),
-      description: t('pages.auth.loginFailedDesc'),
+      description: message || t('pages.auth.loginFailedDesc'),
       color: 'error',
     })
   }

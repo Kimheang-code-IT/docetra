@@ -70,7 +70,7 @@ User selects files (Uppy)
 | POST | `/api/v2/portal/file-uploads` | Register upload / complete callback |
 | DELETE | `/api/v2/portal/file-uploads/{id}` | Remove when policy allows |
 
-Upload endpoint on client today: `/api/v2/meetings/history/{id}/attachments` for meetings; portal uses entity-specific attachment routes from storage integration.
+Upload endpoint on client today: `/api/v2/records/meeting_history/{id}/attachments` for meetings; portal uses entity-specific attachment routes from storage integration.
 
 **1+3 UI rules:** Left panel hosts upload widget; right panel server-paginated table only — never load full history client-side.
 
@@ -100,7 +100,7 @@ Used when linking an already-synced file to a meeting note or record.
 | Method | Path | Purpose |
 | --- | --- | --- |
 | GET | `/api/v2/portal/drive-files` | `search`, `page`, `limit` |
-| POST | `/api/v2/meetings/history/{id}/attachments/link` | Link by `driveFileId` (see meeting module) |
+| POST | `/api/v2/records/meeting_history/{id}/attachments/link` | Link by `driveFileId` (see meeting module) |
 
 Response shape: `DriveFileCatalogItem` in `frontend/app/types/docetra/meeting-api.ts`.
 

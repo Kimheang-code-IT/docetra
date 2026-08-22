@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useMediaQuery } from '@vueuse/core'
 import type { EntityConfig } from '~/config/entities'
-import { getEntityAdapter } from '~/config/entities'
+import { getAdapterForConfig } from '~/config/entities'
 import { useConfirm } from '~/composables/common/useConfirm'
 import { useRecordStageBoard } from '~/composables/record/useRecordStageBoard'
 import type { CardDisplayEntityKey } from '~/types/docetra/settings'
@@ -19,7 +19,7 @@ const toast = useToast()
 const { t } = useI18n()
 const { confirm } = useConfirm()
 const auth = useAuthStore()
-const adapter = getEntityAdapter(props.config.key)
+const adapter = getAdapterForConfig(props.config)
 const cardEntityKey = computed(() => props.config.key as CardDisplayEntityKey)
 const mobileStagesOpen = ref(false)
 const isSmallScreen = useMediaQuery('(max-width: 1023px)')
@@ -131,7 +131,7 @@ function onLogs(row: Record<string, unknown>) {
   const id = String(row.id || '')
   const recordTypeCode = props.config.recordTypeCode
   navigateTo({
-    path: '/records/record-logs',
+    path: '/records/logs',
     query: {
       tab: recordTypeCode || undefined,
       entityId: id || undefined,

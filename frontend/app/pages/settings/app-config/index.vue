@@ -74,6 +74,11 @@ function fieldValue(key: string): unknown {
     return raw == null || raw === '' ? undefined : String(raw)
   }
 
+  if (key === 'notifications.meetingReminderOffsetsMinutes') {
+    const raw = getByPath(model.value, key)
+    return Array.isArray(raw) ? raw.map(String) : raw
+  }
+
   return getByPath(model.value, key)
 }
 
@@ -105,6 +110,21 @@ async function setFieldValue(key: string, value: unknown) {
     return
   }
 
+  if (key === 'notifications.meetingReminderOffsetsMinutes') {
+    const list = Array.isArray(value) ? value : String(value || '').split(',')
+    const offsets = list
+      .map(item => Number(String(item).trim()))
+      .filter(n => Number.isFinite(n) && n > 0)
+    setByPath(model.value as any, key, offsets.length ? offsets : [1440, 60, 15])
+    return
+  }
+
+  if (key === 'notifications.meetingRecurrenceHorizonDays') {
+    const n = Number(value)
+    setByPath(model.value as any, key, Number.isFinite(n) && n > 0 ? n : 90)
+    return
+  }
+
   setByPath(model.value as any, key, value)
 }
 
@@ -114,6 +134,8 @@ async function save() {
   try {
     model.value = await appConfig.update(model.value)
     appLocalization.apply(model.value.localization)
+    const { useAppRuntimeConfig } = await import('~/composables/settings/useAppRuntimeConfig')
+    useAppRuntimeConfig().applyFromConfig(model.value)
     usePreferencesStore().syncLocaleWithConfig()
     const { invalidateCardFieldsCache } = await import('~/composables/settings/useCardFields')
     invalidateCardFieldsCache()

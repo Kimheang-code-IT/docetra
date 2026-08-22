@@ -10,7 +10,9 @@
     "postinstall": "nuxt prepare",
     "prepare:nuxt": "nuxt prepare",
     "typecheck": "nuxt typecheck",
-    "typecheck:unused": "vue-tsc --noEmit --noUnusedLocals --noUnusedParameters -p .nuxt/tsconfig.json"
+    "typecheck:unused": "vue-tsc --noEmit --noUnusedLocals --noUnusedParameters -p .nuxt/tsconfig.json",
+    "test:unit": "vitest run",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@iconify-json/lucide": "^1.2.96",
@@ -46,7 +48,9 @@
   },
   "devDependencies": {
     "@nuxt/fonts": "^0.14.0",
+    "@playwright/test": "^1.55.0",
     "typescript": "^5.9.3",
+    "vitest": "^3.2.4",
     "vue-tsc": "^3.2.5"
   },
   "packageManager": "pnpm@10.30.3",

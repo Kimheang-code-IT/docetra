@@ -239,6 +239,18 @@ export const appConfigTabs: DocumentTabSchema[] = [
           { key: 'notifications.telegramEnabled', labelKey: 'docetra.settings.telegramChannel', type: 'boolean' },
           { key: 'notifications.deliveryRetries', labelKey: 'docetra.settings.deliveryRetries', type: 'number' },
           {
+            key: 'notifications.meetingReminderOffsetsMinutes',
+            labelKey: 'docetra.settings.meetingReminderOffsets',
+            type: 'csv-list',
+            helpKey: 'docetra.settings.meetingReminderOffsetsHelp',
+            colSpan: 2,
+          },
+          {
+            key: 'notifications.meetingRecurrenceHorizonDays',
+            labelKey: 'docetra.settings.meetingRecurrenceHorizon',
+            type: 'number',
+          },
+          {
             key: 'notifications.rules',
             labelKey: 'docetra.settings.eventRules',
             type: 'notification-rules',
@@ -256,14 +268,6 @@ export const appConfigTabs: DocumentTabSchema[] = [
         id: 'security',
         titleKey: 'docetra.settings.tabs.security',
         fields: [
-          {
-            key: '__securityAlert',
-            labelKey: 'docetra.settings.securityDisclaimer',
-            type: 'alert',
-            helpKey: 'docetra.settings.securityDisclaimerHelp',
-            alertColor: 'warning',
-            colSpan: 2,
-          },
           { key: 'security.sessionTimeoutMinutes', labelKey: 'docetra.settings.sessionTimeout', type: 'number' },
           { key: 'security.maxLoginAttempts', labelKey: 'docetra.settings.maxLoginAttempts', type: 'number' },
           { key: 'security.accountLockMinutes', labelKey: 'docetra.settings.accountLockMinutes', type: 'number' },

@@ -87,7 +87,7 @@ export const LANDING_PAGE_OPTIONS: FieldOption[] = [
   { label: 'Meeting · History', value: '/meetings/history' },
   { label: 'Records · Documents', value: '/records/documents' },
   { label: 'Records · Incoming', value: '/records/incoming-documents' },
-  { label: 'Organization · Departments', value: '/organization/departments' },
+  { label: 'Organization · Departments', value: '/organizations/departments' },
 ]
 
 export const AWS_REGION_OPTIONS: FieldOption[] = [

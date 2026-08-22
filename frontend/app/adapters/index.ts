@@ -6,18 +6,32 @@ const adapter = <T extends { id: string; stage?: string; updatedAt?: string; cre
   endpoint: string,
 ) => createEntityAdapter<T>({ endpoint })
 
+/** Single adapter factory for any active `record_type.code`. */
+export function createRecordAdapter<T extends { id: string; stage?: string; updatedAt?: string; createdAt?: string } = any>(
+  typeCode: string,
+) {
+  return createEntityAdapter<T>({ endpoint: ApiEndpoints.RECORDS(typeCode) })
+}
+
+/** Adapter factory for organization orgType (`department` | `company`). */
+export function createOrganizationAdapter<T extends { id: string; stage?: string; updatedAt?: string; createdAt?: string } = any>(
+  orgType: string,
+) {
+  return createEntityAdapter<T>({ endpoint: ApiEndpoints.ORGANIZATIONS(orgType) })
+}
+
 export const adapters = {
-  meetingTopics: adapter(ApiEndpoints.MEETING_TOPICS),
-  meetingHistory: adapter(ApiEndpoints.MEETING_HISTORY),
-  incomingDocuments: adapter(ApiEndpoints.INCOMING_DOCUMENTS),
-  outgoingDocuments: adapter(ApiEndpoints.OUTGOING_DOCUMENTS),
-  documents: adapter(ApiEndpoints.DOCUMENTS),
-  masterListRequests: adapter(ApiEndpoints.MASTER_LIST_REQUESTS),
+  meetingTopics: createRecordAdapter('meeting_topic'),
+  meetingHistory: createRecordAdapter('meeting_history'),
+  incomingDocuments: createRecordAdapter('incoming_document'),
+  outgoingDocuments: createRecordAdapter('outgoing_document'),
+  documents: createRecordAdapter('document'),
+  masterListRequests: createRecordAdapter('master_list_request'),
   recordLogs: adapter(ApiEndpoints.RECORD_LOGS),
-  departments: adapter(ApiEndpoints.DEPARTMENTS),
-  companies: adapter(ApiEndpoints.COMPANIES),
-  companyPurposes: adapter(ApiEndpoints.COMPANY_PURPOSES),
-  companySectors: adapter(ApiEndpoints.COMPANY_SECTORS),
+  departments: createOrganizationAdapter('department'),
+  companies: createOrganizationAdapter('company'),
+  purposes: adapter(ApiEndpoints.PURPOSE),
+  sectors: adapter(ApiEndpoints.SECTOR),
   officers: adapter(ApiEndpoints.OFFICERS),
   roles: adapter(ApiEndpoints.ROLES),
   users: adapter(ApiEndpoints.USERS),

@@ -32,9 +32,14 @@ export function safeImageSource(value: unknown): string | null {
 
 /** Resolve uploads against the API origin without ever forwarding auth cross-origin. */
 export function sameOriginApiUrl(path: string, apiBase: string): string | null {
+  const safePath = safeInternalPath(path)
+  if (!safePath) return null
   try {
+    if (!apiBase) {
+      return safePath
+    }
     const base = new URL(apiBase)
-    const resolved = new URL(path, base)
+    const resolved = new URL(safePath, base)
     return resolved.origin === base.origin ? resolved.toString() : null
   }
   catch {

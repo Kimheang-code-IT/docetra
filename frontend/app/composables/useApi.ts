@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import type { TableQueryParams } from '~/types/api'
 import { compactQuery } from '~/utils/api/query'
 import { useAccessAlert } from '~/composables/common/useAccessAlert'
+import { shouldClearSessionOn401, shouldToastConnectionError } from '~/utils/api/error-policy'
 import { csrfRequestHeaders } from '~/utils/security/csrf'
 import { sameOriginApiUrl } from '~/utils/security/url'
 
@@ -24,6 +25,17 @@ type ApiErrorPayload = {
 type ApiFetchError = Error & {
     name: string
     data?: ApiErrorPayload
+    status?: number
+    statusCode?: number
+    response?: { status?: number }
+}
+
+type ToastItem = {
+    id: string
+    open: boolean
+    title?: string
+    description?: string
+    color?: string
 }
 
 // Shared across every useApi() consumer so a later request can cancel an older
@@ -31,24 +43,42 @@ type ApiFetchError = Error & {
 const requestControllers = new Map<string, AbortController>()
 
 /**
+ * Push a toast without `useToast()` — Nuxt UI's useToast() calls Vue `inject()`,
+ * which throws outside `<script setup>` (e.g. adapter calls from submit handlers).
+ */
+function pushErrorToast(title: string, description: string) {
+    const toasts = useState<ToastItem[]>('toasts', () => [])
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+    toasts.value = [...toasts.value, { id, open: true, title, description, color: 'error' }].slice(-5)
+}
+
+/**
  * Standard API Fetching Composable
  * ───────────────────────────────────────
- * Use this for all backend requests. It automatically:
- * 1. Sends credentialed cookies (and a bearer token only in explicit bearer mode)
- * 2. Handles global error notifications
- * 3. Supports standard REST methods
+ * Safe to call from adapters / event handlers (uses Nuxt app + useState only;
+ * avoids inject()-based composables like useToast / useRoute / useI18n).
  */
 export function useApi() {
-    const toast = useToast()
+    const nuxtApp = useNuxtApp()
     const { showPermissionDenied, showSessionExpired } = useAccessAlert()
-    const { t } = useI18n()
-    const route = useRoute()
     const config = useRuntimeConfig()
     const activeRequests = ref(0)
     const pending = computed(() => activeRequests.value > 0)
     const error = ref<string | null>(null)
 
-    const baseURL = String(config.public.apiBase)
+    const publicBase = String(config.public.apiBase || '')
+    const baseURL = publicBase || (import.meta.server
+      ? String(config.apiProxyTarget || 'http://127.0.0.1:8000')
+      : '')
+
+    function t(key: string, params?: Record<string, unknown>) {
+        const i18n = nuxtApp.$i18n as { t: (k: string, p?: Record<string, unknown>) => string } | undefined
+        return i18n?.t?.(key, params) ?? key
+    }
+
+    function currentPath() {
+        return nuxtApp.$router.currentRoute.value.fullPath
+    }
 
     function getRequestKey(url: string, options: ApiRequestOptions): string {
         return options.requestKey || `${options.method || 'GET'}:${url}`
@@ -66,7 +96,6 @@ export function useApi() {
         if (!sameOriginApiUrl(url, String(baseURL))) {
             throw new Error('API requests must use the configured API origin')
         }
-        // Retrieve real global app state via Pinia
         const authStore = useAuthStore()
         const requestKey = getRequestKey(url, options)
         const shouldCancelPrevious = options.cancelPrevious !== false
@@ -78,12 +107,14 @@ export function useApi() {
         const controller = new AbortController()
         requestControllers.set(requestKey, controller)
         let handledAccessError = false
+        let httpErrorToasted = false
 
         try {
             activeRequests.value += 1
             error.value = null
             const method = options.method || 'GET'
             const cookieAuth = config.public.authMode !== 'bearer'
+            const ssrCookie = import.meta.server ? useRequestHeaders(['cookie']) : {}
             return await $fetch<T>(url, {
                 baseURL,
                 ...options,
@@ -94,6 +125,7 @@ export function useApi() {
                 credentials: cookieAuth ? 'include' : 'same-origin',
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
+                    ...ssrCookie,
                     ...(!cookieAuth && authStore.token ? { Authorization: `Bearer ${authStore.token}` } : {}),
                     ...csrfRequestHeaders(
                         method,
@@ -105,8 +137,9 @@ export function useApi() {
                 onResponseError({ response }) {
                     if (response.status === 401) {
                         handledAccessError = true
-                        authStore.clearSession()
-                        if (!options.suppressAccessAlert) {
+                        // Do not wipe a fresh login when public/pre-auth calls return 401.
+                        if (shouldClearSessionOn401({ suppressAccessAlert: options.suppressAccessAlert })) {
+                            authStore.clearSession()
                             showSessionExpired()
                             void navigateTo('/auth/login')
                         }
@@ -117,7 +150,7 @@ export function useApi() {
                         handledAccessError = true
                         if (!options.suppressAccessAlert) {
                             showPermissionDenied({
-                                requestedPath: route.fullPath,
+                                requestedPath: currentPath(),
                                 description: response._data?.message,
                             })
                         }
@@ -125,30 +158,35 @@ export function useApi() {
                     }
 
                     if (!options.suppressErrorToast) {
-                        toast.add({
-                            title: t('api.errorTitle', { status: response.status }),
-                            description: response._data?.message || t('api.somethingWentWrong'),
-                            color: 'error'
-                        })
+                        httpErrorToasted = true
+                        pushErrorToast(
+                            t('api.errorTitle', { status: response.status }),
+                            response._data?.message || t('api.somethingWentWrong'),
+                        )
                     }
                 }
             })
         }
         catch (err: unknown) {
-            // Network or parsing errors
             const fetchError = err as ApiFetchError
             if (fetchError.name === 'AbortError') {
                 return Promise.reject(err)
             }
 
             error.value = fetchError?.message || t('api.requestFailed')
+            const status = fetchError.status ?? fetchError.statusCode ?? fetchError.response?.status
 
-            if (fetchError.name === 'FetchError' && !handledAccessError && !options.suppressErrorToast) {
-                toast.add({
-                    title: t('api.connectionErrorTitle'),
-                    description: t('api.connectionErrorDescription'),
-                    color: 'error'
-                })
+            if (shouldToastConnectionError({
+                fetchErrorName: fetchError.name,
+                handledAccessError,
+                httpErrorToasted,
+                status,
+                suppressErrorToast: options.suppressErrorToast,
+            })) {
+                pushErrorToast(
+                    t('api.connectionErrorTitle'),
+                    t('api.connectionErrorDescription'),
+                )
             }
 
             throw err

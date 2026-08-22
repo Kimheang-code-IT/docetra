@@ -67,8 +67,8 @@ Gmail may implement the existing `EmailProvider` interface for development or an
 | GET | `/api/v2/integrations/google/callback` | Server-side OAuth callback |
 | DELETE | `/api/v2/integrations/google/connections/{id}` | Revoke/unlink connection |
 | GET | `/api/v2/integrations/google/calendars` | List authorized calendar options |
-| POST | `/api/v2/meetings/history/{id}/google-calendar/sync` | Enable or reconcile meeting event sync (optional; default off) |
-| DELETE | `/api/v2/meetings/history/{id}/google-calendar/sync` | Disable meeting projection without deleting meeting |
+| POST | `/api/v2/records/meeting_history/{id}/google-calendar/sync` | Enable or reconcile meeting event sync (optional; default off) |
+| DELETE | `/api/v2/records/meeting_history/{id}/google-calendar/sync` | Disable meeting projection without deleting meeting |
 | GET | `/api/v2/integrations/google/sync-jobs/{id}` | Read bounded job status |
 
 Future UI settings expose only safe values: enabled capabilities, masked account/domain, connection health, last sync, approved calendars/folders, conflict policy, duplicate-reminder policy, and connect/revoke/test actions. Per-user preferences may choose an approved calendar and whether their own eligible meetings sync. Secrets and raw provider errors are never rendered.
@@ -96,7 +96,7 @@ No Google feature is production-ready until its Google Cloud project, consent sc
 
 ## 9. Frontend contract
 
-Default off. Drive catalog used today: `GET /api/v2/portal/drive-files`. Meeting attach: `POST /api/v2/meetings/history/{id}/attachments/link`.
+Default off. Drive catalog used today: `GET /api/v2/portal/drive-files`. Meeting attach: `POST /api/v2/records/meeting_history/{id}/attachments/link`.
 
 | Concern | Code |
 | --- | --- |

@@ -5,12 +5,12 @@ export const DEFAULT_APP_LOCALIZATION: AppConfigLocalization = {
   defaultLanguage: 'en',
   availableLanguages: ['en', 'km'],
   timezone: 'Asia/Phnom_Penh',
-  dateFormat: 'YYYY-MM-DD',
+  dateFormat: 'dd/MM/yyyy',
   timeFormat: 'HH:mm',
   firstDayOfWeek: 1,
-  numberFormat: '1,234.56',
-  currency: 'USD',
-  locale: 'en-US',
+  numberFormat: 'en-US',
+  currency: 'KHR',
+  locale: 'en',
 }
 
 function validDate(value: unknown): Date | null {
@@ -42,9 +42,9 @@ function formatPattern(
   pattern: string,
   locale: string,
 ) {
-  if (pattern === 'DD/MM/YYYY') return `${parts.day}/${parts.month}/${parts.year}`
-  if (pattern === 'MM/DD/YYYY') return `${parts.month}/${parts.day}/${parts.year}`
-  if (pattern === 'DD-MM-YYYY') return `${parts.day}-${parts.month}-${parts.year}`
+  if (pattern === 'DD/MM/YYYY' || pattern === 'dd/MM/yyyy') return `${parts.day}/${parts.month}/${parts.year}`
+  if (pattern === 'MM/DD/YYYY' || pattern === 'MM/dd/yyyy') return `${parts.month}/${parts.day}/${parts.year}`
+  if (pattern === 'DD-MM-YYYY' || pattern === 'dd-MM-yyyy') return `${parts.day}-${parts.month}-${parts.year}`
   if (pattern === 'D MMM YYYY') {
     const safe = new Date(Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day), 12))
     return new Intl.DateTimeFormat(locale, {

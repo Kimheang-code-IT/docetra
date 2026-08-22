@@ -7,7 +7,7 @@ import type {
 } from '~/types/docetra/common'
 import type { AdapterKey } from '~/adapters'
 import type { EntityAdapter } from '~/types/docetra/adapter'
-import { adapters } from '~/adapters'
+import { adapters, createRecordAdapter } from '~/adapters'
 import { ApiEndpoints } from '~/utils/constants/api-endpoints'
 
 export interface EntityConfig {
@@ -120,7 +120,7 @@ function orgSelectDocumentTabs(options: { dateKey: 'receivedDate' | 'sentDate' |
       labelKey: 'docetra.fields.documentType',
       type: 'select',
       required: true,
-      optionsEndpoint: `${ApiEndpoints.COMPANIES}/options?valueField=name`,
+      optionsEndpoint: `${ApiEndpoints.COMPANIES}/options?valueField=id`,
       placeholder: 'Choose option ...',
     },
     { key: 'referenceNumber', labelKey: 'docetra.fields.letterNumber', type: 'text', required: true },
@@ -132,14 +132,14 @@ function orgSelectDocumentTabs(options: { dateKey: 'receivedDate' | 'sentDate' |
       key: 'officeInCharge',
       labelKey: 'docetra.fields.involvedOffice',
       type: 'multiselect',
-      optionsEndpoint: `${ApiEndpoints.DEPARTMENTS}/options?valueField=name`,
+      optionsEndpoint: `${ApiEndpoints.DEPARTMENTS}/options?valueField=id`,
       placeholder: 'Type @ or a department name ...',
     },
     {
       key: 'involvedOfficers',
       labelKey: 'docetra.fields.involvedOfficers',
       type: 'multiselect',
-      optionsEndpoint: `${ApiEndpoints.OFFICERS}/options?valueField=name`,
+      optionsEndpoint: `${ApiEndpoints.OFFICERS}/options?valueField=id`,
       placeholder: 'Choose option ...',
       colSpan: 2,
     },
@@ -147,7 +147,7 @@ function orgSelectDocumentTabs(options: { dateKey: 'receivedDate' | 'sentDate' |
       key: 'externalUnits',
       labelKey: 'docetra.fields.externalUnits',
       type: 'multiselect',
-      optionsEndpoint: `${ApiEndpoints.COMPANIES}/options?valueField=name`,
+      optionsEndpoint: `${ApiEndpoints.COMPANIES}/options?valueField=id`,
       placeholder: 'Choose option ...',
       colSpan: 2,
     },
@@ -182,7 +182,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
     routeBase: '/meetings/topics',
     titleKey: 'docetra.pages.meetingTopic',
     descriptionKey: 'docetra.descriptions.meetingTopic',
-    permission: 'meetings.topics.view',
+    permission: 'records.meeting_topic.view',
     icon: 'i-lucide-messages-square',
     groupKey: 'docetra.navigation.meeting',
     views: ['kanban', 'table'],
@@ -217,7 +217,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
     routeBase: '/meetings/history',
     titleKey: 'docetra.pages.meetingHistory',
     descriptionKey: 'docetra.descriptions.meetingHistory',
-    permission: 'meetings.history.view',
+    permission: 'records.meeting_history.view',
     icon: 'i-lucide-history',
     groupKey: 'docetra.navigation.meeting',
     views: ['table', 'timeline'],
@@ -230,7 +230,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
     canCreate: false,
     canComment: true,
     recordBacked: true,
-    recordTypeCode: 'meeting',
+    recordTypeCode: 'meeting_history',
     stages: workflowStages,
     titleField: 'title',
     columns: [
@@ -277,7 +277,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
         key: 'participants',
         labelKey: 'docetra.fields.participants',
         type: 'multiselect',
-        optionsEndpoint: `${ApiEndpoints.OFFICERS}/options?valueField=name`,
+        optionsEndpoint: `${ApiEndpoints.OFFICERS}/options?valueField=id`,
         placeholder: 'Type @ or an officer name ...',
         colSpan: 2,
       },
@@ -285,14 +285,14 @@ export const entityConfigs: Record<string, EntityConfig> = {
         key: 'internalUnits',
         labelKey: 'docetra.fields.internalUnits',
         type: 'multiselect',
-        optionsEndpoint: `${ApiEndpoints.DEPARTMENTS}/options?valueField=name`,
+        optionsEndpoint: `${ApiEndpoints.DEPARTMENTS}/options?valueField=id`,
         placeholder: 'Type @ or a department name ...',
       },
       {
         key: 'externalUnits',
         labelKey: 'docetra.fields.externalUnits',
         type: 'multiselect',
-        optionsEndpoint: `${ApiEndpoints.COMPANIES}/options?valueField=name`,
+        optionsEndpoint: `${ApiEndpoints.COMPANIES}/options?valueField=id`,
         placeholder: 'Type @ or a company name ...',
       },
       { key: 'tags', labelKey: 'docetra.fields.recordTag', type: 'csv-list', colSpan: 2 },
@@ -312,7 +312,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
     canCreate: true,
     canComment: true,
     recordBacked: true,
-    recordTypeCode: 'incoming',
+    recordTypeCode: 'incoming_document',
     stages: recordWorkflowStages,
     titleField: 'title',
     columns: [
@@ -348,7 +348,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
     canCreate: true,
     canComment: true,
     recordBacked: true,
-    recordTypeCode: 'outgoing',
+    recordTypeCode: 'outgoing_document',
     stages: recordWorkflowStages,
     titleField: 'title',
     columns: [
@@ -413,7 +413,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
     canCreate: true,
     canComment: true,
     recordBacked: true,
-    recordTypeCode: 'master_list',
+    recordTypeCode: 'master_list_request',
     stages: recordWorkflowStages,
     titleField: 'title',
     columns: [
@@ -435,7 +435,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
 
   recordLogs: {
     key: 'recordLogs',
-    routeBase: '/records/record-logs',
+    routeBase: '/records/logs',
     titleKey: 'docetra.pages.recordLog',
     descriptionKey: 'docetra.descriptions.recordLog',
     permission: 'records.logs.view',
@@ -625,14 +625,14 @@ export const entityConfigs: Record<string, EntityConfig> = {
         labelKey: 'docetra.fields.sector',
         type: 'select',
         placeholder: 'Choose option ...',
-        optionsEndpoint: `${ApiEndpoints.COMPANY_SECTORS}/options`,
+        optionsEndpoint: `${ApiEndpoints.SECTOR}/options`,
       },
       {
         key: 'purposeId',
         labelKey: 'docetra.fields.purpose',
         type: 'select',
         placeholder: 'Choose option ...',
-        optionsEndpoint: `${ApiEndpoints.COMPANY_PURPOSES}/options`,
+        optionsEndpoint: `${ApiEndpoints.PURPOSE}/options`,
       },
       { key: 'contactEmail', labelKey: 'docetra.fields.email', type: 'text' },
       { key: 'contactPhone', labelKey: 'docetra.fields.phone', type: 'text' },
@@ -644,12 +644,12 @@ export const entityConfigs: Record<string, EntityConfig> = {
     ]),
   },
 
-  companyPurposes: {
-    key: 'companyPurposes',
-    routeBase: '/organizations/company-purposes',
-    titleKey: 'docetra.pages.companyPurpose',
-    descriptionKey: 'docetra.descriptions.companyPurpose',
-    permission: 'organizations.company_purposes.view',
+  purposes: {
+    key: 'purposes',
+    routeBase: '/purpose',
+    titleKey: 'docetra.pages.purpose',
+    descriptionKey: 'docetra.descriptions.purpose',
+    permission: 'organizations.purposes.view',
     icon: 'i-lucide-target',
     groupKey: 'docetra.navigation.organization',
     views: ['table'],
@@ -676,12 +676,12 @@ export const entityConfigs: Record<string, EntityConfig> = {
     ]),
   },
 
-  companySectors: {
-    key: 'companySectors',
-    routeBase: '/organizations/company-sectors',
-    titleKey: 'docetra.pages.companySector',
-    descriptionKey: 'docetra.descriptions.companySector',
-    permission: 'organizations.company_sectors.view',
+  sectors: {
+    key: 'sectors',
+    routeBase: '/sector',
+    titleKey: 'docetra.pages.sector',
+    descriptionKey: 'docetra.descriptions.sector',
+    permission: 'organizations.sectors.view',
     icon: 'i-lucide-pie-chart',
     groupKey: 'docetra.navigation.organization',
     views: ['table'],
@@ -709,7 +709,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
         labelKey: 'docetra.fields.parent',
         type: 'select',
         placeholder: 'Choose option ...',
-        optionsEndpoint: `${ApiEndpoints.COMPANY_SECTORS}/options`,
+        optionsEndpoint: `${ApiEndpoints.SECTOR}/options`,
       },
       { key: 'description', labelKey: 'docetra.fields.description', type: 'textarea', colSpan: 2 },
       { key: 'isActive', labelKey: 'docetra.fields.isActive', type: 'boolean' },
@@ -718,7 +718,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
 
   officers: {
     key: 'officers',
-    routeBase: '/organizations/officers',
+    routeBase: '/officers',
     titleKey: 'docetra.pages.officer',
     descriptionKey: 'docetra.descriptions.officer',
     permission: 'organizations.officers.view',
@@ -1081,4 +1081,85 @@ export function getEntityConfig(key: string): EntityConfig {
 
 export function getEntityAdapter<T = any>(key: AdapterKey): EntityAdapter<T> {
   return adapters[key] as unknown as EntityAdapter<T>
+}
+
+const TYPE_CODE_TO_ENTITY_KEY: Record<string, string> = {
+  meeting_topic: 'meetingTopics',
+  meeting_history: 'meetingHistory',
+  incoming_document: 'incomingDocuments',
+  outgoing_document: 'outgoingDocuments',
+  document: 'documents',
+  master_list_request: 'masterListRequests',
+}
+
+/** Resolve a static entity config by record type code when one exists. */
+export function getEntityConfigByTypeCode(typeCode: string): EntityConfig | null {
+  const key = TYPE_CODE_TO_ENTITY_KEY[typeCode]
+  return key ? getEntityConfig(key) : null
+}
+
+/**
+ * Build a type-driven EntityConfig for dynamic `/meetings|records/[typeCode]` routes.
+ * Reuses static configs for built-ins; otherwise creates a generic record board config.
+ */
+export function buildEntityConfigForType(options: {
+  typeCode: string
+  name: string
+  routeBase: string
+  uiSurface: 'meeting' | 'document' | string
+  icon?: string
+  isCreatable?: boolean
+  supportsStages?: boolean
+  supportsTopicContainer?: boolean
+}): EntityConfig {
+  const existing = getEntityConfigByTypeCode(options.typeCode)
+  if (existing) {
+    return { ...existing, routeBase: options.routeBase || existing.routeBase }
+  }
+
+  const permission = `records.${options.typeCode}.view`
+  const stages = options.uiSurface === 'meeting' ? workflowStages : recordWorkflowStages
+  return {
+    key: 'documents',
+    routeBase: options.routeBase,
+    titleKey: options.name,
+    permission,
+    createPermission: `records.${options.typeCode}.create`,
+    icon: options.icon || 'i-lucide-file',
+    groupKey: options.uiSurface === 'meeting' ? 'docetra.navigation.meeting' : 'docetra.navigation.record',
+    views: options.supportsStages === false ? ['table'] : ['table', 'kanban'],
+    defaultView: options.supportsTopicContainer ? 'kanban' : 'table',
+    canCreate: options.isCreatable !== false,
+    canComment: true,
+    recordBacked: true,
+    recordTypeCode: options.typeCode,
+    stages,
+    titleField: 'title',
+    columns: [
+      { key: 'status', labelKey: 'docetra.fields.status' },
+      { key: 'title', labelKey: 'docetra.fields.title', sortable: true, priority: 'high' },
+      { key: 'recordTime', labelKey: 'docetra.fields.recordTime', sortable: true },
+      { key: 'stage', labelKey: 'docetra.fields.stage', priority: 'high' },
+      { key: 'tags', labelKey: 'docetra.fields.recordTag' },
+    ],
+    filters: [
+      statusFilter,
+      options.uiSurface === 'meeting' ? stageFilter : recordStageFilter,
+    ],
+    tabs: masterDataTabs([
+      { key: 'title', labelKey: 'docetra.fields.title', type: 'text', required: true, colSpan: 2 },
+      { key: 'status', labelKey: 'docetra.fields.status', type: 'select', required: true, options: statusFilter.options },
+      { key: 'stage', labelKey: 'docetra.fields.stage', type: 'select', options: (options.uiSurface === 'meeting' ? stageFilter : recordStageFilter).options },
+      { key: 'recordTime', labelKey: 'docetra.fields.recordTime', type: 'datetime' },
+      { key: 'tags', labelKey: 'docetra.fields.recordTag', type: 'csv-list', colSpan: 2 },
+    ]),
+  }
+}
+
+/** Adapter for a config — prefers recordTypeCode dynamic API over closed AdapterKey map. */
+export function getAdapterForConfig<T = any>(config: EntityConfig): EntityAdapter<T> {
+  if (config.recordBacked && config.recordTypeCode) {
+    return createRecordAdapter(config.recordTypeCode) as unknown as EntityAdapter<T>
+  }
+  return getEntityAdapter(config.key as AdapterKey)
 }

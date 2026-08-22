@@ -15,7 +15,7 @@ export interface MeetingRecurrenceRule {
   count?: number
 }
 
-/** PATCH assign or POST /meetings/{id}/assign-topic */
+/** Assign topic: POST /api/v2/records/meeting_history/{id}/assign-topic */
 export interface AssignMeetingTopicBody {
   topicId: string | null
   sortOrder?: number
@@ -23,13 +23,13 @@ export interface AssignMeetingTopicBody {
   topicTitle?: string
 }
 
-/** POST /meetings/reorder */
+/** POST /api/v2/records/meeting_history/reorder */
 export interface ReorderMeetingsBody {
   topicId: string
   orderedMeetingIds: string[]
 }
 
-/** POST /meetings/{id}/attachments/link */
+/** POST /api/v2/records/meeting_history/{id}/attachments/link */
 export interface LinkMeetingDriveFileBody {
   source: 'google_drive'
   driveFileId: string

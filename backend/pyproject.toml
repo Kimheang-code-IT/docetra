@@ -31,3 +31,8 @@ test = ["pytest==8.4.1", "pytest-asyncio==1.1.0"]
 asyncio_mode = "auto"
 testpaths = ["tests"]
 cache_dir = "/tmp/pytest-cache"
+addopts = "-m 'not integration'"
+markers = [
+  "integration: live checks against a running Docker API",
+  "security: authz, CSRF, secrets, upload hardening",
+]

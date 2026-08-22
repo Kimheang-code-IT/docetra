@@ -10,14 +10,16 @@
 Organization is the **master-data** layer for administrative structure:
 
 
-| Route                             | UI                          | Backend role                                      |
-| --------------------------------- | --------------------------- | ------------------------------------------------- |
-| `/organizations/departments`      | `EntityWorkspaceView` table | Internal hierarchy (parent department)            |
-| `/organizations/companies`        | table                       | External/partner companies + sector/purpose       |
-| `/organizations/company-purposes` | table                       | Reference list for companies                      |
-| `/organizations/company-sectors`  | table                       | Reference tree for companies                      |
-| `/organizations/officers`         | table                       | People linked to org/department (+ optional user) |
-| `/*/new`, `/*/:id`                | `EntityDocumentView`        | Create / detail / edit                            |
+| Route | UI | Backend role |
+| --- | --- | --- |
+| `/organizations/department` (+ alias `/departments`) | `EntityWorkspaceView` | Internal hierarchy (parent department) |
+| `/organizations/company` (+ alias `/companies`) | table | External/partner companies + sector/purpose |
+| `/purpose` | table | Reference list for companies (single collection) |
+| `/sector` | table | Reference tree for companies (single collection) |
+| `/officers` | table | People linked to org/department (+ optional user) |
+| `/*/new`, `/*/:id` | `EntityDocumentView` | Create / detail / edit |
+
+Canonical HTTP contract: [`../08-dynamic-organization-collections.md`](../08-dynamic-organization-collections.md).
 
 
 These entities are **not** workflow records. They feed:
@@ -166,9 +168,9 @@ Used by Organization forms **and** Record Incoming/Outgoing/Document forms:
 | ------ | ------------------------------------------------ | ------------------------------------------------- |
 | GET    | `/api/v2/organizations/departments/options`      | Parent department; **Involved office** on records |
 | GET    | `/api/v2/organizations/companies/options`        | **Document type** + **External units** on records |
-| GET    | `/api/v2/organizations/company-sectors/options`  | Active sectors                                    |
-| GET    | `/api/v2/organizations/company-purposes/options` | Active purposes                                   |
-| GET    | `/api/v2/organizations/officers/options`         | **Involved officers** on records                  |
+| GET    | `/api/v2/sector/options`  | Active sectors                                    |
+| GET    | `/api/v2/purpose/options` | Active purposes                                   |
+| GET    | `/api/v2/officers/options`         | **Involved officers** on records                  |
 
 
 **Query:** `valueField=name` → option `value` is the display name (current Record UI stores names on the record). Default / omit → `value` is `id` (preferred for FK storage + denormalized `*Name`).
@@ -186,9 +188,9 @@ Options should be **bounded**, searchable, active-only by default, and exclude t
 | ---------------- | ---------------------------------------- |
 | Departments      | `/api/v2/organizations/departments`      |
 | Companies        | `/api/v2/organizations/companies`        |
-| Company purposes | `/api/v2/organizations/company-purposes` |
-| Company sectors  | `/api/v2/organizations/company-sectors`  |
-| Officers         | `/api/v2/organizations/officers`         |
+| Company purposes | `/api/v2/purpose` |
+| Company sectors  | `/api/v2/sector`  |
+| Officers         | `/api/v2/officers`         |
 
 
 Standard CRUD per resource:
@@ -252,8 +254,8 @@ Frontend already guards some cases (e.g. department cannot be own ancestor) — 
 | ----------------------------------------------- | ----------- |
 | `organizations.departments.view` / `.edit`      | Departments |
 | `organizations.companies.view` / `.edit`        | Companies   |
-| `organizations.company_purposes.view` / `.edit` | Purposes    |
-| `organizations.company_sectors.view` / `.edit`  | Sectors     |
+| `organizations.purposes.view` / `.edit` | Purposes    |
+| `organizations.sectors.view` / `.edit`  | Sectors     |
 | `organizations.officers.view` / `.edit`         | Officers    |
 
 
@@ -308,11 +310,11 @@ Organization APIs must stay **lookup-friendly** (stable ids, active flags, denor
 
 | Concern             | Code                                                                                                            |
 | ------------------- | --------------------------------------------------------------------------------------------------------------- |
-| Entity configs      | `frontend/app/config/entities.ts` → `departments`, `companies`, `companyPurposes`, `companySectors`, `officers` |
+| Entity configs      | `frontend/app/config/entities.ts` → `departments`, `companies`, `purposes`, `sectors`, `officers` |
 | Types               | `frontend/app/types/docetra/entities.ts`                                                                        |
 | List/detail pages   | `pages/organizations/**` → `EntityWorkspaceView` / `EntityDocumentView`                                         |
 | Adapter             | `adapters/index.ts` + `createEntityAdapter`                                                                     |
-| Endpoints           | `api-endpoints.ts` → `DEPARTMENTS`, `COMPANIES`, `COMPANY_PURPOSES`, `COMPANY_SECTORS`, `OFFICERS`              |
+| Endpoints           | `api-endpoints.ts` → `DEPARTMENTS`, `COMPANIES`, `ORG_PURPOSES`, `ORG_SECTORS`, `OFFICERS`              |
 | Parent/options load | `adapters/reference-options.ts`, document page save resolves `parentName`                                       |
 | Status              | UI and API use the canonical lifecycle directly; legacy `isActive` is migrated once, not synchronized forever   |
 

@@ -47,7 +47,7 @@ services:
   worker:
     image: ${DOCETRA_BACKEND_IMAGE:-docetra-backend:local}
     restart: unless-stopped
-    command: ["sh", "-c", "${BACKEND_WORKER_COMMAND:-python -m app.worker}"]
+    command: ["sh", "-c", "${BACKEND_WORKER_COMMAND:-python -m app.main worker}"]
     env_file:
       - ${BACKEND_ENV_FILE:-backend.env.example}
     environment:
@@ -79,7 +79,7 @@ services:
   scheduler:
     image: ${DOCETRA_BACKEND_IMAGE:-docetra-backend:local}
     restart: unless-stopped
-    command: ["sh", "-c", "${BACKEND_SCHEDULER_COMMAND:-python -m app.scheduler}"]
+    command: ["sh", "-c", "${BACKEND_SCHEDULER_COMMAND:-python -m app.main scheduler}"]
     env_file:
       - ${BACKEND_ENV_FILE:-backend.env.example}
     environment:
@@ -112,6 +112,9 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-docetra_local_only}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    # Host bind for DBeaver / local clients (loopback only).
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     healthcheck:
       test:
         - CMD-SHELL
@@ -120,6 +123,7 @@ services:
       timeout: 5s
       retries: 10
     networks:
+      - edge
       - private
 
   redis:
@@ -128,12 +132,31 @@ services:
     command: ["redis-server", "--appendonly", "yes", "--save", "60", "1"]
     volumes:
       - redis_data:/data
+    # Host bind for redis-cli / GUI tools (loopback only).
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 10
     networks:
+      - edge
+      - private
+
+  # Browser UI for Redis (ops DB 0 + cache DB 1/2). Local development only.
+  redis-ui:
+    image: ${REDIS_UI_IMAGE:-rediscommander/redis-commander:latest}
+    restart: unless-stopped
+    environment:
+      REDIS_HOSTS: "ops:redis:6379:0,short:redis:6379:1,long:redis:6379:2"
+    ports:
+      - "127.0.0.1:${REDIS_UI_PORT:-8081}:8081"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - edge
       - private
 
   rabbitmq:
@@ -153,6 +176,7 @@ services:
       timeout: 5s
       retries: 12
     networks:
+      - edge
       - private
 
   minio:
@@ -165,6 +189,7 @@ services:
     volumes:
       - minio_data:/data
     ports:
+      - "127.0.0.1:${MINIO_API_PORT:-9000}:9000"
       - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
@@ -172,6 +197,7 @@ services:
       timeout: 5s
       retries: 10
     networks:
+      - edge
       - private
 
   postgres-backup:

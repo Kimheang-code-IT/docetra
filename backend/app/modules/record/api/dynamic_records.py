@@ -1,0 +1,360 @@
+"""Dynamic `/api/v2/records/{type_code}` collections + surfaces meta."""
+
+from __future__ import annotations
+
+import uuid
+
+from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.authorization import authorize_type_code
+from app.core.datetime import iso_utc
+from app.core.security import current_user, person
+from app.db.session import get_db
+from app.models.people import User
+from app.models.record import RecordType
+import app.modules.record.services.collaboration as collaboration
+from app.modules.record.domain.map import (
+    TYPE_CODE_TO_RESOURCE,
+    is_valid_type_code,
+    merge_type_ui_payload,
+)
+from app.modules.record.services.service import CollectionService
+import app.modules.record.services.serializer as record_ser
+
+router = APIRouter(tags=["records"])
+
+
+@router.get("/records/_meta/surfaces")
+async def record_surfaces(db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
+    rows = (await db.scalars(select(RecordType).where(RecordType.is_active == 1).order_by(RecordType.code))).all()
+    grouped: dict[str, list] = {"meeting": [], "document": [], "system": []}
+    for row in rows:
+        payload = merge_type_ui_payload(row.code, dict(row.payload or {}))
+        surface = str(payload.get("uiSurface") or "document")
+        if surface not in grouped:
+            grouped[surface] = []
+        item = {
+            "id": str(row.id),
+            "code": row.code,
+            "name": row.nam or row.code,
+            "description": row.description,
+            **payload,
+            "apiBase": f"/api/v2/records/{row.code}",
+            "routeBase": (
+                f"/meetings/{payload.get('slug') or row.code}"
+                if surface == "meeting"
+                else f"/records/{payload.get('slug') or row.code}"
+            ),
+        }
+        grouped[surface].append(item)
+    for key in grouped:
+        grouped[key].sort(key=lambda x: (int(x.get("menuOrder") or 100), str(x.get("name") or "")))
+    return {"data": grouped}
+
+
+@router.get("/records/logs")
+async def document_surface_logs(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(current_user),
+):
+    """Activity across document-surface record types (legacy record-logs replacement)."""
+    from app.core.authorization import require_permission
+
+    if user.role not in {"SuperAdmin", "Admin"}:
+        require_permission(user, "records.logs.view")
+    service = CollectionService("record-logs")
+    return await service.list_items(db, user, dict(request.query_params))
+
+
+def _service(type_code: str) -> CollectionService:
+    if not is_valid_type_code(type_code):
+        raise HTTPException(404, "Record type not found")
+    return CollectionService(type_code=type_code)
+
+
+def _collab_resource(type_code: str) -> str:
+    return TYPE_CODE_TO_RESOURCE.get(type_code) or type_code
+
+
+@router.get("/records/{type_code}/schema", dependencies=[Depends(authorize_type_code())])
+async def record_type_schema(type_code: str, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
+    if not is_valid_type_code(type_code):
+        raise HTTPException(404, "Record type not found")
+    rtype = await db.scalar(select(RecordType).where(RecordType.code == type_code, RecordType.is_active == 1))
+    if not rtype:
+        rtype = await record_ser.ensure_record_type(db, type_code, None)
+        await db.commit()
+        await db.refresh(rtype)
+    ui = merge_type_ui_payload(rtype.code, dict(rtype.payload or {}))
+    return {
+        "data": {
+            "recordType": {
+                "id": str(rtype.id),
+                "code": rtype.code,
+                "name": rtype.nam or rtype.code,
+                "schemaVersion": 1,
+                **ui,
+            },
+            "coreFields": ["title", "status", "stage", "recordTime"],
+            "attributes": [],
+            "sections": [],
+        }
+    }
+
+
+# Dynamic collection routes — registered after static `_meta` / `logs` paths.
+type_router = APIRouter(prefix="/records/{type_code}", dependencies=[Depends(authorize_type_code())])
+
+
+@type_router.get("")
+async def list_items(type_code: str, request: Request, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
+    return await _service(type_code).list_items(db, user, dict(request.query_params))
+
+
+@type_router.get("/options")
+async def options(type_code: str, request: Request, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
+    listed = await _service(type_code).list_items(db, user, {**dict(request.query_params), "limit": "200", "status": "active"})
+    q = (request.query_params.get("q") or "").lower()
+    value_field = request.query_params.get("valueField") or "id"
+    items = []
+    for payload in listed["data"]:
+        label = str(payload.get("name") or payload.get("title") or payload.get("code") or payload.get("id"))
+        if q and q not in label.lower():
+            continue
+        items.append({
+            "id": str(payload["id"]),
+            "label": label,
+            "value": str(payload.get(value_field, payload["id"])),
+            "parentId": payload.get("parentId"),
+            "meta": {"id": str(payload["id"]), "name": payload.get("name") or label, "code": payload.get("code")},
+        })
+    return {"data": items[: min(200, int(request.query_params.get("limit") or 100))]}
+
+
+@type_router.get("/counts")
+async def counts(type_code: str, request: Request, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
+    listed = await _service(type_code).list_items(db, user, {**dict(request.query_params), "limit": "100", "status": "all"})
+    group = request.query_params.get("groupBy") or "stage"
+    groups: dict[str, int] = {}
+    unassigned = 0
+    for item in listed["data"]:
+        value = item.get(group)
+        if value in {None, ""}:
+            unassigned += 1
+        else:
+            groups[str(value)] = groups.get(str(value), 0) + 1
+    return {"data": {"total": len(listed["data"]), "unassigned": unassigned, "groups": groups}}
+
+
+@type_router.post("")
+async def create(type_code: str, request: Request, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
+    service = _service(type_code)
+    content_type = request.headers.get("content-type") or ""
+    if content_type.startswith("multipart/form-data"):
+        return {"data": await service.create_upload(db, user, request)}
+    payload = await request.json()
+    return {"data": await service.create(db, user, dict(payload), dict(payload))}
+
+
+@type_router.post("/bulk-delete")
+async def bulk_delete(type_code: str, body: dict, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
+    service = _service(type_code)
+    ids = []
+    for raw in body.get("ids", [])[:500]:
+        await service.soft_delete(db, user, raw)
+        ids.append(raw)
+    return {"data": {"ids": ids}}
+
+
+@type_router.post("/reorder")
+async def reorder_meetings(type_code: str, body: dict, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
+    from app.core.authorization import require_permission
+    import app.modules.record.services.meeting as meeting_board
+
+    if type_code != "meeting_history":
+        raise HTTPException(404, "Not found")
+    require_permission(user, "records.meeting_history.edit")
+    return {"data": await meeting_board.reorder_meetings(db, body)}
+
+
+@type_router.get("/{entity_id}")
+async def get_item(type_code: str, entity_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
+    return {"data": await _service(type_code).get_item(db, entity_id)}
+
+
+@type_router.patch("/{entity_id}")
+@type_router.put("/{entity_id}")
+async def update(type_code: str, entity_id: str, body: dict, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
+    return {"data": await _service(type_code).update(db, user, entity_id, dict(body))}
+
+
+@type_router.delete("/{entity_id}")
+async def soft_delete(type_code: str, entity_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
+    return {"data": await _service(type_code).soft_delete(db, user, entity_id)}
+
+
+@type_router.delete("/{entity_id}/purge")
+async def purge(type_code: str, entity_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
+    return {"data": await _service(type_code).purge(db, user, entity_id)}
+
+
+@type_router.post("/{entity_id}/archive")
+async def archive(type_code: str, entity_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
+    return {"data": await _service(type_code).lifecycle(db, user, entity_id, "archived")}
+
+
+@type_router.post("/{entity_id}/restore")
+async def restore(type_code: str, entity_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
+    return {"data": await _service(type_code).lifecycle(db, user, entity_id, "active")}
+
+
+@type_router.patch("/{entity_id}/stage")
+async def stage(type_code: str, entity_id: str, body: dict, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
+    return {"data": await _service(type_code).set_stage(db, user, entity_id, body.get("stage"))}
+
+
+@type_router.get("/{entity_id}/neighbors")
+async def neighbors(type_code: str, entity_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
+    await _service(type_code).get_item(db, entity_id)
+    return {"data": await collaboration.get_neighbors(db, _collab_resource(type_code), entity_id)}
+
+
+@type_router.get("/{entity_id}/favorite")
+async def get_favorite(type_code: str, entity_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
+    await _service(type_code).get_item(db, entity_id)
+    return {"data": {"isFavorite": await collaboration.get_favorite(db, user.id, entity_id)}}
+
+
+@type_router.put("/{entity_id}/favorite")
+async def set_favorite(type_code: str, entity_id: str, body: dict, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
+    await _service(type_code).get_item(db, entity_id)
+    desired = bool(body.get("isFavorite"))
+    await collaboration.set_favorite(db, user.id, entity_id, desired)
+    await db.commit()
+    return {"data": {"isFavorite": desired}}
+
+
+@type_router.get("/{entity_id}/comments")
+async def comments(type_code: str, entity_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
+    await _service(type_code).get_item(db, entity_id)
+    data, total = await collaboration.list_comments(db, _collab_resource(type_code), entity_id, user)
+    return {"data": data, "meta": {"page": 1, "limit": total or 20, "total": total}}
+
+
+@type_router.post("/{entity_id}/comments")
+async def add_comment(type_code: str, entity_id: str, body: dict, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
+    from app.core.errors import DomainError
+    import app.modules.admin_config.services.runtime as runtime
+
+    general = runtime.general_defaults(await runtime.load_app_config(db))
+    if not general["enableComments"]:
+        raise DomainError("COMMENTS_DISABLED", "Comments are disabled in application settings", 403)
+    await _service(type_code).get_item(db, entity_id)
+    comment = await collaboration.add_comment(db, uuid.UUID(entity_id), str(body.get("body") or ""), user)
+    await db.commit()
+    await db.refresh(comment)
+    resource = _collab_resource(type_code)
+    return {
+        "data": {
+            "id": str(comment.id),
+            "entityType": resource,
+            "entityId": entity_id,
+            "body": comment.body,
+            "author": person(user),
+            "createdAt": iso_utc(comment.created_at),
+        }
+    }
+
+
+@type_router.patch("/{entity_id}/comments/{comment_id}")
+async def edit_comment(
+    type_code: str,
+    entity_id: str,
+    comment_id: str,
+    body: dict,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(current_user),
+):
+    resource = _collab_resource(type_code)
+    data = await collaboration.edit_comment(db, entity_id, comment_id, str(body.get("body") or ""), user)
+    await db.commit()
+    return {"data": {**data, "entityType": resource}}
+
+
+@type_router.delete("/{entity_id}/comments/{comment_id}")
+async def delete_comment(
+    type_code: str,
+    entity_id: str,
+    comment_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(current_user),
+):
+    deleted_id = await collaboration.delete_comment(db, entity_id, comment_id)
+    await db.commit()
+    return {"data": {"id": deleted_id}}
+
+
+@type_router.get("/{entity_id}/activity")
+async def activity(type_code: str, entity_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
+    data, total = await collaboration.list_activity(db, _collab_resource(type_code), entity_id, user)
+    return {"data": data, "meta": {"page": 1, "limit": total or 20, "total": total}}
+
+
+@type_router.get("/{entity_id}/attachments")
+async def attachments(type_code: str, entity_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
+    payload = await _service(type_code).get_item(db, entity_id)
+    return {"data": payload.get("attachments", [])}
+
+
+@type_router.put("/{entity_id}/attachments")
+@type_router.post("/{entity_id}/attachments")
+async def replace_attachments(
+    type_code: str,
+    entity_id: str,
+    body: dict,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(current_user),
+):
+    files = body.get("files") or body.get("attachments") or []
+    await _service(type_code).update(db, user, entity_id, {"attachments": files})
+    return {"data": files}
+
+
+@type_router.post("/{entity_id}/assign-topic")
+async def assign_topic(
+    type_code: str,
+    entity_id: str,
+    body: dict,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(current_user),
+):
+    from app.core.authorization import require_permission
+    import app.modules.record.services.meeting as meeting_board
+
+    if type_code != "meeting_history":
+        raise HTTPException(404, "Not found")
+    require_permission(user, "records.meeting_history.assign")
+    return {"data": await meeting_board.assign_topic(db, entity_id, body)}
+
+
+@type_router.post("/{entity_id}/attachments/link")
+async def link_drive_attachment(
+    type_code: str,
+    entity_id: str,
+    body: dict,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(current_user),
+):
+    from app.core.authorization import require_permission
+    import app.modules.record.services.meeting as meeting_board
+
+    if type_code != "meeting_history":
+        raise HTTPException(404, "Not found")
+    require_permission(user, "records.meeting_history.edit")
+    return {"data": await meeting_board.link_drive_attachment(db, entity_id, body)}
+
+
+router.include_router(type_router)

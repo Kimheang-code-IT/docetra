@@ -71,22 +71,22 @@ function toggleTopicPanel() {
 }
 
 const canCreateTopic = computed(() =>
-  auth.canAccessPage(permissionForAction('meetings.topics.view', 'create')),
+  auth.canAccessPage(permissionForAction('records.meeting_topic.view', 'create')),
 )
 const canCreateMeeting = computed(() =>
-  auth.canAccessPage(permissionForAction('meetings.history.view', 'create')),
+  auth.canAccessPage(permissionForAction('records.meeting_history.view', 'create')),
 )
 const canAssignMeeting = computed(() =>
-  auth.canAccessPage(permissionForAction('meetings.history.view', 'assign')),
+  auth.canAccessPage(permissionForAction('records.meeting_history.view', 'assign')),
 )
 const canEditMeeting = computed(() =>
-  auth.canAccessPage(permissionForAction('meetings.history.view', 'edit')),
+  auth.canAccessPage(permissionForAction('records.meeting_history.view', 'edit')),
 )
 const canDeleteTopic = computed(() =>
-  auth.canAccessPage(permissionForAction('meetings.topics.view', 'delete')),
+  auth.canAccessPage(permissionForAction('records.meeting_topic.view', 'delete')),
 )
 const canDeleteMeeting = computed(() =>
-  auth.canAccessPage(permissionForAction('meetings.history.view', 'delete')),
+  auth.canAccessPage(permissionForAction('records.meeting_history.view', 'delete')),
 )
 
 /** Add Topic always (when allowed); Add Meeting on All / Unassigned pool views. */

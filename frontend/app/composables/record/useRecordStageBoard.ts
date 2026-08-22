@@ -1,5 +1,5 @@
 import type { EntityConfig } from '~/config/entities'
-import { getEntityAdapter } from '~/config/entities'
+import { getAdapterForConfig } from '~/config/entities'
 import type { WorkflowStage } from '~/types/docetra/common'
 import { useConfigurationRepositories } from '~/repositories'
 import { useAppLocalization } from '~/composables/settings/useAppLocalization'
@@ -25,7 +25,7 @@ export function useRecordStageBoard(
   const router = useRouter()
   const { t, te } = useI18n()
   const { formatDate } = useAppLocalization()
-  const adapter = getEntityAdapter(config.key)
+  const adapter = getAdapterForConfig(config)
   const { recordTypes } = useConfigurationRepositories()
   const runtimeStages = ref<WorkflowStage[]>(
     [...(config.stages || [])].sort((a, b) => a.order - b.order),

@@ -39,13 +39,16 @@ Record organization links a record to one or more organizations with a defined r
 
 ## Presentation and screen model
 
-Each record type gets its own slug-based page. That page can show either a list view or a board view, and the shared interaction model is stage-based grouping with drag-and-drop. Cards and list rows should always show summary and other important info so users can scan records quickly without opening detail pages.
+UI shells are **Meeting** vs **Document**, filtered by `record_type.payload.uiSurface` (`meeting` | `document` | `system`). There are no hardcoded per-type Vue pages: routes are `/meetings/{typeCode}` and `/records/{typeCode}` (plus `new` / `{id}`). Each type’s page can show a list or board view; the shared interaction model is stage-based grouping with drag-and-drop. Cards and list rows should always show summary and other important info so users can scan records quickly without opening detail pages.
 
 The detail page is where richer management happens. It should include the summary, full details, related records, files, activity and history, permissions, and reminders or notifications. The create flow stays lightweight, while the detail page handles richer editing and operational follow-up.
 
+Canonical collection paths and type metadata: [`prompt/backend/07-dynamic-record-collections.md`](../../backend/07-dynamic-record-collections.md).
+
 ### Key rules
 
-- Each record type must have a dedicated page route based on its slug.
+- Menus and routes come from active record types grouped by `uiSurface`; do not hardcode a Vue page per type.
+- Routes are `/meetings/{typeCode}` and `/records/{typeCode}` (driven by type code / slug metadata), not static entity-key pages.
 - List view and board view must both be available where the record type supports stage-based workflow.
 - Board view must group records by stage and support drag-and-drop to move records between stages.
 - Card and row rendering must show summary fields and other important info for quick scanning.
@@ -148,16 +151,16 @@ The record module should own or primarily manage:
 
 ## API responsibilities
 
+Record collections are dynamic under `/api/v2/records/{typeCode}/…` (list, detail, create, update, archive/restore/purge, stage, comments, activity, attachments, neighbors, favorite, schema, counts, options). See [`prompt/backend/07-dynamic-record-collections.md`](../../backend/07-dynamic-record-collections.md).
+
 The module should expose APIs for:
-- record list.
-- record detail.
-- record create.
-- record update.
+- record list / detail / create / update under `/api/v2/records/{typeCode}`.
 - history retrieval.
 - linked record retrieval.
 - attachment association.
 - stage/status movement.
 - search and filtering.
+- meeting board helpers under `/api/v2/records/meeting_history/*` (reorder, assign-topic, attachment link); there is no `/api/v2/meetings/*` family.
 
 ## Dependency boundaries
 

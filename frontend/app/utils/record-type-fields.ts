@@ -67,11 +67,11 @@ export function mapTypeAttributeToField(
   const label = assigned.attributeLabel || catalog?.label || assigned.attributeCode
   const options = optionsFromCatalog(catalog)
   const assignmentEndpoint = dataType === 'officer'
-    ? `${ApiEndpoints.OFFICERS}/options?valueField=name`
+    ? `${ApiEndpoints.OFFICERS}/options?valueField=id`
     : dataType === 'user'
-      ? `${ApiEndpoints.USERS}/options?valueField=name`
+      ? `${ApiEndpoints.USERS}/options?valueField=id`
       : dataType === 'organization'
-        ? `${ApiEndpoints.COMPANIES}/options?valueField=name`
+        ? `${ApiEndpoints.COMPANIES}/options?valueField=id`
         : undefined
 
   return {

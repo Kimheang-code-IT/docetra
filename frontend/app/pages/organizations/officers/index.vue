@@ -1,14 +1,7 @@
 <script setup lang="ts">
-import { getEntityConfig } from '~/config/entities'
-
-const config = getEntityConfig('officers')
-
 definePageMeta({
   titleKey: 'docetra.pages.officer',
   permission: 'organizations.officers.view',
 })
+await navigateTo('/officers', { replace: true })
 </script>
-
-<template>
-  <WorkspaceEntityWorkspaceView :config="config" />
-</template>

@@ -1,5 +1,6 @@
 # Record Module — Workflow Boards & Logs (Backend Logic)
 
+> **Dynamic collections:** Boards resolve by `typeCode` / `record_type.payload.uiSurface`, not hardcoded adapter keys. Canonical paths: [`../07-dynamic-record-collections.md`](../07-dynamic-record-collections.md).  
 > **UI scope:** Record nav — Incoming / Outgoing / Document / Master List Request (stage boards) + **Logs** (audit board).  
 > **Record model:** All are `record` rows differentiated by `record_kind` / route slug, not separate domains.  
 > **References:** `prompt/specification/modules/record.md`, `prompt/frontend/00-product-ui-design-map.md` (1+3 boards), `frontend/app/config/entities.ts` (`orgSelectDocumentTabs`, `masterListRequestTabs`), `useRecordStageBoard`, `useRecordLogBoard`.
@@ -226,7 +227,7 @@ Form selects consume Organization module options:
 | ------------------------------------------- | ----------------------------- |
 | `/api/v2/organizations/companies/options`   | Document type, External units |
 | `/api/v2/organizations/departments/options` | Involved office               |
-| `/api/v2/organizations/officers/options`    | Involved officers             |
+| `/api/v2/officers/options`    | Involved officers             |
 
 
 See `prompt/backend/modules/organization-master-data.md` §3 (lookup options). Support query `valueField=name` (or return both `id` + `name` and let clients choose).

@@ -49,4 +49,5 @@ Recommended reading order for implementation:
 - The docs assume an engineering-only audience.
 - The baseline stack is FastAPI, PostgreSQL, Redis short/long cache tiers, RabbitMQ workers, APScheduler meeting scheduling, and Docker-based backend deployment on DigitalOcean.
 - API versioning should start at `/api/v2`.
+- Record collections are dynamic under `/api/v2/records/{typeCode}`; see [`prompt/backend/07-dynamic-record-collections.md`](../backend/07-dynamic-record-collections.md).
 - Migration-specific details should stay brief and isolated in `10-migration-notes.md`.

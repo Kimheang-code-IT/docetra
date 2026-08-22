@@ -3,8 +3,9 @@ import type { EntityView } from '~/types/docetra/common'
 import type { EntityConfig } from '~/config/entities'
 import type { ExportRequest } from '~/types/docetra/export'
 import { createExportJob } from '~/adapters/exports'
-import { getEntityAdapter } from '~/config/entities'
+import { getAdapterForConfig } from '~/config/entities'
 import { useAppLocalization } from '~/composables/settings/useAppLocalization'
+import { useAppRuntimeConfig } from '~/composables/settings/useAppRuntimeConfig'
 import {
   parsePageLimit,
   serializePageLimit,
@@ -22,7 +23,8 @@ export function useEntityWorkspace(config: EntityConfig) {
   const router = useRouter()
   const { t, te } = useI18n()
   const { formatDate, formatDateTime } = useAppLocalization()
-  const adapter = getEntityAdapter(config.key)
+  const { defaultPageSize } = useAppRuntimeConfig()
+  const adapter = getAdapterForConfig(config)
 
   const view = computed({
     get: () => {
@@ -56,13 +58,13 @@ export function useEntityWorkspace(config: EntityConfig) {
   })
 
   const limit = computed({
-    get: () => parsePageLimit(route.query.limit, 10),
+    get: () => parsePageLimit(route.query.limit, defaultPageSize.value),
     set: (value) => {
-      const next = parsePageLimit(value, 10)
+      const next = parsePageLimit(value, defaultPageSize.value)
       router.replace({
         query: {
           ...route.query,
-          limit: serializePageLimit(next, 10),
+          limit: serializePageLimit(next, defaultPageSize.value),
           page: undefined,
         },
       })

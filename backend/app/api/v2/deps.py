@@ -1,5 +1,4 @@
-from app.core.security import current_user
-from app.core.csrf import csrf_protect
+from app.core.security import csrf_protect, current_user
 from app.db.session import get_db
 
-__all__ = ["current_user", "csrf_protect", "get_db"]
+__all__ = ["csrf_protect", "current_user", "get_db"]

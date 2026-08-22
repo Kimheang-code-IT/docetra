@@ -1,17 +1,25 @@
 # Frontend API integration guide
 
-The frontend always calls FastAPI at `NUXT_PUBLIC_API_BASE`. Pages and components must not call `$fetch` directly or contain API endpoint strings. There is no in-browser mock dataset.
+The frontend always calls FastAPI. Locally the browser uses same-origin `/api/v2` (Nuxt proxies to the API). Pages and components must not call `$fetch` directly or contain API endpoint strings. There is no in-browser mock dataset.
 
 ## Enable the backend
 
-Set these environment values and restart Nuxt:
+Local Docker + `pnpm dev` (cookies on `:3000`):
+
+```env
+NUXT_PUBLIC_API_BASE=
+NUXT_API_PROXY_TARGET=http://127.0.0.1:8000
+NUXT_PUBLIC_AUTH_MODE=cookie
+```
+
+Split production API host only:
 
 ```env
 NUXT_PUBLIC_API_BASE=https://api.example.com
 NUXT_PUBLIC_AUTH_MODE=cookie
 ```
 
-Every endpoint already includes `/api/v2`, so `NUXT_PUBLIC_API_BASE` must contain only the API origin (and an optional deployment base path), without appending `/api/v2`.
+Every endpoint already includes `/api/v2`, so a non-empty `NUXT_PUBLIC_API_BASE` must contain only the API origin (and an optional deployment base path), without appending `/api/v2`.
 
 ## Request flow
 
@@ -65,7 +73,7 @@ Entity lifecycle endpoints are explicit: `POST /{id}/archive`, `POST /{id}/resto
 ## Backend handoff checklist
 
 1. Implement endpoints from `app/utils/constants/api-endpoints.ts`.
-2. Match the TypeScript models under `app/types/docetra/` and repository contracts.
+2. Match response shapes in `prompt/backend/09-frontend-response-requirements.md` and TypeScript models under `app/types/docetra/`.
 3. Implement `/auth/login`, `/auth/me`, and `/auth/logout` with an HttpOnly session cookie, CSRF protection, and consistent 401/403 responses.
 4. Keep all list operations server-paginated; never require the frontend to fetch an entire dataset.
 5. Verify uploads accept multipart requests at the configured same-origin endpoint.

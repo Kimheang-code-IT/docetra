@@ -1,2 +1,11 @@
 import logging
-def configure_logging(): logging.basicConfig(level=logging.INFO,format="%(asctime)s %(levelname)s %(name)s %(message)s")
+from app.core.config import settings
+
+
+def configure_logging() -> None:
+    level = logging.DEBUG if settings.app_env.lower() == "development" else logging.INFO
+    logging.basicConfig(
+        level=level,
+        format="%(asctime)s %(levelname)s %(name)s %(message)s",
+        force=True,
+    )

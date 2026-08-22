@@ -151,6 +151,9 @@ export interface AppConfigNotifications {
   quietHoursEnd?: string
   language: 'en' | 'km'
   rules: NotificationRule[]
+  /** Minutes before meeting start for reminder jobs (backend-enforced). */
+  meetingReminderOffsetsMinutes?: number[]
+  meetingRecurrenceHorizonDays?: number
 }
 
 export interface AppConfigSecurity {
@@ -161,8 +164,8 @@ export interface AppConfigSecurity {
   requirePasswordChange: boolean
   allowedUploadExtensions: string[]
   auditRetentionDays: number
-  /** UI disclaimer: not enforced without backend. */
-  frontendOnly: true
+  /** @deprecated Always false — security settings are enforced by the API. */
+  frontendOnly?: boolean
 }
 
 export interface AppConfigSystem {

@@ -50,9 +50,9 @@ Backend handoff documents: [`../backend/00-integration-contract.md`](../backend/
 | Record | Logs | `/records/record-logs` | `AppRecordLogBoard` + `useRecordLogBoard` |
 | Organization | Department | `/organizations/departments` | `EntityWorkspaceView` |
 | Organization | Company | `/organizations/companies` | `EntityWorkspaceView` |
-| Organization | Company Purpose | `/organizations/company-purposes` | `EntityWorkspaceView` |
-| Organization | Company Sector | `/organizations/company-sectors` | `EntityWorkspaceView` |
-| Organization | Officer | `/organizations/officers` | `EntityWorkspaceView` |
+| Organization | Purpose | `/purpose` | `EntityWorkspaceView` |
+| Organization | Sector | `/sector` | `EntityWorkspaceView` |
+| Organization | Officer | `/officers` | `EntityWorkspaceView` |
 | User Management | Role | `/user-management/roles` | `EntityWorkspaceView` + `AppRolePermissionMatrix` |
 | User Management | User | `/user-management/users` | `EntityWorkspaceView` |
 | Portal | File Upload | `/portal/file-upload` | `AppFileUploadBoard` |
@@ -84,7 +84,7 @@ Shared confirmations: `useConfirm()` + `CommonAppConfirmHost` in `app.vue`.
 - **Responsive date controls:** `AppInputDate`, `AppDateRangeFilter`, and `AppDatePickerPopover` share parsing/serialization through `utils/date-picker.ts`. Compact toolbars use an icon-triggered modal on small screens or with large font preferences; inline form/dialog usage remains full width.
 - **User profile:** selecting the user identity opens `AppUserProfileDialog` for profile, password, and effective-permission views. Avatar upload/remove uses `adapters/auth.ts`, accepts safe raster images up to 2 MB, and updates `stores/auth.ts` immediately.
 - **User preferences:** locale + font size (`stores/preferences.ts`); appearance via color mode; Archive / System Log / About / Logout from `useUserMenu`. English uses Inter first; Khmer uses Noto Sans Khmer first.
-- **Data mode:** this release uses mock repositories by default in every environment. `runtimeConfig.public.useMockData` remains the API-ready switch; set `NUXT_PUBLIC_USE_MOCK_DATA=false` later when the HTTP backend is available.
+- **Data mode:** the UI always uses live HTTP against `/api/v2`. Locally keep `NUXT_PUBLIC_API_BASE` empty so the browser talks same-origin (Nuxt proxies to FastAPI).
 - **Backend handoff:** follow `frontend/docs/api-integration-guide.md` and `prompt/backend/00-integration-contract.md`; pages remain unaware of mock/HTTP mode, endpoint strings stay in `ApiEndpoints`, and `$fetch` stays inside `useApi`.
 
 ## Current security and API-ready contract

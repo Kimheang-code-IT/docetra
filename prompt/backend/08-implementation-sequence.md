@@ -7,6 +7,7 @@ Aligns three sources:
 1. `prompt/specification/09-implementation-plan.md` (engineering phases)
 2. `project-management/01-timeline-management.md` (24 Aug–13 Nov 2026 sprints)
 3. Current frontend adapters (mock-complete, HTTP-ready)
+4. [`09-frontend-response-requirements.md`](./09-frontend-response-requirements.md) (response alignment checklist)
 
 **Planning baseline:** 18 August 2026. **API freeze gate:** 11 September 2026. **Planned release:** 13 November 2026.
 
@@ -90,6 +91,19 @@ Epic owners from the timeline: Kimheang for E02–E04/E06; Vitou for E05; Sothay
 - [ ] Mock mode off in deployed environments
 
 Optional Google Sign-In / Calendar / Gmail stay behind [`05-google-workspace-integration.md`](./05-google-workspace-integration.md) and must not block v1.0.
+
+---
+
+## 6. Structure upgrade phases (completed)
+
+Phased backend restructure — completed / superseded:
+
+- [x] Thin `api/v2` + DomainError + schemas + `create_app()` factory
+- [x] Entity engine / collaboration extraction
+- [x] `special.py` removed; domain route files
+- [x] Worker/scheduler job extraction
+- [x] **Layered FastAPI layout** — `endpoints/` + `services/` + `repositories/` + draft relational `models/`
+- [x] Entity→relational migrate script (`scripts/migrate_entities_to_relational.py`); Alembic `0005`/`0006`
 
 ---
 

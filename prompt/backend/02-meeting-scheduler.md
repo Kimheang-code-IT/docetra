@@ -15,7 +15,7 @@ APScheduler due time → publish small RabbitMQ message → worker side effect
                                                   └─ cache/search invalidation
 ```
 
-Run APScheduler in the dedicated `scheduler` container using `python -m app.scheduler`. Do not start an independent scheduler inside every API or worker process. Local development runs one scheduler. Production begins with one active scheduler; high availability is allowed only after configuring a shared persistent data store/event coordination and unique scheduler identities supported by the selected APScheduler version.
+Run APScheduler in the dedicated `scheduler` container using `python -m app.main scheduler`. Do not start an independent scheduler inside every API or worker process. Local development runs one scheduler. Production begins with one active scheduler; high availability is allowed only after configuring a shared persistent data store/event coordination and unique scheduler identities supported by the selected APScheduler version.
 
 Pin APScheduler in the backend dependency lockfile. Do not mix 3.x and 4.x examples or APIs; upgrading the major version requires migration and scheduler recovery tests.
 
@@ -123,7 +123,7 @@ Reference: [APScheduler user guide](https://apscheduler.readthedocs.io/en/master
 
 ## 11. Frontend contract
 
-Timers are server-owned. Meeting writes hit `/api/v2/meetings/history`. The browser only displays `meetingDate`, `timezone`, `nextScheduledActionAt`.
+Timers are server-owned. Meeting writes hit `/api/v2/records/meeting_history`. The browser only displays `meetingDate`, `timezone`, `nextScheduledActionAt`.
 
 | Concern | Code |
 | --- | --- |

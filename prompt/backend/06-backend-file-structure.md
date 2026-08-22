@@ -2,12 +2,13 @@
 
 This is the **implementation map** for the Docetra API. It exists so backend work can start from a known tree instead of inventing folders later.
 
-**Status:** implemented. The Python `backend/` package follows this map and builds image `docetra-backend:local` with three process entrypoints.
+**Status:** modular monolith (2026-08). Domain logic lives under nested `app/modules/<name>/{api,domain,services,repositories}/`. HTTP mounts from module `api/router.py` via `api/v2/router.py`. Reusable helpers live in `app/shared/`; infra in `core/`; vendor I/O in `integrations/`. URL prefix remains `/api/v2`. Persistence targets typed tables (`role`, `officer`, `organization`, `record`, `record_detail`, `file`, `setting`, `audit_log`); Entity JSONB remains only for portal drive-sync / storage-providers / export jobs until those paths are ported and `entities` is dropped.
 
 **Authoritative contracts:**
 
 | Source | Role |
 | --- | --- |
+| [`09-frontend-response-requirements.md`](./09-frontend-response-requirements.md) | Master response contract — every endpoint JSON shape |
 | `frontend/app/utils/constants/api-endpoints.ts` | Exact `/api/v2` paths |
 | `frontend/app/adapters/createEntityAdapter.ts` | Shared CRUD + lifecycle + comments/activity/attachments |
 | `frontend/app/types/docetra/` | Response field names (camelCase) |
@@ -25,9 +26,11 @@ When this file and `prompt/specification/` disagree on architecture, the specifi
 `compose.backend.yml` runs one image three ways:
 
 ```text
-api        → FastAPI / uvicorn on :8000          (app.main)
-worker     → python -m app.worker                (RabbitMQ consumers)
-scheduler  → python -m app.scheduler             (APScheduler; publishes to RabbitMQ)
+api        → FastAPI / uvicorn on :8000          (uvicorn app.main:app)
+worker     → python -m app.main worker           (RabbitMQ consumers)
+scheduler  → python -m app.main scheduler        (APScheduler; publishes to RabbitMQ)
+
+Do not start the scheduler or worker inside the API process — Compose still runs three containers; they share one entry module (`app.main`).
 ```
 
 Do not start a scheduler inside the API process. Do not put long file scans, Drive sync, export generation, or notification delivery in an HTTP handler.
@@ -67,153 +70,104 @@ Use this layout. Empty `__init__.py` files are implied for every Python package.
 
 ```text
 backend/
-  pyproject.toml
-  uv.lock | poetry.lock | pdm.lock     # one lockfile; pin FastAPI, SQLAlchemy, Alembic, APScheduler
-  Dockerfile
-  .dockerignore
-  alembic.ini
-  README.md                            # how to run api / worker / scheduler locally
-
   alembic/
-    env.py
-    versions/                          # one migration per domain change
-
   tests/
     conftest.py
-    contract/                          # OpenAPI vs frontend ApiEndpoints
-    api/
-    modules/
-    jobs/
-    permissions/
+    contract/
+    integration/
 
   app/
-    __init__.py
-    main.py                            # create_app(); mounts /api/v2
-    worker.py                          # python -m app.worker
-    scheduler.py                       # python -m app.scheduler
+    main.py                       # API (create_app) + worker + scheduler CLI
+    jobs/                           # worker consumers + scheduler ticks
+      publishers.py topology.py
+      consumers/                    # RabbitMQ handlers (worker process)
+      scheduler/                    # APScheduler ticks (scheduler process)
+      deps.py
+      router.py                    # mounts module routers + health/system
+      entities.py
+      endpoints/health.py system.py  # platform-only (not business modules)
 
-    api/
-      v2/
-        __init__.py
-        router.py                      # include_router for every family below
-        deps.py                        # current user, CSRF, db session, idempotency
-        health.py                      # GET /health, GET /ready (not under /api/v2 if preferred)
-        auth.py
-        dashboard.py
-        meetings.py
-        records.py
-        organizations.py
-        users.py
-        configuration.py
-        settings.py
-        portal.py
-        system.py
-        search.py
-        exports.py
-        mentions.py                    # assignment typeahead (officer/department/company)
+    modules/<name>/                 # vertical slice per domain
+      __init__.py                   # public façade
+      api/router.py                 # FastAPI routes for this domain
+      domain/                       # schemas, enums, constants, map, permissions
+      services/                     # business logic
+      repositories/                 # SQL helpers
 
-    core/
-      config.py                        # pydantic-settings from backend.env
-      security.py                      # password hashing, JWT cookies, CSRF
-      jwt.py                           # encode/decode access+refresh JWT
-      csrf.py
-      cors.py
-      errors.py                        # { error: { code, message, fields, requestId } }
-      logging.py
-      permissions.py                   # catalog from ROLE_DOCUMENT_TYPES
-      pagination.py                    # page/limit/sort; cap "All"
-      datetime.py                      # UTC store, ISO serialize, range filters
-      cache.py                         # short/long Redis tiers
-      messaging.py                     # RabbitMQ publish with confirms
-      outbox.py                        # transactional outbox with the DB commit
-      ids.py                           # UUID/ULID generation
+    modules/
+      record/
+      organization/
+      people_access/
+      storage_integration/
+      admin_config/
+      reporting_support/
 
-    db/
-      jwt.py
-      base.py
-      mixins.py                        # id, timestamps, created_by, updated_by, version, status
+    shared/                         # reusable utils (2+ modules)
+      pagination.py ids.py dicts.py responses.py
+      datetime.py filters.py validators.py types.py
+      schemas/common.py
 
-    models/                            # SQLAlchemy tables (snake_case columns)
-      record.py
-      organization.py
-      people.py
-      storage.py
-      configuration.py
-      audit.py
-      jobs.py
-      scheduler.py
+    integrations/                   # outbound vendor clients only
+      email/ telegram/ google/
 
-    schemas/                           # Pydantic v2; API aliases = frontend camelCase
-      common.py                        # envelopes, ListQuery, PersonSummary, AssignmentRef
-      auth.py
-      record.py
-      meeting.py
-      organization.py
-      user.py
-      configuration.py
-      settings.py
-      portal.py
-      search.py
-      export.py
+    models/                         # ORM (shared; Alembic-safe)
+    # (no top-level app/repositories — use modules/*/repositories + app.shared)
+    # (no top-level app/schemas — use modules/*/domain/schemas or shared/schemas)
 
-    modules/                           # application services — no FastAPI imports here
-      identity/                        # login, session, password reset, avatar
-      people_access/                   # users, roles, permission catalog
-      organization/                    # depts, companies, purposes, sectors, officers
-      admin_config/                    # record types, attributes, app info/config
-      record/                          # unified record + stages + details + boards
-      meetings/                        # topic board, reorder, assign, notes, schedule upsert
-      storage_integration/             # files, S3/MinIO, Drive sync jobs
-      reporting_support/               # dashboard, exports, search projections
-      notifications/                   # email + Telegram bot adapters
-      collaboration/                   # comments, activity, attachments, favorites, neighbors
-
-    jobs/
-      topology.py                      # exchange/queue/routing-key names
-      publishers.py
-      consumers/
-        files.py
-        drive.py
-        exports.py
-        notifications.py
-        search_index.py
-        cache_invalidation.py
-        meeting_events.py
-        recurrence.py
-
-    scheduler_jobs/
-      meeting_reminders.py
-      meeting_start_end.py
-      recurrence_horizon.py
-      reconcile.py
-      cleanup.py
+    core/                           # config, security, authz, cache, secrets
+    db/                             # base.py session.py mixins.py
+    jobs/                           # worker consumers + scheduler ticks
+      publishers.py topology.py
+      consumers/                    # RabbitMQ handlers (worker process)
+      scheduler/                    # APScheduler ticks (scheduler process)
 ```
+
+**Layer split**
+
+| Layer | Owns |
+| --- | --- |
+| `core/` | Infra: config, JWT/CSRF, authz Depends, rate limit, cache, logging, secrets |
+| `shared/` | Pure helpers: pagination, UUIDs, envelopes, deep_merge, common Pydantic |
+| `integrations/` | SMTP, Telegram bot API, Google Drive client |
+| `modules/*` | Feature API + domain + services + repositories |
+
+Import convention: `from app.shared.pagination import parse_limit, page_meta, paginate`. Modules must not copy these helpers. Cross-module calls use the other package’s `__init__` façade.
 
 ---
 
 ## 4. Layer rules
 
 ```text
-api/v2/*.py
-  → validate request, authn, CSRF, call a module service, return envelope
-modules/*/
+modules/<domain>/api/router.py
+  → validate request, authn, CSRF, call services, return envelope
+modules/<domain>/services/
   → business rules, permission re-check, transactions, outbox rows
+modules/<domain>/repositories/ + shared/
+  → SQL + pagination/ids
+integrations/
+  → vendor I/O only
 models/ + db/
   → persistence only
-jobs/ + scheduler_jobs/
-  → side effects after commit; idempotent; reload entity before acting
+jobs/
+  → RabbitMQ consumers (worker) + APScheduler ticks (scheduler); idempotent; reload row before acting
 ```
 
-- Routers do not query other modules' tables.
-- Services talk across modules through explicit interfaces (Python protocols), not ad-hoc SQL joins on foreign tables.
+- Routers do not query unrelated tables directly.
+- Modules talk across domains through public package APIs, not ad-hoc SQL joins on foreign tables.
+- `shared/` must not import `modules.*` or `integrations.*`.
 - Cache writes happen **after** commit. Invalidation events go through the outbox.
 - JSON field names match TypeScript (`recordTime`, `startDate`, `pageAccess`). Database columns stay snake_case (`record_time`, `start_date`).
+- Prefer `from app.modules.<domain>…` and `from app.shared…`.
 
 ---
 
 ## 5. API router map (frontend → file)
 
 All paths below are relative to `/api/v2`. Copy them from `frontend/app/utils/constants/api-endpoints.ts`; do not invent shorter aliases like `/records/incoming`.
+
+**Record collections are dynamic** under `/records/{typeCode}` (plus `/records/_meta/surfaces`, `/records/logs`). Meeting board helpers live under `/records/meeting_history/*`. There is **no** `/meetings/*` HTTP family. Full contract: [`07-dynamic-record-collections.md`](./07-dynamic-record-collections.md).
+
+**Organization collections are dynamic** under `/organizations/{orgType}` (`department` \| `company`) plus lookups `/sectors`, `/purposes`, `/officers`. Full contract: [`08-dynamic-organization-collections.md`](./08-dynamic-organization-collections.md).
 
 ### 5.1 Auth — `app/api/v2/auth.py` ← `frontend/app/adapters/auth.ts`
 
@@ -266,18 +220,9 @@ Default list filter excludes `archived` and `deleted` unless `status` is passed.
 
 | Router file | Base path | Frontend adapter key |
 | --- | --- | --- |
-| `meetings.py` | `/meetings/topics` | `meetingTopics` |
-| `meetings.py` | `/meetings/history` | `meetingHistory` |
-| `records.py` | `/records/incoming-documents` | `incomingDocuments` |
-| `records.py` | `/records/outgoing-documents` | `outgoingDocuments` |
-| `records.py` | `/records/documents` | `documents` |
-| `records.py` | `/records/master-list-requests` | `masterListRequests` |
-| `records.py` | `/records/logs` | `recordLogs` (read-only; no create) |
-| `organizations.py` | `/organizations/departments` | `departments` |
-| `organizations.py` | `/organizations/companies` | `companies` |
-| `organizations.py` | `/organizations/company-purposes` | `companyPurposes` |
-| `organizations.py` | `/organizations/company-sectors` | `companySectors` |
-| `organizations.py` | `/organizations/officers` | `officers` |
+| `dynamic_records.py` | `/records/{typeCode}` (+ schema, board helpers, comments, attachments) | `createRecordAdapter(typeCode)` |
+| `records.py` | mounts dynamic router only (`/records/logs`, `/_meta/surfaces` included there) | — |
+| `organizations.py` | lookups `/sectors`, `/purposes`, `/officers` + dynamic `/organizations/{orgType}` | dynamic org |
 | `users.py` | `/users/roles` | `roles` |
 | `users.py` | `/users` | `users` |
 | `users.py` | `/users/permission-catalog` | role matrix catalog |
@@ -292,10 +237,10 @@ Default list filter excludes `archived` and `deleted` unless `status` is passed.
 
 | Method | Path | Constant |
 | --- | --- | --- |
-| POST | `/meetings/reorder` | `MEETINGS_REORDER` |
-| POST | `/meetings/history/{id}/assign-topic` | `MEETING_ASSIGN_TOPIC` |
-| POST | `/meetings/history/{id}/attachments/link` | `MEETING_ATTACHMENTS_LINK` |
-| GET/POST | `/meetings/history/{id}/attachments` | `MEETING_ATTACHMENTS` |
+| POST | `/records/meeting_history/reorder` | `MEETINGS_REORDER` |
+| POST | `/records/meeting_history/{id}/assign-topic` | `MEETING_ASSIGN_TOPIC` |
+| POST | `/records/meeting_history/{id}/attachments/link` | `MEETING_ATTACHMENTS_LINK` |
+| GET/POST | `/records/meeting_history/{id}/attachments` | `MEETING_ATTACHMENTS` |
 | GET | `/portal/drive-files` | `PORTAL_DRIVE_FILES` |
 
 After meeting writes commit, upsert or remove APScheduler jobs (`02-meeting-scheduler.md`).
@@ -345,12 +290,12 @@ Flat keys: `{permissionPrefix}.{action}`.
 | `records.outgoing_documents` | workflow set |
 | `records.documents` | workflow set |
 | `records.master_list_requests` | workflow set |
-| `meetings.topics` | workflow set |
-| `meetings.history` | workflow set |
+| `records.meeting_topic` | workflow set |
+| `records.meeting_history` | workflow set |
 | `organizations.departments` | master-data set |
 | `organizations.companies` | master-data set |
-| `organizations.company_purposes` | master-data set |
-| `organizations.company_sectors` | master-data set |
+| `organizations.purposes` | master-data set |
+| `organizations.sectors` | master-data set |
 | `organizations.officers` | master-data set |
 | `users.users` | view/create/edit/archive/restore/delete/purge/comment/configure |
 | `users.roles` | same as users |
@@ -380,7 +325,7 @@ Keep SQLAlchemy models aligned with `prompt/specification/07-data-model.md`. Sug
 | File | Tables |
 | --- | --- |
 | `models/record.py` | `record`, `record_detail`, `record_attachment`, `record_organization`, `record_stage_template` |
-| `models/configuration.py` | `record_type`, `record_attribute`, `record_template`, `setting`, `document_type` |
+| `models/configuration.py` | `setting`, `enum` (app settings); record types live in `models/record.py` |
 | `models/organization.py` | `organization` (dept/company), `organization_sector`, `organization_purpose` |
 | `models/people.py` | `officer`, `users`, `role`, `permission`, `role_permission`, `menu` |
 | `models/storage.py` | `file`, Drive sync source/job |
@@ -400,12 +345,14 @@ Keep one schema file per frontend type module:
 
 | Frontend type | Backend schema |
 | --- | --- |
-| `types/docetra/common.ts` | `schemas/common.py` (`ApiResponse`, `ListQuery`, comments, activity, attachments) |
-| `types/docetra/entities.ts` | `schemas/record.py`, `meeting.py`, `organization.py`, `user.py` |
-| `types/docetra/export.ts` | `schemas/export.py` |
-| `types/docetra/search.ts` | `schemas/search.py` |
-| `types/docetra/settings.ts` | `schemas/settings.py` |
-| `types/auth-user.ts` | `schemas/auth.py` (`AuthUser`) |
+| `types/docetra/common.ts` | `shared/schemas/common.py` (`ApiResponse`, `ListQuery`, comments, activity, attachments) |
+| `types/docetra/entities.ts` | `modules/*/domain/schemas.py` (record, meeting, organization, user) |
+| `types/docetra/export.ts` | `modules/reporting_support/domain/schemas.py` |
+| `types/docetra/search.ts` | `modules/reporting_support/domain/schemas.py` |
+| `types/docetra/settings.ts` | `modules/admin_config/domain/schemas.py` |
+| `types/auth-user.ts` | `modules/people_access/domain/schemas.py` (`AuthUser`) |
+
+Do not keep a top-level `app/schemas/` package; import from module domain or shared.
 
 Do not leak password hashes, session ids, storage secrets, or Telegram/SMTP tokens in any GET schema.
 
@@ -414,14 +361,16 @@ Do not leak password hashes, session ids, storage secrets, or Telegram/SMTP toke
 ## 9. Tests that must exist before HTTP cutover
 
 ```text
-tests/contract/test_api_paths.py     # every ApiEndpoints constant is routed
-tests/api/test_envelopes.py          # data/meta/error shapes
-tests/api/test_session_csrf.py
-tests/permissions/test_capability_matrix.py
-tests/modules/test_lifecycle.py      # archive/restore/delete/purge
-tests/jobs/test_idempotent_retry.py
-tests/modules/test_datetime_filters.py
+tests/unit/modules/<domain>/    # per-module pure unit tests
+tests/unit/core/ + security/    # JWT, secrets, authz, production config
+tests/unit/shared/              # pagination / envelopes
+tests/contract/                 # OpenAPI paths + frontend envelope shapes
+tests/integration/              # live Docker API (marker: integration)
+tests/integration/modules/      # per-module smoke
+tests/integration/test_modules_together.py
 ```
+
+See [`backend/tests/README.md`](../../backend/tests/README.md). Default `pytest` skips integration.
 
 Frontend still typechecks against its adapters. Changing a path requires a paired frontend adapter change.
 
@@ -431,7 +380,7 @@ Frontend still typechecks against its adapters. Changing a path requires a paire
 
 When a later task is allowed to create `backend/` source:
 
-1. Scaffold `pyproject.toml`, Dockerfile, Alembic, `app/main.py`, `app/worker.py`, `app/scheduler.py`.
+1. Scaffold `pyproject.toml`, Dockerfile, Alembic, `app/main.py` (API + worker + scheduler CLI).
 2. Implement `core/` (config, errors, session, CSRF, permissions, datetime).
 3. Health endpoints + OpenAPI at `/api/v2/openapi.json`.
 4. Auth + `/auth/me` so Nuxt can set `NUXT_PUBLIC_USE_MOCK_DATA=false`.

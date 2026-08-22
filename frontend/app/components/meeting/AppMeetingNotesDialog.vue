@@ -174,7 +174,7 @@ async function save() {
         fileName: file.name,
         mimeType: file.mimeType,
         url: `/meetings/history/${props.meetingId}`,
-        permission: 'meetings.history.view',
+        permission: 'records.meeting_history.view',
         contextTitle: meeting.value.title,
         entityType: 'attachment',
       })

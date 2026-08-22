@@ -1,8 +1,10 @@
 import hashlib
 
 from fastapi import HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import redis
+import app.modules.admin_config.services.runtime as runtime
 
 
 def safe_key(value: str) -> str:
@@ -18,12 +20,20 @@ async def enforce_rate_limit(key: str, *, limit: int, window_seconds: int) -> No
         raise HTTPException(429, "Too many requests", headers={"Retry-After": str(ttl)})
 
 
-async def record_login_failure(email: str) -> None:
+async def _security_policy(db: AsyncSession | None = None) -> dict:
+    config = await runtime.load_app_config(db)
+    return runtime.security_policy(config)
+
+
+async def record_login_failure(email: str, *, db: AsyncSession | None = None) -> None:
+    policy = await _security_policy(db)
+    lock_seconds = max(1, int(policy["accountLockMinutes"]) * 60)
+    max_failures = max(1, int(policy["maxLoginAttempts"]))
     key = f"auth:failure:{safe_key(email)}"
     value = await redis.incr(key)
-    await redis.expire(key, settings_account_lock_seconds())
-    if value >= settings_max_login_failures():
-        await redis.setex(f"auth:locked:{safe_key(email)}", settings_account_lock_seconds(), "1")
+    await redis.expire(key, lock_seconds)
+    if value >= max_failures:
+        await redis.setex(f"auth:locked:{safe_key(email)}", lock_seconds, "1")
 
 
 async def clear_login_failures(email: str) -> None:

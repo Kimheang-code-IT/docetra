@@ -6,9 +6,9 @@
 
 ## Outcome
 
-Authorized users can define a field once in a global **Attribute Catalog**, assign it to one or more record types, and configure where and how it appears. Every record-backed screen — including meetings, meeting topics, documents, master-list requests, and future record types — resolves its fields from the selected record type rather than from page-specific hardcoding.
+Authorized users can define a field once in a global **Attribute Catalog**, assign it to one or more record types, and configure where and how it appears. Menus and routes come from active record types grouped by `record_type.payload.uiSurface` (`meeting` → `/meetings/{typeCode}`, `document` → `/records/{typeCode}`). Every record-backed screen resolves its fields from the selected record type rather than from page-specific hardcoding or an entity-key allowlist.
 
-The same resolved schema drives create, detail, and edit forms. It also supplies eligible custom columns, filters, search fields, board-card slots, exports, and future API validation. A newly published record type must therefore be usable without adding a new Vue page or changing a component switch statement unless it introduces a genuinely new field control or specialized workflow experience.
+The same resolved schema drives create, detail, and edit forms. It also supplies eligible custom columns, filters, search fields, board-card slots, exports, and future API validation. A newly published record type must therefore be usable without adding a new Vue page or changing a component switch statement unless it introduces a genuinely new field control or specialized workflow experience. HTTP access uses `createRecordAdapter(typeCode)` → `/api/v2/records/{typeCode}` ([`prompt/backend/07-dynamic-record-collections.md`](../backend/07-dynamic-record-collections.md)).
 
 ## Terminology and ownership
 
@@ -24,13 +24,14 @@ Do not call a catalog attribute an “attitude.” Use **attribute** or **custom
 
 ## System-wide rules
 
-1. Apply this system to every entity backed by the unified `record` model, including Meeting and Meeting Topic. Do not limit it to incoming/outgoing documents, documents, and master-list requests.
+1. Apply this system to every active record type from configuration, filtered by `uiSurface` for Meeting vs Document shells. Do not use a hardcoded entity-key allowlist or static per-type pages (`/meetings/history`, `/records/incoming-documents`, …); menus and routes come from `GET /records/_meta/surfaces` only. HTTP is always `/api/v2/records/{typeCode}` — never `/api/v2/meetings/*`.
 2. Keep a small protected set of core fields for identity and lifecycle, such as record ID, record type, title, owner/organization context, status, stage, created/updated metadata, and schema version. Catalog fields cannot replace or shadow their codes.
 3. Define a custom field once in the catalog and reuse it. Record types reference attributes by immutable ID and stable code.
 4. Put record-type-specific settings on the assignment: required/read-only overrides, visibility, section/tab, order, width, create/detail/list/filter/card flags, and optional permission restrictions.
 5. Use one resolved schema for add, detail, and edit. Mode and permission rules may change visibility or editability, but separate hardcoded forms must not drift apart.
 6. The backend remains authoritative for schema, permissions, validation, defaults, and allowed values. Client rules improve UX but never grant authority.
 7. Preserve unknown or temporarily hidden values when editing. Never erase a dynamic value merely because its field is not visible to the current user or its schema failed to load.
+8. Record HTTP adapters use `createRecordAdapter(typeCode)` against `/api/v2/records/{typeCode}`, not static per-type adapter keys.
 
 ## Attribute Catalog UX
 
@@ -224,6 +225,7 @@ Keep values typed:
 - multi-select/checkbox group: array of stable option values;
 - file/image: attachment/file reference IDs and metadata, never raw binary in Pinia;
 - record/organization/officer/user reference: stable IDs plus separately loaded display summaries.
+- Organization and officer select options resolve from `/api/v2/organizations/department|company/options` and `/api/v2/officers/options` (`valueField=id`). Canonical: [`../backend/08-dynamic-organization-collections.md`](../backend/08-dynamic-organization-collections.md).
 
 `AppDynamicFieldRenderer` is the only shared data-type-to-control switch. Unsupported field types render a clear non-destructive error state and telemetry event; they must not crash the entire document form.
 

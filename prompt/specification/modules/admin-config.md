@@ -59,9 +59,10 @@ The admin configuration module should own or primarily manage:
 - `record_type`
 - `record_attribute`
 - `record_template`
-- `document_type`
 - `setting`
 - `enum`
+
+Record categories are defined only via `record_type` (no separate `document_type` table).
 
 ## Key validations
 
@@ -80,7 +81,6 @@ The module should expose APIs for:
 - record attribute list and detail.
 - record attribute create and update.
 - record template mapping.
-- document type management.
 - setting list and update.
 - enum lookup and maintenance where enabled.
 

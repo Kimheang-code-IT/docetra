@@ -51,7 +51,7 @@ export function indexMeetingNotesForSearch(input: {
     title: input.title || 'Meeting',
     text: [input.title, body].filter(Boolean).join('\n'),
     url: `/meetings/history/${input.meetingId}`,
-    permission: 'meetings.history.view',
+    permission: 'records.meeting_history.view',
     updatedAt: nowIso(),
   })
 }

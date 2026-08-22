@@ -26,8 +26,6 @@
 - `ordering [int]`: ordering
 - `is_menu [smallint]`: 1 for item in navigation, 0 for action (create, edit, delete...)
 
-
-
 ## permission
 
 - `id [uuid]`: use as `primary key`
@@ -38,8 +36,6 @@
 - `role_id [uuid]`: the fkey, reference `role.id`
 - `code [character varying]`: for join `menu.code`
 - `is_enable [smallint]`: by default is `0`, while `0` for not allow and `1` is allow
-
-
 
 ## organization
 
@@ -55,7 +51,7 @@
 - `parent_id [uuid]`: for self-join on `id`
 - `sector_id [uuid]`: the fkey, reference `organization_sector.id`
 - `tax_id [character varying]`: for tax id, free text
-- `organization_type [character varying]`: it's enum, `[company, government]`
+- `organization_type [character varying]`: DB enum `[company, government]`. API exposes closed `orgType` `company` | `department` (`department` ↔ `government`). See `[prompt/backend/08-dynamic-organization-collections.md](../backend/08-dynamic-organization-collections.md)`.
 - `address [text]`: for address, free text
 - `contact_info [text]`: for contact info, free text
 - `email [character varying]`: for email
@@ -63,8 +59,6 @@
 - `organization_purpose_id [uuid]`: the fkey, reference `organization_purpose.id`
 - `logo_url [character varying]`: to store url
 - `child_ids [text]`: for store child id(s), store `organization.id` in text, separated by comma
-
-
 
 ## organization_sector
 
@@ -78,8 +72,6 @@
 - `description [text]`: info
 - `is_active [smallint]`: by default it's `0`, while `0` is inactive, `1` is active
 
-
-
 ## organization_purpose
 
 - `id [uuid]`: use as `primary key`
@@ -90,8 +82,6 @@
 - `nam [character varying]`: by default it's empty
 - `is_active [smallint]`: by default it's `0`, while `0` is inactive, `1` is active
 - `description [text]`: info
-
-
 
 ## officer
 
@@ -107,8 +97,6 @@
 - `auth_id [uuid]`: the fkey, reference `users.id`
 - `profile_url [character varying]`: to store url, default is a placeholder image
 
-
-
 ## record_type
 
 - `id [uuid]`: use as `primary key`
@@ -120,7 +108,22 @@
 - `description [text]`: info
 - `is_active [smallint]`: by default it's `0`, while `0` is inactive, `1` is active
 - `deletable [smallint]`: by default it's `1`, while `1` is deletable, `0` is not
+- `payload [jsonb]`: type UI/API metadata (see below)
 
+`payload` JSON fields (see also `prompt/backend/07-dynamic-record-collections.md`):
+
+Record categories are **`record_type` only**. There is no separate `document_type` or meeting table — meetings are `record` rows.
+
+
+| Field                    | Purpose                                                                                                                                        |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `uiSurface`              | UI shell: `meeting` → Meeting menu `/meetings/{typeCode}`; `document` → Record menu `/records/{typeCode}`; `system` → hidden from create menus |
+| `slug`                   | Route/menu slug segment for the type                                                                                                           |
+| `icon`                   | Icon token for menus (e.g. `i-lucide-calendar`)                                                                                                |
+| `menuOrder`              | Ordering among types in the same surface                                                                                                       |
+| `isCreatable`            | Whether users may create records of this type from menus                                                                                       |
+| `supportsStages`         | Whether stage board / stage transitions apply                                                                                                  |
+| `supportsTopicContainer` | Whether the type can act as a meeting-topic container                                                                                          |
 
 
 ## record_attribute
@@ -133,8 +136,6 @@
 - `code [character varying]`: it's `UNIQUE`
 - `data_type [character varying]`: the data type of the attribute
 
-
-
 ## record_template
 
 - `id [uuid]`: use as `primary key`
@@ -146,8 +147,6 @@
 - `record_attribute_id [uuid]`: the fkey, reference `record_attribute.id`
 - `ordering [bigint]`: ordering
 - `is_require [smallint]`: `1` for required, `0` for optional
-
-
 
 ## record
 
@@ -169,8 +168,6 @@
 - `record_additional_info [text]`: additional info
 - `record_flow_code [character varying]`: by default it's `normal`
 
-
-
 ## record_attachment
 
 - `id [uuid]`: use as `primary key`
@@ -180,8 +177,6 @@
 - `updated_by [uuid]`: the fkey, reference `officer.id`
 - `record_id [uuid]`: the fkey, reference `record.id`
 - `reference_id [uuid]`: the fkey, reference `record.id`, for referencing another record
-
-
 
 ## record_detail
 
@@ -199,8 +194,6 @@
 - `value_json [jsonb]`: for json values
 - `value_id [uuid]`: for reference id values
 
-
-
 ## file
 
 - `id [uuid]`: use as `primary key`
@@ -217,9 +210,9 @@
 - `source_table [character varying]`: the source table reference
 - `status [character varying]`: by default it's `active`, enum `[active, trash]`
 
-
-
 ## record_organization
+
+Links a record to one or more organizations (ownership, participation, visibility). Synced from known record detail fields (`officeInCharge`, `internalUnits`, `externalUnits`, …) on create/update. Prefer UUID organization ids in details.
 
 - `id [uuid]`: use as `primary key`
 - `created_at [timestamp with time zone]`: by default is `now()`
@@ -229,8 +222,6 @@
 - `record_id [uuid]`: the fkey, reference `record.id`
 - `organization_id [uuid]`: the fkey, reference `organization.id`
 - `role_type [character varying]`: the role type of the organization in the record, enum `[owner, contributor, reviewer, participant, observer, cc]`
-
-
 
 ## record_stage_template
 
@@ -243,8 +234,6 @@
 - `ordering [bigint]`: ordering
 - `nam [character varying]`: the stage name
 - `is_final [smallint]`: by default it's `0`, while `0` is not final, `1` is final stage
-
-
 
 ## audit_log
 
@@ -260,8 +249,6 @@
 - `source_log [character varying]`: by default it's `unknown`
 - `raw_text [text]`: raw text
 - `message [text]`: message
-
-
 
 ## setting
 
@@ -279,8 +266,6 @@
 - `ordering [integer]`: by default is `0`
 - `key_value [character varying]`: the setting value
 
-
-
 ## notification_audit_log
 
 - `id [bigint]`: use as `primary key`, `GENERATED ALWAYS AS IDENTITY`
@@ -288,8 +273,6 @@
 - `log_id [bigint]`: reference to audit_log
 - `payload [jsonb]`: notification payload
 - `proccessed [boolean]`: by default is `false`
-
-
 
 ## users (need to change)
 
@@ -310,8 +293,6 @@
 - `updated_by [uuid]`: the fkey, reference `officer.id`
 - `phone_confirmed_at [timestamp with time zone]`: phone confirmation timestamp
 
-
-
 ## enum
 
 - `id [bigint]`: use as `primary key`, auto-number
@@ -322,22 +303,6 @@
 - `code [text]`: it's `UNIQUE`
 - `value [text]`: the enum value
 - `description [text]`: info
-
-
-
-## document_type
-
-- `id [uuid]`: use as `primary key`
-- `created_at [timestamp with time zone]`: by default is `now()`
-- `updated_at [timestamp with time zone]`: by default is `now()`
-- `created_by [uuid]`: the fkey, reference `officer.id`
-- `updated_by [uuid]`: the fkey, reference `officer.id`
-- `nam [character varying]`: it's `UNIQUE`
-- `description [text]`: info
-- `is_active [smallint]`: by default it's `0`, while `0` is inactive, `1` is active
-- `color_code [character varying]`: the color code for display
-
-
 
 ## officer_identifier
 

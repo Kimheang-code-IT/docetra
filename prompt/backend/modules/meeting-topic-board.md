@@ -1,6 +1,7 @@
 # Meeting Topic Board — Backend Logic
 
-> **UI scope:** One primary operational screen — **Meeting → Topic** (`/meetings/topics`), 1+3 split board (`AppMeetingTopicBoard`).  
+> **Dynamic collections:** All CRUD and board ops use `/api/v2/records/{typeCode}` (board helpers under `meeting_history`). See [`../07-dynamic-record-collections.md`](../07-dynamic-record-collections.md).
+> **UI scope:** Meeting shell routes from `uiSurface=meeting` (`/meetings/{slug}`); topic container type uses `AppMeetingTopicBoard`.
 > **Record model:** `meeting-topic` and `meeting` are **record types** in the unified record module, not separate product domains.  
 > **References:** `prompt/specification/modules/record.md` (meeting / meeting-topic), `prompt/frontend/00-product-ui-design-map.md` (split boards), `frontend/app/composables/meeting/useMeetingTopicBoard.ts` (current client contract).
 
@@ -20,7 +21,7 @@ The Topic page is the **folder + card** workspace for meetings:
 - **Notes** (rich text + attachments) belong to the meeting record; users may attach **Google Drive** files already synced in Portal (async pick, not re-upload).
 - **Card visible fields** follow **App Config → Display → card fields** (`meetingHistory` / `meetingTopics` keys); API responses should include all fields needed for configured slots.
 
-Meeting **History** (`/meetings/history`) may remain a table/archive route; **operational meeting work** on the Topic board is authoritative for assignment, order, notes, and imminent display.
+Meeting **History** (`/records/meeting_history`) may remain a table/archive route; **operational meeting work** on the Topic board is authoritative for assignment, order, notes, and imminent display.
 
 ---
 
@@ -86,7 +87,7 @@ The client uses three meeting pools (query params on list endpoint):
 
 Topic list endpoint: paginated topics, optional search on title/owner; **no date filter on topic list** for this screen.
 
-Meeting list endpoint: must support `topicId`, `unassignedOnly`, `startDate`, `endDate`, `q`, `limit`, `sort`. Path is `GET /api/v2/meetings/history` (never `/meetings`).
+Meeting list endpoint: must support `topicId`, `unassignedOnly`, `startDate`, `endDate`, `q`, `limit`, `sort`. Path is `GET /api/v2/records/meeting_history` (never `/meetings`).
 
 ---
 
@@ -94,7 +95,7 @@ Meeting list endpoint: must support `topicId`, `unassignedOnly`, `startDate`, `e
 
 ### 4.1 Assign meeting to topic (drag-drop or menu)
 
-**Operation:** `PATCH /api/v2/meetings/history/{id}` or `POST /api/v2/meetings/history/{id}/assign-topic`
+**Operation:** `PATCH /api/v2/records/meeting_history/{id}` or `POST /api/v2/records/meeting_history/{id}/assign-topic`
 
 Body:
 
@@ -116,7 +117,7 @@ Rules:
 
 ### 4.2 Reorder within topic
 
-**Operation:** `POST /api/v2/meetings/reorder` (batch) or multiple PATCHes in a transaction
+**Operation:** `POST /api/v2/records/meeting_history/reorder` (batch) or multiple PATCHes in a transaction
 
 Body:
 
@@ -225,7 +226,7 @@ Optional: WebSocket or SSE `meeting.imminent` for desktop notifications (out of 
 
 Standard record attachments via storage module:
 
-- `GET /api/v2/meetings/history/{id}/attachments`
+- `GET /api/v2/records/meeting_history/{id}/attachments`
 - `PUT` or `POST` replace/upload (multipart or signed URL flow)
 
 Metadata: `AttachmentMeta` (id, name, mime, size, url, source).
@@ -237,7 +238,7 @@ User selects files **already imported** via Google Drive Sync (Portal), not re-u
 Backend:
 
 1. **Catalog endpoint:** `GET /api/v2/portal/drive-files?search=&page=` (permission: portal + meeting edit).
-2. **Link to meeting:** `POST /api/v2/meetings/history/{id}/attachments/link`
+2. **Link to meeting:** `POST /api/v2/records/meeting_history/{id}/attachments/link`
 
 ```json
 {
@@ -286,15 +287,15 @@ Under `/api/v2`. Do **not** publish `/meeting-topics` or `/meetings` as public a
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| GET | `/meetings/topics` | Topic rail list |
+| GET | `/records/meeting_topic` | Topic rail list |
 | GET | `/meetings/topics/{id}` | Topic detail document |
-| POST | `/meetings/topics` | Create topic |
+| POST | `/records/meeting_topic` | Create topic |
 | PATCH | `/meetings/topics/{id}` | Update topic |
-| GET | `/meetings/history` | Board pools (filters §3) |
+| GET | `/records/meeting_history` | Board pools (filters §3) |
 | GET | `/meetings/history/{id}` | Meeting detail + notes fields |
-| POST | `/meetings/history` | Create (optional topicId, recurrence) |
+| POST | `/records/meeting_history` | Create (optional topicId, recurrence) |
 | PATCH | `/meetings/history/{id}` | Update fields, topic, URL, notes |
-| POST | `/meetings/reorder` | Batch order within topic |
+| POST | `/records/meeting_history/reorder` | Batch order within topic |
 | POST | `/meetings/history/{id}/assign-topic` | Shortcut assign/unassign |
 | GET | `/meetings/history/{id}/attachments` | List attachments |
 | POST | `/meetings/history/{id}/attachments` | Upload |
@@ -315,13 +316,13 @@ Generic `/records?type=meeting` is an internal implementation option only. Publi
 
 | Code | Use |
 | --- | --- |
-| `meetings.topics.view` | Topic rail |
-| `meetings.topics.edit` | Create/update topic |
+| `records.meeting_topic.view` | Topic rail |
+| `records.meeting_topic.edit` | Create/update topic |
 | `meetings.view` | List/read meetings on board |
 | `meetings.edit` | Update meeting, notes, URL |
 | `meetings.assign_topic` | Drag-drop assign/reorder |
 | `meetings.notes.edit` | Save notes + attachments |
-| `meetings.topics.delete` / `meetings.delete` | Delete from the card `⋯` menu |
+| `records.meeting_topic.delete` / `meetings.delete` | Delete from the card `⋯` menu |
 | `portal.drive_files.view` | Pick Drive files for notes |
 
 Enforce on every mutating route; frontend hides actions but backend is source of truth.
@@ -401,13 +402,13 @@ When `NUXT_PUBLIC_USE_MOCK_DATA=false`, the UI calls the same paths as mock mode
 
 | Operation | Method | Path |
 | --- | --- | --- |
-| List topics | GET | `/api/v2/meetings/topics` |
-| List meetings | GET | `/api/v2/meetings/history` |
-| Assign topic | POST | `/api/v2/meetings/history/{id}/assign-topic` |
-| Reorder | POST | `/api/v2/meetings/reorder` |
+| List topics | GET | `/api/v2/records/meeting_topic` |
+| List meetings | GET | `/api/v2/records/meeting_history` |
+| Assign topic | POST | `/api/v2/records/meeting_history/{id}/assign-topic` |
+| Reorder | POST | `/api/v2/records/meeting_history/reorder` |
 | Drive catalog | GET | `/api/v2/portal/drive-files` |
-| Link Drive file | POST | `/api/v2/meetings/history/{id}/attachments/link` |
-| Attachments | GET/POST | `/api/v2/meetings/history/{id}/attachments` |
+| Link Drive file | POST | `/api/v2/records/meeting_history/{id}/attachments/link` |
+| Attachments | GET/POST | `/api/v2/records/meeting_history/{id}/attachments` |
 
 List/detail meeting payloads should include optional server fields: `imminent`, `minutesUntilStart`, `inProgress` (see `MeetingBoardTiming`). If omitted, the client computes timing from `meetingDate` + `durationMinutes`.
 
@@ -415,4 +416,4 @@ List/detail meeting payloads should include optional server fields: `imminent`, 
 
 **Mock → HTTP:** `NUXT_PUBLIC_USE_MOCK_DATA=false`. Date filters use `startDate`/`endDate` ([`07-datetime-and-list-query.md`](../07-datetime-and-list-query.md)).
 
-**Backend files (later):** `app/api/v2/meetings.py`, `app/modules/meetings/`, `app/scheduler_jobs/`.
+**Backend files (later):** `app/api/v2/endpoints/dynamic_records.py`, `app/modules/meetings/`, `app/scheduler_jobs/`.

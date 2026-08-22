@@ -9,7 +9,10 @@ type ConnectionResult = { status: ConnectionStatus; message: string }
 export function createHttpAppInfoRepository(): AppInfoRepository {
   const api = useApi()
   return {
-    get: async () => unwrapApiData(await api.get<AppInfo | ApiResponse<AppInfo>>(ApiEndpoints.APP_INFO)),
+    get: async () => unwrapApiData(await api.get<AppInfo | ApiResponse<AppInfo>>(ApiEndpoints.APP_INFO, {
+      suppressErrorToast: true,
+      suppressAccessAlert: true,
+    })),
     update: async input => unwrapApiData(await api.patch<AppInfo | ApiResponse<AppInfo>>(ApiEndpoints.APP_INFO, input)),
     reset: async () => unwrapApiData(await api.post<AppInfo | ApiResponse<AppInfo>>(ApiEndpoints.APP_INFO_RESET, {})),
   }
@@ -21,7 +24,10 @@ export function createHttpAppConfigRepository(): AppConfigRepository {
     unwrapApiData(await api.post<ConnectionResult | ApiResponse<ConnectionResult>>(endpoint, body))
 
   return {
-    get: async () => unwrapApiData(await api.get<AppConfig | ApiResponse<AppConfig>>(ApiEndpoints.APP_CONFIG)),
+    get: async () => unwrapApiData(await api.get<AppConfig | ApiResponse<AppConfig>>(ApiEndpoints.APP_CONFIG, {
+      suppressErrorToast: true,
+      suppressAccessAlert: true,
+    })),
     update: async input => unwrapApiData(await api.patch<AppConfig | ApiResponse<AppConfig>>(ApiEndpoints.APP_CONFIG, input)),
     testEmailConnection: () => postResult(ApiEndpoints.APP_CONFIG_TEST_EMAIL),
     sendTestEmail: to => postResult(ApiEndpoints.APP_CONFIG_SEND_TEST_EMAIL, { to }),

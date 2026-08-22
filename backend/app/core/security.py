@@ -71,11 +71,12 @@ async def revoke_user_tokens(user_id: str) -> None:
     await redis.delete(f"user-tokens:{user_id}")
 
 
-async def issue_session(response: Response, user: User) -> str:
-    access, access_jti, _ = encode_token(subject=str(user.id), token_type="access", minutes=settings.jwt_access_minutes)
+async def issue_session(response: Response, user: User, *, access_minutes: int | None = None) -> str:
+    minutes = access_minutes if access_minutes is not None else settings.jwt_access_minutes
+    access, access_jti, _ = encode_token(subject=str(user.id), token_type="access", minutes=minutes)
     refresh, refresh_jti, _ = encode_token(subject=str(user.id), token_type="refresh", days=settings.jwt_refresh_days)
     csrf = secrets.token_urlsafe(24)
-    access_ttl = settings.jwt_access_minutes * 60
+    access_ttl = minutes * 60
     refresh_ttl = settings.jwt_refresh_days * 86400
     await _store_token(access_jti, str(user.id), csrf, access_ttl, "access")
     await _store_token(refresh_jti, str(user.id), csrf, refresh_ttl, "refresh")
@@ -83,9 +84,6 @@ async def issue_session(response: Response, user: User) -> str:
     response.set_cookie(settings.refresh_cookie_name, refresh, **_cookie_kwargs(httponly=True, max_age=refresh_ttl))
     response.set_cookie(settings.csrf_cookie_name, csrf, **_cookie_kwargs(httponly=False, max_age=access_ttl))
     return access_jti
-
-
-create_session = issue_session
 
 
 async def delete_session(response: Response, access_token: str | None, refresh_token: str | None = None) -> None:
@@ -143,7 +141,11 @@ async def refresh_session(request: Request, response: Response, db: AsyncSession
         raise HTTPException(401, {"code": "token_expired", "message": "Session expired"})
     user, payload, _session = await _user_from_token(db, refresh, token_type="refresh", verify_exp=True)
     await _revoke_jti(str(payload.get("jti") or ""), str(user.id))
-    await issue_session(response, user)
+    import app.modules.admin_config.services.runtime as runtime
+
+    config = await runtime.load_app_config(db)
+    policy = runtime.security_policy(config)
+    await issue_session(response, user, access_minutes=policy["sessionTimeoutMinutes"])
     return user
 
 
@@ -185,7 +187,3 @@ def public_user(user: User):
         "permissions": user.permissions or [],
         "pageAccess": ["ALL_PAGES"] if user.role in {"SuperAdmin", "Admin"} else [],
     }
-
-
-current_user = current_user
-public_user = public_user

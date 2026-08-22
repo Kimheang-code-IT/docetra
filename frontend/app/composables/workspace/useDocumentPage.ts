@@ -1,5 +1,5 @@
 import type { EntityConfig } from '~/config/entities'
-import { getEntityAdapter } from '~/config/entities'
+import { getAdapterForConfig, getEntityAdapter } from '~/config/entities'
 import { useConfirm } from '~/composables/common/useConfirm'
 import type { ActivityEvent, AttachmentMeta, DocumentTabSchema, EntityComment } from '~/types/docetra/common'
 import type { AppRolePermissionRow } from '~/types/docetra/entities'
@@ -19,7 +19,7 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
   const { t, te } = useI18n()
   const toast = useToast()
   const { confirm } = useConfirm()
-  const adapter = getEntityAdapter(config.key)
+  const adapter = getAdapterForConfig(config)
 
   const id = computed(() => idParam || String(route.params.id || ''))
   const isCreate = computed(() => !id.value || id.value === 'new' || route.path.endsWith('/new'))
@@ -178,7 +178,7 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
           stage: config.stages?.[0]?.code || undefined,
           details: {},
           tags: [],
-          ...(['departments', 'companies', 'companyPurposes', 'companySectors', 'officers'].includes(config.key) ? { status: 'active', isActive: true } : {}),
+          ...(['departments', 'companies', 'purposes', 'sectors', 'officers'].includes(config.key) ? { status: 'active', isActive: true } : {}),
           ...(recordKind
             ? {
                 recordKind,
@@ -233,7 +233,7 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
       if (!model.value.details || typeof model.value.details !== 'object') {
         model.value.details = {}
       }
-      if (['departments', 'companies', 'companyPurposes', 'companySectors', 'officers'].includes(config.key) && typeof model.value.isActive !== 'boolean') {
+      if (['departments', 'companies', 'purposes', 'sectors', 'officers'].includes(config.key) && typeof model.value.isActive !== 'boolean') {
         model.value.isActive = model.value.status !== 'disabled'
       }
       if (config.key === 'officers' && typeof model.value.authenticationEnabled !== 'boolean') {
@@ -316,7 +316,7 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
       if (typeof payload.attachmentCount !== 'number') payload.attachmentCount = attachments.value.length
       if (typeof payload.commentCount !== 'number') payload.commentCount = 0
     }
-    if (['departments', 'companies', 'companyPurposes', 'companySectors', 'officers'].includes(config.key)) {
+    if (['departments', 'companies', 'purposes', 'sectors', 'officers'].includes(config.key)) {
       payload.isActive = payload.isActive !== false
       payload.status = payload.isActive ? 'active' : 'disabled'
     }
@@ -386,8 +386,8 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
       toast.add({ title: t('docetra.department.cannotBeOwnAncestor'), color: 'error' })
       return
     }
-    if (config.key === 'companySectors' && !isCreate.value && model.value.parentId === id.value) {
-      toast.add({ title: t('docetra.companySector.cannotBeOwnParent'), color: 'error' })
+    if (config.key === 'sectors' && !isCreate.value && model.value.parentId === id.value) {
+      toast.add({ title: t('docetra.sector.cannotBeOwnParent'), color: 'error' })
       return
     }
     saving.value = true
@@ -421,14 +421,14 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
       }
       if (config.key === 'companies') {
         const [sectorOptions, purposeOptions] = await Promise.all([
-          loadReferenceOptions(`${ApiEndpoints.COMPANY_SECTORS}/options`),
-          loadReferenceOptions(`${ApiEndpoints.COMPANY_PURPOSES}/options`),
+          loadReferenceOptions(`${ApiEndpoints.SECTOR}/options`),
+          loadReferenceOptions(`${ApiEndpoints.PURPOSE}/options`),
         ])
         payload.sectorName = sectorOptions.find(option => option.value === String(payload.sectorId || ''))?.label || ''
         payload.purposeName = purposeOptions.find(option => option.value === String(payload.purposeId || ''))?.label || ''
       }
-      if (config.key === 'companySectors') {
-        const sectorOptions = await loadReferenceOptions(`${ApiEndpoints.COMPANY_SECTORS}/options`)
+      if (config.key === 'sectors') {
+        const sectorOptions = await loadReferenceOptions(`${ApiEndpoints.SECTOR}/options`)
         payload.parentName = sectorOptions.find(option => option.value === String(payload.parentId || ''))?.label || ''
       }
       if (config.key === 'officers') {

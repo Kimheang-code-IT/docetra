@@ -6,12 +6,14 @@ import type { ApiResponse, AttachmentMeta } from '~/types/docetra/common'
 import { useAuthStore } from '~/stores/auth'
 import { createClientId } from '~/utils/client-id'
 import { csrfRequestHeaders } from '~/utils/security/csrf'
+import { useAppRuntimeConfig } from '~/composables/settings/useAppRuntimeConfig'
+import { fileMatchesAllowedTypes } from '~/utils/security/files'
 
 import '~/assets/css/uppy.css'
 
 const props = withDefaults(defineProps<{
   entityId: string
-  endpoint?: string
+  endpoint: string
   height?: number
   /** Fill parent height (ResizeObserver). Overrides fixed height when true. */
   fill?: boolean
@@ -23,9 +25,7 @@ const props = withDefaults(defineProps<{
 }>(), {
   height: 280,
   fill: false,
-  maxFileSizeMb: 200,
   maxNumberOfFiles: 25,
-  allowedFileTypes: () => [...DEFAULT_UPLOAD_TYPES],
 })
 
 const emit = defineEmits<{
@@ -36,12 +36,16 @@ const { t } = useI18n()
 const config = useRuntimeConfig()
 const authStore = useAuthStore()
 const api = useApi()
+const { maxUploadSizeMb, allowedUploadTypes } = useAppRuntimeConfig()
 const uppy = shallowRef<Uppy<any, any> | null>(null)
 const bootError = ref<string | null>(null)
 const booted = ref(false)
 const fallbackInput = ref<HTMLInputElement | null>(null)
 const hostEl = ref<HTMLElement | null>(null)
 const measuredHeight = ref(props.height)
+
+const effectiveMaxFileSizeMb = computed(() => props.maxFileSizeMb ?? maxUploadSizeMb.value)
+const effectiveAllowedFileTypes = computed(() => props.allowedFileTypes ?? allowedUploadTypes.value)
 
 const effectiveHeight = computed(() =>
   props.fill ? Math.max(measuredHeight.value, 200) : props.height,
@@ -74,17 +78,17 @@ useResizeObserver(hostEl, (entries) => {
   measuredHeight.value = Math.floor(entry.contentRect.height)
 })
 
-const uploadPath = computed(() => props.endpoint || ApiEndpoints.ATTACHMENTS('entities', props.entityId))
+const uploadPath = computed(() => props.endpoint)
 
 const uploadUrl = computed(() => {
   return sameOriginApiUrl(uploadPath.value, String(config.public.apiBase))
 })
 
-const inputAccept = computed(() => props.allowedFileTypes.join(','))
+const inputAccept = computed(() => effectiveAllowedFileTypes.value.join(','))
 
 function validFile(file: File): boolean {
-  return file.size <= props.maxFileSizeMb * 1024 * 1024
-    && fileMatchesAllowedTypes(file, props.allowedFileTypes)
+  return file.size <= effectiveMaxFileSizeMb.value * 1024 * 1024
+    && fileMatchesAllowedTypes(file, effectiveAllowedFileTypes.value)
 }
 
 function attachmentFromResponse(body: unknown): AttachmentMeta | null {
@@ -123,8 +127,8 @@ onMounted(() => {
       autoProceed: false,
       restrictions: {
         maxNumberOfFiles: props.maxNumberOfFiles,
-        maxFileSize: props.maxFileSizeMb * 1024 * 1024,
-        allowedFileTypes: props.allowedFileTypes,
+        maxFileSize: effectiveMaxFileSizeMb.value * 1024 * 1024,
+        allowedFileTypes: effectiveAllowedFileTypes.value,
       },
     })
 

@@ -147,11 +147,10 @@ Typical responsibilities:
 ### setting
 Stores configurable application settings.
 
-### document_type
-Stores document type definitions.
-
 ### enum
 Stores configurable enum-style values where required by the product.
+
+Record categories are **`record_type` only**. There is no separate `document_type` table.
 
 ## Audit and history tables
 

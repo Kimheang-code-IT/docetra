@@ -2,20 +2,27 @@ import { useAccessAlert } from '~/composables/common/useAccessAlert'
 
 const PERMITTED_LANDING_ROUTES = [
   ['/', 'dashboard.view'],
-  ['/meetings/topics', 'meetings.topics.view'],
-  ['/meetings/history', 'meetings.history.view'],
+  ['/meetings/topics', 'records.meeting_topic.view'],
+  ['/meetings/history', 'records.meeting_history.view'],
   ['/records/incoming-documents', 'records.incoming_documents.view'],
   ['/records/outgoing-documents', 'records.outgoing_documents.view'],
   ['/records/documents', 'records.documents.view'],
   ['/records/master-list-requests', 'records.master_list_requests.view'],
   ['/organizations/departments', 'organizations.departments.view'],
   ['/organizations/companies', 'organizations.companies.view'],
+  ['/purpose', 'organizations.purposes.view'],
+  ['/sector', 'organizations.sectors.view'],
+  ['/officers', 'organizations.officers.view'],
   ['/portal/file-upload', 'portal.file_upload.view'],
   ['/user-management/users', 'users.users.view'],
   ['/user-management/roles', 'users.roles.view'],
 ] as const
 
 export default defineNuxtRouteMiddleware((to, from) => {
+  // HttpOnly session cookies are validated in the client plugin (`/auth/me`).
+  // Skipping SSR avoids bouncing to login before the browser can send cookies.
+  if (import.meta.server) return
+
   const auth = useAuthStore()
   const { showPermissionDenied } = useAccessAlert()
 

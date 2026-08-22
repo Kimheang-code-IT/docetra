@@ -48,13 +48,15 @@ Do not add one-off page scaffolds. Extend the shared workspace, document, or mee
 The UI always calls FastAPI. There is no in-browser mock dataset.
 
 ```env
-NUXT_PUBLIC_USE_MOCK_DATA=false
+NUXT_PUBLIC_API_BASE=
+NUXT_API_PROXY_TARGET=http://127.0.0.1:8000
 NUXT_PUBLIC_AUTH_MODE=cookie
-NUXT_PUBLIC_API_BASE=http://localhost:8000
 ```
 
+Empty `NUXT_PUBLIC_API_BASE` means the browser calls same-origin `/api/v2` (Nuxt proxies to FastAPI). Set a full origin only when the API is on a different host.
+
 1. Start the backend: `docker compose --env-file backend.env -f compose.backend.yml up --build -d`
-2. Start Nuxt: `pnpm dev` (port 3000; CORS already allows this origin)
+2. Start Nuxt: `pnpm dev` (port 3000; `/api/v2` is proxied to `:8000`)
 3. Sign in with `admin@gmail.com` / `123456` (HttpOnly JWT cookies; no token in JSON)
 
 Lists use bounded server pagination. Adapters/repositories are the only `$fetch` boundary. Uploads go to `/api/v2/portal/file-uploads` with cookies + CSRF.

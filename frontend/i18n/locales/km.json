@@ -27,8 +27,8 @@
       "recordLog": "កំណត់ហេតុ",
       "department": "នាយកដ្ឋាន",
       "company": "ក្រុមហ៊ុន",
-      "companyPurpose": "គោលបំណងក្រុមហ៊ុន",
-      "companySector": "វិស័យក្រុមហ៊ុន",
+      "purpose": "គោលបំណង",
+      "sector": "វិស័យ",
       "officer": "មន្ត្រី",
       "role": "តួនាទី",
       "user": "អ្នកប្រើប្រាស់",
@@ -53,8 +53,8 @@
       "recordLog": "ប្រវត្តិផ្លាស់ប្តូរកំណត់ត្រាដែលមិនអាចកែបាន។",
       "department": "នាយកដ្ឋាន និងរចនាសម្ព័ន្ធឋានានុក្រម។",
       "company": "ក្រុមហ៊ុនខាងក្រៅ និងដៃគូ។",
-      "companyPurpose": "បញ្ជីគោលបំណងក្រុមហ៊ុន។",
-      "companySector": "បញ្ជីវិស័យក្រុមហ៊ុន។",
+      "purpose": "បញ្ជីគោលបំណងអង្គភាព។",
+      "sector": "បញ្ជីវិស័យអង្គភាព។",
       "officer": "មន្ត្រីភ្ជាប់ជាមួយនាយកដ្ឋាន និងអ្នកប្រើ។",
       "role": "តួនាទីសុវត្ថិភាព និងសិទ្ធិ។",
       "user": "គណនីអ្នកប្រើប្រាស់។",
@@ -69,8 +69,8 @@
       "cannotBeOwnAncestor": "នាយកដ្ឋានមិនអាចជាអង្គភាពមេរបស់ខ្លួនឯងបានទេ។",
       "cannotBeDescendant": "នាយកដ្ឋានមិនអាចប្រើខ្លួនឯង ឬអង្គភាពកូនរបស់ខ្លួនជាអង្គភាពមេបានទេ។"
     },
-    "companySector": {
-      "cannotBeOwnParent": "វិស័យក្រុមហ៊ុនមិនអាចជាមេរបស់ខ្លួនឯងបានទេ។"
+    "sector": {
+      "cannotBeOwnParent": "វិស័យមិនអាចជាមេរបស់ខ្លួនឯងបានទេ។"
     },
     "authentication": {
       "enabled": "បានបើក",
@@ -485,9 +485,12 @@
       "emailChannel": "ការជូនដំណឹងអ៊ីមែល",
       "telegramChannel": "ការជូនដំណឹង តេលេក្រាម",
       "deliveryRetries": "ការព្យាយាមផ្ញើឡើងវិញ",
+      "meetingReminderOffsets": "ការរំលឹកប្រជុំ (នាទី)",
+      "meetingReminderOffsetsHelp": "បញ្ចូលនាទីមុនពេលប្រជុំ ដោយបំបែកតាមសញ្ញាក្បៀស (ឧ. 1440, 60, 15)។",
+      "meetingRecurrenceHorizon": "រយៈពេលធ្វើម្តងទៀតនៃប្រជុំ (ថ្ងៃ)",
       "eventRules": "ច្បាប់ព្រឹត្តិការណ៍",
       "securityDisclaimer": "ការកំណត់ frontend តែប៉ុណ្ណោះ",
-      "securityDisclaimerHelp": "ការកំណត់សុវត្ថិភាពមិនត្រូវបានអនុវត្តដោយគ្មាន backend។",
+      "securityDisclaimerHelp": "ការកំណត់សុវត្ថិភាពត្រូវបានអនុវត្តដោយ API នៅពេលចូល និងចេញសម័យ។",
       "sessionTimeout": "អស់ពេលសម័យ (នាទី)",
       "maxLoginAttempts": "ចំនួនព្យាយាមចូលអតិបរមា",
       "accountLockMinutes": "រយៈពេលចាក់សោ (នាទី)",

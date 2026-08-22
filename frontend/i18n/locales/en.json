@@ -27,8 +27,8 @@
       "recordLog": "Logs",
       "department": "Department",
       "company": "Company",
-      "companyPurpose": "Company Purpose",
-      "companySector": "Company Sector",
+      "purpose": "Purpose",
+      "sector": "Sector",
       "officer": "Officer",
       "role": "Role",
       "user": "User",
@@ -53,8 +53,8 @@
       "recordLog": "Immutable history of record changes.",
       "department": "Organization departments and hierarchy.",
       "company": "External and partner companies.",
-      "companyPurpose": "Reference list of company purposes.",
-      "companySector": "Reference list of company sectors.",
+      "purpose": "Reference list of organization purposes.",
+      "sector": "Reference list of organization sectors.",
       "officer": "Officers mapped to departments and users.",
       "role": "Security roles and permission sets.",
       "user": "Application user accounts.",
@@ -69,8 +69,8 @@
       "cannotBeOwnAncestor": "A department cannot be its own ancestor.",
       "cannotBeDescendant": "A department cannot use itself or one of its descendants as its ancestor."
     },
-    "companySector": {
-      "cannotBeOwnParent": "A company sector cannot be its own parent."
+    "sector": {
+      "cannotBeOwnParent": "A sector cannot be its own parent."
     },
     "authentication": {
       "enabled": "Enabled",
@@ -594,9 +594,12 @@
       "emailChannel": "Email notifications",
       "telegramChannel": "Telegram notifications",
       "deliveryRetries": "Delivery retries",
+      "meetingReminderOffsets": "Meeting reminder offsets (minutes)",
+      "meetingReminderOffsetsHelp": "Comma-separated minutes before meeting start (e.g. 1440, 60, 15).",
+      "meetingRecurrenceHorizon": "Meeting recurrence horizon (days)",
       "eventRules": "Event rules",
       "securityDisclaimer": "Frontend configuration only",
-      "securityDisclaimerHelp": "These security settings are not enforced without a backend.",
+      "securityDisclaimerHelp": "These security settings are enforced by the API at login, lockout, and session issue.",
       "sessionTimeout": "Session timeout (minutes)",
       "maxLoginAttempts": "Maximum login attempts",
       "accountLockMinutes": "Account lock duration (minutes)",

@@ -1,4 +1,5 @@
 import type { NavigationMenuItem } from '@nuxt/ui'
+import { useRecordSurfaces } from '~/composables/record/useRecordSurfaces'
 
 const SIDEBAR_COLLAPSED_KEY = 'docetra:sidebar:collapsed'
 const SIDEBAR_AUTO_MQ = '(max-width: 1023px)'
@@ -10,6 +11,7 @@ export function useMenu() {
   const manualCollapsed = useState<boolean | null>('sidebar-collapsed-manual', () => null)
   const { t } = useI18n()
   const auth = useAuthStore()
+  const { meetingTypes, documentTypes, load: loadSurfaces } = useRecordSurfaces()
 
   const isNarrow = useMediaQuery(SIDEBAR_AUTO_MQ)
   const hydrated = useState('sidebar-collapsed-hydrated', () => false)
@@ -46,6 +48,7 @@ export function useMenu() {
       applyAutoCollapse(isNarrow.value)
     }
     watch(isNarrow, (narrow) => applyAutoCollapse(narrow))
+    void loadSurfaces()
   }
 
   const pageLink = (label: string, to: string): NavigationMenuItem => ({
@@ -72,17 +75,21 @@ export function useMenu() {
 
   const routePermissions: Record<string, string> = {
     '/': 'dashboard.view',
-    '/meetings/topics': 'meetings.topics.view',
-    '/meetings/history': 'meetings.history.view',
+    '/meetings/topics': 'records.meeting_topic.view',
+    '/meetings/history': 'records.meeting_history.view',
     '/records/incoming-documents': 'records.incoming_documents.view',
     '/records/outgoing-documents': 'records.outgoing_documents.view',
     '/records/documents': 'records.documents.view',
     '/records/master-list-requests': 'records.master_list_requests.view',
+    '/records/logs': 'records.logs.view',
     '/records/record-logs': 'records.logs.view',
     '/organizations/departments': 'organizations.departments.view',
     '/organizations/companies': 'organizations.companies.view',
-    '/organizations/company-purposes': 'organizations.company_purposes.view',
-    '/organizations/company-sectors': 'organizations.company_sectors.view',
+    '/purpose': 'organizations.purposes.view',
+    '/sector': 'organizations.sectors.view',
+    '/officers': 'organizations.officers.view',
+    '/organizations/purposes': 'organizations.purposes.view',
+    '/organizations/sectors': 'organizations.sectors.view',
     '/organizations/officers': 'organizations.officers.view',
     '/portal/file-upload': 'portal.file_upload.view',
     '/portal/google-drive-sync': 'portal.google_drive_sync.view',
@@ -96,10 +103,32 @@ export function useMenu() {
     '/settings/storage': 'settings.storage.view',
   }
 
+  function permissionForRoute(to: string): string | undefined {
+    if (routePermissions[to]) return routePermissions[to]
+    // Dynamic type routes: /meetings/{slug} or /records/{slug}
+    const meeting = meetingTypes.value.find(t => t.routeBase === to)
+    if (meeting) {
+      if (meeting.code === 'meeting_topic') return 'records.meeting_topic.view'
+      if (meeting.code === 'meeting_history') return 'records.meeting_history.view'
+      return `records.${meeting.code}.view`
+    }
+    const document = documentTypes.value.find(t => t.routeBase === to)
+    if (document) {
+      const legacy: Record<string, string> = {
+        incoming_document: 'records.incoming_documents.view',
+        outgoing_document: 'records.outgoing_documents.view',
+        document: 'records.documents.view',
+        master_list_request: 'records.master_list_requests.view',
+      }
+      return legacy[document.code] || `records.${document.code}.view`
+    }
+    return undefined
+  }
+
   function permittedItem(item: NavigationMenuItem): NavigationMenuItem | null {
     const candidate = item as NavigationMenuItem & { to?: string; children?: NavigationMenuItem[] }
     if (candidate.to) {
-      const permission = routePermissions[candidate.to]
+      const permission = permissionForRoute(candidate.to)
       if (permission && !auth.canAccessPage(permission)) return null
     }
     if (candidate.children) {
@@ -111,55 +140,65 @@ export function useMenu() {
     return candidate
   }
 
-  // Order matches product nav: Dashboard → … → Configuration → Setting
-  const links = computed<NavigationMenuItem[][]>(() => [[
-    {
-      label: t('docetra.navigation.dashboard'),
-      icon: 'i-lucide-house',
-      to: '/',
-      exact: true,
-      class: 'text-sm gap-2',
-      onSelect: close,
-    },
-    group(t('docetra.navigation.meeting'), 'i-lucide-video', [
-      pageLink(t('docetra.pages.meetingTopic'), '/meetings/topics'),
-      pageLink(t('docetra.pages.meetingHistory'), '/meetings/history'),
-    ], { defaultOpen: true }),
-    group(t('docetra.navigation.record'), 'i-lucide-folder', [
-      pageLink(t('docetra.pages.incomingDocument'), '/records/incoming-documents'),
-      pageLink(t('docetra.pages.outgoingDocument'), '/records/outgoing-documents'),
-      pageLink(t('docetra.pages.document'), '/records/documents'),
-      pageLink(t('docetra.pages.masterListRequest'), '/records/master-list-requests'),
-      pageLink(t('docetra.pages.recordLog'), '/records/record-logs'),
-    ]),
-    group(t('docetra.navigation.organization'), 'i-lucide-building-2', [
-      pageLink(t('docetra.pages.department'), '/organizations/departments'),
-      pageLink(t('docetra.pages.company'), '/organizations/companies'),
-      pageLink(t('docetra.pages.companyPurpose'), '/organizations/company-purposes'),
-      pageLink(t('docetra.pages.companySector'), '/organizations/company-sectors'),
-      pageLink(t('docetra.pages.officer'), '/organizations/officers'),
-    ]),
-    group(t('docetra.navigation.portal'), 'i-lucide-square-arrow-out-up-right', [
-      pageLink(t('docetra.pages.fileUpload'), '/portal/file-upload'),
-      pageLink(t('docetra.pages.googleDriveSync'), '/portal/google-drive-sync'),
-      pageLink(t('docetra.pages.portalLog'), '/portal/portal-logs'),
-    ]),
-    group(t('docetra.navigation.userManagement'), 'i-lucide-users', [
-      pageLink(t('docetra.pages.role'), '/user-management/roles'),
-      pageLink(t('docetra.pages.user'), '/user-management/users'),
-    ]),
-    group(t('docetra.navigation.configuration'), 'i-lucide-bolt', [
-      pageLink(t('docetra.pages.recordType'), '/configuration/record-types'),
-      pageLink(t('docetra.pages.recordAttribute'), '/configuration/record-attributes'),
-    ]),
-    group(t('docetra.navigation.settings'), 'i-lucide-settings', [
-      pageLink(t('docetra.pages.appInfo'), '/settings/app-info'),
-      pageLink(t('docetra.pages.appConfig'), '/settings/app-config'),
-      pageLink(t('docetra.pages.storage'), '/settings/storage'),
-    ], { defaultOpen: true }),
+  const fallbackMeetingLinks = () => [] as NavigationMenuItem[]
+
+  const fallbackDocumentLinks = () => [
+    pageLink(t('docetra.pages.recordLog'), '/records/logs'),
   ]
-    .map(item => permittedItem(item))
-    .filter((item): item is NavigationMenuItem => Boolean(item)), []])
+
+  // Order matches product nav: Dashboard → … → Configuration → Setting
+  const links = computed<NavigationMenuItem[][]>(() => {
+    const meetingChildren = meetingTypes.value.length
+      ? meetingTypes.value.map(type => pageLink(type.name, type.routeBase))
+      : fallbackMeetingLinks()
+
+    const documentChildren = [
+      ...(documentTypes.value.length
+        ? documentTypes.value.map(type => pageLink(type.name, type.routeBase))
+        : fallbackDocumentLinks().slice(0, -1)),
+      pageLink(t('docetra.pages.recordLog'), '/records/logs'),
+    ]
+
+    return [[
+      {
+        label: t('docetra.navigation.dashboard'),
+        icon: 'i-lucide-house',
+        to: '/',
+        exact: true,
+        class: 'text-sm gap-2',
+        onSelect: close,
+      },
+      group(t('docetra.navigation.meeting'), 'i-lucide-video', meetingChildren, { defaultOpen: true }),
+      group(t('docetra.navigation.record'), 'i-lucide-folder', documentChildren),
+      group(t('docetra.navigation.organization'), 'i-lucide-building-2', [
+        pageLink(t('docetra.pages.department'), '/organizations/departments'),
+        pageLink(t('docetra.pages.company'), '/organizations/companies'),
+        pageLink(t('docetra.pages.purpose'), '/purpose'),
+        pageLink(t('docetra.pages.sector'), '/sector'),
+        pageLink(t('docetra.pages.officer'), '/officers'),
+      ]),
+      group(t('docetra.navigation.portal'), 'i-lucide-square-arrow-out-up-right', [
+        pageLink(t('docetra.pages.fileUpload'), '/portal/file-upload'),
+        pageLink(t('docetra.pages.googleDriveSync'), '/portal/google-drive-sync'),
+        pageLink(t('docetra.pages.portalLog'), '/portal/portal-logs'),
+      ]),
+      group(t('docetra.navigation.userManagement'), 'i-lucide-users', [
+        pageLink(t('docetra.pages.role'), '/user-management/roles'),
+        pageLink(t('docetra.pages.user'), '/user-management/users'),
+      ]),
+      group(t('docetra.navigation.configuration'), 'i-lucide-bolt', [
+        pageLink(t('docetra.pages.recordType'), '/configuration/record-types'),
+        pageLink(t('docetra.pages.recordAttribute'), '/configuration/record-attributes'),
+      ]),
+      group(t('docetra.navigation.settings'), 'i-lucide-settings', [
+        pageLink(t('docetra.pages.appInfo'), '/settings/app-info'),
+        pageLink(t('docetra.pages.appConfig'), '/settings/app-config'),
+        pageLink(t('docetra.pages.storage'), '/settings/storage'),
+      ], { defaultOpen: true }),
+    ]
+      .map(item => permittedItem(item))
+      .filter((item): item is NavigationMenuItem => Boolean(item))]
+  })
 
   return {
     open,

@@ -155,7 +155,7 @@ function onRowAction(payload: { key: string, row: Record<string, unknown> }) {
     if (!canViewLogs.value) return
     const id = String(row.id || '')
     navigateTo({
-      path: '/records/record-logs',
+      path: '/records/logs',
       query: id ? { q: id } : undefined,
     })
     return

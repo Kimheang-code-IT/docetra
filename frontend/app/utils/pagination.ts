@@ -6,7 +6,7 @@ export const TABLE_PAGE_SIZES = [10, 20, 50, 100] as const
  * Parse `route.query.limit` or a select value into a page size.
  * Accepts `all` / `-1` for show-all; otherwise 10 | 20 | 50 | 100.
  */
-export function parsePageLimit(raw: unknown, defaultLimit = 10): number {
+export function parsePageLimit(raw: unknown, defaultLimit = 20): number {
   if (raw === 'all' || raw === '-1') return defaultLimit
   if (typeof raw === 'number' && raw === -1) return defaultLimit
 
@@ -18,7 +18,7 @@ export function parsePageLimit(raw: unknown, defaultLimit = 10): number {
 }
 
 /** Serialize for URL query — omit when equal to default. */
-export function serializePageLimit(limit: number, defaultLimit = 10): string | undefined {
+export function serializePageLimit(limit: number, defaultLimit = 20): string | undefined {
   if (limit === defaultLimit) return undefined
   return String(limit)
 }

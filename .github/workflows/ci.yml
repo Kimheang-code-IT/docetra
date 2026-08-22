@@ -1,0 +1,155 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fast:
+    name: Unit + contract + typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Backend unit/contract
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install ".[test]"
+          python -m pytest -q
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Frontend install + typecheck + unit
+        working-directory: frontend
+        run: |
+          pnpm install
+          pnpm typecheck
+          pnpm test:unit
+
+  integration:
+    name: Live API integration (Docker)
+    runs-on: ubuntu-latest
+    needs: fast
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Prepare backend.env
+        run: |
+          cp backend.env.example backend.env
+          # Ensure local secrets exist for Compose.
+          grep -q '^SESSION_SECRET=' backend.env || echo 'SESSION_SECRET=ci_session_secret_change_me_32chars' >> backend.env
+          grep -q '^PASSWORD_RESET_SECRET=' backend.env || echo 'PASSWORD_RESET_SECRET=ci_reset_secret_change_me_32chars' >> backend.env
+          grep -q '^JWT_SECRET=' backend.env || echo 'JWT_SECRET=ci_jwt_secret_change_me_32_chars_xx' >> backend.env
+
+      - name: Start Docker stack
+        env:
+          DOCETRA_BACKEND_IMAGE: docetra-backend:ci
+        run: |
+          docker compose --env-file backend.env -f compose.backend.yml build api
+          docker compose --env-file backend.env -f compose.backend.yml up -d
+          for i in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:8000/ready >/dev/null; then
+              echo "API ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose --env-file backend.env -f compose.backend.yml logs api --tail 100
+          exit 1
+
+      - name: Integration tests
+        working-directory: backend
+        env:
+          DOCETRA_API_BASE: http://127.0.0.1:8000
+          ADMIN_EMAIL: admin@gmail.com
+          ADMIN_PASSWORD: "123456"
+        run: |
+          python -m pip install --upgrade pip
+          pip install ".[test]"
+          python -m pytest tests/integration -m integration -q --tb=short
+
+      - name: Tear down
+        if: always()
+        env:
+          DOCETRA_BACKEND_IMAGE: docetra-backend:ci
+        run: docker compose --env-file backend.env -f compose.backend.yml down -v
+
+  e2e:
+    name: Playwright smoke
+    runs-on: ubuntu-latest
+    needs: integration
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare backend.env
+        run: |
+          cp backend.env.example backend.env
+          grep -q '^SESSION_SECRET=' backend.env || echo 'SESSION_SECRET=ci_session_secret_change_me_32chars' >> backend.env
+          grep -q '^PASSWORD_RESET_SECRET=' backend.env || echo 'PASSWORD_RESET_SECRET=ci_reset_secret_change_me_32chars' >> backend.env
+          grep -q '^JWT_SECRET=' backend.env || echo 'JWT_SECRET=ci_jwt_secret_change_me_32_chars_xx' >> backend.env
+
+      - name: Start Docker API
+        env:
+          DOCETRA_BACKEND_IMAGE: docetra-backend:ci
+        run: |
+          docker compose --env-file backend.env -f compose.backend.yml build api
+          docker compose --env-file backend.env -f compose.backend.yml up -d
+          for i in $(seq 1 60); do
+            curl -sf http://127.0.0.1:8000/ready && break
+            sleep 2
+          done
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Frontend install + Playwright
+        working-directory: frontend
+        env:
+          # Empty NUXT_PUBLIC_API_BASE from .env.example; Node preset honors /api/v2 proxy to Docker :8000.
+          NITRO_PRESET: node
+        run: |
+          cp .env.example .env
+          pnpm install
+          pnpm exec playwright install chromium --with-deps
+          pnpm build
+          pnpm preview --host 127.0.0.1 --port 3000 &
+          for i in $(seq 1 60); do
+            curl -sf http://127.0.0.1:3000 >/dev/null && break
+            sleep 2
+          done
+          PLAYWRIGHT_BASE_URL=http://127.0.0.1:3000 DOCETRA_API_BASE=http://127.0.0.1:8000 pnpm test:e2e
+
+      - name: Tear down
+        if: always()
+        env:
+          DOCETRA_BACKEND_IMAGE: docetra-backend:ci
+        run: docker compose --env-file backend.env -f compose.backend.yml down -v

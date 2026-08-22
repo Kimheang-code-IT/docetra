@@ -57,7 +57,7 @@ Frontend converts matrix to flat keys via `permissionRowsToFlatKeys` on save.
 ### Officer (organization module)
 
 - Business person; optional `userId` back-link.
-- User Management **references** officer; officer CRUD stays under `/api/v2/organizations/officers`.
+- User Management **references** officer; officer CRUD stays under `/api/v2/officers`.
 
 ---
 

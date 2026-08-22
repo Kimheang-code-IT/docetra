@@ -131,13 +131,15 @@ List and export filters use `startDate` / `endDate`. Picker values may be `YYYY-
 
 Canonical paths are `frontend/app/utils/constants/api-endpoints.ts`. Do not shorten them. Folder mapping: [`06-backend-file-structure.md`](./06-backend-file-structure.md).
 
+**Exact response JSON for every path:** [`09-frontend-response-requirements.md`](./09-frontend-response-requirements.md).
+
 | Area | Prefix / key routes |
 | --- | --- |
 | Auth | `/auth/login`, `/auth/me`, `/auth/refresh`, `/auth/logout`, `/auth/forgot-password` (+ verify/resend/reset), `/auth/change-password`, `/auth/profile/avatar` |
 | Dashboard | `/dashboard/summary` |
-| Meetings | `/meetings/topics`, `/meetings/history`, `/meetings/reorder`, `/meetings/history/{id}/assign-topic`, `/meetings/history/{id}/attachments`, `/meetings/history/{id}/attachments/link` |
-| Records | `/records/incoming-documents`, `/outgoing-documents`, `/documents`, `/master-list-requests`, `/records/logs` |
-| Organization | `/organizations/departments`, `/companies`, `/company-purposes`, `/company-sectors`, `/officers` |
+| Records (dynamic) | `/records/{typeCode}` (+ schema, counts, options, lifecycle, stage, comments, activity, attachments); `/records/_meta/surfaces`; `/records/logs`. Meeting board: `POST /records/meeting_history/reorder`, `…/{id}/assign-topic`, `…/{id}/attachments/link`. Canonical: [`07-dynamic-record-collections.md`](./07-dynamic-record-collections.md). **No** `/meetings/*` HTTP family. |
+
+| Organization (dynamic) | `/organizations/{orgType}` (`department` \| `company`); `/organizations/_meta/types`. Classification and officers: `/sector`, `/purpose`, `/officers`. Canonical: [`08-dynamic-organization-collections.md`](./08-dynamic-organization-collections.md). |
 | Access | `/users/roles`, `/users`, `/users/permission-catalog` |
 | Configuration | `/configuration/record-types`, `/record-attributes` |
 | Settings | `/settings/app-info`, `/app-config`, `/storage` (+ test/set-default/set-active) |

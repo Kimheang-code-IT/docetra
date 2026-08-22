@@ -1,14 +1,9 @@
 <script setup lang="ts">
-import { getEntityConfig } from '~/config/entities'
-
-const config = getEntityConfig('recordLogs')
-
-definePageMeta({
-  titleKey: 'docetra.pages.recordLog',
-  permission: 'records.logs.view',
-})
+const route = useRoute()
+const id = String(route.params.id || '')
+await navigateTo(id ? `/records/logs/${id}` : '/records/logs', { redirectCode: 301, replace: true })
 </script>
 
 <template>
-  <DocumentEntityDocumentView :config="config" />
+  <div />
 </template>

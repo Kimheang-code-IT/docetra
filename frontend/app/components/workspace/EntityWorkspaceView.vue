@@ -10,7 +10,7 @@ const props = defineProps<{
 }>()
 
 const usesExactColumns = computed(() =>
-  ['departments', 'companies', 'companyPurposes', 'companySectors', 'officers', 'systemLogs'].includes(props.config.key),
+  ['departments', 'companies', 'purposes', 'sectors', 'officers', 'systemLogs'].includes(props.config.key),
 )
 
 const {
@@ -121,7 +121,7 @@ function onRowAction(payload: { key: string, row: Record<string, unknown> }) {
     if (!canViewLogs.value) return
     const id = String(row.id || '')
     navigateTo({
-      path: '/records/record-logs',
+      path: '/records/logs',
       query: id ? { q: id } : undefined,
     })
     return

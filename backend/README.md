@@ -7,10 +7,20 @@ FastAPI API, RabbitMQ worker, and APScheduler process. Matches the Nuxt adapters
 | Command | Role |
 | --- | --- |
 | `alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000` | HTTP API |
-| `python -m app.worker` | Outbox publisher, export completion, queue consumers |
-| `python -m app.scheduler` | UTC meeting reminder / reconcile ticks |
+| `python -m app.main worker` | Outbox publisher, export completion, queue consumers |
+| `python -m app.main scheduler` | UTC meeting reminder / reconcile ticks |
 
-## Local Docker
+## Tests
+
+See [`tests/README.md`](tests/README.md).
+
+```powershell
+python -m pytest -q                                          # unit + contract
+python -m pytest tests/unit/modules -q                       # all modules
+python -m pytest tests/unit/security -q                      # security helpers
+python -m pytest tests/integration -m integration -q         # needs Docker API
+```
+
 
 From the repository root:
 
@@ -35,11 +45,11 @@ docker compose --env-file backend.env.production -f compose.backend.yml up --bui
 
 Local and production templates use different `DOCETRA_COMPOSE_PROJECT` values. Keep them different: PostgreSQL, RabbitMQ, Redis, MinIO, and backup volumes must never be shared between environments. If an environment file is changed, recreate containers with that same file instead of using `docker compose restart`.
 
-Point Nuxt at the API:
+Point Nuxt at the API (empty base = same-origin `/api/v2` proxy):
 
 ```env
-NUXT_PUBLIC_USE_MOCK_DATA=false
-NUXT_PUBLIC_API_BASE=http://localhost:8000
+NUXT_PUBLIC_API_BASE=
+NUXT_API_PROXY_TARGET=http://127.0.0.1:8000
 NUXT_PUBLIC_AUTH_MODE=cookie
 ```
 

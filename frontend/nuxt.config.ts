@@ -1,6 +1,11 @@
 // nuxt.config.ts
 // https://nuxt.com/docs/api/configuration/nuxt-config
 
+const nodeEnv = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env || {}
+const apiProxyTarget = (nodeEnv.NUXT_API_PROXY_TARGET || 'http://127.0.0.1:8000').replace(/\/$/, '')
+const publicApiBase = nodeEnv.NUXT_PUBLIC_API_BASE ?? ''
+const useSameOriginProxy = !publicApiBase
+
 export default defineNuxtConfig({
   modules: [
     '@nuxt/ui',
@@ -33,13 +38,15 @@ export default defineNuxtConfig({
   },
 
   runtimeConfig: {
+    // Server-only: SSR `$fetch` talks to FastAPI directly when the browser uses same-origin `/api/v2`.
+    apiProxyTarget,
     public: {
-      apiBase: import.meta.env.NUXT_PUBLIC_API_BASE || 'http://localhost:8000',
+      // Empty = same-origin `/api/v2` (Nuxt proxies to FastAPI). Set a full origin only for a split API host.
+      apiBase: publicApiBase,
       apiTimeoutMs: Number(import.meta.env.NUXT_PUBLIC_API_TIMEOUT_MS || 30000),
       authMode: import.meta.env.NUXT_PUBLIC_AUTH_MODE === 'bearer' ? 'bearer' : 'cookie',
       csrfCookieName: import.meta.env.NUXT_PUBLIC_CSRF_COOKIE_NAME || 'XSRF-TOKEN',
       csrfHeaderName: import.meta.env.NUXT_PUBLIC_CSRF_HEADER_NAME || 'X-CSRF-Token',
-      useMockData: false,
       appVersion: import.meta.env.NUXT_PUBLIC_APP_VERSION || '0.1.0',
       // Canonical public origin for Open Graph / Twitter image URLs (no trailing slash).
       // Example: https://app.docetra.com — required for link previews to show images.
@@ -123,6 +130,13 @@ export default defineNuxtConfig({
   },
 
   routeRules: {
+    ...(useSameOriginProxy
+      ? {
+          '/api/v2/**': { proxy: `${apiProxyTarget}/api/v2/**` },
+          '/health': { proxy: `${apiProxyTarget}/health` },
+          '/ready': { proxy: `${apiProxyTarget}/ready` },
+        }
+      : {}),
     '/**': {
       headers: {
         'x-content-type-options': 'nosniff',
@@ -140,7 +154,8 @@ export default defineNuxtConfig({
   },
 
   nitro: {
-    preset: 'vercel'
+    // Vercel for production; Node preview (CI/e2e) needs routeRules proxy to FastAPI.
+    preset: nodeEnv.NITRO_PRESET || 'vercel',
   },
 
   compatibilityDate: '2024-07-11',
@@ -179,5 +194,14 @@ export default defineNuxtConfig({
       // Silence noisy Uppy package sourcemap warnings in dev
       devSourcemap: false,
     },
+    server: useSameOriginProxy
+      ? {
+          proxy: {
+            '/api/v2': { target: apiProxyTarget, changeOrigin: true },
+            '/health': { target: apiProxyTarget, changeOrigin: true },
+            '/ready': { target: apiProxyTarget, changeOrigin: true },
+          },
+        }
+      : undefined,
   }
 })

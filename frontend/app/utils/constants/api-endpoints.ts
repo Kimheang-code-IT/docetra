@@ -12,28 +12,38 @@ export const ApiEndpoints = {
 
   DASHBOARD_SUMMARY: '/api/v2/dashboard/summary',
 
-  MEETING_TOPICS: '/api/v2/meetings/topics',
-  MEETING_HISTORY: '/api/v2/meetings/history',
-  MEETINGS_REORDER: '/api/v2/meetings/reorder',
-  MEETING_ASSIGN_TOPIC: (meetingId: string) =>
-    `/api/v2/meetings/history/${encodeURIComponent(meetingId)}/assign-topic`,
-  MEETING_ATTACHMENTS_LINK: (meetingId: string) =>
-    `/api/v2/meetings/history/${encodeURIComponent(meetingId)}/attachments/link`,
-  MEETING_ATTACHMENTS: (meetingId: string) =>
-    `/api/v2/meetings/history/${encodeURIComponent(meetingId)}/attachments`,
-  PORTAL_DRIVE_FILES: '/api/v2/portal/drive-files',
-
-  INCOMING_DOCUMENTS: '/api/v2/records/incoming-documents',
-  OUTGOING_DOCUMENTS: '/api/v2/records/outgoing-documents',
-  DOCUMENTS: '/api/v2/records/documents',
-  MASTER_LIST_REQUESTS: '/api/v2/records/master-list-requests',
+  /** Dynamic record collection: `/api/v2/records/{typeCode}` */
+  RECORDS: (typeCode: string) => `/api/v2/records/${encodeURIComponent(typeCode)}`,
+  RECORD_SCHEMA: (typeCode: string) => `/api/v2/records/${encodeURIComponent(typeCode)}/schema`,
+  RECORD_SURFACES: '/api/v2/records/_meta/surfaces',
   RECORD_LOGS: '/api/v2/records/logs',
 
-  DEPARTMENTS: '/api/v2/organizations/departments',
-  COMPANIES: '/api/v2/organizations/companies',
-  COMPANY_PURPOSES: '/api/v2/organizations/company-purposes',
-  COMPANY_SECTORS: '/api/v2/organizations/company-sectors',
-  OFFICERS: '/api/v2/organizations/officers',
+  // Built-in type codes (same dynamic router; kept as literals for contract checks).
+  MEETING_TOPICS: '/api/v2/records/meeting_topic',
+  MEETING_HISTORY: '/api/v2/records/meeting_history',
+  INCOMING_DOCUMENTS: '/api/v2/records/incoming_document',
+  OUTGOING_DOCUMENTS: '/api/v2/records/outgoing_document',
+  DOCUMENTS: '/api/v2/records/document',
+  MASTER_LIST_REQUESTS: '/api/v2/records/master_list_request',
+
+  // Meeting board helpers under meeting_history type (no /meetings HTTP family).
+  MEETINGS_REORDER: '/api/v2/records/meeting_history/reorder',
+  MEETING_ASSIGN_TOPIC: (meetingId: string) =>
+    `/api/v2/records/meeting_history/${encodeURIComponent(meetingId)}/assign-topic`,
+  MEETING_ATTACHMENTS_LINK: (meetingId: string) =>
+    `/api/v2/records/meeting_history/${encodeURIComponent(meetingId)}/attachments/link`,
+  MEETING_ATTACHMENTS: (meetingId: string) =>
+    `/api/v2/records/meeting_history/${encodeURIComponent(meetingId)}/attachments`,
+  PORTAL_DRIVE_FILES: '/api/v2/portal/drive-files',
+
+  /** Dynamic organization collection: `/api/v2/organizations/{orgType}` */
+  ORGANIZATIONS: (orgType: string) => `/api/v2/organizations/${encodeURIComponent(orgType)}`,
+  ORGANIZATION_TYPES: '/api/v2/organizations/_meta/types',
+  DEPARTMENTS: '/api/v2/organizations/department',
+  COMPANIES: '/api/v2/organizations/company',
+  PURPOSE: '/api/v2/purpose',
+  SECTOR: '/api/v2/sector',
+  OFFICERS: '/api/v2/officers',
 
   ROLES: '/api/v2/users/roles',
   PERMISSION_CATALOG: '/api/v2/users/permission-catalog',
@@ -64,11 +74,13 @@ export const ApiEndpoints = {
   EXPORT_JOBS: '/api/v2/exports',
   SEARCH: '/api/v2/search',
   SEARCH_ASK: '/api/v2/search/ask',
+  MENTIONS: '/api/v2/mentions',
+  FILES: (fileId: string) => `/api/v2/files/${encodeURIComponent(fileId)}`,
 
-  COMMENTS: (entityType: string, entityId: string) =>
-    `/api/v2/${entityType}/${entityId}/comments`,
-  ACTIVITY: (entityType: string, entityId: string) =>
-    `/api/v2/${entityType}/${entityId}/activity`,
-  ATTACHMENTS: (entityType: string, entityId: string) =>
-    `/api/v2/${entityType}/${entityId}/attachments`,
+  RECORD_COMMENTS: (typeCode: string, entityId: string) =>
+    `/api/v2/records/${encodeURIComponent(typeCode)}/${encodeURIComponent(entityId)}/comments`,
+  RECORD_ACTIVITY: (typeCode: string, entityId: string) =>
+    `/api/v2/records/${encodeURIComponent(typeCode)}/${encodeURIComponent(entityId)}/activity`,
+  RECORD_ATTACHMENTS: (typeCode: string, entityId: string) =>
+    `/api/v2/records/${encodeURIComponent(typeCode)}/${encodeURIComponent(entityId)}/attachments`,
 } as const

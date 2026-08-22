@@ -1,10 +1,7 @@
 <script setup lang="ts">
-definePageMeta({
-  titleKey: 'docetra.pages.recordLog',
-  permission: 'records.logs.view',
-})
+await navigateTo('/records/logs', { redirectCode: 301, replace: true })
 </script>
 
 <template>
-  <RecordAppRecordLogBoard />
+  <div />
 </template>

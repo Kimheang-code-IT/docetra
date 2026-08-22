@@ -20,6 +20,8 @@ Delivery window (from `project-management/01-timeline-management.md`): 24 August
 
 Start with [`00-integration-contract.md`](./00-integration-contract.md) for the canonical session, permission, status, assignment, localization, response, and deployment rules shared by every module.
 
+For **exact JSON the frontend expects**, read [`09-frontend-response-requirements.md`](./09-frontend-response-requirements.md) next — it maps every adapter, type file, and endpoint to required request/response shapes.
+
 Then read [`01-cache-and-messaging.md`](./01-cache-and-messaging.md) for Redis short/long cache tiers, RabbitMQ jobs, retry/dead-letter behavior, and cache invalidation.
 
 Meeting timing must follow [`02-meeting-scheduler.md`](./02-meeting-scheduler.md): APScheduler determines when work is due and RabbitMQ workers perform the durable side effects.
@@ -34,15 +36,16 @@ Scaffold and cutover:
 
 | Doc | Role |
 | --- | --- |
+| [`09-frontend-response-requirements.md`](./09-frontend-response-requirements.md) | **Master contract** — every endpoint response shape the Nuxt app expects |
 | [`06-backend-file-structure.md`](./06-backend-file-structure.md) | FastAPI tree, process entrypoints, router ↔ frontend adapter map |
 | [`07-datetime-and-list-query.md`](./07-datetime-and-list-query.md) | UTC storage, ISO JSON, `startDate`/`endDate`, `record_time`, meeting TZ |
 | [`08-implementation-sequence.md`](./08-implementation-sequence.md) | Sprint-aligned build order; first vertical slice |
 
 | Area                | Doc                                                                                      | Routes (summary)                                                                             |
 | ------------------- | ---------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| **Meeting**         | [`modules/meeting-topic-board.md`](./modules/meeting-topic-board.md)                     | `/meetings/topics`, `/meetings/history`                                                      |
+| **Meeting**         | [`modules/meeting-topic-board.md`](./modules/meeting-topic-board.md) + [`07-dynamic-record-collections.md`](./07-dynamic-record-collections.md) | UI `/meetings/{slug}`; API `/records/{typeCode}` only |
 | **Record**          | [`modules/record-workflow-boards.md`](./modules/record-workflow-boards.md)               | `/records/incoming-documents`, `outgoing-documents`, `documents`, `master-list-requests`, `logs` |
-| **Organization**    | [`modules/organization-master-data.md`](./modules/organization-master-data.md)           | `/organizations/departments`, `companies`, `company-purposes`, `company-sectors`, `officers` |
+| **Organization**    | [`08-dynamic-organization-collections.md`](./08-dynamic-organization-collections.md) + [`modules/organization-master-data.md`](./modules/organization-master-data.md) | `/organizations/{orgType}`, sectors, purposes, officers |
 | **Portal**          | [`modules/portal-operations.md`](./modules/portal-operations.md)                         | `/portal/file-uploads`, `google-drive-sync`, `drive-files`, `logs`                           |
 | **User management** | [`modules/user-management.md`](./modules/user-management.md)                             | `/users/roles`, `/users`                                                                     |
 | **Configuration**   | [`modules/configuration-record-metadata.md`](./modules/configuration-record-metadata.md) | `/configuration/record-types`, `record-attributes`                                           |
@@ -113,9 +116,10 @@ For development, run Nuxt on the local computer and all backend services from `c
 
 1. `prompt/specification/00-overview.md` + `02-domain-model.md`
 2. `prompt/backend/00-integration-contract.md` — shared frontend/backend boundary
-3. `prompt/backend/06-backend-file-structure.md` — where code will live
-4. `prompt/backend/07-datetime-and-list-query.md` — dates, filters, `record_time`
-5. `prompt/backend/08-implementation-sequence.md` — sprint-sized slices
-6. This folder — module matching your feature area
-7. `prompt/frontend/README.md` — route → component map
-8. `prompt/specification/06-api-contracts.md` — global REST conventions
+3. **`prompt/backend/09-frontend-response-requirements.md` — master response contract (start here for API work)**
+4. `prompt/backend/06-backend-file-structure.md` — where code lives
+5. `prompt/backend/07-datetime-and-list-query.md` — dates, filters, `record_time`
+6. `prompt/backend/08-implementation-sequence.md` — sprint-sized slices
+7. This folder — module matching your feature area
+8. `prompt/frontend/README.md` — route → component map
+9. `prompt/specification/06-api-contracts.md` — global REST conventions
