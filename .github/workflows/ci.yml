@@ -140,15 +140,27 @@ jobs:
           # Empty NUXT_PUBLIC_API_BASE from .env.example; Node preset honors /api/v2 proxy to Docker :8000.
           NITRO_PRESET: node
         run: |
+          set -euo pipefail
           cp .env.example .env
           pnpm install
           pnpm exec playwright install chromium --with-deps
           pnpm build
-          pnpm preview --host 127.0.0.1 --port 3000 &
+          # nuxt preview [dir] treats --host 127.0.0.1 as a directory (looks for frontend/127.0.0.1/.output).
+          NODE_ENV=production HOST=127.0.0.1 PORT=3000 node .output/server/index.mjs &
+          preview_pid=$!
           for i in $(seq 1 60); do
-            curl -sf http://127.0.0.1:3000 >/dev/null && break
+            if curl -sf http://127.0.0.1:3000 >/dev/null; then
+              echo "Preview ready"
+              break
+            fi
+            if ! kill -0 "$preview_pid" 2>/dev/null; then
+              echo "Preview process exited before becoming ready"
+              wait "$preview_pid" || true
+              exit 1
+            fi
             sleep 2
           done
+          curl -sf http://127.0.0.1:3000 >/dev/null
           PLAYWRIGHT_BASE_URL=http://127.0.0.1:3000 DOCETRA_API_BASE=http://127.0.0.1:8000 pnpm test:e2e
 
       - name: Tear down
