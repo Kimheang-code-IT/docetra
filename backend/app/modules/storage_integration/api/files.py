@@ -1,7 +1,7 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,7 +9,7 @@ from app.core.privileged import is_unrestricted
 from app.core.security import current_user
 from app.db import Entity, User, get_db
 from app.models.storage import File
-from app.modules.storage_integration.services.storage import resolve_storage
+from app.modules.storage_integration.services.storage import get_object_bytes
 
 router = APIRouter(prefix="/files", tags=["files"])
 
@@ -49,19 +49,9 @@ async def download(file_id: str, db: AsyncSession = Depends(get_db), user: User 
         if not permission or permission not in (user.permissions or []):
             raise HTTPException(403, "File access denied")
 
-    storage, bucket = await resolve_storage(db)
-    response = storage.get_object(bucket, object_key)
-
-    def chunks():
-        try:
-            while data := response.read(64 * 1024):
-                yield data
-        finally:
-            response.close()
-            response.release_conn()
-
-    return StreamingResponse(
-        chunks(),
+    data = await get_object_bytes(object_key, db)
+    return Response(
+        content=data,
         media_type=mime_type,
         headers={"Content-Disposition": f'attachment; filename="{file_name}"'},
     )

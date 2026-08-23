@@ -29,7 +29,7 @@ Copy-Item backend.env.example backend.env
 docker compose --env-file backend.env -f compose.backend.yml up --build -d
 ```
 
-Default admin (development): `admin@gmail.com` / `123456`. Production startup fails closed when secrets, HTTPS cookies, CORS, trusted hosts, or the admin password are unsafe. Use `backend.env.production.example` as the deployment checklist.
+Default path: an empty database shows **Create administrator** on `/auth/login`. The first registered user becomes SuperAdmin with every permission. Set `SEED_BOOTSTRAP_ADMIN=true` only for CI/e2e so `admin@gmail.com` / `123456` is seeded automatically.
 
 Generate independent secrets without installing tooling on the host:
 
@@ -63,11 +63,13 @@ pytest
 
 Contract tests do not need PostgreSQL. Runtime CRUD requires Compose.
 
-Docker-only test and smoke verification:
+The production API image does not include tests or scripts. Run them on the host against the Compose API:
 
 ```powershell
-docker compose --env-file backend.env -f compose.backend.yml run --rm --no-deps api pytest -q
-docker compose --env-file backend.env -f compose.backend.yml run --rm api python scripts/smoke.py
+cd backend
+pip install ".[test]"
+python -m pytest -q
+python -m pytest tests/integration -m integration -q
 ```
 
 ## Production operations

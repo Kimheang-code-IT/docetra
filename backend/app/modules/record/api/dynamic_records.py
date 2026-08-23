@@ -10,6 +10,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.authorization import authorize_type_code
 from app.core.datetime import iso_utc
+from app.core.http_schemas import (
+    AttachmentsBody,
+    BulkDeleteBody,
+    CommentBody,
+    DataEnvelope,
+    FavoriteBody,
+    MutationBody,
+    StageBody,
+)
+from app.core.mutations import request_mutation_body
 from app.core.privileged import is_unrestricted
 from app.core.security import current_user, person
 from app.db.session import get_db
@@ -21,13 +31,14 @@ from app.modules.record.domain.map import (
     is_valid_type_code,
     merge_type_ui_payload,
 )
+from app.modules.record.domain.schemas import MeetingAssignTopic, MeetingLinkDrive, MeetingReorder, RecordPayload
 from app.modules.record.services.service import CollectionService
 import app.modules.record.services.serializer as record_ser
 
 router = APIRouter(tags=["records"])
 
 
-@router.get("/records/_meta/surfaces")
+@router.get("/records/_meta/surfaces", response_model=DataEnvelope)
 async def record_surfaces(db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
     rows = (await db.scalars(select(RecordType).where(RecordType.is_active == 1).order_by(RecordType.code))).all()
     grouped: dict[str, list] = {"meeting": [], "document": [], "system": []}
@@ -55,7 +66,7 @@ async def record_surfaces(db: AsyncSession = Depends(get_db), user: User = Depen
     return {"data": grouped}
 
 
-@router.get("/records/logs")
+@router.get("/records/logs", response_model=DataEnvelope)
 async def document_surface_logs(
     request: Request,
     db: AsyncSession = Depends(get_db),
@@ -80,7 +91,7 @@ def _collab_resource(type_code: str) -> str:
     return TYPE_CODE_TO_RESOURCE.get(type_code) or type_code
 
 
-@router.get("/records/{type_code}/schema", dependencies=[Depends(authorize_type_code())])
+@router.get("/records/{type_code}/schema", response_model=DataEnvelope, dependencies=[Depends(authorize_type_code())])
 async def record_type_schema(type_code: str, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
     if not is_valid_type_code(type_code):
         raise HTTPException(404, "Record type not found")
@@ -110,12 +121,12 @@ async def record_type_schema(type_code: str, db: AsyncSession = Depends(get_db),
 type_router = APIRouter(prefix="/records/{type_code}", dependencies=[Depends(authorize_type_code())])
 
 
-@type_router.get("")
+@type_router.get("", response_model=DataEnvelope)
 async def list_items(type_code: str, request: Request, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
     return await _service(type_code).list_items(db, user, dict(request.query_params))
 
 
-@type_router.get("/options")
+@type_router.get("/options", response_model=DataEnvelope)
 async def options(type_code: str, request: Request, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
     listed = await _service(type_code).list_items(db, user, {**dict(request.query_params), "limit": "200", "status": "active"})
     q = (request.query_params.get("q") or "").lower()
@@ -135,7 +146,7 @@ async def options(type_code: str, request: Request, db: AsyncSession = Depends(g
     return {"data": items[: min(200, int(request.query_params.get("limit") or 100))]}
 
 
-@type_router.get("/counts")
+@type_router.get("/counts", response_model=DataEnvelope)
 async def counts(type_code: str, request: Request, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
     listed = await _service(type_code).list_items(db, user, {**dict(request.query_params), "limit": "100", "status": "all"})
     group = request.query_params.get("groupBy") or "stage"
@@ -150,7 +161,7 @@ async def counts(type_code: str, request: Request, db: AsyncSession = Depends(ge
     return {"data": {"total": len(listed["data"]), "unassigned": unassigned, "groups": groups}}
 
 
-@type_router.post("")
+@type_router.post("", response_model=DataEnvelope)
 async def create(type_code: str, request: Request, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
     service = _service(type_code)
     content_type = request.headers.get("content-type") or ""
@@ -160,93 +171,137 @@ async def create(type_code: str, request: Request, db: AsyncSession = Depends(ge
     return {"data": await service.create(db, user, dict(payload), dict(payload))}
 
 
-@type_router.post("/bulk-delete")
-async def bulk_delete(type_code: str, body: dict, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
+@type_router.post("/bulk-delete", response_model=DataEnvelope)
+async def bulk_delete(type_code: str, body: BulkDeleteBody, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
     service = _service(type_code)
     ids = []
-    for raw in body.get("ids", [])[:500]:
-        await service.soft_delete(db, user, raw)
+    versions = body.versions or {}
+    for raw in body.ids[:500]:
+        version = versions.get(str(raw))
+        token = {"version": version} if version is not None else {}
+        await service.soft_delete(db, user, raw, token)
         ids.append(raw)
     return {"data": {"ids": ids}}
 
 
-@type_router.post("/reorder")
-async def reorder_meetings(type_code: str, body: dict, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
+@type_router.post("/reorder", response_model=DataEnvelope)
+async def reorder_meetings(type_code: str, body: MeetingReorder, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
     from app.core.authorization import require_permission
     import app.modules.record.services.meeting as meeting_board
 
     if type_code != "meeting_history":
         raise HTTPException(404, "Not found")
     require_permission(user, "records.meeting_history.edit")
-    return {"data": await meeting_board.reorder_meetings(db, body)}
+    return {"data": await meeting_board.reorder_meetings(db, body.model_dump(exclude_unset=True))}
 
 
-@type_router.get("/{entity_id}")
+@type_router.get("/{entity_id}", response_model=DataEnvelope)
 async def get_item(type_code: str, entity_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
     return {"data": await _service(type_code).get_item(db, entity_id)}
 
 
-@type_router.patch("/{entity_id}")
-@type_router.put("/{entity_id}")
-async def update(type_code: str, entity_id: str, body: dict, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
-    return {"data": await _service(type_code).update(db, user, entity_id, dict(body))}
+@type_router.patch("/{entity_id}", response_model=DataEnvelope)
+@type_router.put("/{entity_id}", response_model=DataEnvelope)
+async def update(
+    type_code: str,
+    entity_id: str,
+    request: Request,
+    body: RecordPayload,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(current_user),
+):
+    return {"data": await _service(type_code).update(db, user, entity_id, request_mutation_body(request, body))}
 
 
-@type_router.delete("/{entity_id}")
-async def soft_delete(type_code: str, entity_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
-    return {"data": await _service(type_code).soft_delete(db, user, entity_id)}
+@type_router.delete("/{entity_id}", response_model=DataEnvelope)
+async def soft_delete(
+    type_code: str,
+    entity_id: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(current_user),
+):
+    return {"data": await _service(type_code).soft_delete(db, user, entity_id, request_mutation_body(request))}
 
 
-@type_router.delete("/{entity_id}/purge")
-async def purge(type_code: str, entity_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
-    return {"data": await _service(type_code).purge(db, user, entity_id)}
+@type_router.delete("/{entity_id}/purge", response_model=DataEnvelope)
+async def purge(
+    type_code: str,
+    entity_id: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(current_user),
+):
+    return {"data": await _service(type_code).purge(db, user, entity_id, request_mutation_body(request))}
 
 
-@type_router.post("/{entity_id}/archive")
-async def archive(type_code: str, entity_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
-    return {"data": await _service(type_code).lifecycle(db, user, entity_id, "archived")}
+@type_router.post("/{entity_id}/archive", response_model=DataEnvelope)
+async def archive(
+    type_code: str,
+    entity_id: str,
+    request: Request,
+    body: MutationBody | None = None,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(current_user),
+):
+    return {"data": await _service(type_code).lifecycle(db, user, entity_id, "archived", request_mutation_body(request, body))}
 
 
-@type_router.post("/{entity_id}/restore")
-async def restore(type_code: str, entity_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
-    return {"data": await _service(type_code).lifecycle(db, user, entity_id, "active")}
+@type_router.post("/{entity_id}/restore", response_model=DataEnvelope)
+async def restore(
+    type_code: str,
+    entity_id: str,
+    request: Request,
+    body: MutationBody | None = None,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(current_user),
+):
+    return {"data": await _service(type_code).lifecycle(db, user, entity_id, "active", request_mutation_body(request, body))}
 
 
-@type_router.patch("/{entity_id}/stage")
-async def stage(type_code: str, entity_id: str, body: dict, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
-    return {"data": await _service(type_code).set_stage(db, user, entity_id, body.get("stage"))}
+@type_router.patch("/{entity_id}/stage", response_model=DataEnvelope)
+async def stage(
+    type_code: str,
+    entity_id: str,
+    request: Request,
+    body: StageBody,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(current_user),
+):
+    payload = request_mutation_body(request, body)
+    return {"data": await _service(type_code).set_stage(db, user, entity_id, payload.get("stage"), payload)}
 
 
-@type_router.get("/{entity_id}/neighbors")
+@type_router.get("/{entity_id}/neighbors", response_model=DataEnvelope)
 async def neighbors(type_code: str, entity_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
     await _service(type_code).get_item(db, entity_id)
     return {"data": await collaboration.get_neighbors(db, _collab_resource(type_code), entity_id)}
 
 
-@type_router.get("/{entity_id}/favorite")
+@type_router.get("/{entity_id}/favorite", response_model=DataEnvelope)
 async def get_favorite(type_code: str, entity_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
     await _service(type_code).get_item(db, entity_id)
     return {"data": {"isFavorite": await collaboration.get_favorite(db, user.id, entity_id)}}
 
 
-@type_router.put("/{entity_id}/favorite")
-async def set_favorite(type_code: str, entity_id: str, body: dict, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
+@type_router.put("/{entity_id}/favorite", response_model=DataEnvelope)
+async def set_favorite(type_code: str, entity_id: str, body: FavoriteBody, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
     await _service(type_code).get_item(db, entity_id)
-    desired = bool(body.get("isFavorite"))
+    desired = bool(body.isFavorite)
     await collaboration.set_favorite(db, user.id, entity_id, desired)
     await db.commit()
     return {"data": {"isFavorite": desired}}
 
 
-@type_router.get("/{entity_id}/comments")
+@type_router.get("/{entity_id}/comments", response_model=DataEnvelope)
 async def comments(type_code: str, entity_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
     await _service(type_code).get_item(db, entity_id)
     data, total = await collaboration.list_comments(db, _collab_resource(type_code), entity_id, user)
     return {"data": data, "meta": {"page": 1, "limit": total or 20, "total": total}}
 
 
-@type_router.post("/{entity_id}/comments")
-async def add_comment(type_code: str, entity_id: str, body: dict, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
+@type_router.post("/{entity_id}/comments", response_model=DataEnvelope)
+async def add_comment(type_code: str, entity_id: str, body: CommentBody, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
     from app.core.errors import DomainError
     import app.modules.admin_config.services.runtime as runtime
 
@@ -254,7 +309,7 @@ async def add_comment(type_code: str, entity_id: str, body: dict, db: AsyncSessi
     if not general["enableComments"]:
         raise DomainError("COMMENTS_DISABLED", "Comments are disabled in application settings", 403)
     await _service(type_code).get_item(db, entity_id)
-    comment = await collaboration.add_comment(db, uuid.UUID(entity_id), str(body.get("body") or ""), user)
+    comment = await collaboration.add_comment(db, uuid.UUID(entity_id), body.body, user)
     await db.commit()
     await db.refresh(comment)
     resource = _collab_resource(type_code)
@@ -270,23 +325,23 @@ async def add_comment(type_code: str, entity_id: str, body: dict, db: AsyncSessi
     }
 
 
-@type_router.patch("/{entity_id}/comments/{comment_id}")
+@type_router.patch("/{entity_id}/comments/{comment_id}", response_model=DataEnvelope)
 async def edit_comment(
     type_code: str,
     entity_id: str,
     comment_id: str,
-    body: dict,
+    body: CommentBody,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(current_user),
 ):
     await _service(type_code).get_item(db, entity_id)
     resource = _collab_resource(type_code)
-    data = await collaboration.edit_comment(db, entity_id, comment_id, str(body.get("body") or ""), user)
+    data = await collaboration.edit_comment(db, entity_id, comment_id, body.body, user)
     await db.commit()
     return {"data": {**data, "entityType": resource}}
 
 
-@type_router.delete("/{entity_id}/comments/{comment_id}")
+@type_router.delete("/{entity_id}/comments/{comment_id}", response_model=DataEnvelope)
 async def delete_comment(
     type_code: str,
     entity_id: str,
@@ -300,38 +355,40 @@ async def delete_comment(
     return {"data": {"id": deleted_id}}
 
 
-@type_router.get("/{entity_id}/activity")
+@type_router.get("/{entity_id}/activity", response_model=DataEnvelope)
 async def activity(type_code: str, entity_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
     await _service(type_code).get_item(db, entity_id)
     data, total = await collaboration.list_activity(db, _collab_resource(type_code), entity_id, user)
     return {"data": data, "meta": {"page": 1, "limit": total or 20, "total": total}}
 
 
-@type_router.get("/{entity_id}/attachments")
+@type_router.get("/{entity_id}/attachments", response_model=DataEnvelope)
 async def attachments(type_code: str, entity_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
     payload = await _service(type_code).get_item(db, entity_id)
     return {"data": payload.get("attachments", [])}
 
 
-@type_router.put("/{entity_id}/attachments")
-@type_router.post("/{entity_id}/attachments")
+@type_router.put("/{entity_id}/attachments", response_model=DataEnvelope)
+@type_router.post("/{entity_id}/attachments", response_model=DataEnvelope)
 async def replace_attachments(
     type_code: str,
     entity_id: str,
-    body: dict,
+    request: Request,
+    body: AttachmentsBody,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(current_user),
 ):
-    files = body.get("files") or body.get("attachments") or []
-    await _service(type_code).update(db, user, entity_id, {"attachments": files})
+    payload = request_mutation_body(request, body)
+    files = payload.get("files") or payload.get("attachments") or []
+    await _service(type_code).update(db, user, entity_id, {"attachments": files, "version": payload.get("version")})
     return {"data": files}
 
 
-@type_router.post("/{entity_id}/assign-topic")
+@type_router.post("/{entity_id}/assign-topic", response_model=DataEnvelope)
 async def assign_topic(
     type_code: str,
     entity_id: str,
-    body: dict,
+    body: MeetingAssignTopic,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(current_user),
 ):
@@ -341,14 +398,14 @@ async def assign_topic(
     if type_code != "meeting_history":
         raise HTTPException(404, "Not found")
     require_permission(user, "records.meeting_history.assign")
-    return {"data": await meeting_board.assign_topic(db, entity_id, body)}
+    return {"data": await meeting_board.assign_topic(db, entity_id, body.model_dump(exclude_unset=True))}
 
 
-@type_router.post("/{entity_id}/attachments/link")
+@type_router.post("/{entity_id}/attachments/link", response_model=DataEnvelope)
 async def link_drive_attachment(
     type_code: str,
     entity_id: str,
-    body: dict,
+    body: MeetingLinkDrive,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(current_user),
 ):
@@ -358,7 +415,7 @@ async def link_drive_attachment(
     if type_code != "meeting_history":
         raise HTTPException(404, "Not found")
     require_permission(user, "records.meeting_history.edit")
-    return {"data": await meeting_board.link_drive_attachment(db, entity_id, body)}
+    return {"data": await meeting_board.link_drive_attachment(db, entity_id, body.model_dump(exclude_unset=True))}
 
 
 router.include_router(type_router)

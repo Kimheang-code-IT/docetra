@@ -1,0 +1,18 @@
+title = "docetra"
+
+[allowlist]
+description = "Example env files and documented local placeholders"
+paths = [
+  '''(^|/)backend\.env\.example$''',
+  '''(^|/)frontend/\.env\.example$''',
+  '''(^|/)\.gitleaks\.toml$''',
+]
+regexes = [
+  '''local-development-change-me''',
+  '''local-development-jwt-change-me''',
+  '''local-reset-change-me''',
+  '''local-settings-encryption-change-me''',
+  '''docetra_local_only''',
+  '''docetra_minio_local_only''',
+  '''docetra_rabbit_local_only''',
+]

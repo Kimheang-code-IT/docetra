@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useAppLocalization } from '~/composables/settings/useAppLocalization'
+import { formatSummaryValue } from '~/utils/format/summary-value'
 
 /**
  * Reusable dashboard / report summary metric card.
@@ -36,22 +37,14 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const { formatNumber } = useAppLocalization()
 
-const displayValue = computed(() => {
-  const raw = props.value
-  if (raw == null || raw === '') return '—'
-  const num = typeof raw === 'number' ? raw : Number(raw)
-  if (typeof raw === 'number' || (typeof raw === 'string' && raw.trim() !== '' && !Number.isNaN(num))) {
-    if (Number.isNaN(num)) return '—'
-    const formatted = props.decimals != null
-      ? formatNumber(num, {
-          minimumFractionDigits: props.decimals,
-          maximumFractionDigits: props.decimals,
-        })
-      : formatNumber(num)
-    return `${props.prefix}${formatted}${props.suffix}`
-  }
-  return `${props.prefix}${raw}${props.suffix}`
-})
+const displayValue = computed(() => formatSummaryValue(props.value, {
+  prefix: props.prefix,
+  suffix: props.suffix,
+  decimals: props.decimals,
+  formatNumber: (value, fractionDigits) => formatNumber(value, fractionDigits == null
+    ? undefined
+    : { minimumFractionDigits: fractionDigits, maximumFractionDigits: fractionDigits }),
+}))
 
 const menuItems = computed(() => {
   const items: Array<{ label: string, icon?: string, to?: string, onSelect?: () => void }> = []

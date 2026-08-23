@@ -1,10 +1,12 @@
 """People/access helpers: menu seed, role permissions, officer linkage."""
 
 import uuid
+from collections.abc import Sequence
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.errors import DomainError
 from app.core.permissions import ALL_PERMISSIONS, DOCUMENT_TYPES, PREFIXES
 from app.models.access import Menu, Permission, Role
 from app.models.people import Officer, User
@@ -60,6 +62,38 @@ async def permissions_for_role_id(db: AsyncSession, role_id: uuid.UUID | None) -
     return list(rows)
 
 
+async def count_users(db: AsyncSession) -> int:
+    return int(await db.scalar(select(func.count()).select_from(User)) or 0)
+
+
+async def provision_first_administrator(db: AsyncSession, *, name: str, email: str, password: str) -> User:
+    """Create the first account as SuperAdmin with every system permission."""
+    from app.core.security import hash_password
+
+    await db.execute(text("SELECT pg_advisory_xact_lock(87421031)"))
+    if await count_users(db):
+        raise DomainError("FORBIDDEN", "Registration is closed", 403)
+
+    await seed_menus(db)
+    role = await ensure_superadmin_role(db)
+    user = User(
+        email=email,
+        name=name,
+        password_hash=hash_password(password),
+        role="SuperAdmin",
+        permissions=list(ALL_PERMISSIONS),
+        role_id=role.id,
+        status="active",
+        active=True,
+    )
+    db.add(user)
+    await db.flush()
+    user.created_by = user.id
+    user.updated_by = user.id
+    await ensure_officer_for_user(db, user, role.id)
+    return user
+
+
 async def ensure_officer_for_user(db: AsyncSession, user: User, role_id: uuid.UUID | None = None) -> Officer:
     officer = None
     if user.officer_id:
@@ -86,6 +120,35 @@ async def ensure_officer_for_user(db: AsyncSession, user: User, role_id: uuid.UU
         officer.is_active = 1 if user.active else 0
     user.officer_id = officer.id
     return officer
+
+
+async def bind_user_officer(db: AsyncSession, user: User, officer_id: uuid.UUID) -> Officer:
+    previous = await db.scalar(select(Officer).where(Officer.auth_id == user.id))
+    if previous is not None and previous.id != officer_id:
+        previous.auth_id = None
+        await db.flush()
+    officer = await db.get(Officer, officer_id)
+    if officer is None:
+        raise DomainError("VALIDATION_ERROR", "Linked officer does not exist or is inactive", 422)
+    officer.auth_id = user.id
+    user.officer_id = officer.id
+    return officer
+
+
+async def hydrate_user_payloads(db: AsyncSession, users: Sequence[User]) -> list[dict]:
+    officer_ids = [user.officer_id for user in users if user.officer_id]
+    names: dict[uuid.UUID, str] = {}
+    if officer_ids:
+        officers = (await db.scalars(select(Officer).where(Officer.id.in_(officer_ids)))).all()
+        names = {officer.id: officer.nam for officer in officers}
+    return [
+        user_to_payload(user, officer_name=names.get(user.officer_id) if user.officer_id else None)
+        for user in users
+    ]
+
+
+async def user_payload(db: AsyncSession, user: User) -> dict:
+    return (await hydrate_user_payloads(db, [user]))[0]
 
 
 def role_to_payload(role: Role, permissions: list[str]) -> dict:
@@ -121,7 +184,7 @@ def officer_to_payload(officer: Officer) -> dict:
     }
 
 
-def user_to_payload(user: User) -> dict:
+def user_to_payload(user: User, *, officer_name: str | None = None) -> dict:
     return {
         "id": str(user.id),
         "name": user.name,
@@ -130,6 +193,7 @@ def user_to_payload(user: User) -> dict:
         "roleName": user.role,
         "roleId": str(user.role_id) if user.role_id else None,
         "officerId": str(user.officer_id) if user.officer_id else None,
+        "officerName": officer_name,
         "avatar": user.avatar,
         "permissions": list(user.permissions or []),
         "status": user.status if user.status else ("active" if user.active else "inactive"),

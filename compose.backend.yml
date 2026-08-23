@@ -146,7 +146,7 @@ services:
 
   # Browser UI for Redis (ops DB 0 + cache DB 1/2). Local development only.
   redis-ui:
-    image: ${REDIS_UI_IMAGE:-rediscommander/redis-commander:latest}
+    image: ${REDIS_UI_IMAGE:-rediscommander/redis-commander@sha256:19cd0c49f418779fa2822a0496c5e6516d0c792effc39ed20089e6268477e40a}
     restart: unless-stopped
     environment:
       REDIS_HOSTS: "ops:redis:6379:0,short:redis:6379:1,long:redis:6379:2"

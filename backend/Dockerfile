@@ -1,4 +1,4 @@
-FROM python:3.12-slim AS runtime
+FROM python:3.12-slim@sha256:2c941e860699f878900b0edc2403613c234d4b32eda3cc9fa7036991a2a63c4a AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -11,13 +11,11 @@ RUN groupadd --system --gid 10001 docetra \
 WORKDIR /app
 COPY pyproject.toml ./
 RUN pip install --upgrade pip \
- && pip install ".[test]"
+ && pip install .
 
 COPY alembic.ini ./
 COPY alembic ./alembic
 COPY app ./app
-COPY tests ./tests
-COPY scripts ./scripts
 
 USER docetra
 EXPOSE 8000

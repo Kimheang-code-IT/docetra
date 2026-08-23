@@ -1,5 +1,6 @@
 import { ApiEndpoints } from '~/utils/constants/api-endpoints'
 import type { ApiResponse } from '~/types/docetra/common'
+import { resolveRecordSurfaceByParam } from '~/utils/record/surfaces'
 
 export type RecordUiSurface = 'meeting' | 'document' | 'system' | string
 
@@ -57,13 +58,7 @@ export function useRecordSurfaces() {
 
   function resolveByParam(surface: 'meeting' | 'document', param: string): RecordSurfaceType | null {
     const list = surface === 'meeting' ? meetingTypes.value : documentTypes.value
-    const needle = String(param || '').trim().toLowerCase()
-    if (!needle) return null
-    return list.find(t =>
-      t.code.toLowerCase() === needle
-      || String(t.slug || '').toLowerCase() === needle
-      || t.routeBase.toLowerCase().endsWith(`/${needle}`),
-    ) || null
+    return resolveRecordSurfaceByParam(list, param)
   }
 
   return {

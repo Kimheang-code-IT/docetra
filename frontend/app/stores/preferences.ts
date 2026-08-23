@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { computed } from 'vue'
 import type { AppFontSize } from '~/types/docetra/settings'
 import { useAppLocalization } from '~/composables/settings/useAppLocalization'
+import { DEFAULT_FONT_SIZE, FONT_SIZE_PX, normalizeFontSize } from '~/utils/preferences/font-size'
 
 const THEME_PRIMARY_KEY = 'ui:theme:primary'
 const THEME_NEUTRAL_KEY = 'ui:theme:neutral'
@@ -12,20 +13,6 @@ const FONT_SIZE_KEY = 'ui:font-size'
 export type AppLocale = 'en' | 'km'
 
 type UiColorConfig = { primary?: string; neutral?: string }
-
-const FONT_SIZE_PX: Record<AppFontSize, string> = {
-  sm: '14px',
-  md: '16px',
-  lg: '18px',
-  xl: '20px',
-}
-
-const DEFAULT_FONT_SIZE: AppFontSize = 'md'
-
-function normalizeFontSize(value: string | null | undefined): AppFontSize {
-  if (value === 'sm' || value === 'md' || value === 'lg' || value === 'xl') return value
-  return DEFAULT_FONT_SIZE
-}
 
 /**
  * Cross-page UI preferences (theme colors, font size, locale).

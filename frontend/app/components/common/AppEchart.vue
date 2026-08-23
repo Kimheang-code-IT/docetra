@@ -76,7 +76,7 @@ function downloadChart(filename = 'chart') {
   })
 
   const link = document.createElement('a')
-  link.download = `${filename.replace(/[^\w\-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'chart'}.png`
+  link.download = `${filename.replace(/[^\w-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'chart'}.png`
   link.href = url
   link.click()
 }

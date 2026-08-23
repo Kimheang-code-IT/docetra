@@ -24,16 +24,16 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
-from redis.asyncio import Redis
-from sqlalchemy import select, text
+from sqlalchemy import select
 
 from app import __version__
 from app.api.v2.router import router as api_router
 from app.core.config import settings
 from app.core.errors import DomainError
-from app.core.logging import configure_logging
+from app.core.logging import bind_request_context, configure_logging, reset_request_context
 from app.core.metrics import observe, prometheus_response
 from app.core.permissions import ALL_PERMISSIONS
+from app.core.readiness import readiness_payload
 from app.core.security import hash_password
 from app.db import SessionLocal, User
 from app.jobs.consumers import handle_message
@@ -49,6 +49,8 @@ from app.modules.people_access.services.identity import ensure_admin_entity
 configure_logging()
 log = logging.getLogger(__name__)
 
+API_CONTENT_SECURITY_POLICY = "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
+
 
 async def seed_record_type_ui() -> None:
     """Ensure built-in record types exist with uiSurface payload for menus/API."""
@@ -61,7 +63,7 @@ async def seed_record_type_ui() -> None:
         await db.commit()
 
 
-async def seed_admin() -> None:
+async def seed_system() -> None:
     async with SessionLocal() as db:
         from app.modules.people_access.services.people import ensure_officer_for_user, ensure_superadmin_role, seed_menus
 
@@ -71,6 +73,10 @@ async def seed_admin() -> None:
         except Exception:
             log.exception("Typed role/menu seed skipped; relational migration may be pending")
             role = None
+
+        if not settings.seed_bootstrap_admin:
+            await db.commit()
+            return
 
         user = await db.scalar(select(User).where(User.email == settings.admin_email.lower()))
         if not user:
@@ -109,9 +115,9 @@ def create_app() -> FastAPI:
     async def lifespan(app: FastAPI):
         settings.validate_production()
         try:
-            await seed_admin()
+            await seed_system()
         except Exception:
-            log.exception("Admin seed skipped; database may still be migrating")
+            log.exception("System seed skipped; database may still be migrating")
         try:
             await seed_record_type_ui()
         except Exception:
@@ -131,7 +137,8 @@ def create_app() -> FastAPI:
         allow_origins=settings.cors_allowed_origins,
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        allow_headers=["Content-Type", "X-Requested-With", settings.csrf_header_name],
+        allow_headers=["Content-Type", "X-Requested-With", settings.csrf_header_name, "X-Request-ID", "X-Correlation-ID"],
+        expose_headers=["X-Request-ID", "X-Correlation-ID"],
     )
     application.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.trusted_hosts)
 
@@ -139,13 +146,21 @@ def create_app() -> FastAPI:
     async def security_headers(request: Request, call_next):
         started = time.monotonic()
         request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
+        correlation_id = request.headers.get("X-Correlation-ID") or request_id
         request.state.request_id = request_id
-        response = await call_next(request)
+        request.state.correlation_id = correlation_id
+        tokens = bind_request_context(request_id, correlation_id)
+        try:
+            response = await call_next(request)
+        finally:
+            reset_request_context(tokens)
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+        response.headers["Content-Security-Policy"] = API_CONTENT_SECURITY_POLICY
         response.headers["X-Request-ID"] = request_id
+        response.headers["X-Correlation-ID"] = correlation_id
         await observe(request, response.status_code, time.monotonic() - started)
         return response
 
@@ -201,15 +216,8 @@ def create_app() -> FastAPI:
 
     @application.get("/ready", tags=["health"])
     async def ready():
-        try:
-            async with SessionLocal() as db:
-                await db.execute(text("select 1"))
-            redis = Redis.from_url(settings.redis_url)
-            await redis.ping()
-            await redis.aclose()
-            return {"status": "ready", "database": "ok", "redis": "ok"}
-        except Exception as exc:
-            raise HTTPException(503, f"Dependency unavailable: {type(exc).__name__}") from exc
+        status_code, body = await readiness_payload()
+        return JSONResponse(status_code=status_code, content=body)
 
     @application.get("/metrics", include_in_schema=False)
     async def metrics():

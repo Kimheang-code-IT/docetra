@@ -7,6 +7,7 @@ import { TABLE_PAGE_SIZES, parsePageLimit } from '~/utils/pagination'
 import { isWithinDateTimeRange } from '~/utils/date-time-range'
 import { permissionForAction } from '~/utils/role/access'
 import { useAppLocalization } from '~/composables/settings/useAppLocalization'
+import { concurrencyVersion, withConcurrencyToken } from '~/utils/api/concurrency'
 
 export type ArchiveRow = Record<string, unknown> & {
   id: string
@@ -176,8 +177,8 @@ export function useArchiveWorkspace(sourceKeys: AdapterKey[] = ARCHIVE_SOURCE_KE
     if (!accepted) return
     try {
       const adapter = getEntityAdapter(row.sourceKey)
-      if (adapter.restore) await adapter.restore(row.recordId)
-      else await adapter.update(row.recordId, { status: 'active' })
+      if (adapter.restore) await adapter.restore(row.recordId, { version: concurrencyVersion(row) })
+      else await adapter.update(row.recordId, withConcurrencyToken({ status: 'active' }, row))
       allRows.value = allRows.value.filter(item => item.id !== row.id)
       toast.add({ title: t('docetra.archive.restored'), color: 'success' })
     }
@@ -201,7 +202,7 @@ export function useArchiveWorkspace(sourceKeys: AdapterKey[] = ARCHIVE_SOURCE_KE
       await Promise.all(permittedRows.map(async (row) => {
         const adapter = getEntityAdapter(row.sourceKey)
         if (!adapter.purge) throw new Error(t('docetra.archive.deleteUnsupported'))
-        await adapter.purge(row.recordId)
+        await adapter.purge(row.recordId, { version: concurrencyVersion(row) })
       }))
       const deletedIds = new Set(permittedRows.map(row => row.id))
       allRows.value = allRows.value.filter(row => !deletedIds.has(row.id))

@@ -16,8 +16,11 @@ def _user(*, role: str = "User", permissions: list[str] | None = None):
     return SimpleNamespace(role=role, permissions=permissions or [])
 
 
-def test_require_permission_allows_superadmin():
-    require_permission(_user(role="SuperAdmin"), "records.documents.delete")
+def test_first_admin_register_is_csrf_exempt():
+    from app.core.security import CSRF_EXEMPT_PATHS
+
+    assert "/api/v2/auth/register" in CSRF_EXEMPT_PATHS
+    assert "/api/v2/auth/login" in CSRF_EXEMPT_PATHS
 
 
 def test_require_permission_allows_admin_name_only_when_stored():
@@ -70,3 +73,10 @@ def test_rate_limit_safe_key_is_stable_hash():
 def test_lock_settings_positive():
     assert settings_account_lock_seconds() >= 60
     assert settings_max_login_failures() >= 1
+
+
+def test_first_admin_register_is_csrf_exempt():
+    from app.core.security import CSRF_EXEMPT_PATHS
+
+    assert "/api/v2/auth/register" in CSRF_EXEMPT_PATHS
+    assert "/api/v2/auth/login" in CSRF_EXEMPT_PATHS

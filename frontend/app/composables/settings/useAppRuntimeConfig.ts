@@ -1,6 +1,6 @@
 import type { AppConfigGeneral, AppConfigSecurity } from '~/types/docetra/settings'
 import { useSettingsRepositories } from '~/repositories'
-import { DEFAULT_UPLOAD_TYPES } from '~/utils/security/files'
+import { extensionsToUppyTypes } from '~/utils/security/files'
 
 const DEFAULT_GENERAL: AppConfigGeneral = {
   defaultLandingPage: '/',
@@ -21,15 +21,6 @@ const DEFAULT_SECURITY: AppConfigSecurity = {
   allowedUploadExtensions: ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'png', 'jpg', 'jpeg'],
   auditRetentionDays: 365,
   frontendOnly: false,
-}
-
-/** Ext → Uppy allowedFileTypes rules (extension with leading dot). */
-export function extensionsToUppyTypes(extensions: string[]): string[] {
-  const mapped = extensions
-    .map(ext => String(ext || '').trim().toLowerCase().replace(/^\./, ''))
-    .filter(Boolean)
-    .map(ext => `.${ext}`)
-  return mapped.length ? mapped : [...DEFAULT_UPLOAD_TYPES]
 }
 
 /** App Config general + security for runtime UI (page size, uploads). */

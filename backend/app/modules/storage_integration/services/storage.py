@@ -72,10 +72,10 @@ async def resolve_storage(db: AsyncSession | None = None) -> tuple[Minio, str]:
                 active = payload
         chosen = default or active
         if chosen:
-            built = _client_from_payload(chosen)
+            built = await asyncio.to_thread(_client_from_payload, chosen)
             if built:
                 return built
-        return _env_client()
+        return await asyncio.to_thread(_env_client)
 
     if db is not None:
         client, bucket = await _load(db)
@@ -92,10 +92,6 @@ async def invalidate_storage_client() -> None:
     _bucket = None
 
 
-# Backward-compatible module attribute used by files endpoint
-client = _env_client()[0]
-
-
 async def ensure_bucket(db: AsyncSession | None = None):
     storage, bucket = await resolve_storage(db)
     exists = await asyncio.to_thread(storage.bucket_exists, bucket)
@@ -103,15 +99,51 @@ async def ensure_bucket(db: AsyncSession | None = None):
         await asyncio.to_thread(storage.make_bucket, bucket)
 
 
-async def put_bytes(key: str, data: bytes, content_type: str, db: AsyncSession | None = None):
-    storage, bucket = await resolve_storage(db)
-    await ensure_bucket(db)
-    await asyncio.to_thread(storage.put_object, bucket, key, BytesIO(data), len(data), content_type=content_type)
+_MISSING_OBJECT_CODES = frozenset({"NoSuchKey", "NoSuchObject", "NoSuchBucket", "NotFound"})
 
 
-async def delete_object(key: str, db: AsyncSession | None = None):
+async def put_bytes(key: str, data: bytes, content_type: str, db: AsyncSession | None = None, *, attempts: int = 3):
+    last_error: BaseException | None = None
+    for attempt in range(1, max(1, attempts) + 1):
+        try:
+            storage, bucket = await resolve_storage(db)
+            await ensure_bucket(db)
+            await asyncio.to_thread(storage.put_object, bucket, key, BytesIO(data), len(data), content_type=content_type)
+            return
+        except Exception as exc:
+            last_error = exc
+            if attempt >= attempts:
+                break
+            await asyncio.sleep(0.15 * (2 ** (attempt - 1)))
+    assert last_error is not None
+    raise last_error
+
+
+async def delete_object(key: str, db: AsyncSession | None = None, *, missing_ok: bool = True):
+    if not key:
+        return
     storage, bucket = await resolve_storage(db)
-    await asyncio.to_thread(storage.remove_object, bucket, key)
+    try:
+        await asyncio.to_thread(storage.remove_object, bucket, key)
+    except Exception as exc:
+        code = str(getattr(exc, "code", "") or "")
+        if missing_ok and code in _MISSING_OBJECT_CODES:
+            return
+        raise
+
+
+def _read_object(storage: Minio, bucket: str, key: str) -> bytes:
+    response = storage.get_object(bucket, key)
+    try:
+        return response.read()
+    finally:
+        response.close()
+        response.release_conn()
+
+
+async def get_object_bytes(key: str, db: AsyncSession | None = None) -> bytes:
+    storage, bucket = await resolve_storage(db)
+    return await asyncio.to_thread(_read_object, storage, bucket, key)
 
 
 def safe_name(value: str):

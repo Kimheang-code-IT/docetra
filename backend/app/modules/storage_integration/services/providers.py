@@ -7,7 +7,16 @@ async def test_provider(payload:dict)->dict:
     if kind in {"minio","amazon_s3","cloudflare_r2"}:
         endpoint=str(payload.get("endpoint") or settings.s3_endpoint).removeprefix("http://").removeprefix("https://")
         secure=bool(payload.get("useSsl",payload.get("ssl",settings.s3_use_ssl)))
-        client=Minio(endpoint,access_key=str(payload.get("accessKey") or settings.s3_access_key),secret_key=str(payload.get("secretKey") or settings.s3_secret_key),secure=secure,region=payload.get("region") or None)
+        def _client():
+            return Minio(
+                endpoint,
+                access_key=str(payload.get("accessKey") or settings.s3_access_key),
+                secret_key=str(payload.get("secretKey") or settings.s3_secret_key),
+                secure=secure,
+                region=payload.get("region") or None,
+            )
+
+        client = await asyncio.to_thread(_client)
         bucket=str(payload.get("bucket") or settings.s3_bucket)
         exists=await asyncio.to_thread(client.bucket_exists,bucket)
         if not exists: return {"status":"failed","message":f"Bucket {bucket} does not exist"}

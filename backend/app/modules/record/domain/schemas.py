@@ -37,3 +37,13 @@ class MeetingReorder(BaseModel):
 
     topicId: str | None = None
     orderedMeetingIds: list[str] = []
+
+
+class MeetingLinkDrive(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    displayName: str | None = None
+    mimeType: str | None = None
+    sizeBytes: int | None = None
+    webViewLink: str | None = None
+    driveFileId: str | None = None

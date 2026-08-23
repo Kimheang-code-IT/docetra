@@ -1,5 +1,4 @@
-import type { ListQuery } from '~/types/docetra/common'
-import type { EntityView } from '~/types/docetra/common'
+import type { EntityView, ListQuery } from '~/types/docetra/common'
 import type { EntityConfig } from '~/config/entities'
 import type { ExportRequest } from '~/types/docetra/export'
 import { createExportJob } from '~/adapters/exports'
@@ -10,6 +9,7 @@ import {
   parsePageLimit,
   serializePageLimit,
 } from '~/utils/pagination'
+import { concurrencyVersion, versionsById } from '~/utils/api/concurrency'
 
 function getByPath(obj: Record<string, unknown>, path: string): unknown {
   return path.split('.').reduce<unknown>((acc, key) => {
@@ -242,7 +242,10 @@ export function useEntityWorkspace(config: EntityConfig) {
       }
     }
     try {
-      await adapter.transitionStage(id, stage)
+      const row = Object.values(kanbanColumns.value)
+        .flatMap(column => column.items)
+        .find(item => String(item.id) === id)
+      await adapter.transitionStage(id, stage, { version: concurrencyVersion(row) })
     }
     catch (e) {
       kanbanColumns.value = snapshot
@@ -333,11 +336,16 @@ export function useEntityWorkspace(config: EntityConfig) {
 
   async function deleteSelected(ids: string[]) {
     if (!ids.length || config.readOnly || config.canDelete === false) return
+    const rows = [
+      ...items.value,
+      ...Object.values(kanbanColumns.value).flatMap(column => column.items),
+    ]
+    const versions = versionsById(rows, ids)
     if (adapter.deleteMany) {
-      await adapter.deleteMany(ids)
+      await adapter.deleteMany(ids, versions)
     }
     else if (adapter.delete) {
-      await Promise.all(ids.map(id => adapter.delete!(id)))
+      await Promise.all(ids.map(id => adapter.delete!(id, { version: versions[id] })))
     }
     else {
       throw createError({ statusCode: 501, statusMessage: 'Delete not supported' })

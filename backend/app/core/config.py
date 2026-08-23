@@ -47,6 +47,7 @@ class Settings(BaseSettings):
     admin_email: str = "admin@gmail.com"
     admin_password: str = "123456"
     admin_name: str = "System Administrator"
+    seed_bootstrap_admin: bool = False
     s3_endpoint: str = "http://minio:9000"
     s3_access_key: str = "docetra"
     s3_secret_key: str = "docetra_minio_local_only"

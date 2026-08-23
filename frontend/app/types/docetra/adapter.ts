@@ -9,19 +9,21 @@ import type {
   ListQuery,
 } from '~/types/docetra/common'
 
+export type ConcurrencyToken = { version?: number }
+
 export interface EntityAdapter<T> {
   list: (query?: ListQuery) => Promise<ApiResponse<T[]>>
   get: (id: string) => Promise<ApiResponse<T>>
   create: (payload: Partial<T>) => Promise<ApiResponse<T>>
-  update: (id: string, payload: Partial<T>) => Promise<ApiResponse<T>>
-  archive?: (id: string) => Promise<ApiResponse<T>>
-  restore?: (id: string) => Promise<ApiResponse<T>>
+  update: (id: string, payload: Partial<T> & ConcurrencyToken) => Promise<ApiResponse<T>>
+  archive?: (id: string, extra?: ConcurrencyToken) => Promise<ApiResponse<T>>
+  restore?: (id: string, extra?: ConcurrencyToken) => Promise<ApiResponse<T>>
   /** Soft delete. The backend retains data for an authorized administrator restore. */
-  delete?: (id: string) => Promise<ApiResponse<{ id: string }>>
-  deleteMany?: (ids: string[]) => Promise<ApiResponse<{ ids: string[] }>>
+  delete?: (id: string, extra?: ConcurrencyToken) => Promise<ApiResponse<{ id: string }>>
+  deleteMany?: (ids: string[], versions?: Record<string, number>) => Promise<ApiResponse<{ ids: string[] }>>
   /** Irreversible administrative purge after retention/dependency checks. */
-  purge?: (id: string) => Promise<ApiResponse<{ id: string }>>
-  transitionStage?: (id: string, stage: string) => Promise<ApiResponse<T>>
+  purge?: (id: string, extra?: ConcurrencyToken) => Promise<ApiResponse<{ id: string }>>
+  transitionStage?: (id: string, stage: string, extra?: ConcurrencyToken) => Promise<ApiResponse<T>>
   listByStage?: (stage: string, query?: ListQuery) => Promise<ApiResponse<T[]>>
   /** One aggregate request; avoids one count request per board column. */
   getGroupCounts?: (field: string, query?: ListQuery) => Promise<ApiResponse<GroupCountSummary>>
@@ -34,5 +36,5 @@ export interface EntityAdapter<T> {
   setFavorite?: (id: string, isFavorite: boolean, userId?: string) => Promise<ApiResponse<EntityFavoriteState>>
   listActivity?: (id: string, query?: ListQuery) => Promise<ApiResponse<ActivityEvent[]>>
   listAttachments?: (id: string, query?: ListQuery) => Promise<ApiResponse<AttachmentMeta[]>>
-  replaceAttachments?: (id: string, files: AttachmentMeta[]) => Promise<ApiResponse<AttachmentMeta[]>>
+  replaceAttachments?: (id: string, files: AttachmentMeta[], extra?: ConcurrencyToken) => Promise<ApiResponse<AttachmentMeta[]>>
 }

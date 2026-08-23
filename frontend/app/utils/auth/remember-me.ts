@@ -10,9 +10,22 @@ export type RememberMeState = {
   email: string
 }
 
+function isEnabledFlag(value: unknown): boolean {
+  return value === '1' || value === 1 || value === true
+}
+
 export function readRememberMe(): RememberMeState {
-  const enabled = localStore.get(AuthKeys.REMEMBER_ENABLED) === '1'
-  const email = enabled ? (localStore.get(AuthKeys.REMEMBER_EMAIL) || '') : ''
+  const enabled = isEnabledFlag(localStore.get(AuthKeys.REMEMBER_ENABLED))
+  const email = enabled ? String(localStore.get(AuthKeys.REMEMBER_EMAIL) || '') : ''
   return { enabled, email }
 }
 
+export function writeRememberMe(state: RememberMeState) {
+  if (state.enabled && state.email) {
+    localStore.set(AuthKeys.REMEMBER_ENABLED, '1')
+    localStore.set(AuthKeys.REMEMBER_EMAIL, state.email)
+    return
+  }
+  localStore.remove(AuthKeys.REMEMBER_ENABLED)
+  localStore.remove(AuthKeys.REMEMBER_EMAIL)
+}

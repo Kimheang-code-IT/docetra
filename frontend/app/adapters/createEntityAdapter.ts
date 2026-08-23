@@ -8,8 +8,9 @@ import type {
   EntityRecordNeighbors,
   GroupCountSummary,
 } from '~/types/docetra/common'
+import { concurrencyHeaders, withConcurrencyToken } from '~/utils/api/concurrency'
 
-type EntityRecord = { id: string; status?: string; stage?: string; updatedAt?: string; createdAt?: string }
+type EntityRecord = { id: string; status?: string; stage?: string; updatedAt?: string; createdAt?: string; version?: number }
 
 export function createEntityAdapter<T extends EntityRecord>(options: {
   endpoint: string
@@ -37,31 +38,47 @@ export function createEntityAdapter<T extends EntityRecord>(options: {
     },
 
     update(id, payload) {
-      return api().patch<ApiResponse<T>>(resource(id), payload)
+      return api().patch<ApiResponse<T>>(resource(id), withConcurrencyToken({ ...payload }, payload.version), {
+        headers: concurrencyHeaders(payload.version),
+      })
     },
 
-    archive(id) {
-      return api().post<ApiResponse<T>>(`${resource(id)}/archive`, {})
+    archive(id, extra) {
+      return api().post<ApiResponse<T>>(`${resource(id)}/archive`, withConcurrencyToken({}, extra?.version), {
+        headers: concurrencyHeaders(extra?.version),
+      })
     },
 
-    restore(id) {
-      return api().post<ApiResponse<T>>(`${resource(id)}/restore`, {})
+    restore(id, extra) {
+      return api().post<ApiResponse<T>>(`${resource(id)}/restore`, withConcurrencyToken({}, extra?.version), {
+        headers: concurrencyHeaders(extra?.version),
+      })
     },
 
-    delete(id) {
-      return api().delete<ApiResponse<{ id: string }>>(resource(id))
+    delete(id, extra) {
+      return api().delete<ApiResponse<{ id: string }>>(resource(id), {
+        query: extra?.version != null ? { version: extra.version } : undefined,
+        headers: concurrencyHeaders(extra?.version),
+      })
     },
 
-    deleteMany(ids) {
-      return api().post<ApiResponse<{ ids: string[] }>>(`${endpoint}/bulk-delete`, { ids })
+    deleteMany(ids, versions) {
+      return api().post<ApiResponse<{ ids: string[] }>>(`${endpoint}/bulk-delete`, { ids, versions: versions || {} })
     },
 
-    purge(id) {
-      return api().delete<ApiResponse<{ id: string }>>(`${resource(id)}/purge`)
+    purge(id, extra) {
+      return api().delete<ApiResponse<{ id: string }>>(`${resource(id)}/purge`, {
+        query: extra?.version != null ? { version: extra.version } : undefined,
+        headers: concurrencyHeaders(extra?.version),
+      })
     },
 
-    transitionStage(id, stage) {
-      return api().patch<ApiResponse<T>>(`${resource(id)}/stage`, { stage })
+    transitionStage(id, stage, extra) {
+      return api().patch<ApiResponse<T>>(
+        `${resource(id)}/stage`,
+        withConcurrencyToken({ stage }, extra?.version),
+        { headers: concurrencyHeaders(extra?.version) },
+      )
     },
 
     listByStage(stage, query) {
@@ -124,8 +141,12 @@ export function createEntityAdapter<T extends EntityRecord>(options: {
       return api().get<ApiResponse<AttachmentMeta[]>>(`${resource(id)}/attachments`, { query })
     },
 
-    replaceAttachments(id, files) {
-      return api().put<ApiResponse<AttachmentMeta[]>>(`${resource(id)}/attachments`, { files })
+    replaceAttachments(id, files, extra) {
+      return api().put<ApiResponse<AttachmentMeta[]>>(
+        `${resource(id)}/attachments`,
+        withConcurrencyToken({ files }, extra?.version),
+        { headers: concurrencyHeaders(extra?.version) },
+      )
     },
   }
 }

@@ -3,6 +3,8 @@ from pathlib import Path
 
 STATIC_FRONTEND_PATHS = {
     "/api/v2/auth/login",
+    "/api/v2/auth/register",
+    "/api/v2/auth/bootstrap",
     "/api/v2/auth/logout",
     "/api/v2/auth/me",
     "/api/v2/auth/refresh",

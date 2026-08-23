@@ -4,13 +4,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.v2.deps import current_user, get_db
 from app.core.authorization import require_permission
 from app.core.cache import short_cache
+from app.core.http_schemas import DataEnvelope
 from app.db import User
 from app.modules.reporting_support.services.dashboard import build_dashboard_summary
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 
-@router.get("/summary")
+@router.get("/summary", response_model=DataEnvelope)
 async def dashboard(db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
     require_permission(user, "dashboard.view")
     cached = await short_cache.get("dashboard:summary")

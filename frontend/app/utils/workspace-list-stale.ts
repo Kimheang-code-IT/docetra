@@ -29,7 +29,20 @@ export function returnsToListAfterCreate(entityKey: string): boolean {
     'outgoingDocuments',
     'documents',
     'masterListRequests',
+    'users',
+    'roles',
+    'officers',
+    'departments',
+    'companies',
+    'purposes',
+    'sectors',
   ].includes(entityKey)
+}
+
+/** True when create should go back to the list instead of the new record. */
+export function shouldReturnToListAfterCreate(entityKey: string, returnTo: unknown): boolean {
+  const path = resolveCreateReturnTo(returnTo, '')
+  return Boolean(path) || returnsToListAfterCreate(entityKey)
 }
 
 /** Safe in-app return path from `?returnTo=`. */

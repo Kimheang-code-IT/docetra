@@ -6,6 +6,34 @@ const apiProxyTarget = (nodeEnv.NUXT_API_PROXY_TARGET || 'http://127.0.0.1:8000'
 const publicApiBase = nodeEnv.NUXT_PUBLIC_API_BASE ?? ''
 const useSameOriginProxy = !publicApiBase
 
+function productionConnectSrc() {
+  const origins = ["'self'"]
+  if (publicApiBase) {
+    try {
+      origins.push(new URL(publicApiBase).origin)
+    }
+    catch {
+      // Ignore invalid NUXT_PUBLIC_API_BASE; same-origin remains allowed.
+    }
+  }
+  return origins.join(' ')
+}
+
+// Production CSP: avatars are local data URLs. @nuxt/fonts self-hosts Inter/Noto at build.
+const productionCsp = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "object-src 'none'",
+  "frame-ancestors 'none'",
+  "form-action 'self'",
+  "script-src 'self' 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  "font-src 'self' data:",
+  `connect-src ${productionConnectSrc()}`,
+  "worker-src 'self' blob:",
+].join('; ')
+
 export default defineNuxtConfig({
   modules: [
     '@nuxt/ui',
@@ -13,7 +41,8 @@ export default defineNuxtConfig({
     '@vueuse/nuxt',
     '@nuxtjs/i18n',
     '@nuxt/fonts',
-    '@pinia/nuxt'
+    '@pinia/nuxt',
+    '@nuxt/eslint',
   ],
 
   app: {
@@ -147,7 +176,10 @@ export default defineNuxtConfig({
         'cross-origin-resource-policy': 'same-site',
         'x-permitted-cross-domain-policies': 'none',
         ...(import.meta.env.PROD
-          ? { 'strict-transport-security': 'max-age=31536000; includeSubDomains' }
+          ? {
+              'strict-transport-security': 'max-age=31536000; includeSubDomains',
+              'content-security-policy': productionCsp,
+            }
           : {}),
       },
     },

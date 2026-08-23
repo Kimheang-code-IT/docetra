@@ -21,6 +21,7 @@ from app.core.security import (
     verify_password,
 )
 from app.core.secrets import encrypt_value
+from app.core.http_schemas import AvatarBody, ChangePasswordBody, DataEnvelope, ResetPasswordBody, VerifyResetBody
 from app.core.rate_limit import (
     clear_login_failures,
     enforce_rate_limit,
@@ -29,6 +30,7 @@ from app.core.rate_limit import (
     safe_key,
 )
 from app.db import Entity, Outbox, User, get_db
+from app.modules.people_access.services.people import count_users, provision_first_administrator
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -38,11 +40,44 @@ class Login(BaseModel):
     password: str
 
 
+class Register(BaseModel):
+    name: str
+    email: str
+    password: str
+    passwordConfirmation: str = ""
+
+
 class EmailBody(BaseModel):
     email: str
 
 
-@router.post("/login")
+@router.get("/bootstrap", response_model=DataEnvelope)
+async def bootstrap(db: AsyncSession = Depends(get_db)):
+    return {"data": {"needsSetup": await count_users(db) == 0}}
+
+
+@router.post("/register", response_model=DataEnvelope)
+async def register(body: Register, request: Request, response: Response, db: AsyncSession = Depends(get_db)):
+    email = body.email.strip().lower()
+    name = body.name.strip()
+    client = request.client.host if request.client else "unknown"
+    await enforce_rate_limit(f"rate:register:{client}:{safe_key(email)}", limit=settings.login_rate_limit, window_seconds=settings.login_rate_window_seconds)
+    if not name or "@" not in email or "." not in email.split("@")[-1]:
+        raise HTTPException(422, "Name and a valid email are required")
+    if body.password != body.passwordConfirmation or len(body.password) < settings.minimum_password_length:
+        raise HTTPException(422, "Passwords do not match or are too short")
+    user = await provision_first_administrator(db, name=name, email=email, password=body.password)
+    user.last_login_at = datetime.now(timezone.utc)
+    await db.commit()
+    import app.modules.admin_config.services.runtime as runtime
+
+    config = await runtime.load_app_config(db)
+    policy = runtime.security_policy(config)
+    await issue_session(response, user, access_minutes=policy["sessionTimeoutMinutes"])
+    return {"data": {"user": public_user(user)}}
+
+
+@router.post("/login", response_model=DataEnvelope)
 async def login(body: Login, request: Request, response: Response, db: AsyncSession = Depends(get_db)):
     email = body.email.strip().lower()
     client = request.client.host if request.client else "unknown"
@@ -63,18 +98,18 @@ async def login(body: Login, request: Request, response: Response, db: AsyncSess
     return {"data": {"user": public_user(user)}}
 
 
-@router.get("/me")
+@router.get("/me", response_model=DataEnvelope)
 async def me(user: User = Depends(current_user)):
     return {"data": public_user(user)}
 
 
-@router.post("/refresh")
+@router.post("/refresh", response_model=DataEnvelope)
 async def refresh(request: Request, response: Response, db: AsyncSession = Depends(get_db)):
     user = await refresh_session(request, response, db)
     return {"data": public_user(user)}
 
 
-@router.post("/logout")
+@router.post("/logout", response_model=DataEnvelope)
 async def logout(request: Request, response: Response):
     await delete_session(
         response,
@@ -88,8 +123,8 @@ def reset_digest(email: str, code: str) -> str:
     return hmac.new(settings.password_reset_secret.encode(), f"{email}:{code}".encode(), hashlib.sha256).hexdigest()
 
 
-@router.post("/forgot-password")
-@router.post("/forgot-password/resend")
+@router.post("/forgot-password", response_model=DataEnvelope)
+@router.post("/forgot-password/resend", response_model=DataEnvelope)
 async def forgot(body: EmailBody, request: Request, db: AsyncSession = Depends(get_db)):
     email = body.email.strip().lower()
     client = request.client.host if request.client else "unknown"
@@ -110,26 +145,26 @@ async def forgot(body: EmailBody, request: Request, db: AsyncSession = Depends(g
     return {"data": result}
 
 
-@router.post("/forgot-password/verify")
-async def verify_reset(body: dict):
-    email = str(body.get("email") or "").strip().lower()
-    code = str(body.get("code") or "")
+@router.post("/forgot-password/verify", response_model=DataEnvelope)
+async def verify_reset(body: VerifyResetBody):
+    email = body.email.strip().lower()
+    code = body.code
     expected = await redis.get(f"password-reset:{email}")
     if not expected or not hmac.compare_digest(expected, reset_digest(email, code)):
         raise HTTPException(400, "Invalid code")
     return {"data": {"verified": True}}
 
 
-@router.post("/forgot-password/reset")
-async def reset_password(body: dict, db: AsyncSession = Depends(get_db)):
-    email = str(body.get("email") or "").strip().lower()
-    code = str(body.get("code") or "")
+@router.post("/forgot-password/reset", response_model=DataEnvelope)
+async def reset_password(body: ResetPasswordBody, db: AsyncSession = Depends(get_db)):
+    email = body.email.strip().lower()
+    code = body.code
     expected = await redis.get(f"password-reset:{email}")
-    password = str(body.get("password") or "")
+    password = body.password
     if (
         not expected
         or not hmac.compare_digest(expected, reset_digest(email, code))
-        or password != str(body.get("passwordConfirmation") or "")
+        or password != body.passwordConfirmation
         or len(password) < settings.minimum_password_length
     ):
         raise HTTPException(422, "Invalid reset request")
@@ -143,17 +178,17 @@ async def reset_password(body: dict, db: AsyncSession = Depends(get_db)):
     return {"data": {"reset": True}}
 
 
-@router.post("/change-password")
+@router.post("/change-password", response_model=DataEnvelope)
 async def change_password(
-    body: dict,
+    body: ChangePasswordBody,
     response: Response,
     user: User = Depends(current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    if not verify_password(str(body.get("currentPassword") or ""), user.password_hash):
+    if not verify_password(body.currentPassword, user.password_hash):
         raise HTTPException(401, "Current password is incorrect")
-    password = str(body.get("password") or "")
-    if password != str(body.get("passwordConfirmation") or "") or len(password) < settings.minimum_password_length:
+    password = body.password
+    if password != body.passwordConfirmation or len(password) < settings.minimum_password_length:
         raise HTTPException(422, "Passwords do not match or are too short")
     user.password_hash = hash_password(password)
     await db.commit()
@@ -162,9 +197,9 @@ async def change_password(
     return {"data": {"changed": True}}
 
 
-@router.put("/profile/avatar")
-async def avatar(body: dict, user: User = Depends(current_user), db: AsyncSession = Depends(get_db)):
-    value = str(body.get("avatar") or "")
+@router.put("/profile/avatar", response_model=DataEnvelope)
+async def avatar(body: AvatarBody, user: User = Depends(current_user), db: AsyncSession = Depends(get_db)):
+    value = body.avatar
     match = re.match(r"^data:image/(png|jpeg|webp|gif);base64,(.+)$", value, re.I)
     if not match:
         raise HTTPException(422, "Avatar must be a PNG, JPEG, WebP, or GIF data URL")
@@ -179,7 +214,7 @@ async def avatar(body: dict, user: User = Depends(current_user), db: AsyncSessio
     return {"data": {"avatar": value}}
 
 
-@router.delete("/profile/avatar")
+@router.delete("/profile/avatar", response_model=DataEnvelope)
 async def remove_avatar(user: User = Depends(current_user), db: AsyncSession = Depends(get_db)):
     user.avatar = None
     await db.commit()

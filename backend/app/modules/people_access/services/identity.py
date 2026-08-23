@@ -2,35 +2,44 @@ import secrets
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.errors import DomainError
 from app.core.permissions import expand_permission_rows, normalize_permission_payload
 from app.core.privileged import is_unrestricted, is_unrestricted_role_name
+from app.core.redaction import strip_secrets
+from app.core.security import hash_password, revoke_user_tokens
+from app.db import Entity, User
+from app.models.access import Role
+from app.models.people import Officer
+import app.modules.people_access.services.people as people
+
+USER_AUTHORITY_KEYS = ("permissions", "permissionRows", "roleName", "role")
 
 
 def parse_role_level(value, default: int = 1) -> int:
     if value is None or value == "":
         return default
     return int(value)
-from app.core.security import hash_password, revoke_user_tokens
-from app.db import Entity, User
-from app.models.access import Role
-import app.modules.people_access.services.people as people
-
-SECRET_KEYS = {"password", "passwordConfirmation", "passwordHash", "currentPassword", "token", "secret", "secretKey", "accessKey", "clientSecret", "botToken"}
-USER_AUTHORITY_KEYS = ("permissions", "permissionRows", "roleName", "role")
-
-
-def strip_secrets(payload: dict) -> dict:
-    return {key: value for key, value in payload.items() if key not in SECRET_KEYS}
 
 
 def strip_user_authority(payload: dict) -> dict:
     """Drop client-supplied role names and permission arrays. Server loads those from Role.id."""
     return {key: value for key, value in payload.items() if key not in USER_AUTHORITY_KEYS}
+
+
+def validate_user_password(password, *, required: bool) -> None:
+    value = "" if password is None else str(password)
+    if required and not value:
+        raise DomainError("VALIDATION_ERROR", "Password is required", 422)
+    if value and len(value) < settings.minimum_password_length:
+        raise DomainError(
+            "VALIDATION_ERROR",
+            f"Password must contain at least {settings.minimum_password_length} characters",
+            422,
+        )
 
 
 async def load_assignable_role(db: AsyncSession, role_id, actor: User | None) -> Role:
@@ -74,7 +83,15 @@ async def normalize_identity_payload(
             if existing_role and (is_unrestricted_role_name(existing_role.nam) or parse_role_level(existing_role.lvl) == 0):
                 if actor is None or not is_unrestricted(actor):
                     raise DomainError("FORBIDDEN", "You cannot modify a privileged role", 403)
-        duplicate = await db.scalar(select(Entity).where(Entity.resource == "roles", Entity.payload["code"].as_string() == data["code"], Entity.id != excluded))
+        duplicate = await db.scalar(
+            select(Role.id).where(
+                Role.id != excluded,
+                or_(
+                    func.lower(Role.nam) == data["name"].lower(),
+                    func.upper(func.replace(Role.nam, " ", "_")) == data["code"],
+                ),
+            )
+        )
         if duplicate:
             raise DomainError("CONFLICT", "Role code already exists", 409)
     if resource == "users":
@@ -82,8 +99,7 @@ async def normalize_identity_payload(
         data["name"] = str(data.get("name") or "").strip()
         if not data["name"] or "@" not in data["email"]:
             raise DomainError("VALIDATION_ERROR", "A valid email and name are required", 422)
-        if data.get("password") and len(str(data["password"])) < settings.minimum_password_length:
-            raise DomainError("VALIDATION_ERROR", f"Password must contain at least {settings.minimum_password_length} characters", 422)
+        validate_user_password(data.get("password"), required=current_id is None)
         duplicate = await db.scalar(select(User).where(User.email == data["email"], User.id != excluded))
         if duplicate:
             raise DomainError("CONFLICT", "User email already exists", 409)
@@ -97,16 +113,21 @@ async def normalize_identity_payload(
             data["roleId"] = str(role.id)
             data["roleName"] = role.nam
             data["_permissions"] = await people.permissions_for_role_id(db, role.id)
-        officer_id = data.get("officerId")
+        officer_id = data.get("officerId") or None
+        data["officerId"] = str(officer_id) if officer_id else None
         if officer_id:
             try:
-                officer = await db.scalar(select(Entity).where(Entity.resource == "officers", Entity.id == uuid.UUID(str(officer_id)), Entity.status == "active"))
+                officer = await db.get(Officer, uuid.UUID(str(officer_id)))
             except ValueError:
                 officer = None
-            if not officer:
+            if not officer or not officer.is_active:
                 raise DomainError("VALIDATION_ERROR", "Linked officer does not exist or is inactive", 422)
-            assigned = await db.scalar(select(User).where(User.officer_id == uuid.UUID(str(officer_id)), User.id != excluded))
+            assigned = await db.scalar(
+                select(User).where(User.officer_id == uuid.UUID(str(officer_id)), User.id != excluded)
+            )
             if assigned:
+                raise DomainError("CONFLICT", "Officer is already linked to another user", 409)
+            if officer.auth_id is not None and officer.auth_id != excluded:
                 raise DomainError("CONFLICT", "Officer is already linked to another user", 409)
     return data
 
@@ -181,32 +202,19 @@ async def sync_login_user(db: AsyncSession, entity: Entity, payload: dict) -> Us
     return account
 
 
-async def refresh_role_users(db: AsyncSession, role: Entity) -> None:
-    users = (await db.scalars(select(Entity).where(Entity.resource == "users"))).all()
-    keys = await permissions_for_role(db, role.payload or {})
-    for row in users:
-        if str((row.payload or {}).get("roleId") or "") != str(role.id):
-            continue
-        account = await db.get(User, row.id)
-        if account:
-            account.permissions = keys
-            account.role = str((role.payload or {}).get("name") or account.role)
-            row.payload = {**(row.payload or {}), "roleName": account.role}
-            await revoke_user_tokens(str(account.id))
+async def refresh_role_users(db: AsyncSession, role: Role) -> None:
+    users = (await db.scalars(select(User).where(User.role_id == role.id))).all()
+    keys = await people.permissions_for_role_id(db, role.id)
+    for account in users:
+        account.permissions = keys
+        account.role = role.nam
+        await revoke_user_tokens(str(account.id))
 
 
 async def ensure_admin_entity(db: AsyncSession, user: User) -> None:
-    from app.core.permissions import ALL_PERMISSIONS
-
-    existing = await db.scalar(select(Entity).where(Entity.resource == "users", Entity.id == user.id))
-    payload = {
-        "name": user.name,
-        "email": user.email,
-        "roleName": user.role,
-        "status": "active",
-        "permissions": user.permissions or ALL_PERMISSIONS,
-    }
-    if existing:
-        existing.payload = {**(existing.payload or {}), **payload}
-        return
-    db.add(Entity(id=user.id, resource="users", payload=payload, status="active", created_by=user.id, updated_by=user.id))
+    """Keep the bootstrap admin on the relational User row. Entity user bags are no longer written."""
+    user.active = True
+    if user.status in {None, "", "deleted"}:
+        user.status = "active"
+    if not user.role:
+        user.role = "SuperAdmin"

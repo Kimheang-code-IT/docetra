@@ -9,7 +9,7 @@ from app.core.frontend_contract import normalize_assignment_refs
 from app.core.errors import DomainError
 from app.db import Activity, Entity, Outbox, User
 from app.models.audit import AuditLog
-from app.modules.people_access.services.identity import refresh_role_users, strip_secrets, sync_login_user
+from app.modules.people_access.services.identity import strip_secrets
 from app.modules.people_access.services.identity_sync import sync_domain_row
 from app.modules.record.domain.constants import DOMAIN_STATUS, READ_ONLY
 
@@ -87,8 +87,4 @@ async def assert_writable(db: AsyncSession, resource: str) -> None:
 
 
 async def apply_side_effects(db: AsyncSession, row: Entity, source_payload: dict | None = None) -> None:
-    if row.resource == "users":
-        await sync_login_user(db, row, source_payload or row.payload or {})
-    if row.resource == "roles":
-        await refresh_role_users(db, row)
     await sync_domain_row(db, row)

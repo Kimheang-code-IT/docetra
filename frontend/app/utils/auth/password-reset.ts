@@ -9,7 +9,7 @@ export interface PasswordResetSession {
 }
 
 function readRaw(): PasswordResetSession | null {
-  if (!import.meta.client) return null
+  if (typeof window === 'undefined') return null
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY)
     if (!raw) return null
@@ -21,7 +21,7 @@ function readRaw(): PasswordResetSession | null {
 }
 
 function writeRaw(session: PasswordResetSession | null) {
-  if (!import.meta.client) return
+  if (typeof window === 'undefined') return
   if (!session) {
     sessionStorage.removeItem(STORAGE_KEY)
     return

@@ -10,8 +10,9 @@ import { ApiEndpoints } from '~/utils/constants/api-endpoints'
 import {
   markListStale,
   resolveCreateReturnTo,
-  returnsToListAfterCreate,
+  shouldReturnToListAfterCreate,
 } from '~/utils/workspace-list-stale'
+import { concurrencyVersion, withConcurrencyToken } from '~/utils/api/concurrency'
 
 export function useDocumentPage(config: EntityConfig, idParam?: string) {
   const route = useRoute()
@@ -54,6 +55,7 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
   let favoriteRequestToken = 0
   let loadRequestToken = 0
   let approvedRecordNavigation = false
+  let skipLeaveGuard = false
 
   const hasMoreFeed = computed(() =>
     comments.value.length < commentsTotal.value || activity.value.length < activityTotal.value,
@@ -345,7 +347,7 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
     const missing = documentTabs.flatMap(tab =>
       tab.sections.flatMap(section =>
         section.fields
-          .filter(field => field.required && !field.readOnly)
+          .filter(field => !field.readOnly && (field.required || (isCreate.value && field.requiredOnCreate)))
           .filter((field) => {
             const value = getByPath(model.value, field.key)
             if (value == null) return true
@@ -390,9 +392,16 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
       toast.add({ title: t('docetra.sector.cannotBeOwnParent'), color: 'error' })
       return
     }
+    if (config.key === 'users') {
+      const password = String(model.value.password || '')
+      if (password && password.length < 8) {
+        toast.add({ title: t('pages.auth.passwordTooShort'), color: 'error' })
+        return
+      }
+    }
     saving.value = true
     try {
-      const payload = prepareModelForSave()
+      const payload = withConcurrencyToken(prepareModelForSave(), model.value.version)
       if (config.key === 'meetingHistory' && payload.topicId && !payload.topicTitle) {
         try {
           const topicRes = await getEntityAdapter('meetingTopics').get(String(payload.topicId))
@@ -445,33 +454,47 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
         }
       }
       if (config.key === 'users') {
-        const roleOptions = await loadReferenceOptions(`${ApiEndpoints.ROLES}/options`)
+        const [roleOptions, officerOptions] = await Promise.all([
+          loadReferenceOptions(`${ApiEndpoints.ROLES}/options`),
+          loadReferenceOptions(`${ApiEndpoints.OFFICERS}/options?valueField=id`),
+        ])
         payload.roleName = roleOptions.find(option => option.value === String(payload.roleId || ''))?.label || ''
+        payload.officerName = officerOptions.find(option => option.value === String(payload.officerId || ''))?.label || ''
+        if (!String(payload.password || '')) delete payload.password
         delete payload.permissions
         delete payload.permissionRows
       }
       if (isCreate.value) {
         const res = await adapter.create(payload as any)
         const created = res.data as { id: string }
+        dirty.value = false
+        trackingChanges.value = false
         toast.add({ title: t('docetra.document.created'), color: 'success' })
-        // Board/list creates: return to the list instead of remounting the full
-        // detail document (get + comments + activity + attachments + schema).
-        if (returnsToListAfterCreate(config.key)) {
-          markListStale(config.key)
-          if (config.key === 'meetingHistory' || config.key === 'meetingTopics') {
-            markListStale('meetingTopics', 'meetingHistory')
+        const returnPath = resolveCreateReturnTo(route.query.returnTo, '')
+        skipLeaveGuard = true
+        try {
+          if (shouldReturnToListAfterCreate(config.key, route.query.returnTo)) {
+            markListStale(config.key)
+            if (config.key === 'meetingHistory' || config.key === 'meetingTopics') {
+              markListStale('meetingTopics', 'meetingHistory')
+            }
+            await router.replace(returnPath || config.routeBase)
+            return
           }
-          await router.replace(resolveCreateReturnTo(route.query.returnTo, config.routeBase))
+          await router.replace(`${config.routeBase}/${created.id}`)
           return
         }
-        await router.replace(`${config.routeBase}/${created.id}`)
-        return
+        finally {
+          skipLeaveGuard = false
+        }
       }
       const res = await adapter.update(id.value, payload as any)
       model.value = { ...(res.data as Record<string, unknown>) }
       dirty.value = false
       if (adapter.replaceAttachments) {
-        await adapter.replaceAttachments(id.value, attachments.value)
+        await adapter.replaceAttachments(id.value, attachments.value, {
+          version: concurrencyVersion(res.data),
+        })
         const { indexFileForSearch } = await import('~/utils/search/index-hooks')
         const title = String(model.value[config.titleField] || '')
         for (const file of attachments.value) {
@@ -607,7 +630,7 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
   }
 
   async function confirmLeave() {
-    if (!dirty.value) return true
+    if (skipLeaveGuard || !dirty.value) return true
     return confirm({ kind: 'unsaved' })
   }
 

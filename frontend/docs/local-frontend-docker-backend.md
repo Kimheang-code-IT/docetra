@@ -93,7 +93,7 @@ pnpm test:e2e
 
 Prerequisites for live/E2E: `docker compose --env-file backend.env -f compose.backend.yml up -d` until `http://localhost:8000/ready` is OK, and `pnpm dev` (or preview) for Playwright.
 
-Default admin: `admin@gmail.com` / `123456` (from `backend.env`).
+On an empty database, open `/auth/login` and create the first administrator (SuperAdmin, full permissions). After that account exists, the page is normal login.
 
 ## Production requirements
 

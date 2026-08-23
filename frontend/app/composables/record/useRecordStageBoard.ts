@@ -3,6 +3,7 @@ import { getAdapterForConfig } from '~/config/entities'
 import type { WorkflowStage } from '~/types/docetra/common'
 import { useConfigurationRepositories } from '~/repositories'
 import { useAppLocalization } from '~/composables/settings/useAppLocalization'
+import { concurrencyVersion } from '~/utils/api/concurrency'
 
 function getByPath(obj: Record<string, unknown>, path: string): unknown {
   return path.split('.').reduce<unknown>((acc, key) => {
@@ -41,7 +42,7 @@ export function useRecordStageBoard(
     try {
       const schema = await recordTypes.getResolvedSchema({ code: config.recordTypeCode })
       const recordType = schema.recordType
-      if (!recordType.features.enableWorkflow || !recordType.stages?.length) {
+      if (!recordType.features?.enableWorkflow || !recordType.stages?.length) {
         throw new Error(t('docetra.recordStageBoard.stageConfigEmpty'))
       }
       runtimeStages.value = [...recordType.stages]
@@ -103,7 +104,7 @@ export function useRecordStageBoard(
     const q = stageSearch.value.trim().toLowerCase()
     if (!q) return stages.value
     return stages.value.filter((stage) => {
-      const label = stage.label || (te(stage.labelKey) ? t(stage.labelKey) : stage.code)
+      const label = (te(stage.labelKey) ? t(stage.labelKey) : stage.label) || stage.code
       return label.toLowerCase().includes(q) || stage.code.toLowerCase().includes(q)
     })
   })
@@ -206,11 +207,13 @@ export function useRecordStageBoard(
   }
 
   async function moveToStage(id: string, stage: string) {
+    const row = items.value.find(item => String(item.id) === id)
+    const extra = { version: concurrencyVersion(row) }
     if (!adapter.transitionStage) {
-      await adapter.update?.(id, { stage } as any)
+      await adapter.update?.(id, { stage, ...extra } as any)
     }
     else {
-      await adapter.transitionStage(id, stage)
+      await adapter.transitionStage(id, stage, extra)
     }
     await refresh()
   }

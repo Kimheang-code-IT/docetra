@@ -129,6 +129,7 @@ export function stageOptionsFromType(type: RecordType | null | undefined): Field
     .map(s => ({
       label: s.name,
       value: s.code,
+      labelKey: `docetra.stages.${s.code}`,
     }))
 }
 

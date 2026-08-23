@@ -225,6 +225,7 @@ async function onSaveClick() {
 
       <UButton
         v-if="showSave && canSave && !readOnly"
+        type="button"
         :loading="saving"
         icon="i-lucide-save"
         :label="saveLabel || t('actions.save')"
@@ -296,6 +297,7 @@ async function onSaveClick() {
                     :field-value="fieldValue"
                     :set-field-value="setFieldValue"
                     :read-only="readOnly"
+                    :is-create="isCreate"
                     :wide="contentWide"
                   />
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 import time
 import uuid
 from collections.abc import Iterator
@@ -37,6 +38,12 @@ def assert_envelope(response: httpx.Response, *, require_meta: bool = False) -> 
     return body
 
 
+_ITEM_PATH = re.compile(
+    r"^(?P<item>.*/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})"
+    r"(?P<suffix>/(?:archive|restore|purge|stage))?$"
+)
+
+
 def mutate(
     client: httpx.Client,
     method: str,
@@ -46,13 +53,46 @@ def mutate(
     data: Any = None,
     files: Any = None,
     headers: dict[str, str] | None = None,
+    attach_version: bool = True,
     **kwargs: Any,
 ) -> httpx.Response:
     """Issue a mutating request with double-submit CSRF header from the session cookie."""
     xsrf = client.cookies.get(CSRF_COOKIE)
     assert xsrf, f"Missing {CSRF_COOKIE} cookie — login first"
     merged = {**(headers or {}), CSRF_HEADER: xsrf}
-    return client.request(method.upper(), path, json=json, data=data, files=files, headers=merged, **kwargs)
+    payload = dict(json) if json is not None else None
+    params = dict(kwargs.pop("params", None) or {})
+    method_u = method.upper()
+    match = _ITEM_PATH.match(path) if attach_version else None
+    suffix = match.group("suffix") if match else None
+    needs_version = bool(
+        match
+        and (
+            method_u in {"PATCH", "PUT", "DELETE"}
+            or (method_u == "POST" and suffix in {"/archive", "/restore"})
+        )
+    )
+    if needs_version and match:
+        current = client.get(match.group("item"))
+        if current.status_code < 400:
+            version = (current.json().get("data") or {}).get("version")
+            if version is not None:
+                merged["If-Match"] = str(version)
+                params.setdefault("version", version)
+                if payload is None:
+                    payload = {"version": version}
+                else:
+                    payload.setdefault("version", version)
+    return client.request(
+        method_u,
+        path,
+        json=payload,
+        data=data,
+        files=files,
+        headers=merged,
+        params=params or None,
+        **kwargs,
+    )
 
 
 def login_admin(client: httpx.Client, *, attempts: int = 8) -> httpx.Response:

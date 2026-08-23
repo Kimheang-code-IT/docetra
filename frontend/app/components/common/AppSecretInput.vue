@@ -6,11 +6,13 @@ const props = withDefaults(defineProps<{
   placeholder?: string
   help?: string
   helpKey?: string
+  required?: boolean
   disabled?: boolean
   autocomplete?: string
 }>(), {
   modelValue: '',
   autocomplete: 'new-password',
+  required: false,
   disabled: false,
 })
 
@@ -40,7 +42,7 @@ const value = computed({
 </script>
 
 <template>
-  <UFormField :label="labelText" :hint="helpText || undefined">
+  <UFormField :label="labelText" :required="required" :hint="helpText || undefined">
     <UInput
       v-model="value"
       :type="revealed ? 'text' : 'password'"

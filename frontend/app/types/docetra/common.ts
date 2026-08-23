@@ -160,6 +160,8 @@ export interface DocumentFieldSchema {
   label?: string
   type: FieldType
   required?: boolean
+  /** Required when creating a record; optional on edit (e.g. user password). */
+  requiredOnCreate?: boolean
   readOnly?: boolean
   colSpan?: 1 | 2
   options?: FieldOption[]

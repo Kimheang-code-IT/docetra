@@ -18,6 +18,7 @@ redis = Redis.from_url(settings.redis_url, decode_responses=True)
 
 CSRF_EXEMPT_PATHS = {
     "/api/v2/auth/login",
+    "/api/v2/auth/register",
     "/api/v2/auth/forgot-password",
     "/api/v2/auth/forgot-password/verify",
     "/api/v2/auth/forgot-password/resend",

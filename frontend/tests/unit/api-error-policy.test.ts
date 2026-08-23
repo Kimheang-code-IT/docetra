@@ -51,6 +51,8 @@ describe('ApiEndpoints constants', () => {
   it('exposes critical auth and dashboard paths', async () => {
     const { ApiEndpoints } = await import('../../app/utils/constants/api-endpoints')
     expect(ApiEndpoints.AUTH_LOGIN).toBe('/api/v2/auth/login')
+    expect(ApiEndpoints.AUTH_REGISTER).toBe('/api/v2/auth/register')
+    expect(ApiEndpoints.AUTH_BOOTSTRAP).toBe('/api/v2/auth/bootstrap')
     expect(ApiEndpoints.AUTH_ME).toBe('/api/v2/auth/me')
     expect(ApiEndpoints.DASHBOARD_SUMMARY).toBe('/api/v2/dashboard/summary')
     expect(ApiEndpoints.DOCUMENTS).toBe('/api/v2/records/document')

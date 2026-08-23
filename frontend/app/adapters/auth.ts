@@ -11,6 +11,27 @@ export async function loginWithCredentials(email: string, password: string) {
   })
 }
 
+export async function getBootstrapStatus() {
+  return useApi().get<ApiResponse<{ needsSetup: boolean }>>(ApiEndpoints.AUTH_BOOTSTRAP, {
+    requestKey: 'auth-bootstrap',
+    cancelPrevious: true,
+    suppressErrorToast: true,
+    suppressAccessAlert: true,
+  })
+}
+
+export async function registerFirstAdministrator(input: {
+  name: string
+  email: string
+  password: string
+  passwordConfirmation: string
+}) {
+  return useApi().post<ApiResponse<LoginResult>>(ApiEndpoints.AUTH_REGISTER, input, {
+    suppressErrorToast: true,
+    suppressAccessAlert: true,
+  })
+}
+
 export async function logoutSession() {
   return useApi().post<ApiResponse<{ loggedOut: boolean }>>(ApiEndpoints.AUTH_LOGOUT, {}, {
     suppressErrorToast: true,

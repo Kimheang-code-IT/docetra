@@ -78,19 +78,17 @@ const availableAttributeOptions = computed(() => {
     }))
 })
 
-const tabs = computed(() => {
-  const next = recordTypeTabs({
-    attributeCatalog: catalog.value,
-    availableAttributeOptions: availableAttributeOptions.value,
-    enableWorkflow: model.value.features.enableWorkflow,
-    typeId: isCreate.value ? 'new' : (props.recordTypeId || model.value.id),
-    stages: model.value.stages,
-    searchAttributes: debouncedAttributeSearch,
-  })
-  if (!model.value.features.enableWorkflow && activeTab.value === 'workflow') {
-    activeTab.value = 'general'
-  }
-  return next
+const tabs = computed(() => recordTypeTabs({
+  attributeCatalog: catalog.value,
+  availableAttributeOptions: availableAttributeOptions.value,
+  enableWorkflow: model.value.features.enableWorkflow,
+  typeId: isCreate.value ? 'new' : (props.recordTypeId || model.value.id),
+  stages: model.value.stages,
+  searchAttributes: debouncedAttributeSearch,
+}))
+
+watch(() => model.value.features.enableWorkflow, (enabled) => {
+  if (!enabled && activeTab.value === 'workflow') activeTab.value = 'general'
 })
 
 const debouncedAttributeSearch = useDebounceFn(async (query: string) => {

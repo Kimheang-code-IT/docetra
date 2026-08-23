@@ -74,7 +74,7 @@ async def _rows_for_resource(db: AsyncSession, resource: str, payload: dict) -> 
         if scope_selected:
             stmt = stmt.where(Record.id.in_(ids or [uuid.uuid4()]))
         rows = (await db.scalars(stmt.order_by(Record.updated_at.desc()).limit(10000))).all()
-        return [await record_ser.serialize_record(db, row) for row in rows]
+        return await record_ser.serialize_records(db, rows)
 
     if resource in ORG_RESOURCES:
         org_type = ORG_RESOURCES[resource]

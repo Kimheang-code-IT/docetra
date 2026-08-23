@@ -7,6 +7,7 @@ import { useRecordStageBoard } from '~/composables/record/useRecordStageBoard'
 import type { CardDisplayEntityKey } from '~/types/docetra/settings'
 import { consumeListStale } from '~/utils/workspace-list-stale'
 import { permissionForAction } from '~/utils/role/access'
+import { concurrencyVersion, versionsById } from '~/utils/api/concurrency'
 
 const props = defineProps<{
   config: EntityConfig
@@ -146,8 +147,8 @@ async function onDelete(row: Record<string, unknown>) {
   const ok = await confirm({ kind: 'delete', count: 1 })
   if (!ok) return
   try {
-    if (adapter.delete) await adapter.delete(id)
-    else if (adapter.deleteMany) await adapter.deleteMany([id])
+    if (adapter.delete) await adapter.delete(id, { version: concurrencyVersion(row) })
+    else if (adapter.deleteMany) await adapter.deleteMany([id], versionsById([row], [id]))
     toast.add({ title: t('docetra.actions.deletedItems', { n: 1 }), color: 'success' })
     await refresh()
   }

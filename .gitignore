@@ -1,0 +1,41 @@
+# Secrets — never commit live environment files
+.env
+.env.*
+!.env.example
+backend.env
+backend.env.*
+!backend.env.example
+*.pem
+*.key
+id_rsa
+id_rsa.pub
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+*.egg-info/
+.venv/
+venv/
+
+# Node / frontend coverage (frontend/.gitignore also covers build output)
+frontend/coverage/
+frontend/.nuxt/
+frontend/.output/
+
+# OS / editors
+.DS_Store
+Thumbs.db
+*.log
+.idea/
+.vscode/
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/settings.json

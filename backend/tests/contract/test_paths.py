@@ -1,5 +1,6 @@
 from app.core.datetime import extract_record_time, parse_instant
 from app.core.permissions import TYPE_TO_PREFIX, catalog_rows, expand_permission_rows
+from app.main import API_CONTENT_SECURITY_POLICY
 
 
 def paths(app):
@@ -8,7 +9,8 @@ def paths(app):
 
 def test_frontend_collections_are_routed(app):
     required = {
-        "/api/v2/auth/login", "/api/v2/auth/logout", "/api/v2/auth/me", "/api/v2/auth/refresh",
+        "/api/v2/auth/login", "/api/v2/auth/register", "/api/v2/auth/bootstrap",
+        "/api/v2/auth/logout", "/api/v2/auth/me", "/api/v2/auth/refresh",
         "/api/v2/auth/forgot-password", "/api/v2/auth/forgot-password/verify",
         "/api/v2/auth/forgot-password/reset", "/api/v2/auth/change-password",
         "/api/v2/auth/profile/avatar",
@@ -61,6 +63,8 @@ def test_meeting_permission_prefixes_are_records_only():
 
 def test_health_is_public(app):
     assert "/health" in paths(app) and "/ready" in paths(app)
+    assert "default-src 'none'" in API_CONTENT_SECURITY_POLICY
+    assert "frame-ancestors 'none'" in API_CONTENT_SECURITY_POLICY
 
 
 def test_permission_catalog_uses_frontend_document_types():

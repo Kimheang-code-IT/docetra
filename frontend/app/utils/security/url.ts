@@ -17,6 +17,8 @@ export function safeExternalUrl(value: unknown): string | null {
 /** Allow application-relative navigation only; rejects protocol-relative and encoded schemes. */
 export function safeInternalPath(value: unknown): string | null {
   const raw = typeof value === 'string' ? value.trim() : ''
+  // Reject C0 controls so encoded/hidden schemes cannot sneak into in-app redirects.
+  // eslint-disable-next-line no-control-regex -- intentional C0 control check
   if (!raw.startsWith('/') || raw.startsWith('//') || /[\u0000-\u001f]/.test(raw)) return null
   return raw
 }

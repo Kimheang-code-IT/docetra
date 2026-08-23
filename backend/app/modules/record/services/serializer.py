@@ -1,5 +1,6 @@
 import json
 import uuid
+from collections.abc import Iterable, Sequence
 from datetime import datetime
 from typing import Any
 
@@ -17,28 +18,34 @@ def lifecycle_status(row: Record) -> str:
     return row.lifecycle or STATUS_TO_LIFECYCLE.get(row.status, "active")
 
 
-async def details_as_dict(db: AsyncSession, record_id: uuid.UUID) -> dict[str, Any]:
-    rows = (await db.scalars(select(RecordDetail).where(RecordDetail.record_id == record_id))).all()
-    out: dict[str, Any] = {}
+def value_from_detail(row: RecordDetail) -> Any:
+    if row.value_json is not None:
+        return row.value_json
+    if row.value_id is not None:
+        return str(row.value_id)
+    if row.value_boolean is not None:
+        return row.value_boolean
+    if row.value_time is not None:
+        return iso_utc(row.value_time)
+    if row.value_number is not None:
+        return float(row.value_number)
+    if row.value_string is not None:
+        return row.value_string
+    return None
+
+
+def details_map(rows: Iterable[RecordDetail]) -> dict[uuid.UUID, dict[str, Any]]:
+    grouped: dict[uuid.UUID, dict[str, Any]] = {}
     for row in rows:
-        if row.value_json is not None:
-            out[row.record_attribute_code] = row.value_json
-        elif row.value_id is not None:
-            out[row.record_attribute_code] = str(row.value_id)
-        elif row.value_boolean is not None:
-            out[row.record_attribute_code] = row.value_boolean
-        elif row.value_time is not None:
-            out[row.record_attribute_code] = iso_utc(row.value_time)
-        elif row.value_number is not None:
-            out[row.record_attribute_code] = float(row.value_number)
-        elif row.value_string is not None:
-            out[row.record_attribute_code] = row.value_string
-    return out
+        value = value_from_detail(row)
+        if value is None:
+            continue
+        grouped.setdefault(row.record_id, {})[row.record_attribute_code] = value
+    return grouped
 
 
-async def serialize_record(db: AsyncSession, row: Record) -> dict[str, Any]:
-    details = await details_as_dict(db, row.id)
-    result = dict(details)
+def record_to_payload(row: Record, details: dict[str, Any] | None = None) -> dict[str, Any]:
+    result = dict(details or {})
     result.update({
         "id": str(row.id),
         "title": row.title,
@@ -75,6 +82,30 @@ async def serialize_record(db: AsyncSession, row: Record) -> dict[str, Any]:
         except json.JSONDecodeError:
             result["recordMetadata"] = row.record_metadata
     return normalize_assignment_refs(strip_secrets(result))
+
+
+async def details_as_dict(db: AsyncSession, record_id: uuid.UUID) -> dict[str, Any]:
+    grouped = await details_by_record_ids(db, [record_id])
+    return grouped.get(record_id, {})
+
+
+async def details_by_record_ids(db: AsyncSession, record_ids: Sequence[uuid.UUID]) -> dict[uuid.UUID, dict[str, Any]]:
+    if not record_ids:
+        return {}
+    rows = (await db.scalars(select(RecordDetail).where(RecordDetail.record_id.in_(list(record_ids))))).all()
+    grouped = {record_id: {} for record_id in record_ids}
+    grouped.update(details_map(rows))
+    return grouped
+
+
+async def serialize_records(db: AsyncSession, rows: Sequence[Record]) -> list[dict[str, Any]]:
+    grouped = await details_by_record_ids(db, [row.id for row in rows])
+    return [record_to_payload(row, grouped.get(row.id, {})) for row in rows]
+
+
+async def serialize_record(db: AsyncSession, row: Record) -> dict[str, Any]:
+    payloads = await serialize_records(db, [row])
+    return payloads[0]
 
 
 def _detail_values(code: str, value: Any) -> dict[str, Any]:

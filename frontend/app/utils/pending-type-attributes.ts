@@ -2,7 +2,7 @@
 export const PENDING_TYPE_ATTR_KEY = 'docetra:pending-type-attribute-ids'
 
 export function readPendingTypeAttributeIds(): string[] {
-  if (!import.meta.client) return []
+  if (typeof window === 'undefined') return []
   try {
     const raw = sessionStorage.getItem(PENDING_TYPE_ATTR_KEY)
     if (!raw) return []
@@ -15,12 +15,12 @@ export function readPendingTypeAttributeIds(): string[] {
 }
 
 export function pushPendingTypeAttributeId(id: string) {
-  if (!import.meta.client || !id) return
+  if (typeof window === 'undefined' || !id) return
   const next = [...new Set([...readPendingTypeAttributeIds(), id])]
   sessionStorage.setItem(PENDING_TYPE_ATTR_KEY, JSON.stringify(next))
 }
 
 export function clearPendingTypeAttributeIds() {
-  if (!import.meta.client) return
+  if (typeof window === 'undefined') return
   sessionStorage.removeItem(PENDING_TYPE_ATTR_KEY)
 }

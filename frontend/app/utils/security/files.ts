@@ -24,6 +24,15 @@ export function isSafeRasterImage(file: Pick<File, 'type' | 'size'>, maxSizeMb: 
     && file.size <= maxSizeMb * 1024 * 1024
 }
 
+/** Ext → Uppy allowedFileTypes rules (extension with leading dot). */
+export function extensionsToUppyTypes(extensions: string[]): string[] {
+  const mapped = extensions
+    .map(ext => String(ext || '').trim().toLowerCase().replace(/^\./, ''))
+    .filter(Boolean)
+    .map(ext => `.${ext}`)
+  return mapped.length ? mapped : [...DEFAULT_UPLOAD_TYPES]
+}
+
 export function fileMatchesAllowedTypes(file: Pick<File, 'name' | 'type'>, allowed: readonly string[]): boolean {
   const name = file.name.toLowerCase()
   const mime = file.type.toLowerCase()

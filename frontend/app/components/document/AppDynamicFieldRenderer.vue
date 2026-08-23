@@ -15,8 +15,7 @@ import type {
   VisibilityRule,
   WorkflowTransition,
 } from '~/types/docetra/configuration'
-import type { ConnectionStatus, NotificationRule, TelegramDestination } from '~/types/docetra/settings'
-import type { CardDisplayEntityKey } from '~/types/docetra/settings'
+import type { ConnectionStatus, NotificationRule, TelegramDestination, CardDisplayEntityKey } from '~/types/docetra/settings'
 import { TELEGRAM_TEMPLATE_VARIABLES } from '~/types/docetra/settings'
 import { createClientId } from '~/utils/client-id'
 import { resolveFieldHelp } from '~/utils/field-help'
@@ -27,6 +26,7 @@ const props = defineProps<{
   field: DocumentFieldSchema
   modelValue: unknown
   disabled?: boolean
+  isCreate?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -206,6 +206,9 @@ const placeholderText = computed(() => {
 const isBoolean = computed(() => props.field.type === 'boolean')
 const isPermissionMatrix = computed(() => props.field.type === 'permission-matrix')
 const isSecret = computed(() => props.field.type === 'secret')
+const fieldRequired = computed(() =>
+  Boolean(props.field.required || (props.isCreate && props.field.requiredOnCreate)),
+)
 const isColor = computed(() => props.field.type === 'color')
 const isImage = computed(() => props.field.type === 'image')
 const isIcon = computed(() => props.field.type === 'icon')
@@ -482,6 +485,7 @@ function removeDestination(id: string) {
     v-model="secretValue"
     :label="labelText"
     :help="helpText"
+    :required="fieldRequired"
     :disabled="disabled || field.readOnly"
   />
 
@@ -808,7 +812,7 @@ function removeDestination(id: string) {
   <UFormField
     v-else
     :label="labelText"
-    :required="field.required"
+    :required="fieldRequired"
     :help="field.type === 'textarea' && textareaHelp ? textareaHelp : helpText"
   >
     <div class="flex items-start gap-1.5">
@@ -834,7 +838,7 @@ function removeDestination(id: string) {
           v-else-if="field.type === 'date'"
           v-model="stringValue"
           :disabled="disabled || field.readOnly"
-          :required="field.required"
+          :required="fieldRequired"
           class="w-full"
         />
         <CommonAppInputDate
@@ -842,7 +846,7 @@ function removeDestination(id: string) {
           v-model="stringValue"
           granularity="minute"
           :disabled="disabled || field.readOnly"
-          :required="field.required"
+          :required="fieldRequired"
           class="w-full"
         />
         <UInputMenu

@@ -74,19 +74,17 @@ const {
 
 const showOptions = computed(() => OPTION_DATA_TYPES.includes(model.value.dataType))
 
-const tabs = computed(() => {
-  const next = recordAttributeTabs({
-    showOptions: showOptions.value,
-    dataType: model.value.dataType as AttributeDataType,
-    codeReadOnly: !isCreate.value && model.value.usedByCount > 0,
-    visibilityFieldOptions: [
-      { label: model.value.label || model.value.code || '—', value: model.value.code },
-    ],
-  })
-  if (!showOptions.value && activeTab.value === 'options') {
-    activeTab.value = 'basic'
-  }
-  return next
+const tabs = computed(() => recordAttributeTabs({
+  showOptions: showOptions.value,
+  dataType: model.value.dataType as AttributeDataType,
+  codeReadOnly: !isCreate.value && model.value.usedByCount > 0,
+  visibilityFieldOptions: [
+    { label: model.value.label || model.value.code || '—', value: model.value.code },
+  ],
+}))
+
+watch(showOptions, (enabled) => {
+  if (!enabled && activeTab.value === 'options') activeTab.value = 'basic'
 })
 
 function emptyAttribute(): RecordAttribute {
