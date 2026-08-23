@@ -5,6 +5,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.privileged import is_unrestricted
 from app.core.security import current_user
 from app.db import Entity, User, get_db
 from app.models.storage import File
@@ -43,7 +44,7 @@ async def download(file_id: str, db: AsyncSession = Depends(get_db), user: User 
         created_by = row.created_by
         resource = row.resource
 
-    if created_by and str(created_by) != str(user.id) and user.role not in {"SuperAdmin", "Admin"}:
+    if created_by and str(created_by) != str(user.id) and not is_unrestricted(user):
         permission = "portal.file_upload.view" if resource == "file-uploads" else None
         if not permission or permission not in (user.permissions or []):
             raise HTTPException(403, "File access denied")

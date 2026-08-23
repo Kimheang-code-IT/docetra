@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.authorization import authorize_type_code
 from app.core.datetime import iso_utc
+from app.core.privileged import is_unrestricted
 from app.core.security import current_user, person
 from app.db.session import get_db
 from app.models.people import User
@@ -63,7 +64,7 @@ async def document_surface_logs(
     """Activity across document-surface record types (legacy record-logs replacement)."""
     from app.core.authorization import require_permission
 
-    if user.role not in {"SuperAdmin", "Admin"}:
+    if not is_unrestricted(user):
         require_permission(user, "records.logs.view")
     service = CollectionService("record-logs")
     return await service.list_items(db, user, dict(request.query_params))
@@ -278,6 +279,7 @@ async def edit_comment(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(current_user),
 ):
+    await _service(type_code).get_item(db, entity_id)
     resource = _collab_resource(type_code)
     data = await collaboration.edit_comment(db, entity_id, comment_id, str(body.get("body") or ""), user)
     await db.commit()
@@ -292,13 +294,15 @@ async def delete_comment(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(current_user),
 ):
-    deleted_id = await collaboration.delete_comment(db, entity_id, comment_id)
+    await _service(type_code).get_item(db, entity_id)
+    deleted_id = await collaboration.delete_comment(db, entity_id, comment_id, user)
     await db.commit()
     return {"data": {"id": deleted_id}}
 
 
 @type_router.get("/{entity_id}/activity")
 async def activity(type_code: str, entity_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
+    await _service(type_code).get_item(db, entity_id)
     data, total = await collaboration.list_activity(db, _collab_resource(type_code), entity_id, user)
     return {"data": data, "meta": {"page": 1, "limit": total or 20, "total": total}}
 

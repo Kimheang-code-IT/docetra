@@ -444,6 +444,12 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
           payload.authenticationEnabled = Boolean(payload.userId)
         }
       }
+      if (config.key === 'users') {
+        const roleOptions = await loadReferenceOptions(`${ApiEndpoints.ROLES}/options`)
+        payload.roleName = roleOptions.find(option => option.value === String(payload.roleId || ''))?.label || ''
+        delete payload.permissions
+        delete payload.permissionRows
+      }
       if (isCreate.value) {
         const res = await adapter.create(payload as any)
         const created = res.data as { id: string }

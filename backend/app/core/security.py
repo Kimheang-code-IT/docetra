@@ -10,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.jwt import decode_token, encode_token
+from app.core.privileged import is_unrestricted
 from app.db import User, get_db
 
 passwords = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -185,5 +186,5 @@ def public_user(user: User):
         "role": user.role,
         "avatar": user.avatar,
         "permissions": user.permissions or [],
-        "pageAccess": ["ALL_PAGES"] if user.role in {"SuperAdmin", "Admin"} else [],
+        "pageAccess": ["ALL_PAGES"] if is_unrestricted(user) else [],
     }

@@ -103,7 +103,9 @@ def view_permission(resource: str) -> str:
 
 
 def user_can_view_resource(user, resource: str) -> bool:
-    if user.role in {"SuperAdmin", "Admin"}:
+    from app.core.privileged import is_unrestricted
+
+    if is_unrestricted(user):
         return True
     if "ALL_PAGES" in (user.permissions or []):
         return True

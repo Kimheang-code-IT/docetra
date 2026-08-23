@@ -842,8 +842,14 @@ export const entityConfigs: Record<string, EntityConfig> = {
     tabs: masterDataTabs([
       { key: 'name', labelKey: 'docetra.fields.name', type: 'text', required: true },
       { key: 'email', labelKey: 'docetra.fields.email', type: 'text', required: true },
-      { key: 'roleName', labelKey: 'docetra.fields.role', type: 'text' },
-      { key: 'officerName', labelKey: 'docetra.fields.officer', type: 'text' },
+      {
+        key: 'roleId',
+        labelKey: 'docetra.fields.role',
+        type: 'select',
+        required: true,
+        placeholder: 'Choose option ...',
+        optionsEndpoint: `${ApiEndpoints.ROLES}/options`,
+      },
       { key: 'status', labelKey: 'docetra.fields.status', type: 'select', options: statusFilter.options },
     ]),
   },

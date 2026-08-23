@@ -20,6 +20,17 @@ def test_require_permission_allows_superadmin():
     require_permission(_user(role="SuperAdmin"), "records.documents.delete")
 
 
+def test_require_permission_allows_admin_name_only_when_stored():
+    require_permission(_user(role="Admin"), "records.documents.delete")
+
+
+def test_document_manager_is_not_unrestricted():
+    from app.core.privileged import is_unrestricted
+
+    assert not is_unrestricted(_user(role="Document Manager"))
+    assert not is_unrestricted(_user(role="User", permissions=["records.documents.purge"]))
+
+
 def test_require_permission_allows_listed_key():
     require_permission(_user(permissions=["records.documents.view"]), "records.documents.view")
 

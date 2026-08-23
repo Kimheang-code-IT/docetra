@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v2.deps import current_user, get_db
 from app.core.authorization import RESOURCE_PREFIX, require_permission
+from app.core.privileged import is_unrestricted
 from app.core.security import now_iso
 from app.db import Entity, User
 from app.modules.record.services.stamp import entity_or_404, stamp
@@ -44,7 +45,7 @@ async def create_export(body: dict, db: AsyncSession = Depends(get_db), user: Us
 @router.get("/{entity_id}")
 async def export_status(entity_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
     row = await entity_or_404(db, "export-jobs", entity_id)
-    if row.created_by != user.id and user.role not in {"SuperAdmin", "Admin"}:
+    if row.created_by != user.id and not is_unrestricted(user):
         raise HTTPException(403, "Export access denied")
     data = stamp(row)
     data["status"] = (row.payload or {}).get("status") or "queued"
@@ -54,7 +55,7 @@ async def export_status(entity_id: str, db: AsyncSession = Depends(get_db), user
 @router.delete("/{entity_id}")
 async def delete_export(entity_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
     row = await entity_or_404(db, "export-jobs", entity_id)
-    if row.created_by != user.id and user.role not in {"SuperAdmin", "Admin"}:
+    if row.created_by != user.id and not is_unrestricted(user):
         raise HTTPException(403, "Export access denied")
     object_key = (row.payload or {}).get("objectKey")
     if object_key:

@@ -7,28 +7,16 @@ import uuid
 import httpx
 import pytest
 
-from tests.integration.conftest import API_BASE, CSRF_COOKIE, assert_envelope, mutate
+from tests.integration.conftest import API_BASE, CSRF_COOKIE, assert_envelope, create_restricted_user, mutate
 
 pytestmark = pytest.mark.integration
 
 
 def _create_user(auth_client, *, email: str, password: str, permissions: list[str]) -> dict:
-    created = mutate(
-        auth_client,
-        "POST",
-        "/api/v2/users",
-        json={
-            "email": email,
-            "name": "Cutover Limited",
-            "password": password,
-            "roleName": "User",
-            "permissions": permissions,
-            "status": "active",
-        },
-    )
-    if created.status_code >= 400:
-        pytest.skip(f"Could not create limited user for FE cutover tests: {created.status_code} {created.text}")
-    return assert_envelope(created)["data"]
+    rows = [{"documentType": "dashboard", "actions": ["view"], "level": 0}]
+    if permissions and permissions != ["dashboard.view"]:
+        rows = [{"documentType": "dashboard", "actions": ["view"], "level": 0}]
+    return create_restricted_user(auth_client, email=email, password=password, permission_rows=rows)
 
 
 def test_forgot_password_family_is_csrf_exempt(api_client, auth_client):

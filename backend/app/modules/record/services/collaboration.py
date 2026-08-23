@@ -1,9 +1,11 @@
 import uuid
 
+from fastapi import HTTPException
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.datetime import iso_utc, utcnow
+from app.core.privileged import is_unrestricted
 from app.core.security import person
 from app.models.audit import Activity, Comment, Favorite
 from app.models.people import User
@@ -11,9 +13,15 @@ from app.models.record import Entity, Record
 from app.modules.record.domain.map import RECORD_RESOURCES
 
 
-async def get_neighbors(db: AsyncSession, resource: str, entity_id: str) -> dict:
-    from fastapi import HTTPException
+def assert_comment_author_or_unrestricted(row: Comment, user: User) -> None:
+    if row.author_id and str(row.author_id) == str(user.id):
+        return
+    if is_unrestricted(user):
+        return
+    raise HTTPException(403, "Only the author can modify this comment")
 
+
+async def get_neighbors(db: AsyncSession, resource: str, entity_id: str) -> dict:
     uid = uuid.UUID(entity_id)
     if resource in RECORD_RESOURCES:
         type_code = RECORD_RESOURCES[resource]
@@ -64,11 +72,10 @@ async def add_comment(db: AsyncSession, entity_id: uuid.UUID, body: str, user: U
 
 
 async def edit_comment(db: AsyncSession, entity_id: str, comment_id: str, body: str, user: User) -> dict:
-    from fastapi import HTTPException
-
     row = await db.scalar(select(Comment).where(Comment.id == uuid.UUID(comment_id), Comment.entity_id == uuid.UUID(entity_id)))
     if not row:
         raise HTTPException(404, "Comment not found")
+    assert_comment_author_or_unrestricted(row, user)
     row.body = body
     row.edited_at = utcnow()
     return {
@@ -81,8 +88,12 @@ async def edit_comment(db: AsyncSession, entity_id: str, comment_id: str, body: 
     }
 
 
-async def delete_comment(db: AsyncSession, entity_id: str, comment_id: str) -> str:
-    await db.execute(delete(Comment).where(Comment.id == uuid.UUID(comment_id), Comment.entity_id == uuid.UUID(entity_id)))
+async def delete_comment(db: AsyncSession, entity_id: str, comment_id: str, user: User) -> str:
+    row = await db.scalar(select(Comment).where(Comment.id == uuid.UUID(comment_id), Comment.entity_id == uuid.UUID(entity_id)))
+    if not row:
+        raise HTTPException(404, "Comment not found")
+    assert_comment_author_or_unrestricted(row, user)
+    await db.execute(delete(Comment).where(Comment.id == row.id))
     return comment_id
 
 

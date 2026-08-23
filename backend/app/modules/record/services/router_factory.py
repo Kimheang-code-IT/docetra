@@ -142,18 +142,21 @@ def router_for(path: str, resource: str) -> APIRouter:
 
     @router.patch("/{entity_id}/comments/{comment_id}")
     async def edit_comment(entity_id: str, comment_id: str, body: dict, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
+        await service.get_item(db, entity_id)
         data = await collaboration.edit_comment(db, entity_id, comment_id, str(body.get("body") or ""), user)
         await db.commit()
         return {"data": {**data, "entityType": resource}}
 
     @router.delete("/{entity_id}/comments/{comment_id}")
     async def delete_comment(entity_id: str, comment_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
-        comment_id = await collaboration.delete_comment(db, entity_id, comment_id)
+        await service.get_item(db, entity_id)
+        comment_id = await collaboration.delete_comment(db, entity_id, comment_id, user)
         await db.commit()
         return {"data": {"id": comment_id}}
 
     @router.get("/{entity_id}/activity")
     async def activity(entity_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
+        await service.get_item(db, entity_id)
         data, total = await collaboration.list_activity(db, resource, entity_id, user)
         return {"data": data, "meta": {"page": 1, "limit": total or 20, "total": total}}
 

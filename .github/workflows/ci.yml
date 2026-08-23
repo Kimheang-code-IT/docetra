@@ -120,9 +120,13 @@ jobs:
           docker compose --env-file backend.env -f compose.backend.yml build api
           docker compose --env-file backend.env -f compose.backend.yml up -d
           for i in $(seq 1 60); do
-            curl -sf http://127.0.0.1:8000/ready && break
+            if curl -sf http://127.0.0.1:8000/ready >/dev/null; then
+              echo "API ready"
+              break
+            fi
             sleep 2
           done
+          curl -sf http://127.0.0.1:8000/ready >/dev/null
 
       - uses: pnpm/action-setup@v6.0.10
         with:
@@ -146,34 +150,6 @@ jobs:
           pnpm exec playwright install chromium --with-deps
           pnpm build
           test -f .output/server/index.mjs
-          # GHA stdin is already closed; Nitro graceful shutdown would then process.exit().
-          # Do not pass --host to nuxi (it is treated as the project directory).
-          NODE_ENV=production \
-            NITRO_HOST=127.0.0.1 \
-            PORT=3000 \
-            NITRO_SHUTDOWN_DISABLED=true \
-            node .output/server/index.mjs > preview.log 2>&1 &
-          preview_pid=$!
-          for i in $(seq 1 60); do
-            if curl -sf http://127.0.0.1:3000 >/dev/null; then
-              echo "Preview ready"
-              break
-            fi
-            if ! kill -0 "$preview_pid" 2>/dev/null; then
-              echo "Preview process exited before becoming ready"
-              echo "--- Preview server logs ---"
-              cat preview.log || true
-              wait "$preview_pid" || true
-              exit 1
-            fi
-            sleep 2
-          done
-          if ! curl -sf http://127.0.0.1:3000 >/dev/null; then
-            echo "Preview did not become ready in time"
-            echo "--- Preview server logs ---"
-            cat preview.log || true
-            exit 1
-          fi
           PLAYWRIGHT_BASE_URL=http://127.0.0.1:3000 DOCETRA_API_BASE=http://127.0.0.1:8000 pnpm test:e2e
 
       - name: Tear down

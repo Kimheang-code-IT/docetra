@@ -7,6 +7,7 @@ from app.models.people import User
 from app.models.record import Entity, Record
 from app.modules.organization.domain.map import is_valid_org_type, permission_prefix_for_org_type
 from app.modules.record.domain.map import RECORD_RESOURCES, permission_prefix_for_type_code
+from app.core.privileged import is_unrestricted
 
 RESOURCE_PREFIX = {
     "meeting-topics": "records.meeting_topic",
@@ -35,7 +36,7 @@ RESOURCE_PREFIX = {
 
 
 def require_permission(user: User, key: str) -> None:
-    if user.role not in {"SuperAdmin", "Admin"} and key not in (user.permissions or []):
+    if not is_unrestricted(user) and key not in (user.permissions or []):
         raise HTTPException(403, f"Missing permission: {key}")
 
 
@@ -72,7 +73,7 @@ def _action_from_request(request: Request) -> str:
 
 def authorize_resource(resource: str):
     async def dependency(request: Request, user: User = Depends(current_user), db: AsyncSession = Depends(get_db)):
-        if user.role in {"SuperAdmin", "Admin"}:
+        if is_unrestricted(user):
             return
         prefix = RESOURCE_PREFIX.get(resource)
         if not prefix:
@@ -112,7 +113,7 @@ def authorize_type_code():
         type_code = str(request.path_params.get("type_code") or "")
         if not is_valid_type_code(type_code):
             raise HTTPException(404, "Record type not found")
-        if user.role in {"SuperAdmin", "Admin"}:
+        if is_unrestricted(user):
             return
         prefix = permission_prefix_for_type_code(type_code)
         action = _action_from_request(request)
@@ -138,7 +139,7 @@ def authorize_org_type():
         org_type = str(request.path_params.get("org_type") or "")
         if not is_valid_org_type(org_type):
             raise HTTPException(404, "Organization type not found")
-        if user.role in {"SuperAdmin", "Admin"}:
+        if is_unrestricted(user):
             return
         prefix = permission_prefix_for_org_type(org_type)
         action = _action_from_request(request)

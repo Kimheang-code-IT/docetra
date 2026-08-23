@@ -20,7 +20,7 @@ from app.models.organization import Organization, OrganizationPurpose, Organizat
 from app.models.people import Officer, User
 from app.models.record import Entity, Record, RecordAttribute, RecordType
 from app.models.storage import File
-from app.modules.people_access.services.identity import normalize_identity_payload, strip_secrets
+from app.modules.people_access.services.identity import normalize_identity_payload, parse_role_level, strip_secrets
 import app.modules.organization.services.service as org_service
 import app.modules.people_access.services.people as people
 import app.modules.record.services.serializer as record_ser
@@ -126,6 +126,22 @@ class CollectionService:
             return ORG_RESOURCES[self.resource]
         from fastapi import HTTPException
         raise HTTPException(404, "Organization type not found")
+
+    async def get_record_row_or_404(self, db: AsyncSession, entity_id: str) -> Record:
+        try:
+            uid = uuid.UUID(str(entity_id))
+        except ValueError as exc:
+            raise HTTPException(404, "Not found") from exc
+        row = await db.get(Record, uid)
+        if not row or row.record_type_code != self.resolve_type_code():
+            raise HTTPException(404, "Not found")
+        return row
+
+    async def get_org_row_or_404(self, db: AsyncSession, entity_id: str) -> Organization:
+        row = await org_service.get_org(db, entity_id)
+        if row.organization_type != self.resolve_db_org_type():
+            raise HTTPException(404, "Not found")
+        return row
 
     async def actor_officer_id(self, db: AsyncSession, user: User) -> uuid.UUID | None:
         officer = await people.ensure_officer_for_user(db, user)
@@ -301,14 +317,10 @@ class CollectionService:
         except ValueError as exc:
             raise HTTPException(404, "Not found") from exc
         if kind == "record":
-            row = await db.get(Record, uid)
-            if not row or row.record_type_code != self.resolve_type_code():
-                raise HTTPException(404, "Not found")
+            row = await self.get_record_row_or_404(db, entity_id)
             return await record_ser.serialize_record(db, row)
         if kind == "organization":
-            row = await org_service.get_org(db, entity_id)
-            if row.organization_type != self.resolve_db_org_type():
-                raise HTTPException(404, "Not found")
+            row = await self.get_org_row_or_404(db, entity_id)
             return org_service.org_to_payload(row)
         if kind == "officer":
             row = await db.get(Officer, uid)
@@ -445,11 +457,11 @@ class CollectionService:
             return people.officer_to_payload(row)
 
         if kind == "role":
-            data = await normalize_identity_payload(db, "roles", payload)
+            data = await normalize_identity_payload(db, "roles", payload, actor=user)
             row = Role(
                 nam=str(data.get("name") or data.get("code") or "Role"),
                 description=data.get("description"),
-                lvl=int(data.get("lvl") or 1),
+                lvl=parse_role_level(data.get("lvl")),
                 is_active=0 if data.get("status") == "inactive" else 1,
                 created_by=officer_id,
                 updated_by=officer_id,
@@ -462,7 +474,7 @@ class CollectionService:
             return people.role_to_payload(row, await people.permissions_for_role_id(db, row.id))
 
         if kind == "user":
-            data = await normalize_identity_payload(db, "users", payload)
+            data = await normalize_identity_payload(db, "users", payload, actor=user)
             from app.core.security import hash_password
             import secrets
             row = User(
@@ -470,8 +482,8 @@ class CollectionService:
                 name=data["name"],
                 password_hash=hash_password(str(data.get("password") or secrets.token_urlsafe(18))),
                 role=str(data.get("roleName") or "User"),
-                role_id=uuid.UUID(str(data["roleId"])) if data.get("roleId") else None,
-                permissions=list(data.get("permissions") or await people.permissions_for_role_id(db, uuid.UUID(str(data["roleId"])) if data.get("roleId") else None)),
+                role_id=uuid.UUID(str(data["roleId"])),
+                permissions=list(data.get("_permissions") or []),
                 active=data.get("status", "active") != "inactive",
                 status=str(data.get("status") or "active"),
                 created_by=officer_id,
@@ -562,7 +574,7 @@ class CollectionService:
             raise DomainError("VERSION_CONFLICT", "Record was changed by another user", 409)
 
         if kind == "record":
-            row = await db.get(Record, uuid.UUID(entity_id))
+            row = await self.get_record_row_or_404(db, entity_id)
             raw = dict(body)
             lifecycle = str(raw["status"]) if "status" in raw else None
             record_ser.apply_core_fields(row, {**current, **body}, lifecycle)
@@ -579,10 +591,8 @@ class CollectionService:
             return await record_ser.serialize_record(db, row)
 
         if kind == "organization":
-            row = await org_service.get_org(db, entity_id)
+            row = await self.get_org_row_or_404(db, entity_id)
             db_type = self.resolve_db_org_type()
-            if row.organization_type != db_type:
-                raise HTTPException(404, "Not found")
             is_company = db_type == "company"
             parent_value = body.get("parentId", row.parent_id)
             if is_company:
@@ -626,7 +636,9 @@ class CollectionService:
 
         if kind == "role":
             row = await db.get(Role, uuid.UUID(entity_id))
-            data = await normalize_identity_payload(db, "roles", {**current, **body}, row.id)
+            if not row:
+                raise HTTPException(404, "Not found")
+            data = await normalize_identity_payload(db, "roles", {**current, **body}, row.id, actor=user)
             row.nam = str(data.get("name") or row.nam)
             row.description = data.get("description")
             if "status" in body:
@@ -644,14 +656,16 @@ class CollectionService:
 
         if kind == "user":
             row = await db.get(User, uuid.UUID(entity_id))
-            data = await normalize_identity_payload(db, "users", {**current, **body}, row.id)
+            if not row:
+                raise HTTPException(404, "Not found")
+            data = await normalize_identity_payload(db, "users", {**current, **body}, row.id, actor=user)
             row.name = data["name"]
             row.email = data["email"]
             if data.get("roleId"):
                 row.role_id = uuid.UUID(str(data["roleId"]))
-                row.permissions = await people.permissions_for_role_id(db, row.role_id)
-            if data.get("roleName"):
-                row.role = str(data["roleName"])
+                row.role = str(data.get("roleName") or row.role)
+                if data.get("_permissions") is not None:
+                    row.permissions = list(data["_permissions"])
             if data.get("password"):
                 from app.core.security import hash_password
                 row.password_hash = hash_password(str(data["password"]))
@@ -744,7 +758,7 @@ class CollectionService:
         await assert_writable(db, self.resource)
         kind = self.kind()
         if kind == "record":
-            row = await db.get(Record, uuid.UUID(entity_id))
+            row = await self.get_record_row_or_404(db, entity_id)
             row.lifecycle = "deleted"
             row.status = 0
             row.deleted_at = utcnow()
@@ -752,23 +766,29 @@ class CollectionService:
             await db.commit()
             return {"id": entity_id}
         if kind == "organization":
-            row = await org_service.get_org(db, entity_id)
+            row = await self.get_org_row_or_404(db, entity_id)
             row.is_active = 0
             await db.commit()
             return {"id": entity_id}
         if kind == "role":
             row = await db.get(Role, uuid.UUID(entity_id))
+            if not row:
+                raise HTTPException(404, "Not found")
             row.is_active = 0
             await db.commit()
             return {"id": entity_id}
         if kind == "user":
             row = await db.get(User, uuid.UUID(entity_id))
+            if not row:
+                raise HTTPException(404, "Not found")
             row.active = False
             row.status = "deleted"
             await db.commit()
             return {"id": entity_id}
         if kind == "file":
             row = await db.get(File, uuid.UUID(entity_id))
+            if not row:
+                raise HTTPException(404, "Not found")
             row.status = "trash"
             await db.commit()
             return {"id": entity_id}
@@ -793,6 +813,16 @@ class CollectionService:
         }.get(kind)
         if kind == "entity":
             return await self._purge_entity(db, user, entity_id)
+        if kind == "record":
+            row = await self.get_record_row_or_404(db, entity_id)
+            await db.delete(row)
+            await db.commit()
+            return {"id": entity_id}
+        if kind == "organization":
+            row = await self.get_org_row_or_404(db, entity_id)
+            await db.delete(row)
+            await db.commit()
+            return {"id": entity_id}
         if not model:
             raise HTTPException(404, "Not found")
         row = await db.get(model, uid)
@@ -811,7 +841,7 @@ class CollectionService:
     async def lifecycle(self, db: AsyncSession, user: User, entity_id: str, status: str) -> dict:
         await assert_writable(db, self.resource)
         if self.kind() == "record":
-            row = await db.get(Record, uuid.UUID(entity_id))
+            row = await self.get_record_row_or_404(db, entity_id)
             record_ser.apply_core_fields(row, {}, status)
             row.version += 1
             row.updated_at = utcnow()
@@ -837,7 +867,8 @@ class CollectionService:
 
     async def set_stage(self, db: AsyncSession, user: User, entity_id: str, stage: Any) -> dict:
         await assert_writable(db, self.resource)
-        if self.kind() == "entity":
+        kind = self.kind()
+        if kind == "entity":
             row = await entity_or_404(db, self.resource, entity_id)
             row.stage = stage
             row.version += 1
@@ -845,9 +876,9 @@ class CollectionService:
             await db.commit()
             await db.refresh(row)
             return stamp(row)
-        row = await db.get(Record, uuid.UUID(entity_id))
-        if not row:
+        if kind != "record":
             raise HTTPException(404, "Not found")
+        row = await self.get_record_row_or_404(db, entity_id)
         row.stage = stage
         row.version += 1
         await db.commit()
@@ -919,7 +950,7 @@ class CollectionService:
 
     async def _create_entity(self, db, user, payload, raw_payload, row_id=None):
         row_id = row_id or uuid.uuid4()
-        payload = await normalize_identity_payload(db, self.resource, payload, row_id)
+        payload = await normalize_identity_payload(db, self.resource, payload, row_id, actor=user)
         payload = strip_secrets(dict(payload))
         status = payload.pop("status", "active")
         stage = payload.pop("stage", None)
@@ -938,7 +969,7 @@ class CollectionService:
         if expected is not None and expected != row.version:
             raise DomainError("VERSION_CONFLICT", "Record was changed by another user", 409)
         raw_body = dict(body)
-        merged = await normalize_identity_payload(db, self.resource, {**(row.payload or {}), **body}, row.id)
+        merged = await normalize_identity_payload(db, self.resource, {**(row.payload or {}), **body}, row.id, actor=user)
         if "status" in raw_body:
             row.status = str(raw_body["status"])
         if "stage" in raw_body:

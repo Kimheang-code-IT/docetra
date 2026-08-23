@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import time
+import uuid
 from collections.abc import Iterator
 from typing import Any
 
@@ -71,6 +72,68 @@ def login_admin(client: httpx.Client, *, attempts: int = 8) -> httpx.Response:
     assert last is not None
     assert last.status_code == 200, last.text
     return last
+
+
+def login_user(client: httpx.Client, email: str, password: str, *, attempts: int = 8) -> httpx.Response:
+    last: httpx.Response | None = None
+    for attempt in range(attempts):
+        last = client.post("/api/v2/auth/login", json={"email": email, "password": password})
+        if last.status_code == 200:
+            return last
+        if last.status_code == 429:
+            time.sleep(min(2 ** attempt, 20))
+            continue
+        break
+    assert last is not None
+    assert last.status_code == 200, last.text
+    return last
+
+
+def create_role(auth_client: httpx.Client, *, name: str, permission_rows: list[dict[str, Any]]) -> dict[str, Any]:
+    created = mutate(
+        auth_client,
+        "POST",
+        "/api/v2/users/roles",
+        json={
+            "code": f"R{uuid.uuid4().hex[:10].upper()}",
+            "name": name,
+            "status": "active",
+            "permissionRows": permission_rows,
+        },
+    )
+    assert created.status_code < 400, created.text
+    return assert_envelope(created)["data"]
+
+
+def create_restricted_user(
+    auth_client: httpx.Client,
+    *,
+    email: str,
+    password: str,
+    permission_rows: list[dict[str, Any]],
+    name: str = "Restricted",
+) -> dict[str, Any]:
+    role = create_role(auth_client, name=f"Lim {email.split('@')[0][-12:]}", permission_rows=permission_rows)
+    created = mutate(
+        auth_client,
+        "POST",
+        "/api/v2/users",
+        json={
+            "email": email,
+            "name": name,
+            "password": password,
+            "roleId": role["id"],
+            "status": "active",
+            "roleName": "Admin",
+            "permissions": ["users.users.purge"],
+        },
+    )
+    assert created.status_code < 400, created.text
+    data = assert_envelope(created)["data"]
+    assert data.get("roleId") == role["id"]
+    assert data.get("roleName") != "Admin"
+    assert "users.users.purge" not in (data.get("permissions") or [])
+    return data
 
 
 @pytest.fixture(scope="session")
