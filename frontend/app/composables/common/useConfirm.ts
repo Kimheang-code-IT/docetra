@@ -1,10 +1,10 @@
 import { reactive } from 'vue'
 
-export type ConfirmKind = 'delete' | 'save' | 'submit' | 'update' | 'unsaved' | 'generic'
+type ConfirmKind = 'delete' | 'save' | 'submit' | 'update' | 'unsaved' | 'generic'
 
-export type ConfirmColor = 'error' | 'primary' | 'neutral' | 'warning'
+type ConfirmColor = 'error' | 'primary' | 'neutral' | 'warning'
 
-export interface ConfirmOptions {
+interface ConfirmOptions {
   kind?: ConfirmKind
   title?: string
   titleKey?: string

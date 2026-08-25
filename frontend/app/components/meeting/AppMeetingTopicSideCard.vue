@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { MeetingTopic } from '~/types/docetra/entities'
 import { useCardFields } from '~/composables/settings/useCardFields'
-import { splitCardSlots } from '~/utils/card-fields'
+import { splitCardSlots, statusBadgeColor } from '~/utils/card-fields'
 
 const props = defineProps<{
   topic: MeetingTopic
@@ -36,13 +36,7 @@ const stageLabel = computed(() => {
   return te(key) ? t(key) : props.topic.stage
 })
 
-const statusColor = computed(() => {
-  const status = String(props.topic.status || '').toLowerCase()
-  if (status === 'active' || status === 'completed') return 'success' as const
-  if (status === 'pending' || status === 'draft') return 'warning' as const
-  if (status === 'deleted' || status === 'disabled' || status === 'failed') return 'error' as const
-  return 'info' as const
-})
+const statusColor = computed(() => statusBadgeColor(props.topic.status))
 
 const topicTags = computed(() =>
   Array.isArray(props.topic.tags) ? props.topic.tags.map(String).filter(Boolean) : [],

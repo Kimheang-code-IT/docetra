@@ -7,7 +7,7 @@ export const SAFE_RASTER_IMAGE_TYPES = [
 
 export const SAFE_RASTER_IMAGE_ACCEPT = SAFE_RASTER_IMAGE_TYPES.join(',')
 
-export const DEFAULT_UPLOAD_TYPES = [
+const DEFAULT_UPLOAD_TYPES = [
   'application/pdf',
   'image/png',
   'image/jpeg',

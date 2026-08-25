@@ -14,7 +14,7 @@ export function createRecordAdapter<T extends { id: string; stage?: string; upda
 }
 
 /** Adapter factory for organization orgType (`department` | `company`). */
-export function createOrganizationAdapter<T extends { id: string; stage?: string; updatedAt?: string; createdAt?: string } = any>(
+function createOrganizationAdapter<T extends { id: string; stage?: string; updatedAt?: string; createdAt?: string } = any>(
   orgType: string,
 ) {
   return createEntityAdapter<T>({ endpoint: ApiEndpoints.ORGANIZATIONS(orgType) })

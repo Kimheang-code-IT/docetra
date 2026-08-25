@@ -1,13 +1,11 @@
-export const AUTH_PUBLIC_PATHS = [
+const AUTH_PUBLIC_PATHS = [
   '/auth/login',
   '/auth/forget-password',
   '/auth/verify-code',
   '/auth/reset-password',
-  '/login',
-  '/forget-password',
 ] as const
 
-export const PERMITTED_LANDING_ROUTES = [
+const PERMITTED_LANDING_ROUTES = [
   ['/', 'dashboard.view'],
   ['/meetings/topics', 'records.meeting_topic.view'],
   ['/meetings/history', 'records.meeting_history.view'],
@@ -38,7 +36,7 @@ export function resolvePermittedLandingPath(
   return null
 }
 
-export type AuthRouteDecision =
+type AuthRouteDecision =
   | { kind: 'allow' }
   | { kind: 'abort' }
   | { kind: 'deny-and-login' }

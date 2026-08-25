@@ -26,13 +26,6 @@ async def send_meeting_alert(chat_id: str, text: str, *, db: AsyncSession | None
     return await _send(bot["botToken"], chat_id, text)
 
 
-async def send_devops_alert(chat_id: str, text: str) -> dict:
-    if not settings.telegram_devops_bot_enabled or not settings.telegram_devops_bot_token:
-        log.info("DevOps Telegram bot disabled")
-        return {"ok": False, "skipped": True}
-    return await _send(settings.telegram_devops_bot_token, chat_id, text)
-
-
 async def test_bot(kind: str = "meeting", *, config: dict | None = None, db: AsyncSession | None = None) -> dict:
     if kind != "meeting":
         token = str((config or {}).get("botToken") or settings.telegram_devops_bot_token)

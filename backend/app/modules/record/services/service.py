@@ -74,14 +74,29 @@ class CollectionService:
         from fastapi import HTTPException
         raise HTTPException(404, "Organization type not found")
 
-    async def get_record_row_or_404(self, db: AsyncSession, entity_id: str) -> Record:
+    async def get_record_row_or_404(self, db: AsyncSession, entity_id: str, user: User | None = None) -> Record:
         try:
             uid = uuid.UUID(str(entity_id))
         except ValueError as exc:
             raise HTTPException(404, "Not found") from exc
         row = await db.get(Record, uid)
-        if not row or row.record_type_code != self.resolve_type_code():
+        if not row:
             raise HTTPException(404, "Not found")
+        expected_code = self.resolve_type_code()
+        type_row = await db.get(RecordType, row.record_type_id) if row.record_type_id else None
+        actual_code = type_row.code if type_row else row.record_type_code
+        if actual_code != expected_code:
+            raise HTTPException(404, "Not found")
+        if user is None:
+            return row
+        import app.modules.record.services.type_access as type_access
+        from app.core.privileged import is_unrestricted
+
+        if not is_unrestricted(user):
+            if type_row:
+                await type_access.require_type_access(db, type_row, user)
+            if not await type_access.record_visible_to_user(db, row, user):
+                raise HTTPException(404, "Not found")
         return row
 
     async def get_org_row_or_404(self, db: AsyncSession, entity_id: str) -> Organization:
@@ -117,19 +132,21 @@ class CollectionService:
             return await self.identity.list_items(db, user, params, page, limit, q, status)
         return await self.support.list_items(db, user, params, page, limit, q, status)
 
-    async def get_item(self, db: AsyncSession, entity_id: str) -> dict:
+    async def get_item(self, db: AsyncSession, entity_id: str, user: User | None = None) -> dict:
         kind = self.kind()
         try:
             uuid.UUID(entity_id)
         except ValueError as exc:
             raise HTTPException(404, "Not found") from exc
         if kind == "record":
-            return await self.records.get_item(db, entity_id)
+            if user is None:
+                raise HTTPException(401, "Authentication required")
+            return await self.records.get_item(db, user, entity_id)
         if kind in {"organization", "sector", "purpose"}:
             return await self.organizations.get_item(db, entity_id)
         if kind in {"officer", "role", "user"}:
             return await self.identity.get_item(db, entity_id)
-        return await self.support.get_item(db, entity_id)
+        return await self.support.get_item(db, entity_id, user)
 
     async def create(self, db: AsyncSession, user: User, payload: dict, raw_payload: dict | None = None) -> dict:
         await assert_writable(db, self.resource)
@@ -145,7 +162,7 @@ class CollectionService:
     async def update(self, db: AsyncSession, user: User, entity_id: str, body: dict) -> dict:
         await assert_writable(db, self.resource)
         kind = self.kind()
-        current = await self.get_item(db, entity_id)
+        current = await self.get_item(db, entity_id, user)
         expected = body.pop("version", None)
         self._assert_version(current.get("version"), expected)
 
@@ -176,7 +193,7 @@ class CollectionService:
         kind = self.kind()
         expected = (body or {}).get("version")
         if kind == "record":
-            return await self.records.soft_delete(db, entity_id, expected)
+            return await self.records.soft_delete(db, user, entity_id, expected)
         if kind in {"organization", "sector", "purpose"}:
             return await self.organizations.soft_delete(db, entity_id)
         if kind == "officer":
@@ -190,7 +207,7 @@ class CollectionService:
         kind = self.kind()
         expected = (body or {}).get("version")
         if kind == "record":
-            return await self.records.purge(db, entity_id, expected)
+            return await self.records.purge(db, user, entity_id, expected)
         if kind in {"organization", "sector", "purpose"}:
             return await self.organizations.purge(db, entity_id)
         if kind in {"officer", "role", "user"}:
@@ -201,7 +218,7 @@ class CollectionService:
         await assert_writable(db, self.resource)
         expected = (body or {}).get("version")
         if self.kind() == "record":
-            return await self.records.lifecycle(db, entity_id, status, expected)
+            return await self.records.lifecycle(db, user, entity_id, status, expected)
         if self.kind() == "entity":
             return await self.support.lifecycle(db, user, entity_id, status, expected)
         payload = {"status": status}
@@ -217,7 +234,7 @@ class CollectionService:
             return await self.support.set_stage(db, user, entity_id, stage, expected)
         if kind != "record":
             raise HTTPException(404, "Not found")
-        return await self.records.set_stage(db, entity_id, stage, expected)
+        return await self.records.set_stage(db, user, entity_id, stage, expected)
 
     async def create_upload(self, db: AsyncSession, user: User, request) -> dict:
         await assert_writable(db, self.resource)

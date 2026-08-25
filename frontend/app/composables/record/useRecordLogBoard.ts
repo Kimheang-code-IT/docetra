@@ -10,7 +10,7 @@ import {
   serializePageLimit,
 } from '~/utils/pagination'
 
-export interface RecordLogTab {
+interface RecordLogTab {
   id: string
   labelKey: string
   /** Literal configured Record Type name. */

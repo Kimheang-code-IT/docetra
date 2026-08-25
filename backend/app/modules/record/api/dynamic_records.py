@@ -40,7 +40,17 @@ router = APIRouter(tags=["records"])
 
 @router.get("/records/_meta/surfaces", response_model=DataEnvelope)
 async def record_surfaces(db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
-    rows = (await db.scalars(select(RecordType).where(RecordType.is_active == 1).order_by(RecordType.code))).all()
+    import app.modules.record.services.type_access as type_access
+    from app.core.privileged import is_unrestricted
+
+    stmt = select(RecordType).where(RecordType.is_active == 1).order_by(RecordType.code)
+    if not is_unrestricted(user):
+        org_id = await type_access.actor_organization_id(db, user)
+        type_ids = await type_access.permitted_type_ids(db, org_id)
+        if not type_ids:
+            return {"data": {"meeting": [], "document": [], "system": []}}
+        stmt = stmt.where(RecordType.id.in_(type_ids))
+    rows = (await db.scalars(stmt)).all()
     grouped: dict[str, list] = {"meeting": [], "document": [], "system": []}
     for row in rows:
         payload = merge_type_ui_payload(row.code, dict(row.payload or {}))
@@ -95,11 +105,19 @@ def _collab_resource(type_code: str) -> str:
 async def record_type_schema(type_code: str, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
     if not is_valid_type_code(type_code):
         raise HTTPException(404, "Record type not found")
-    rtype = await db.scalar(select(RecordType).where(RecordType.code == type_code, RecordType.is_active == 1))
-    if not rtype:
-        rtype = await record_ser.ensure_record_type(db, type_code, None)
-        await db.commit()
-        await db.refresh(rtype)
+    import app.modules.record.services.type_access as type_access
+    from app.core.privileged import is_unrestricted
+
+    rtype = await record_ser.resolve_or_ensure_type(
+        db,
+        type_code,
+        None,
+        await type_access.actor_organization_id(db, user),
+        unrestricted=is_unrestricted(user),
+    )
+    await type_access.require_type_access(db, rtype, user)
+    await db.commit()
+    await db.refresh(rtype)
     ui = merge_type_ui_payload(rtype.code, dict(rtype.payload or {}))
     return {
         "data": {
@@ -197,7 +215,7 @@ async def reorder_meetings(type_code: str, body: MeetingReorder, db: AsyncSessio
 
 @type_router.get("/{entity_id}", response_model=DataEnvelope)
 async def get_item(type_code: str, entity_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
-    return {"data": await _service(type_code).get_item(db, entity_id)}
+    return {"data": await _service(type_code).get_item(db, entity_id, user)}
 
 
 @type_router.patch("/{entity_id}", response_model=DataEnvelope)
@@ -274,19 +292,19 @@ async def stage(
 
 @type_router.get("/{entity_id}/neighbors", response_model=DataEnvelope)
 async def neighbors(type_code: str, entity_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
-    await _service(type_code).get_item(db, entity_id)
+    await _service(type_code).get_item(db, entity_id, user)
     return {"data": await collaboration.get_neighbors(db, _collab_resource(type_code), entity_id)}
 
 
 @type_router.get("/{entity_id}/favorite", response_model=DataEnvelope)
 async def get_favorite(type_code: str, entity_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
-    await _service(type_code).get_item(db, entity_id)
+    await _service(type_code).get_item(db, entity_id, user)
     return {"data": {"isFavorite": await collaboration.get_favorite(db, user.id, entity_id)}}
 
 
 @type_router.put("/{entity_id}/favorite", response_model=DataEnvelope)
 async def set_favorite(type_code: str, entity_id: str, body: FavoriteBody, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
-    await _service(type_code).get_item(db, entity_id)
+    await _service(type_code).get_item(db, entity_id, user)
     desired = bool(body.isFavorite)
     await collaboration.set_favorite(db, user.id, entity_id, desired)
     await db.commit()
@@ -295,7 +313,7 @@ async def set_favorite(type_code: str, entity_id: str, body: FavoriteBody, db: A
 
 @type_router.get("/{entity_id}/comments", response_model=DataEnvelope)
 async def comments(type_code: str, entity_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
-    await _service(type_code).get_item(db, entity_id)
+    await _service(type_code).get_item(db, entity_id, user)
     data, total = await collaboration.list_comments(db, _collab_resource(type_code), entity_id, user)
     return {"data": data, "meta": {"page": 1, "limit": total or 20, "total": total}}
 
@@ -308,7 +326,7 @@ async def add_comment(type_code: str, entity_id: str, body: CommentBody, db: Asy
     general = runtime.general_defaults(await runtime.load_app_config(db))
     if not general["enableComments"]:
         raise DomainError("COMMENTS_DISABLED", "Comments are disabled in application settings", 403)
-    await _service(type_code).get_item(db, entity_id)
+    await _service(type_code).get_item(db, entity_id, user)
     comment = await collaboration.add_comment(db, uuid.UUID(entity_id), body.body, user)
     await db.commit()
     await db.refresh(comment)
@@ -334,7 +352,7 @@ async def edit_comment(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(current_user),
 ):
-    await _service(type_code).get_item(db, entity_id)
+    await _service(type_code).get_item(db, entity_id, user)
     resource = _collab_resource(type_code)
     data = await collaboration.edit_comment(db, entity_id, comment_id, body.body, user)
     await db.commit()
@@ -349,7 +367,7 @@ async def delete_comment(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(current_user),
 ):
-    await _service(type_code).get_item(db, entity_id)
+    await _service(type_code).get_item(db, entity_id, user)
     deleted_id = await collaboration.delete_comment(db, entity_id, comment_id, user)
     await db.commit()
     return {"data": {"id": deleted_id}}
@@ -357,14 +375,14 @@ async def delete_comment(
 
 @type_router.get("/{entity_id}/activity", response_model=DataEnvelope)
 async def activity(type_code: str, entity_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
-    await _service(type_code).get_item(db, entity_id)
+    await _service(type_code).get_item(db, entity_id, user)
     data, total = await collaboration.list_activity(db, _collab_resource(type_code), entity_id, user)
     return {"data": data, "meta": {"page": 1, "limit": total or 20, "total": total}}
 
 
 @type_router.get("/{entity_id}/attachments", response_model=DataEnvelope)
 async def attachments(type_code: str, entity_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
-    payload = await _service(type_code).get_item(db, entity_id)
+    payload = await _service(type_code).get_item(db, entity_id, user)
     return {"data": payload.get("attachments", [])}
 
 

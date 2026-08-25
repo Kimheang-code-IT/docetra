@@ -15,15 +15,6 @@ class RecordPayload(BaseModel):
     version: int | None = None
 
 
-class RecordTypePayload(BaseModel):
-    model_config = ConfigDict(extra="allow")
-
-    id: str | None = None
-    code: str
-    name: str | None = None
-    description: str | None = None
-    status: str | None = None
-
 class MeetingAssignTopic(BaseModel):
     model_config = ConfigDict(extra="allow")
 

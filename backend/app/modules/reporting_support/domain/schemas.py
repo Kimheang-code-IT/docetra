@@ -19,5 +19,7 @@ class ExportCreateRequest(BaseModel):
     resource: str
     format: str | None = "csv"
     scope: str | None = None
+    startDate: str | None = None
+    endDate: str | None = None
     selectedIds: list[str] = Field(default_factory=list)
     fieldCodes: list[str] = Field(default_factory=list)

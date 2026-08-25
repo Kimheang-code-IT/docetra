@@ -1,5 +1,5 @@
 ---
-description: Docetra product source of truth — idea brief + engineering specification
+description: Docetra product source of truth — unified records, spec vs idea vs UI
 alwaysApply: true
 ---
 
@@ -11,19 +11,19 @@ When designing or implementing product behavior, treat these as the main idea an
    - `01-docetra-project-brief.md`
    - `02-docetra-business-requirements.md`
    - `03-draft-db-design.md` (column-level draft; prefer formal data model when they conflict)
-
 2. **Engineering specification** — `prompt/specification/`
    - Start with `00-overview.md`, `02-domain-model.md`, `07-data-model.md`
    - Record behavior: `modules/record.md`
    - Full reading order: `prompt/specification/README.md`
-
 3. **Frontend UI map** — `prompt/frontend/` (presentation/layout only; must not contradict idea + specification)
 
-## Core product principles (must follow)
+OpenCode/Cursor implementation workflow: `AGENTS.md` and skill `.opencode/skills/docetra/`.
+
+## Core product principles
 
 - **Unified record model**: meetings, documents, topics, files, URLs, and similar items are records differentiated by `record_type` — not separate product domains.
 - Cards/lists show **summary + important scan fields** driven by type config where possible.
-- Core record identity fields to prefer on cards: `title`, `status`, `record_stage` / stage, `record_tag` / tags, `record_time`, `record_content` (see draft DB + data model).
+- Core record identity fields to prefer on cards: `title`, `status`, `record_stage` / stage, `record_tag` / tags, `record_time`, `record_content`.
 - Meeting is a **special record type** with topic-container board behavior (`modules/record.md`), not a disconnected entity.
 - Prefer configuration over hardcoded per-screen field lists when behavior differs by type.
 

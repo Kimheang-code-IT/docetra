@@ -1,8 +1,10 @@
 import type { EntityConfig } from '~/config/entities'
 import { getAdapterForConfig } from '~/config/entities'
 import type { WorkflowStage } from '~/types/docetra/common'
+import type { RecordType } from '~/types/docetra/configuration'
 import { useConfigurationRepositories } from '~/repositories'
 import { useAppLocalization } from '~/composables/settings/useAppLocalization'
+import { provideCardFieldsOverride } from '~/composables/settings/useCardFields'
 import { concurrencyVersion } from '~/utils/api/concurrency'
 
 function getByPath(obj: Record<string, unknown>, path: string): unknown {
@@ -28,6 +30,9 @@ export function useRecordStageBoard(
   const { formatDate } = useAppLocalization()
   const adapter = getAdapterForConfig(config)
   const { recordTypes } = useConfigurationRepositories()
+  /** Board cards resolve per-type card slots from the loaded type payload. */
+  const typePayload = ref<RecordType['payload'] | null>(null)
+  provideCardFieldsOverride(() => typePayload.value)
   const runtimeStages = ref<WorkflowStage[]>(
     [...(config.stages || [])].sort((a, b) => a.order - b.order),
   )
@@ -42,6 +47,7 @@ export function useRecordStageBoard(
     try {
       const schema = await recordTypes.getResolvedSchema({ code: config.recordTypeCode })
       const recordType = schema.recordType
+      typePayload.value = recordType.payload || null
       if (!recordType.features?.enableWorkflow || !recordType.stages?.length) {
         throw new Error(t('docetra.recordStageBoard.stageConfigEmpty'))
       }

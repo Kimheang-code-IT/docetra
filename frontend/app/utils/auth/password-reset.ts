@@ -1,6 +1,6 @@
 const STORAGE_KEY = 'docetra:auth:password-reset'
 
-export interface PasswordResetSession {
+interface PasswordResetSession {
   email: string
   verified: boolean
   /** Stored after successful verify so reset-password can submit without re-entry. */
@@ -58,5 +58,3 @@ export function markPasswordResetVerified(code: string) {
 export function clearPasswordResetSession() {
   writeRaw(null)
 }
-
-export const MOCK_RESET_CODE = '123456'

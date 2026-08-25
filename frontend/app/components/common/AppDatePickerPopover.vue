@@ -11,6 +11,7 @@ import {
 const props = withDefaults(defineProps<{
   mode?: 'single' | 'range'
   granularity?: DatePickerGranularity
+  locale?: string
   disabled?: boolean
 }>(), {
   mode: 'single',
@@ -206,6 +207,7 @@ const dayRangeCalendar = computed({
       :number-of-months="2"
       :paged-navigation="true"
       :size="calendarSize"
+      :locale="locale"
       :disabled="disabled"
     />
     <UCalendar
@@ -217,6 +219,7 @@ const dayRangeCalendar = computed({
       :number-of-months="2"
       :paged-navigation="true"
       :size="calendarSize"
+      :locale="locale"
       :disabled="disabled"
     />
     <UCalendar
@@ -228,6 +231,7 @@ const dayRangeCalendar = computed({
       :number-of-months="2"
       :paged-navigation="true"
       :size="calendarSize"
+      :locale="locale"
       :disabled="disabled"
     />
 

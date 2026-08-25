@@ -18,7 +18,6 @@ import { permissionForAction } from '../../app/utils/role/access'
 import { parsePageLimit } from '../../app/utils/pagination'
 import { getByPath, setByPath } from '../../app/utils/object-path'
 import { formatSummaryValue } from '../../app/utils/format/summary-value'
-import { groupUserPermissions, resolveUserPermissionKeys } from '../../app/utils/auth/user-permissions'
 
 describe('auth store helpers', () => {
   it('unwraps nested and flat session payloads', () => {
@@ -201,17 +200,5 @@ describe('summary card formatting', () => {
     expect(formatSummaryValue(12, { prefix: '$', suffix: 'k' })).toBe('$12k')
     expect(formatSummaryValue(null)).toBe('—')
     expect(formatSummaryValue('pending')).toBe('pending')
-  })
-})
-
-describe('user permissions grouping', () => {
-  it('resolves keys for unrestricted pageAccess', () => {
-    const keys = resolveUserPermissionKeys({
-      name: 'Admin',
-      email: 'admin@example.com',
-      pageAccess: ['ALL_PAGES'],
-    })
-    expect(keys.length).toBeGreaterThan(10)
-    expect(groupUserPermissions(keys).some(group => group.documentType === 'document')).toBe(true)
   })
 })

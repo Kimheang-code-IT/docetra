@@ -1,14 +1,21 @@
 <script setup lang="ts">
 import type { EntityView, FilterDef } from '~/types/docetra/common'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   search: string
-  filters: FilterDef[]
-  filterValues: Record<string, string>
-  view: string
-  views: EntityView[]
-  sort: string
-}>()
+  /** Overrides the default "Search" i18n placeholder. */
+  searchPlaceholder?: string
+  filters?: FilterDef[]
+  filterValues?: Record<string, string>
+  /** Omit view/views/sort for toolbars without view tabs or sorting. */
+  view?: string
+  views?: EntityView[]
+  sort?: string
+}>(), {
+  filters: () => [],
+  filterValues: () => ({}),
+  views: () => [],
+})
 
 const emit = defineEmits<{
   'update:search': [string]
@@ -18,6 +25,8 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+
+const hasSort = computed(() => props.sort !== undefined)
 
 const searchModel = computed({
   get: () => props.search,
@@ -127,7 +136,7 @@ function onFilterChange(filter: FilterDef, value: string | string[] | null) {
     <div class="flex items-center gap-2 lg:justify-between">
       <CommonAppLiveSearch
         v-model="searchModel"
-        :placeholder="$t('common.search')"
+        :placeholder="props.searchPlaceholder ?? $t('common.search')"
         size="md"
         class="min-w-0 w-full max-w-[18.75rem] flex-1 lg:flex-none"
       />
@@ -175,6 +184,7 @@ function onFilterChange(filter: FilterDef, value: string | string[] | null) {
               </div>
             </template>
             <CommonAppSingleFilterSelect
+              v-if="hasSort"
               v-model="sortModel"
               :items="sortItems"
               :label="$t('docetra.sort.label')"
@@ -206,7 +216,7 @@ function onFilterChange(filter: FilterDef, value: string | string[] | null) {
           />
         </template>
 
-        <UDropdownMenu :items="sortMenuItems" :content="{ align: 'end' }">
+        <UDropdownMenu v-if="hasSort" :items="sortMenuItems" :content="{ align: 'end' }">
           <UButton
             icon="i-lucide-arrow-up-down"
             color="neutral"

@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, Numeric, SmallInteger, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, Numeric, SmallInteger, String, Text, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -12,8 +12,10 @@ from app.db.mixins import ActiveFlagMixin, OfficerActorMixin, StatusMixin, Times
 
 class RecordType(UUIDPrimaryKeyMixin, TimestampMixin, OfficerActorMixin, ActiveFlagMixin, Base):
     __tablename__ = "record_type"
+    __table_args__ = (Index("ix_record_type_code_value", "code"),)
 
-    code: Mapped[str] = mapped_column(String(120), unique=True)
+    # Informational key only — join records through `id`, not `code`.
+    code: Mapped[str] = mapped_column(String(120))
     description: Mapped[str | None] = mapped_column(Text)
     deletable: Mapped[int] = mapped_column(SmallInteger, default=1)
     nam: Mapped[str | None] = mapped_column(String(200))
@@ -22,11 +24,37 @@ class RecordType(UUIDPrimaryKeyMixin, TimestampMixin, OfficerActorMixin, ActiveF
 
 class RecordAttribute(UUIDPrimaryKeyMixin, TimestampMixin, OfficerActorMixin, Base):
     __tablename__ = "record_attribute"
+    __table_args__ = (Index("ix_record_attribute_code_value", "code"),)
 
-    code: Mapped[str] = mapped_column(String(120), unique=True)
+    # Informational key only — join record_detail through `id`, not `code`.
+    code: Mapped[str] = mapped_column(String(120))
     data_type: Mapped[str] = mapped_column(String(40), default="string")
     nam: Mapped[str | None] = mapped_column(String(200))
     payload: Mapped[dict] = mapped_column(JSONB, default=dict)
+
+
+class RecordTypePermission(UUIDPrimaryKeyMixin, TimestampMixin, OfficerActorMixin, Base):
+    """Organization access to a record type. Owner org creates; shared orgs receive a grant."""
+
+    __tablename__ = "record_type_permission"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "record_type_id", name="uq_record_type_permission_org_type"),
+        Index("ix_record_type_permission_type", "record_type_id"),
+        Index(
+            "uq_record_type_permission_one_owner",
+            "record_type_id",
+            unique=True,
+            postgresql_where=text("permission_kind = 'owner'"),
+        ),
+    )
+
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organization.id", ondelete="CASCADE"), index=True,
+    )
+    record_type_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("record_type.id", ondelete="CASCADE"),
+    )
+    permission_kind: Mapped[str] = mapped_column(String(20), default="shared")
 
 
 class RecordTemplate(UUIDPrimaryKeyMixin, TimestampMixin, OfficerActorMixin, Base):
@@ -74,9 +102,15 @@ class Record(UUIDPrimaryKeyMixin, TimestampMixin, OfficerActorMixin, VersionMixi
 
 class RecordDetail(UUIDPrimaryKeyMixin, TimestampMixin, OfficerActorMixin, Base):
     __tablename__ = "record_detail"
-    __table_args__ = (Index("ix_record_detail_record_attr", "record_id", "record_attribute_code"),)
+    __table_args__ = (
+        Index("ix_record_detail_record_attr", "record_id", "record_attribute_code"),
+        Index("ix_record_detail_record_attr_id", "record_id", "record_attribute_id"),
+    )
 
     record_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("record.id", ondelete="CASCADE"), index=True)
+    record_attribute_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("record_attribute.id", ondelete="SET NULL"), index=True,
+    )
     record_attribute_code: Mapped[str] = mapped_column(String(120), index=True)
     value_number: Mapped[Decimal | None] = mapped_column(Numeric)
     value_string: Mapped[str | None] = mapped_column(Text)
@@ -116,16 +150,3 @@ class Entity(UUIDPrimaryKeyMixin, StatusMixin, VersionMixin, TimestampMixin, Bas
     archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     record_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
-
-
-class LegacyRecord(UUIDPrimaryKeyMixin, StatusMixin, TimestampMixin, Base):
-    __tablename__ = "records"
-    __table_args__ = (Index("ix_records_kind_status_time", "kind", "status", "record_time"),)
-
-    kind: Mapped[str] = mapped_column(String(60), index=True)
-    title: Mapped[str] = mapped_column(String(500), default="")
-    stage: Mapped[str | None] = mapped_column(String(100))
-    record_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
-    details: Mapped[dict] = mapped_column(JSONB, default=dict)
-    payload: Mapped[dict] = mapped_column(JSONB, default=dict)
-    created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"))

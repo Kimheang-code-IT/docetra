@@ -1,7 +1,7 @@
 import type { MeetingBoardTiming } from '~/types/docetra/meeting-api'
 import { safeExternalUrl } from '~/utils/security/url'
 
-export const DEFAULT_IMMINENT_MINUTES = 15
+const DEFAULT_IMMINENT_MINUTES = 15
 
 export function getImminentMinutesBefore(): number {
   return DEFAULT_IMMINENT_MINUTES

@@ -308,23 +308,6 @@ export const appConfigTabs: DocumentTabSchema[] = [
       },
     ],
   },
-  {
-    id: 'display',
-    labelKey: 'docetra.settings.tabs.display',
-    sections: [
-      {
-        id: 'cardFields',
-        fields: [
-          {
-            key: 'display',
-            labelKey: 'docetra.settings.cardFieldsSection',
-            type: 'card-fields-editor',
-            colSpan: 2,
-          },
-        ],
-      },
-    ],
-  },
 ]
 
 const storageCommonFields = [

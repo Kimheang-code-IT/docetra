@@ -17,6 +17,8 @@ export function recordTypeTabs(ctx: {
   /** Draft workflow stages available for per-field assignment. */
   stages?: ConfigWorkflowStage[]
   searchAttributes?: (query: string) => void
+  /** Card-display entity key this type edits (from its record-type code). */
+  cardEntityKey?: string
 }): DocumentTabSchema[] {
   const tabs: DocumentTabSchema[] = [
     {
@@ -78,6 +80,24 @@ export function recordTypeTabs(ctx: {
       }],
     },
   ]
+
+  tabs.push({
+    id: 'cardFields',
+    labelKey: 'docetra.config.tabs.cardFields',
+    sections: [{
+      id: 'cardFields',
+      titleKey: 'docetra.config.tabs.cardFields',
+      fields: [
+        {
+          key: '__cardFields',
+          labelKey: 'docetra.settings.cardFieldsSection',
+          type: 'card-fields-editor',
+          colSpan: 2,
+          meta: { entityKeys: ctx.cardEntityKey ? [ctx.cardEntityKey] : undefined },
+        },
+      ],
+    }],
+  })
 
   if (ctx.enableWorkflow !== false) {
     tabs.push({

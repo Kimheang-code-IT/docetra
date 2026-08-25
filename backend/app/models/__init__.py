@@ -2,11 +2,10 @@ from app.models.access import Menu, Permission, Role
 from app.models.audit import Activity, AuditLog, Comment, Favorite, NotificationAuditLog
 from app.models.configuration import AppSetting, EnumValue, Setting
 from app.models.jobs import Outbox
-from app.models.organization import LegacyOrganization, Organization, OrganizationPurpose, OrganizationSector
-from app.models.people import LegacyOfficer, LegacyRole, Officer, OfficerIdentifier, User
+from app.models.organization import Organization, OrganizationPurpose, OrganizationSector
+from app.models.people import Officer, OfficerIdentifier, User
 from app.models.record import (
     Entity,
-    LegacyRecord,
     Record,
     RecordAttachment,
     RecordAttribute,
@@ -15,6 +14,7 @@ from app.models.record import (
     RecordStageTemplate,
     RecordTemplate,
     RecordType,
+    RecordTypePermission,
 )
 from app.models.scheduler import MeetingSchedule
 from app.models.storage import File
@@ -28,10 +28,6 @@ __all__ = [
     "EnumValue",
     "Favorite",
     "File",
-    "LegacyOfficer",
-    "LegacyOrganization",
-    "LegacyRecord",
-    "LegacyRole",
     "MeetingSchedule",
     "Menu",
     "NotificationAuditLog",
@@ -50,6 +46,7 @@ __all__ = [
     "RecordStageTemplate",
     "RecordTemplate",
     "RecordType",
+    "RecordTypePermission",
     "Role",
     "Setting",
     "User",

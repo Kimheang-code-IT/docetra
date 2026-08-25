@@ -6,6 +6,7 @@ const props = withDefaults(defineProps<{
   titleKey?: string
   description?: string
   descriptionKey?: string
+  descriptionParams?: Record<string, unknown>
   confirmLabel?: string
   confirmLabelKey?: string
   cancelLabel?: string
@@ -33,7 +34,9 @@ const resolvedTitle = computed(() => {
 
 const resolvedDescription = computed(() => {
   if (props.description) return props.description
-  if (props.descriptionKey && te(props.descriptionKey)) return t(props.descriptionKey)
+  if (props.descriptionKey && te(props.descriptionKey)) {
+    return t(props.descriptionKey, props.descriptionParams || {})
+  }
   return ''
 })
 

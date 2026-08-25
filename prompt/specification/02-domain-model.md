@@ -41,7 +41,7 @@ A record should usually contain:
 - attachments or file references when applicable.
 
 ### Record type
-A record type defines the category and behavior of a record. Different record types may have different fields, workflow stages, labels, and UI rendering rules.
+A record type defines the category and behavior of a record. Different record types may have different fields, workflow stages, labels, and UI rendering rules. Types belong to the creating organization and can be shared with other organizations; `code` is informational and may repeat across organizations.
 
 Examples include:
 - document.
@@ -56,7 +56,10 @@ Examples include:
 - url.
 
 ### Record attribute
-A record attribute defines a field that can be used by one or more record types. Attributes allow the system to support dynamic or configurable record data without changing the core record table structure each time.
+A record attribute defines a field that can be used by one or more record types. Attributes allow the system to support dynamic or configurable record data without changing the core record table structure each time. Join values through `record_attribute.id`; `code` is the JSON field key.
+
+### Record type permission
+A record type permission grants an organization access to a record type. The creator organization is the owner; sharing adds a `shared` grant for another organization. Owner grants cannot be removed.
 
 ### Record template
 A record template defines which attributes belong to a record type and whether those attributes are required or optional.

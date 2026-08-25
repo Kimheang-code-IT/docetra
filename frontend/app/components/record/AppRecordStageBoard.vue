@@ -24,6 +24,10 @@ const adapter = getAdapterForConfig(props.config)
 const cardEntityKey = computed(() => props.config.key as CardDisplayEntityKey)
 const mobileStagesOpen = ref(false)
 const isSmallScreen = useMediaQuery('(max-width: 1023px)')
+/** Mirrors BoardShell's desktop icon-rail state for pill/item rendering. */
+const railCollapsedProxy = computed(() =>
+  isSmallScreen.value ? false : leftCollapsed.value,
+)
 
 const canCreate = computed(() => props.config.canCreate !== false
   && !props.config.readOnly
@@ -56,7 +60,6 @@ const {
   refresh,
   loadMore,
   selectStage,
-  toggleLeftPanel,
   openCreate,
   openRow,
   moveToStage,
@@ -72,10 +75,6 @@ const {
   stateKey: props.stateKey,
 })
 
-const stagePanelCollapsed = computed(() =>
-  isSmallScreen.value ? false : leftCollapsed.value,
-)
-const showStageDetails = computed(() => !stagePanelCollapsed.value)
 function selectStageFromPanel(code: string | null) {
   selectStage(code)
   if (isSmallScreen.value) mobileStagesOpen.value = false
@@ -168,243 +167,146 @@ async function onDelete(row: Record<string, unknown>) {
     @create="openCreate"
     @refresh="refresh"
   >
-    <div class="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-sm border border-default bg-default">
-      <div
-        v-if="pending && !filteredItems.length"
-        class="absolute inset-0 z-10 flex items-center justify-center bg-default/50"
-      >
-        <UIcon name="i-lucide-loader-circle" class="size-6 animate-spin text-primary" />
-      </div>
+    <WorkspaceAppBoardShell
+      v-model:collapsed="leftCollapsed"
+      v-model:mobile-open="mobileStagesOpen"
+      v-model:rail-search="stageSearch"
+      v-model:header-search="recordSearch"
+      v-model:date-start="dateStart"
+      v-model:date-end="dateEnd"
+      rail-title-key="docetra.recordStageBoard.stagesTitle"
+      rail-icon="i-lucide-layers"
+      expand-label-key="docetra.recordStageBoard.expandStages"
+      collapse-label-key="docetra.recordStageBoard.collapseStages"
+      rail-search-placeholder-key="docetra.recordStageBoard.searchStages"
+      header-search-placeholder-key="docetra.recordStageBoard.searchRecords"
+      :header-title="selectedStageMeta
+        ? stageLabel(selectedStageMeta.code)
+        : $t('docetra.recordStageBoard.allRecords')"
+      :pending="pending"
+      :show-pending-overlay="pending && !filteredItems.length"
+      :error="error || undefined"
+      @retry="refresh"
+    >
+      <template #alerts>
+        <UAlert
+          v-if="stageConfigurationError"
+          class="m-3 mb-0"
+          color="warning"
+          :title="$t('docetra.recordStageBoard.usingFallbackStages')"
+          :description="stageConfigurationError"
+          :actions="[{ label: $t('docetra.actions.retry'), onClick: reloadStageConfiguration }]"
+        />
+      </template>
 
-      <UAlert
-        v-if="error"
-        class="m-3"
-        color="error"
-        :title="error"
-        :actions="[{ label: $t('docetra.actions.retry'), onClick: refresh }]"
-      />
+      <template #rail-pills>
+        <UTooltip
+          :text="$t('docetra.recordStageBoard.allRecords')"
+          :disabled="!railCollapsedProxy"
+          :content="{ side: 'right', sideOffset: 8 }"
+        >
+          <button
+            type="button"
+            class="w-full transition"
+            :class="!railCollapsedProxy
+              ? [
+                  'flex justify-center rounded-md p-2',
+                  selectedStage == null
+                    ? 'bg-primary/10 text-primary ring-1 ring-primary/30'
+                    : 'text-muted hover:bg-elevated hover:text-highlighted',
+                ]
+              : [
+                  'rounded-lg border px-3 py-2 text-left text-sm',
+                  selectedStage == null
+                    ? 'border-primary bg-primary/5 font-medium text-highlighted ring-1 ring-primary/25'
+                    : 'border-default text-muted hover:border-primary/30',
+                ]"
+            :aria-label="$t('docetra.recordStageBoard.allRecords')"
+            @click="selectStageFromPanel(null)"
+          >
+            <template v-if="!railCollapsedProxy">
+              <UIcon name="i-lucide-layout-grid" class="size-4" />
+            </template>
+            <template v-else>
+              {{ $t('docetra.recordStageBoard.allRecords') }}
+              <span class="ml-1 tabular-nums text-xs">({{ allCount }})</span>
+            </template>
+          </button>
+        </UTooltip>
+      </template>
 
-      <UAlert
-        v-if="stageConfigurationError"
-        class="m-3 mb-0"
-        color="warning"
-        :title="$t('docetra.recordStageBoard.usingFallbackStages')"
-        :description="stageConfigurationError"
-        :actions="[{ label: $t('docetra.actions.retry'), onClick: reloadStageConfiguration }]"
-      />
-
-      <div class="relative flex min-h-0 flex-1 flex-row overflow-hidden">
-        <button
-          v-if="isSmallScreen && mobileStagesOpen"
-          type="button"
-          class="absolute inset-0 z-20 bg-black/25 lg:hidden"
-          :aria-label="$t('actions.close')"
-          @click="mobileStagesOpen = false"
+      <template #rail-items>
+        <RecordAppRecordStageSideCard
+          v-for="stage in filteredStages"
+          :key="stage.id"
+          :stage="stage"
+          :count="stageCounts[stage.code] || 0"
+          :selected="selectedStage === stage.code"
+          :collapsed="railCollapsedProxy"
+          :drop-active="dropStageCode === stage.code"
+          @select="selectStageFromPanel(stage.code)"
+          @drag-over="dropStageCode = stage.code"
+          @drag-leave="dropStageCode = dropStageCode === stage.code ? null : dropStageCode"
+          @drop-record="(id) => onDropRecord(stage.code, id)"
         />
 
-        <!-- Left: stages — overlay drawer on small screens (no icon rail); collapsible rail on lg+ -->
-        <aside
-          class="flex h-full min-h-0 shrink-0 flex-col overflow-hidden border-e border-default bg-default transition-[width] duration-200 lg:static lg:z-auto lg:shadow-none"
-          :class="isSmallScreen
-            ? (mobileStagesOpen
-                ? 'absolute inset-y-0 inset-s-0 z-30 w-[min(22rem,calc(100%-3rem))] shadow-xl'
-                : 'hidden')
-            : ''"
-          :style="isSmallScreen
-            ? undefined
-            : { width: stagePanelCollapsed ? '3.5rem' : 'min(22rem, calc(100% - 3rem))' }"
+        <p
+          v-if="!filteredStages.length && !pending && !railCollapsedProxy"
+          class="py-8 text-center text-xs text-muted"
         >
-          <div
-            class="shrink-0 space-y-2 border-b border-default"
-            :class="showStageDetails ? 'px-3 py-2.5' : 'px-1.5 py-3.5'"
+          {{ $t('docetra.states.empty') }}
+        </p>
+      </template>
+
+      <div class="min-h-0 flex-1 overflow-y-auto p-3">
+        <div
+          class="grid items-stretch gap-2"
+          style="grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));"
+        >
+          <RecordAppRecordBoardCard
+            v-for="row in filteredItems"
+            :key="String(row.id)"
+            :row="row"
+            :title="labelOf(row)"
+            :status-label="statusLabel(row.status)"
+            :stage-label="stageLabel(row.stage)"
+            :stages="stages"
+            :dragging="draggingId === row.id"
+            :entity-key="cardEntityKey"
+            :can-move="canTransition"
+            :can-view-logs="canViewLogs"
+            :can-delete="canDelete"
+            @open="openRow(row)"
+            @drag-start="draggingId = $event"
+            @drag-end="draggingId = null; dropStageCode = null"
+            @move-stage="(stage) => onMoveStage(String(row.id), stage)"
+            @logs="onLogs(row)"
+            @delete="onDelete(row)"
+          />
+        </div>
+
+        <div v-if="hasMore" class="flex justify-center py-4">
+          <UButton
+            :loading="loadingMore"
+            color="neutral"
+            variant="soft"
+            icon="i-lucide-chevrons-down"
+            @click="loadMore"
           >
-            <div v-if="showStageDetails" class="flex items-center justify-between gap-2">
-              <h2 class="min-w-0 truncate text-sm font-semibold text-highlighted">
-                {{ $t('docetra.recordStageBoard.stagesTitle') }}
-              </h2>
-              <UButton
-                icon="i-lucide-panel-left-close"
-                color="neutral"
-                variant="ghost"
-                size="sm"
-                square
-                class="shrink-0 lg:hidden"
-                :aria-label="$t('actions.close')"
-                @click="mobileStagesOpen = false"
-              />
-            </div>
-            <div v-else class="flex justify-center">
-              <UIcon name="i-lucide-layers" class="size-4 text-muted" />
-            </div>
+            {{ $t('docetra.actions.loadMore') }}
+          </UButton>
+        </div>
 
-            <CommonAppLiveSearch
-              v-if="showStageDetails"
-              v-model="stageSearch"
-              class="w-full"
-              :placeholder="$t('docetra.recordStageBoard.searchStages')"
-            />
-
-            <UTooltip
-              :text="$t('docetra.recordStageBoard.allRecords')"
-              :disabled="showStageDetails"
-              :content="{ side: 'right', sideOffset: 8 }"
-            >
-              <button
-                type="button"
-                class="w-full transition"
-                :class="!showStageDetails
-                  ? [
-                      'flex justify-center rounded-md p-2',
-                      selectedStage == null
-                        ? 'bg-primary/10 text-primary ring-1 ring-primary/30'
-                        : 'text-muted hover:bg-elevated hover:text-highlighted',
-                    ]
-                  : [
-                      'rounded-lg border px-3 py-2 text-left text-sm',
-                      selectedStage == null
-                        ? 'border-primary bg-primary/5 font-medium text-highlighted ring-1 ring-primary/25'
-                        : 'border-default text-muted hover:border-primary/30',
-                    ]"
-                :aria-label="$t('docetra.recordStageBoard.allRecords')"
-                @click="selectStageFromPanel(null)"
-              >
-                <template v-if="!showStageDetails">
-                  <UIcon name="i-lucide-layout-grid" class="size-4" />
-                </template>
-                <template v-else>
-                  {{ $t('docetra.recordStageBoard.allRecords') }}
-                  <span class="ml-1 tabular-nums text-xs">({{ allCount }})</span>
-                </template>
-              </button>
-            </UTooltip>
-          </div>
-
-          <div
-            class="min-h-0 flex-1 overflow-y-auto overflow-x-hidden"
-            :class="showStageDetails ? 'space-y-2 p-3' : 'space-y-1 p-1.5'"
-          >
-            <RecordAppRecordStageSideCard
-              v-for="stage in filteredStages"
-              :key="stage.id"
-              :stage="stage"
-              :count="stageCounts[stage.code] || 0"
-              :selected="selectedStage === stage.code"
-              :collapsed="!showStageDetails"
-              :drop-active="dropStageCode === stage.code"
-              @select="selectStageFromPanel(stage.code)"
-              @drag-over="dropStageCode = stage.code"
-              @drag-leave="dropStageCode = dropStageCode === stage.code ? null : dropStageCode"
-              @drop-record="(id) => onDropRecord(stage.code, id)"
-            />
-
-            <p
-              v-if="!filteredStages.length && !pending && showStageDetails"
-              class="py-8 text-center text-xs text-muted"
-            >
-              {{ $t('docetra.states.empty') }}
-            </p>
-          </div>
-        </aside>
-
-        <!-- Right: record cards -->
-        <section class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-          <div class="flex shrink-0 items-center gap-2 border-b border-default px-3 py-2.5 sm:px-4 sm:py-3.5">
-            <div class="flex min-w-0 shrink-0 items-center gap-1.5">
-              <UButton
-                :icon="mobileStagesOpen ? 'i-lucide-panel-left-close' : 'i-lucide-panel-left-open'"
-                color="neutral"
-                variant="ghost"
-                size="sm"
-                square
-                class="shrink-0 lg:hidden"
-                :aria-label="$t('docetra.recordStageBoard.stagesTitle')"
-                :aria-expanded="mobileStagesOpen"
-                @click="mobileStagesOpen = !mobileStagesOpen"
-              />
-              <UButton
-                :icon="leftCollapsed ? 'i-lucide-panel-left-open' : 'i-lucide-panel-left-close'"
-                color="neutral"
-                variant="ghost"
-                size="sm"
-                square
-                class="hidden shrink-0 lg:inline-flex"
-                :aria-label="leftCollapsed
-                  ? $t('docetra.recordStageBoard.expandStages')
-                  : $t('docetra.recordStageBoard.collapseStages')"
-                :aria-expanded="!leftCollapsed"
-                @click="toggleLeftPanel"
-              />
-              <h2 class="hidden min-w-0 max-w-40 truncate text-sm font-semibold text-highlighted sm:block">
-                {{ selectedStageMeta
-                  ? stageLabel(selectedStageMeta.code)
-                  : $t('docetra.recordStageBoard.allRecords') }}
-              </h2>
-            </div>
-
-            <CommonAppLiveSearch
-              v-model="recordSearch"
-              class="min-w-0 w-full max-w-75 flex-1"
-              :placeholder="$t('docetra.recordStageBoard.searchRecords')"
-            />
-            <CommonAppDateRangeFilter
-              v-model:start="dateStart"
-              v-model:end="dateEnd"
-              class="ms-auto shrink-0"
-              size="sm"
-            />
-          </div>
-
-          <div class="min-h-0 flex-1 overflow-y-auto p-3">
-            <div
-              class="grid items-stretch gap-2"
-              style="grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));"
-            >
-              <RecordAppRecordBoardCard
-                v-for="row in filteredItems"
-                :key="String(row.id)"
-                :row="row"
-                :title="labelOf(row)"
-                :status-label="statusLabel(row.status)"
-                :stage-label="stageLabel(row.stage)"
-                :stages="stages"
-                :dragging="draggingId === row.id"
-                :entity-key="cardEntityKey"
-                :can-move="canTransition"
-                :can-view-logs="canViewLogs"
-                :can-delete="canDelete"
-                @open="openRow(row)"
-                @drag-start="draggingId = $event"
-                @drag-end="draggingId = null; dropStageCode = null"
-                @move-stage="(stage) => onMoveStage(String(row.id), stage)"
-                @logs="onLogs(row)"
-                @delete="onDelete(row)"
-              />
-            </div>
-
-            <div v-if="hasMore" class="flex justify-center py-4">
-              <UButton
-                :loading="loadingMore"
-                color="neutral"
-                variant="soft"
-                icon="i-lucide-chevrons-down"
-                @click="loadMore"
-              >
-                {{ $t('docetra.actions.loadMore') }}
-              </UButton>
-            </div>
-
-            <div
-              v-if="!filteredItems.length && !pending"
-              class="flex flex-col items-center justify-center gap-2 py-16 text-center"
-            >
-              <UIcon name="i-lucide-file-x" class="size-8 text-muted" />
-              <p class="text-sm text-muted">
-                {{ $t('docetra.recordStageBoard.emptyRecords') }}
-              </p>
-            </div>
-          </div>
-        </section>
+        <div
+          v-if="!filteredItems.length && !pending"
+          class="flex flex-col items-center justify-center gap-2 py-16 text-center"
+        >
+          <UIcon name="i-lucide-file-x" class="size-8 text-muted" />
+          <p class="text-sm text-muted">
+            {{ $t('docetra.recordStageBoard.emptyRecords') }}
+          </p>
+        </div>
       </div>
-    </div>
+    </WorkspaceAppBoardShell>
   </WorkspaceAppWorkspacePage>
 </template>

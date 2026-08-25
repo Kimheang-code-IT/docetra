@@ -6,12 +6,9 @@ from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(case_sensitive=False, extra="ignore")
     app_env: str = "development"
-    app_host: str = "0.0.0.0"
-    app_port: int = 8000
     database_url: str = "postgresql://docetra:docetra_local_only@postgres:5432/docetra"
     redis_url: str = "redis://redis:6379/0"
     cache_short_url: str = "redis://redis:6379/1"
-    cache_long_url: str = "redis://redis:6379/2"
     rabbitmq_url: str = "amqp://docetra:docetra_rabbit_local_only@rabbitmq:5672/docetra"
     cors_allowed_origins: Annotated[list[str], NoDecode] = ["http://localhost:3000"]
     trusted_hosts: Annotated[list[str], NoDecode] = ["localhost", "127.0.0.1", "api"]

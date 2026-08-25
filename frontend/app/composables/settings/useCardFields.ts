@@ -1,10 +1,26 @@
 /**
- * Resolve which board-card slots are visible for an entity from App Config.
+ * Resolve which board-card slots are visible for an entity.
+ *
+ * Resolution per slot: record-type payload override (`record_type.payload
+ * .cardFields`, provided by document/board loaders via injection) → App Config
+ * display settings → catalog defaults from utils/card-fields.ts.
  */
+import { inject, provide } from 'vue'
+import type { InjectionKey } from 'vue'
 import type { CardDisplayEntityKey } from '~/types/docetra/settings'
 import type { CardFooterAlign } from '~/utils/card-fields'
+import type { RecordTypePayload } from '~/types/docetra/vocabulary'
 import { useSettingsRepositories } from '~/repositories'
-import { resolveFooterAlign, resolveVisibleSlots } from '~/utils/card-fields'
+import {
+  resolveFooterAlign,
+  resolveTypeAwareCardFields,
+  resolveTypeAwareFooterAlign,
+} from '~/utils/card-fields'
+
+export type CardFieldsOverride = MaybeRefOrGetter<RecordTypePayload | null | undefined>
+
+/** Provide a record-type payload so nested useCardFields() calls become type-aware. */
+export const CARD_FIELDS_OVERRIDE_KEY: InjectionKey<CardFieldsOverride> = Symbol('docetra:card-fields-override')
 
 type FieldsCache = Partial<Record<CardDisplayEntityKey, string[]>>
 type AlignCache = Partial<Record<CardDisplayEntityKey, Partial<Record<string, CardFooterAlign>>>>
@@ -42,24 +58,48 @@ export function invalidateCardFieldsCache() {
   void ensureCardFieldsLoaded(true)
 }
 
+/** Share one override down the tree (document show/create, stage boards). */
+export function provideCardFieldsOverride(override: CardFieldsOverride) {
+  provide(CARD_FIELDS_OVERRIDE_KEY, override)
+}
+
+function readOverride(): RecordTypePayload | null {
+  const injected = inject(CARD_FIELDS_OVERRIDE_KEY, null)
+  if (!injected) return null
+  const value = toValue(injected)
+  return value && typeof value === 'object' ? value : null
+}
+
 export function useCardFields(entityKey: MaybeRefOrGetter<CardDisplayEntityKey>) {
   const key = computed(() => toValue(entityKey))
+  const typeOverride = readOverride()
 
   onMounted(() => {
     ensureCardFieldsLoaded()
   })
 
-  const visibleSlots = computed(() => {
-    const selected = cardFieldsCache.value?.[key.value]
-    return resolveVisibleSlots(key.value, selected)
-  })
+  const visibleSlots = computed(() => resolveTypeAwareCardFields(key.value, {
+    typeOverride: typeOverride?.cardFields || null,
+    appConfig: cardFieldsCache.value,
+  }))
 
   function show(slot: string) {
     return visibleSlots.value.includes(slot)
   }
 
   function footerAlign(slot: string): CardFooterAlign {
-    return resolveFooterAlign(key.value, slot, footerAlignCache.value)
+    return resolveTypeAwareFooterAlign(key.value, slot, {
+      typeOverride: typeOverride?.cardFooterAlign || null,
+      appConfig: footerAlignCache.value,
+    })
+  }
+
+  /** Legacy helper kept for callers that pass an explicit align map. */
+  function footerAlignFromMap(
+    slot: string,
+    map: Partial<Record<CardDisplayEntityKey, Partial<Record<string, CardFooterAlign>>>> | null | undefined,
+  ): CardFooterAlign {
+    return resolveFooterAlign(key.value, slot, map)
   }
 
   async function refresh() {
@@ -70,6 +110,7 @@ export function useCardFields(entityKey: MaybeRefOrGetter<CardDisplayEntityKey>)
     visibleSlots,
     show,
     footerAlign,
+    footerAlignFromMap,
     refresh,
     pending: computed(() => cardFieldsCache.value == null),
   }

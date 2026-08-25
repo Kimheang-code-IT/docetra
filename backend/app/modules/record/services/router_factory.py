@@ -88,7 +88,7 @@ def router_for(path: str, resource: str) -> APIRouter:
 
     @router.get("/{entity_id}", response_model=DataEnvelope)
     async def get_item(entity_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
-        return {"data": await service.get_item(db, entity_id)}
+        return {"data": await service.get_item(db, entity_id, user)}
 
     @router.patch("/{entity_id}", response_model=DataEnvelope)
     @router.put("/{entity_id}", response_model=DataEnvelope)
@@ -152,12 +152,12 @@ def router_for(path: str, resource: str) -> APIRouter:
 
     @router.get("/{entity_id}/neighbors", response_model=DataEnvelope)
     async def neighbors(entity_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
-        await service.get_item(db, entity_id)
+        await service.get_item(db, entity_id, user)
         return {"data": await collaboration.get_neighbors(db, resource, entity_id)}
 
     @router.get("/{entity_id}/favorite", response_model=DataEnvelope)
     async def get_favorite(entity_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
-        await service.get_item(db, entity_id)
+        await service.get_item(db, entity_id, user)
         return {"data": {"isFavorite": await collaboration.get_favorite(db, user.id, entity_id)}}
 
     @router.put("/{entity_id}/favorite", response_model=DataEnvelope)
@@ -167,7 +167,7 @@ def router_for(path: str, resource: str) -> APIRouter:
         db: AsyncSession = Depends(get_db),
         user: User = Depends(current_user),
     ):
-        await service.get_item(db, entity_id)
+        await service.get_item(db, entity_id, user)
         desired = bool(body.isFavorite)
         await collaboration.set_favorite(db, user.id, entity_id, desired)
         await db.commit()
@@ -175,7 +175,7 @@ def router_for(path: str, resource: str) -> APIRouter:
 
     @router.get("/{entity_id}/comments", response_model=DataEnvelope)
     async def comments(entity_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
-        await service.get_item(db, entity_id)
+        await service.get_item(db, entity_id, user)
         data, total = await collaboration.list_comments(db, resource, entity_id, user)
         return {"data": data, "meta": {"page": 1, "limit": total or 20, "total": total}}
 
@@ -192,7 +192,7 @@ def router_for(path: str, resource: str) -> APIRouter:
         general = runtime.general_defaults(await runtime.load_app_config(db))
         if not general["enableComments"]:
             raise DomainError("COMMENTS_DISABLED", "Comments are disabled in application settings", 403)
-        await service.get_item(db, entity_id)
+        await service.get_item(db, entity_id, user)
         comment = await collaboration.add_comment(db, uuid.UUID(entity_id), body.body, user)
         await db.commit()
         await db.refresh(comment)
@@ -206,27 +206,27 @@ def router_for(path: str, resource: str) -> APIRouter:
         db: AsyncSession = Depends(get_db),
         user: User = Depends(current_user),
     ):
-        await service.get_item(db, entity_id)
+        await service.get_item(db, entity_id, user)
         data = await collaboration.edit_comment(db, entity_id, comment_id, body.body, user)
         await db.commit()
         return {"data": {**data, "entityType": resource}}
 
     @router.delete("/{entity_id}/comments/{comment_id}", response_model=DataEnvelope)
     async def delete_comment(entity_id: str, comment_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
-        await service.get_item(db, entity_id)
+        await service.get_item(db, entity_id, user)
         comment_id = await collaboration.delete_comment(db, entity_id, comment_id, user)
         await db.commit()
         return {"data": {"id": comment_id}}
 
     @router.get("/{entity_id}/activity", response_model=DataEnvelope)
     async def activity(entity_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
-        await service.get_item(db, entity_id)
+        await service.get_item(db, entity_id, user)
         data, total = await collaboration.list_activity(db, resource, entity_id, user)
         return {"data": data, "meta": {"page": 1, "limit": total or 20, "total": total}}
 
     @router.get("/{entity_id}/attachments", response_model=DataEnvelope)
     async def attachments(entity_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
-        payload = await service.get_item(db, entity_id)
+        payload = await service.get_item(db, entity_id, user)
         return {"data": payload.get("attachments", [])}
 
     @router.put("/{entity_id}/attachments", response_model=DataEnvelope)

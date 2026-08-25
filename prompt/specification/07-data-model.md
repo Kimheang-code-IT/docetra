@@ -43,7 +43,7 @@ Primary table for the unified record model.
 Typical responsibilities:
 - core record identity.
 - title.
-- type reference.
+- type reference (`record_type_id` joins `record_type.id`; `record_type_code` is a denormalized copy).
 - status.
 - current stage.
 - timestamps.
@@ -58,7 +58,7 @@ Typical responsibilities:
 Stores dynamic attribute values for a record.
 
 Typical responsibilities:
-- attribute code reference.
+- attribute reference (`record_attribute_id` joins `record_attribute.id`; `record_attribute_code` is a denormalized JSON field key).
 - typed value columns.
 - flexible record-specific data.
 
@@ -72,10 +72,19 @@ Stores relationships between records and organizations.
 Defines valid workflow stages for each record type.
 
 ### record_type
-Defines the category and behavior of a record.
+Defines the category and behavior of a record. `id` is the primary key. `code` is an informational key (not unique, not used for joins). Types are organization-scoped: the creating organization owns the type and may share it with other organizations.
 
 ### record_attribute
-Defines available attribute definitions.
+Defines available attribute definitions. `id` is the primary key. `code` is an informational field key (not unique, not used for joins).
+
+### record_type_permission
+Grants an organization access to a record type.
+
+- Organization → RecordTypePermission: one to many.
+- RecordTypePermission → RecordType: each permission row points to one type.
+- Unique `(organization_id, record_type_id)`.
+- `permission_kind`: `owner` (creator; cannot be revoked) or `shared`.
+- At most one owner per type.
 
 ### record_template
 Maps record types to supported attributes.
@@ -181,9 +190,10 @@ These should:
 
 ## Data relationship rules
 
-- Every record must reference a valid record type.
+- Every record must reference a valid record type through `record_type_id`.
 - Every record must be linked to an organizational context.
-- Every dynamic record detail must map to a valid attribute definition.
+- Every dynamic record detail should join a catalog attribute through `record_attribute_id` when a matching definition exists.
+- Record types are visible to an organization only through `record_type_permission` (owner or shared). `code` is not globally unique.
 - Every permission must be tied to a role or an equivalent access entity.
 - Every audit row should map to a tracked action and target entity.
 

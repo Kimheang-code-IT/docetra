@@ -19,6 +19,7 @@ export interface ExportJob {
   status: ExportJobStatus
   resource: string
   createdAt: string
+  fileName?: string
   downloadUrl?: string
   expiresAt?: string
   error?: string

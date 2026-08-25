@@ -5,6 +5,7 @@ import type {
   RecordAttribute,
   RecordAttributeQuery,
   RecordType,
+  RecordTypePermission,
   ResolvedRecordTypeSchema,
   RecordTypeQuery,
   UpdateRecordAttributeInput,
@@ -40,4 +41,7 @@ export interface RecordTypeRepository extends ConfigurationDiscussionRepository 
   setActive: (id: string, active: boolean) => Promise<RecordType>
   remove: (id: string) => Promise<void>
   removeMany: (ids: string[]) => Promise<void>
+  listPermissions: (id: string) => Promise<ApiResponse<RecordTypePermission[]>>
+  shareWithOrganization: (id: string, organizationId: string) => Promise<RecordTypePermission>
+  unshareOrganization: (id: string, organizationId: string) => Promise<void>
 }

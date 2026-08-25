@@ -1,4 +1,5 @@
 import type { BaseEntity, EntityStatus } from './common'
+import type { RecordTypePayload } from './vocabulary'
 
 /** Controlled attribute data types for dynamic record fields. */
 export type AttributeDataType =
@@ -149,6 +150,17 @@ export interface RecordTypeNumbering {
   resetYearly: boolean
 }
 
+export type RecordTypePermissionKind = 'owner' | 'shared'
+
+export interface RecordTypePermission {
+  id: string
+  organizationId: string
+  recordTypeId: string
+  permissionKind: RecordTypePermissionKind
+  createdAt?: string
+  updatedAt?: string
+}
+
 export interface RecordType extends BaseEntity {
   name: string
   code: string
@@ -162,6 +174,12 @@ export interface RecordType extends BaseEntity {
   transitions: WorkflowTransition[]
   attributeCount: number
   workflowEnabled: boolean
+  /** Creator organization; only this org can edit or share the type. */
+  ownerOrganizationId?: string | null
+  /** Organizations that may use this type (`owner` + `shared`). */
+  organizationIds?: string[]
+  /** Free-form type payload — carries `cardFields`/`cardFooterAlign` overrides. */
+  payload?: RecordTypePayload
 }
 
 /** Permission-filtered, versionable schema used to render one record type. */

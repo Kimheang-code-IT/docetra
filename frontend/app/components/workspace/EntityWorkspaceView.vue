@@ -13,6 +13,15 @@ const usesExactColumns = computed(() =>
   ['departments', 'companies', 'purposes', 'sectors', 'officers', 'systemLogs'].includes(props.config.key),
 )
 
+/** Stage colors from the record-type config take precedence over enum/heuristic badge colors. */
+const stageColorMap = computed<Record<string, string>>(() => {
+  const map: Record<string, string> = {}
+  for (const stage of props.config.stages || []) {
+    if (stage.code && stage.color) map[stage.code] = stage.color
+  }
+  return map
+})
+
 const {
   view,
   q,
@@ -262,6 +271,7 @@ function onRowAction(payload: { key: string, row: Record<string, unknown> }) {
         :selectable="usesExactColumns ? false : canDelete"
         :show-meta="true"
         :row-actions="tableRowActions"
+        :stage-colors="stageColorMap"
         @update:page="page = $event"
         @update:limit="limit = $event"
         @update:selection="selectedIds = $event"

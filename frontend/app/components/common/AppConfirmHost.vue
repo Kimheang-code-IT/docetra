@@ -2,11 +2,11 @@
 /**
  * Single app-wide confirm dialog host.
  * Driven by useConfirm() — mount once in app.vue.
+ * Resolution (raw text vs i18n key vs defaults) lives in CommonAppConfirmDialog.
  */
 import { useConfirm } from '~/composables/common/useConfirm'
 
 const { confirmState, accept, dismiss } = useConfirm()
-const { t, te } = useI18n()
 
 const open = computed({
   get: () => confirmState.open,
@@ -14,45 +14,20 @@ const open = computed({
     if (!value && confirmState.open) dismiss()
   },
 })
-
-const title = computed(() => {
-  if (confirmState.title) return confirmState.title
-  if (confirmState.titleKey && te(confirmState.titleKey)) return t(confirmState.titleKey)
-  return t('docetra.common.confirmTitle')
-})
-
-const description = computed(() => {
-  if (confirmState.description) return confirmState.description
-  if (confirmState.descriptionKey && te(confirmState.descriptionKey)) {
-    return t(confirmState.descriptionKey, confirmState.descriptionParams || {})
-  }
-  return ''
-})
-
-const confirmLabel = computed(() => {
-  if (confirmState.confirmLabel) return confirmState.confirmLabel
-  if (confirmState.confirmLabelKey && te(confirmState.confirmLabelKey)) {
-    return t(confirmState.confirmLabelKey)
-  }
-  return t('docetra.common.confirm')
-})
-
-const cancelLabel = computed(() => {
-  if (confirmState.cancelLabel) return confirmState.cancelLabel
-  if (confirmState.cancelLabelKey && te(confirmState.cancelLabelKey)) {
-    return t(confirmState.cancelLabelKey)
-  }
-  return t('docetra.common.cancel')
-})
 </script>
 
 <template>
   <CommonAppConfirmDialog
     v-model:open="open"
-    :title="title"
-    :description="description"
-    :confirm-label="confirmLabel"
-    :cancel-label="cancelLabel"
+    :title="confirmState.title"
+    :title-key="confirmState.titleKey"
+    :description="confirmState.description"
+    :description-key="confirmState.descriptionKey"
+    :description-params="confirmState.descriptionParams"
+    :confirm-label="confirmState.confirmLabel"
+    :confirm-label-key="confirmState.confirmLabelKey"
+    :cancel-label="confirmState.cancelLabel"
+    :cancel-label-key="confirmState.cancelLabelKey"
     :confirm-color="confirmState.confirmColor"
     :loading="confirmState.loading"
     :ui="{ overlay: 'z-[200]', content: 'z-[200]' }"

@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { computed } from 'vue'
 import type { AuthUser } from '~/types/auth-user'
 import { publishAuthSessionEvent } from '~/utils/auth/session-sync'
+import { fetchErrorStatus, shouldRefreshSessionOnAuthMeFailure } from '~/utils/api/error-policy'
 import { readStoredUser, unwrapUserPayload, userCanAccessPage, writeStoredUser } from '~/utils/auth/session-user'
 
 export const useAuthStore = defineStore('auth', () => {
@@ -65,14 +66,23 @@ export const useAuthStore = defineStore('auth', () => {
         sessionChecked.value = true
         return true
       }
-      catch {
-        const refreshed = await refreshSession()
-        const next = unwrapUserPayload((refreshed as { data?: unknown }).data ?? refreshed)
-        if (!next) throw new Error('Invalid refresh payload')
-        user.value = next
-        writeStoredUser(next)
-        sessionChecked.value = true
-        return true
+      catch (error) {
+        const status = fetchErrorStatus(error)
+        if (shouldRefreshSessionOnAuthMeFailure(status)) {
+          const refreshed = await refreshSession()
+          const next = unwrapUserPayload((refreshed as { data?: unknown }).data ?? refreshed)
+          if (!next) throw new Error('Invalid refresh payload', { cause: error })
+          user.value = next
+          writeStoredUser(next)
+          sessionChecked.value = true
+          return true
+        }
+        // Timeouts and 5xx must not wipe a working local session.
+        if (user.value) {
+          sessionChecked.value = true
+          return true
+        }
+        throw error
       }
     }
     catch {

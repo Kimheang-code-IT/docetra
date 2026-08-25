@@ -21,6 +21,8 @@ import { createClientId } from '~/utils/client-id'
 import { resolveFieldHelp } from '~/utils/field-help'
 import { loadReferenceOptions } from '~/adapters/reference-options'
 import { ApiEndpoints } from '~/utils/constants/api-endpoints'
+import { VOCABULARY_GROUP_BY_KEY } from '~/config/vocabulary-fallbacks'
+import { useVocabulary } from '~/composables/config/useVocabulary'
 
 const props = defineProps<{
   field: DocumentFieldSchema
@@ -35,6 +37,7 @@ const emit = defineEmits<{
 
 const { t, te } = useI18n()
 const route = useRoute()
+const { options: vocabularyOptions } = useVocabulary()
 
 const hintOpen = ref(false)
 
@@ -170,14 +173,17 @@ const searchRemoteOptions = useDebounceFn(async (search: string) => {
   finally { optionsPending.value = false }
 }, 250)
 
-const selectItems = computed(() =>
-  [...(props.field.options || []), ...remoteOptions.value]
+const selectItems = computed(() => {
+  const fallback = props.field.options || []
+  const group = VOCABULARY_GROUP_BY_KEY[props.field.key]
+  const merged = group ? vocabularyOptions(group, fallback).value : fallback
+  return [...merged, ...remoteOptions.value]
     .filter(o => o.value !== '')
     .map(o => ({
       label: o.labelKey ? t(o.labelKey) : o.label,
       value: o.value,
-    })),
-)
+    }))
+})
 
 const labelText = computed(() => {
   if (props.field.label) return props.field.label
@@ -223,6 +229,10 @@ const isValidationBuilder = computed(() => props.field.type === 'validation-buil
 const isOptionsBuilder = computed(() => props.field.type === 'options-builder')
 const isVisibilityBuilder = computed(() => props.field.type === 'visibility-builder')
 const isCardFieldsEditor = computed(() => props.field.type === 'card-fields-editor')
+const fieldMetaEntityKeys = computed(() => {
+  const keys = props.field.meta?.entityKeys
+  return Array.isArray(keys) ? (keys as CardDisplayEntityKey[]) : undefined
+})
 
 const cardFieldsValue = computed({
   get: () => {
@@ -469,6 +479,7 @@ function removeDestination(id: string) {
     v-else-if="isCardFieldsEditor"
     v-model="cardFieldsValue"
     :disabled="disabled || field.readOnly"
+    :entity-keys="fieldMetaEntityKeys"
   />
 
   <UAlert

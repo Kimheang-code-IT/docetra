@@ -1,7 +1,7 @@
 import type { AppConfigLocalization } from '~/types/docetra/settings'
 import { useSettingsRepositories } from '~/repositories'
 
-export const DEFAULT_APP_LOCALIZATION: AppConfigLocalization = {
+const DEFAULT_APP_LOCALIZATION: AppConfigLocalization = {
   defaultLanguage: 'en',
   availableLanguages: ['en', 'km'],
   timezone: 'Asia/Phnom_Penh',

@@ -34,6 +34,7 @@
       "user": "User",
       "recordType": "Record Type",
       "recordAttribute": "Attribute Catalog",
+      "vocabularies": "Vocabularies",
       "fileUpload": "File Upload",
       "googleDriveSync": "Google Drive Sync",
       "portalLog": "Logs",
@@ -60,6 +61,7 @@
       "user": "Application user accounts.",
       "recordType": "Configure record behavior, assigned attributes, and stages.",
       "recordAttribute": "Shared field definitions assigned onto record types.",
+      "vocabulary": "Shared option lists (status, stages, meeting modes, log actions) used across lists, filters, and forms.",
       "fileUpload": "Upload files and review portal upload history.",
       "googleDriveSync": "Configure and monitor Google Drive sync jobs.",
       "portalLog": "Portal operation history.",
@@ -71,6 +73,27 @@
     },
     "sector": {
       "cannotBeOwnParent": "A sector cannot be its own parent."
+    },
+    "vocabulary": {
+      "code": "Code",
+      "labelEn": "Label (English)",
+      "labelKm": "Label (Khmer)",
+      "color": "Color",
+      "order": "Order",
+      "addValue": "Add value",
+      "emptyGroup": "No values in this group yet.",
+      "codeLabelRequired": "Code and English label are required.",
+      "saveFailed": "Could not save the value",
+      "deleteFailed": "Could not delete the value",
+      "saved": "Value saved",
+      "deleted": "Value deleted",
+      "created": "Value created",
+      "fallbackHint": "Values shown before connecting to the server come from built-in defaults."
+    },
+    "meetingModes": {
+      "in_person": "In person",
+      "online": "Online",
+      "hybrid": "Hybrid"
     },
     "authentication": {
       "enabled": "Enabled",
@@ -264,16 +287,9 @@
     },
     "userProfile": {
       "title": "My profile",
-      "description": "View your account details and permissions.",
+      "description": "View your account details and change your password.",
       "unknownUser": "User",
       "noRole": "No role assigned",
-      "permissionsTitle": "System permissions",
-      "permissionCount": "{n} permissions",
-      "noPermissions": "No permissions assigned to this account.",
-      "tabs": {
-        "profile": "Profile",
-        "password": "Change password"
-      },
       "passwordHelp": "Update your sign-in password. You must enter your current password to confirm the change.",
       "currentPassword": "Current password",
       "currentPasswordRequired": "Enter your current password",
@@ -457,6 +473,7 @@
         "features": "Features",
         "numbering": "Numbering",
         "attributes": "Attributes",
+        "cardFields": "Card fields",
         "workflow": "Workflow"
       },
       "feature": {
@@ -1147,7 +1164,10 @@
       "fieldsHint": "Choose the columns that should appear in the exported file.",
       "fieldRequired": "Select at least one field.",
       "invalidRange": "End date must be on or after start date.",
-      "requestReady": "Export request is ready"
+      "queued": "Export queued — we will notify you when it is ready",
+      "completed": "Export ready",
+      "failed": "Export failed. Please try again.",
+      "timeout": "Export is still running — check back shortly."
     },
     "document": {
       "new": "New {entity}",
@@ -1329,10 +1349,6 @@
       "emailRequired": "Email is required",
       "passwordRequired": "Password is required",
       "forgotPassword": "Forgot password?",
-      "loginWithGoogle": "Login with Google",
-      "orContinueWith": "or",
-      "googleComingSoon": "Google login",
-      "googleComingSoonDesc": "Google sign-in will connect when OAuth is configured.",
       "termsAgreePrefix": "I agree to the",
       "termsLink": "Terms and Conditions",
       "termsAgreeSuffix": "for using this system.",

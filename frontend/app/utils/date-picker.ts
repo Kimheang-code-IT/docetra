@@ -51,6 +51,26 @@ export function serializePickerValue(value?: DateValue | null): string {
   return value.toString()
 }
 
+/** Persist filter ranges as `YYYY-MM-DD` only — never a time. */
+export function serializeDateOnly(value?: DateValue | null): string {
+  if (!value) return ''
+  const year = String(value.year).padStart(4, '0')
+  const month = String(value.month).padStart(2, '0')
+  const day = String(value.day).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+export function toDateOnlyString(value?: string | null): string {
+  const day = String(value || '').trim().slice(0, 10)
+  return /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : ''
+}
+
+/** Day-first calendar locale so filter fields show `dd/mm/yyyy`, not time. */
+export function dateFilterFieldLocale(uiLocale?: string): string {
+  if (String(uiLocale || '').toLowerCase().startsWith('km')) return 'km-KH'
+  return 'en-GB'
+}
+
 export function toCalendarDate(value?: DateValue | null): CalendarDate | undefined {
   if (!value) return undefined
   return new CalendarDate(value.year, value.month, value.day)

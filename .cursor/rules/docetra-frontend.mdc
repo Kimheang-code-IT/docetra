@@ -1,0 +1,17 @@
+---
+description: Docetra Nuxt frontend — thin pages, shared shells, adapters, i18n
+globs: frontend/**/*.{ts,vue,json}
+alwaysApply: false
+---
+
+# Docetra frontend
+
+- Pages stay thin. Lists: `WorkspaceEntityWorkspaceView` or `RecordAppRecordStageBoard`. Show/create: `DocumentEntityDocumentView`. Topics: `MeetingAppMeetingTopicBoard`. Do not add one-off scaffolds.
+- All HTTP goes through adapters/repositories + `useApi()`. Paths: `frontend/app/utils/constants/api-endpoints.ts`.
+- Dynamic types: `/meetings/{typeCode}` and `/records/{typeCode}` from surfaces catalog. Do not hardcode a Vue page per type.
+- User-facing copy needs `en` and `km` i18n keys. Do not hardcode labels in pages.
+- `NuxtPage` key is `route.path`, not `fullPath` (query changes must not remount).
+- Cookie session + same-origin `/api/v2` proxy. Concurrency: `version` / `If-Match`.
+- Verify UI in the browser when behavior or layout changed.
+
+Details: `.opencode/skills/docetra/frontend.md` and `connection.md`.

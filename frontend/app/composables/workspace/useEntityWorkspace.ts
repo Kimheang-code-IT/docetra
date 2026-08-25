@@ -1,8 +1,8 @@
 import type { EntityView, ListQuery } from '~/types/docetra/common'
 import type { EntityConfig } from '~/config/entities'
 import type { ExportRequest } from '~/types/docetra/export'
-import { createExportJob } from '~/adapters/exports'
 import { getAdapterForConfig } from '~/config/entities'
+import { useExportJobRunner } from '~/composables/common/useExportJobRunner'
 import { useAppLocalization } from '~/composables/settings/useAppLocalization'
 import { useAppRuntimeConfig } from '~/composables/settings/useAppRuntimeConfig'
 import {
@@ -25,6 +25,7 @@ export function useEntityWorkspace(config: EntityConfig) {
   const { formatDate, formatDateTime } = useAppLocalization()
   const { defaultPageSize } = useAppRuntimeConfig()
   const adapter = getAdapterForConfig(config)
+  const exportRunner = useExportJobRunner()
 
   const view = computed({
     get: () => {
@@ -356,7 +357,7 @@ export function useEntityWorkspace(config: EntityConfig) {
   async function exportData(request: ExportRequest, selectedIds: string[] = []) {
     exporting.value = true
     try {
-      return await createExportJob({
+      return await exportRunner.run({
         ...request,
         resource: config.key,
         format: 'csv',

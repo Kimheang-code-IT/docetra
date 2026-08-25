@@ -29,6 +29,7 @@ def test_frontend_collections_are_routed(app):
         "/api/v2/officers",
         "/api/v2/users/roles", "/api/v2/users", "/api/v2/users/permission-catalog",
         "/api/v2/configuration/record-types", "/api/v2/configuration/record-attributes",
+        "/api/v2/configuration/record-types/{entity_id}/permissions",
         "/api/v2/settings/app-info", "/api/v2/settings/app-config", "/api/v2/settings/storage",
         "/api/v2/portal/file-uploads", "/api/v2/portal/google-drive-sync", "/api/v2/portal/logs", "/api/v2/portal/drive-files",
         "/api/v2/system/logs", "/api/v2/exports", "/api/v2/search", "/api/v2/search/ask", "/api/v2/mentions",

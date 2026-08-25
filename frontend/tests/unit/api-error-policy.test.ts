@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { shouldClearSessionOn401, shouldToastConnectionError } from '../../app/utils/api/error-policy'
+import {
+  fetchErrorStatus,
+  shouldClearSessionOn401,
+  shouldRefreshSessionOnAuthMeFailure,
+  shouldToastConnectionError,
+} from '../../app/utils/api/error-policy'
 import { csrfRequestHeaders, isMutatingMethod } from '../../app/utils/security/csrf'
 
 describe('error-policy', () => {
@@ -33,6 +38,19 @@ describe('error-policy', () => {
   it('clears session on 401 unless suppressAccessAlert', () => {
     expect(shouldClearSessionOn401({})).toBe(true)
     expect(shouldClearSessionOn401({ suppressAccessAlert: true })).toBe(false)
+  })
+
+  it('reads status from fetch-error shapes', () => {
+    expect(fetchErrorStatus({ statusCode: 401 })).toBe(401)
+    expect(fetchErrorStatus({ status: 500 })).toBe(500)
+    expect(fetchErrorStatus({ response: { status: 403 } })).toBe(403)
+    expect(fetchErrorStatus(new Error('offline'))).toBeUndefined()
+  })
+
+  it('refreshes the session only after /auth/me returns 401', () => {
+    expect(shouldRefreshSessionOnAuthMeFailure(401)).toBe(true)
+    expect(shouldRefreshSessionOnAuthMeFailure(500)).toBe(false)
+    expect(shouldRefreshSessionOnAuthMeFailure(undefined)).toBe(false)
   })
 })
 

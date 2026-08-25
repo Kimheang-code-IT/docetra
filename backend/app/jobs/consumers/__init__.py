@@ -97,3 +97,7 @@ async def handle_message(message: aio_pika.IncomingMessage) -> None:
             await handle_meeting_message(payload, routing)
         elif routing == "drive.sync":
             await handle_drive_sync(payload)
+        elif routing == "export.execute":
+            from app.jobs.consumers.exports import handle_export_execute
+
+            await handle_export_execute(payload)

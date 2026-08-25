@@ -9,7 +9,7 @@ const selectChrome = 'rounded-lg bg-elevated/70 font-medium text-highlighted'
 const selectIdle = `${selectChrome} ring-0`
 const selectActive = `${selectChrome} ring-1 ring-inset ring-default`
 
-export const filterSelectUi = {
+const filterSelectUi = {
   base: selectIdle,
   value: 'truncate',
   trailingIcon: 'text-muted',
@@ -64,17 +64,19 @@ export function getFilterDateUi(
         ? 'pe-9'
         : 'pe-8'
 
-  const rangeMinWidth = fontSize === 'xl'
-    ? 'min-w-120'
-    : fontSize === 'lg'
-      ? 'min-w-112'
-      : fontSize === 'sm'
-        ? 'min-w-96'
-        : 'min-w-104'
+  const rangeMinWidth = options?.isDateTime
+    ? (fontSize === 'xl'
+        ? 'min-w-120'
+        : fontSize === 'lg'
+          ? 'min-w-112'
+          : fontSize === 'sm'
+            ? 'min-w-96'
+            : 'min-w-104')
+    : (fontSize === 'xl' || fontSize === 'lg' ? 'min-w-72' : 'min-w-64')
 
   const minWidth = options?.fullWidth
     ? 'w-full min-w-0'
-    : options?.fitContent && options?.isDateTime && options?.isRange
+    : options?.fitContent && options?.isRange
       ? `w-auto ${rangeMinWidth} max-w-full`
       : options?.fitContent
         ? 'w-auto max-w-full'

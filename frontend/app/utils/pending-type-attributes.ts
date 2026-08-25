@@ -1,5 +1,5 @@
 /** sessionStorage key for attribute ids to assign after create-from-type flow. */
-export const PENDING_TYPE_ATTR_KEY = 'docetra:pending-type-attribute-ids'
+const PENDING_TYPE_ATTR_KEY = 'docetra:pending-type-attribute-ids'
 
 export function readPendingTypeAttributeIds(): string[] {
   if (typeof window === 'undefined') return []

@@ -34,7 +34,7 @@ Configuration is capability-restricted. The current frontend release uses localS
 
 | Field | Role |
 | --- | --- |
-| `id`, `name`, `code` | Identity; `code` stable for API |
+| `id`, `name`, `code` | Identity; `id` is the join key. `code` is informational (not globally unique) |
 | `status` | `active` / `archived` / `deleted` business lifecycle |
 | `publicationState` | Optional separate `draft` / `published` metadata lifecycle |
 | `workflowStages` | Ordered stages + transitions |
@@ -46,7 +46,7 @@ Configuration is capability-restricted. The current frontend release uses localS
 
 | Field | Role |
 | --- | --- |
-| `id`, `name`, `code` | `code` used in `record_detail` |
+| `id`, `name`, `code` | `id` joins `record_detail`; `code` is the JSON field key (not unique) |
 | `dataType` | text, number, date, select, etc. |
 | `options` | Enum values (options builder) |
 | `validationRules` | min/max/required/custom |
@@ -56,9 +56,11 @@ Configuration is capability-restricted. The current frontend release uses localS
 ### Relationship
 
 ```text
+Organization ──1:N──▶ RecordTypePermission ──▶ RecordType
 RecordType ──assigned──▶ RecordAttribute (many)
-Record (runtime) ──recordTypeId──▶ RecordType
-Record.detail[attribute.code] ──▶ value
+Record (runtime) ──record_type_id──▶ RecordType
+RecordDetail ──record_attribute_id──▶ RecordAttribute
+Record.detail[attribute.code] ──▶ value (informational key)
 ```
 
 ---
@@ -99,6 +101,9 @@ Version stamp optional: `settings.app_config.configurationVersion` for cache bus
 | PATCH | `/api/v2/configuration/record-types/{id}` | Update |
 | GET | `/api/v2/configuration/record-types/{id}/schema` | Permission-filtered published runtime schema |
 | GET | `/api/v2/configuration/record-types/by-code/{code}/schema` | Resolve schema for record-backed routes |
+| GET | `/api/v2/configuration/record-types/{id}/permissions` | Organizations that can use this type |
+| POST | `/api/v2/configuration/record-types/{id}/permissions` | Share with `{ organizationId }` (`shared` grant) |
+| DELETE | `/api/v2/configuration/record-types/{id}/permissions/{organizationId}` | Revoke a shared grant (cannot revoke owner) |
 | GET | `/api/v2/configuration/record-attributes` | List |
 | GET | `/api/v2/configuration/record-attributes/{id}` | Detail |
 | POST | `/api/v2/configuration/record-attributes` | Create |
@@ -116,7 +121,9 @@ Optional: `GET /record-types/{id}/attributes` expanded catalog for document page
 
 | Case | Result |
 | --- | --- |
-| Duplicate `code` | 409 |
+| Duplicate `code` | Allowed; `code` is not a unique join key |
+| Share type without owner grant | 403 |
+| Revoke owner organization | 409 |
 | Circular visibility rules | 422 |
 | Invalid workflow transition | 422 |
 | Delete attribute assigned to type | 409 or force-unassign |

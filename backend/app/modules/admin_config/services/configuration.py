@@ -265,7 +265,11 @@ async def _catalog_for_assigned(db: AsyncSession, assigned: list[dict]) -> list[
 
 
 async def resolved_schema(db: AsyncSession, row: RecordType) -> dict:
+    import app.modules.record.services.type_access as type_access
+
     public = serialize_record_type(row)
+    access = await type_access.permission_payload(db, [row.id])
+    public.update(access.get(row.id, {}))
     if not public["stages"]:
         templates = (
             await db.scalars(
@@ -295,28 +299,47 @@ async def resolved_schema(db: AsyncSession, row: RecordType) -> dict:
     }
 
 
-async def schema_by_code(db: AsyncSession, code: str) -> dict:
+async def schema_by_code(db: AsyncSession, code: str, user=None) -> dict:
+    import app.modules.record.services.type_access as type_access
+    from app.core.privileged import is_unrestricted
+
     resolved = resolve_type_code(code)
     if not resolved:
         raise HTTPException(404, "Record type not found")
+    org_id = await type_access.actor_organization_id(db, user) if user else None
+    unrestricted = user is None or is_unrestricted(user)
     if resolved in TYPE_UI_DEFAULTS:
-        row = await ensure_record_type(db, resolved)
+        row = await ensure_record_type(
+            db,
+            resolved,
+            organization_id=org_id,
+            unrestricted=unrestricted,
+        )
         await db.commit()
         await db.refresh(row)
     else:
-        row = await db.scalar(select(RecordType).where(RecordType.code == resolved))
+        row = await type_access.resolve_type_by_code(
+            db,
+            resolved,
+            organization_id=org_id,
+            unrestricted=unrestricted,
+        )
         if not row:
             raise HTTPException(404, "Record type not found")
         row = await _persist_merged_payload(db, row)
+    await type_access.require_type_access(db, row, user)
     return await resolved_schema(db, row)
 
 
-async def schema_by_id(db: AsyncSession, entity_id: str) -> dict:
+async def schema_by_id(db: AsyncSession, entity_id: str, user=None) -> dict:
+    import app.modules.record.services.type_access as type_access
+
     uid = _as_uuid(entity_id)
     if not uid:
         raise HTTPException(404, "Record type not found")
     row = await db.get(RecordType, uid)
     if not row:
         raise HTTPException(404, "Record type not found")
+    await type_access.require_type_access(db, row, user)
     row = await _persist_merged_payload(db, row)
     return await resolved_schema(db, row)

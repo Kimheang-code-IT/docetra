@@ -19,7 +19,7 @@ export const ROLE_PERMISSION_ACTIONS = [
 
 export type RolePermissionAction = (typeof ROLE_PERMISSION_ACTIONS)[number]
 
-export interface RoleDocumentTypeDefinition {
+interface RoleDocumentTypeDefinition {
   value: string
   labelKey: string
   permissionPrefix: string

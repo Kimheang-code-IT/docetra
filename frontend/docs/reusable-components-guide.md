@@ -81,7 +81,7 @@ Nuxt auto-imports components by folder:
 | `AppSingleFilterSelect` | One value (status, sort)                  | `items: { label, value }[]` + `v-model`.                                         |
 | `AppMultiSelect`        | Multi value filter                        | Same items shape; optional `showNoneOption`.                                     |
 | `AppInputDate`          | Date or date-time field/filter            | `v-model` + granularity (`day`, `minute`, etc.); uses `AppDatePickerPopover`.     |
-| `AppDateRangeFilter`    | Start–end range filter                    | `v-model:start` / `v-model:end`; responsive toolbar modal, or `inline` full width. |
+| `AppDateRangeFilter`    | Start–end **date** filter (`dd/mm/yyyy`–`dd/mm/yyyy`, no time) | `v-model:start` / `v-model:end`; responsive toolbar modal, or `inline` full width. |
 | `AppWorkspaceToolbar`   | Standard list toolbar                     | search, filters, sort, view tabs; emit `setFilter` / `update:*`.                 |
 
 

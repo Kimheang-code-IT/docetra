@@ -2,13 +2,13 @@ import type { TableColumnDef } from '~/types/docetra/common'
 import type { RowActionItem } from '~/types/docetra/row-actions'
 import { useDebounceFn } from '@vueuse/core'
 import { useConfirm } from '~/composables/common/useConfirm'
+import { useExportJobRunner } from '~/composables/common/useExportJobRunner'
 import { parsePageLimit, serializePageLimit } from '~/utils/pagination'
 import type { ExportRequest } from '~/types/docetra/export'
-import { createExportJob } from '~/adapters/exports'
 import { permissionForAction } from '~/utils/role/access'
 import { useAppLocalization } from '~/composables/settings/useAppLocalization'
 
-export const CONFIG_ROW_ACTIONS: RowActionItem[] = [
+const CONFIG_ROW_ACTIONS: RowActionItem[] = [
   { key: 'detail', labelKey: 'docetra.rowActions.detail', icon: 'i-lucide-eye' },
   { key: 'duplicate', labelKey: 'docetra.rowActions.duplicate', icon: 'i-lucide-copy' },
   {
@@ -50,6 +50,7 @@ export function useConfigListPage(options: {
   const route = useRoute()
   const { confirm, setLoading } = useConfirm()
   const auth = useAuthStore()
+  const exportRunner = useExportJobRunner()
 
   const canCreate = computed(() => auth.canAccessPage(permissionForAction(options.viewPermission, 'create')))
   const canDelete = computed(() => auth.canAccessPage(permissionForAction(options.viewPermission, 'delete')))
@@ -191,7 +192,7 @@ export function useConfigListPage(options: {
     if (!canExport.value) return
     exporting.value = true
     try {
-      return await createExportJob({
+      return await exportRunner.run({
         ...request,
         resource: options.exportResource,
         format: 'csv',

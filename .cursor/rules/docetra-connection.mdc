@@ -1,0 +1,17 @@
+---
+description: Docetra API connection — no request waterfalls on show/session
+globs: frontend/app/{composables,adapters,plugins,stores}/**/*.{ts,vue}
+alwaysApply: false
+---
+
+# Docetra connection / load logic
+
+Do not block first paint on a GET chain.
+
+- Session: paint if a stored user exists; re-check `/auth/me` in the background. Refresh **only on 401**. Timeouts/5xx must not clear a working session.
+- Show page: overlay waits only for `adapter.get`. Comments, activity, files, neighbors, favorite, and schema load in parallel or after paint.
+- Coalesce in-flight identical GETs (surfaces, schema, options). Cache schema by type `code` and `id`.
+- `cancelPrevious` replaces a stale search/list of the same resource — not a shared options/schema load.
+- Page key: `route.path`, not `route.fullPath`.
+
+Details: `.opencode/skills/docetra/connection.md`.

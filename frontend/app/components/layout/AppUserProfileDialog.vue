@@ -4,36 +4,17 @@ import type { FormSubmitEvent } from '@nuxt/ui'
 import { changePassword, removeProfileAvatar, updateProfileAvatar } from '~/adapters/auth'
 import { useAuthStore } from '~/stores/auth'
 import { resolveUserAvatar } from '~/utils/auth/user-avatar'
-import {
-  countUserPermissions,
-  groupUserPermissions,
-  resolveUserPermissionKeys,
-} from '~/utils/auth/user-permissions'
 
 const open = defineModel<boolean>('open', { default: false })
 
 const auth = useAuthStore()
-const { t, te } = useI18n()
+const { t } = useI18n()
 const toast = useToast()
 
-const activeTab = ref('profile')
 const submitting = ref(false)
 const avatarSubmitting = ref(false)
 const avatarInputRef = ref<HTMLInputElement | null>(null)
 const photoPreviewOpen = ref(false)
-
-const tabItems = computed(() => [
-  {
-    label: t('docetra.userProfile.tabs.profile'),
-    value: 'profile',
-    icon: 'i-lucide-user',
-  },
-  {
-    label: t('docetra.userProfile.tabs.password'),
-    value: 'password',
-    icon: 'i-lucide-key-round',
-  },
-])
 
 const profile = computed(() => {
   const user = auth.user
@@ -49,12 +30,6 @@ const profile = computed(() => {
 })
 
 const hasCustomAvatar = computed(() => Boolean(auth.user?.avatar))
-
-const permissionGroups = computed(() =>
-  groupUserPermissions(resolveUserPermissionKeys(auth.user)),
-)
-
-const permissionCount = computed(() => countUserPermissions(permissionGroups.value))
 
 const passwordSchema = computed(() => z.object({
   currentPassword: z.string().min(1, { error: t('docetra.userProfile.currentPasswordRequired') }),
@@ -75,23 +50,12 @@ const passwordState = reactive({
 
 watch(open, (isOpen) => {
   if (!isOpen) {
-    activeTab.value = 'profile'
     photoPreviewOpen.value = false
     passwordState.currentPassword = ''
     passwordState.password = ''
     passwordState.passwordConfirmation = ''
   }
 })
-
-function moduleLabel(labelKey: string, documentType: string) {
-  if (te(labelKey)) return t(labelKey)
-  return documentType.replaceAll('_', ' ')
-}
-
-function actionLabel(action: string) {
-  const key = `docetra.rolePermissions.actions.${action}`
-  return te(key) ? t(key) : action
-}
 
 function openAvatarPicker() {
   if (avatarSubmitting.value) return
@@ -192,7 +156,6 @@ async function onPasswordSubmit(event: FormSubmitEvent<PasswordSchema>) {
     passwordState.currentPassword = ''
     passwordState.password = ''
     passwordState.passwordConfirmation = ''
-    activeTab.value = 'profile'
   }
   catch {
     toast.add({
@@ -215,19 +178,11 @@ async function onPasswordSubmit(event: FormSubmitEvent<PasswordSchema>) {
     :description="t('docetra.userProfile.description')"
     :ui="{
       overlay: 'place-items-start justify-items-center pt-[5vh] sm:pt-[5vh]',
-      content: 'w-[calc(100%-2rem)] max-w-2xl sm:max-w-2xl',
+      content: 'w-[calc(100%-2rem)] max-w-lg sm:max-w-lg',
     }"
   >
     <template #body>
-      <UTabs
-        v-model="activeTab"
-        :items="tabItems"
-        :content="false"
-        size="sm"
-        class="mb-4 w-full"
-      />
-
-      <div v-if="activeTab === 'profile'" class="space-y-5">
+      <div class="space-y-5">
         <div class="flex flex-col items-center gap-4 pb-1 text-center">
           <div class="relative inline-flex">
             <button
@@ -280,108 +235,69 @@ async function onPasswordSubmit(event: FormSubmitEvent<PasswordSchema>) {
           </div>
         </div>
 
-        <div class="space-y-2">
-          <div class="flex items-center justify-between gap-2">
-            <h4 class="text-sm font-semibold text-highlighted">
-              {{ t('docetra.userProfile.permissionsTitle') }}
-            </h4>
-            <span class="text-xs text-muted">
-              {{ t('docetra.userProfile.permissionCount', { n: permissionCount }) }}
-            </span>
-          </div>
+        <USeparator />
 
-          <div
-            v-if="permissionGroups.length"
-            class="max-h-72 space-y-2 overflow-y-auto rounded-md border border-default bg-elevated/40 p-2"
-          >
-            <div
-              v-for="group in permissionGroups"
-              :key="group.documentType"
-              class="rounded-md border border-default/70 bg-default px-3 py-2.5"
-            >
-              <p class="text-sm font-medium text-highlighted">
-                {{ moduleLabel(group.labelKey, group.documentType) }}
-              </p>
-              <div class="mt-2 flex flex-wrap gap-1.5">
-                <UBadge
-                  v-for="action in group.actions"
-                  :key="`${group.documentType}-${action}`"
-                  color="primary"
-                  variant="soft"
-                  size="sm"
-                >
-                  {{ actionLabel(action) }}
-                </UBadge>
-              </div>
-            </div>
-          </div>
-
-          <p v-else class="rounded-md border border-dashed border-default px-3 py-6 text-center text-sm text-muted">
-            {{ t('docetra.userProfile.noPermissions') }}
+        <div class="space-y-4">
+          <p class="text-sm text-muted">
+            {{ t('docetra.userProfile.passwordHelp') }}
           </p>
-        </div>
-      </div>
 
-      <div v-else class="space-y-4">
-        <p class="text-sm text-muted">
-          {{ t('docetra.userProfile.passwordHelp') }}
-        </p>
-
-        <UForm
-          :schema="passwordSchema"
-          :state="passwordState"
-          class="space-y-4"
-          @submit="onPasswordSubmit"
-        >
-          <UFormField
-            :label="t('docetra.userProfile.currentPassword')"
-            name="currentPassword"
-            required
+          <UForm
+            :schema="passwordSchema"
+            :state="passwordState"
+            class="space-y-4"
+            @submit="onPasswordSubmit"
           >
-            <UInput
-              v-model="passwordState.currentPassword"
-              type="password"
-              autocomplete="current-password"
-              class="w-full"
-            />
-          </UFormField>
-
-          <UFormField
-            :label="t('pages.forgetPassword.newPassword')"
-            name="password"
-            required
-          >
-            <UInput
-              v-model="passwordState.password"
-              type="password"
-              autocomplete="new-password"
-              class="w-full"
-            />
-          </UFormField>
-
-          <UFormField
-            :label="t('pages.forgetPassword.confirmPassword')"
-            name="passwordConfirmation"
-            required
-          >
-            <UInput
-              v-model="passwordState.passwordConfirmation"
-              type="password"
-              autocomplete="new-password"
-              class="w-full"
-            />
-          </UFormField>
-
-          <div class="flex justify-end pt-1">
-            <UButton
-              type="submit"
-              color="primary"
-              :loading="submitting"
+            <UFormField
+              :label="t('docetra.userProfile.currentPassword')"
+              name="currentPassword"
+              required
             >
-              {{ t('docetra.userProfile.updatePassword') }}
-            </UButton>
-          </div>
-        </UForm>
+              <UInput
+                v-model="passwordState.currentPassword"
+                type="password"
+                autocomplete="current-password"
+                class="w-full"
+              />
+            </UFormField>
+
+            <UFormField
+              :label="t('pages.forgetPassword.newPassword')"
+              name="password"
+              required
+            >
+              <UInput
+                v-model="passwordState.password"
+                type="password"
+                autocomplete="new-password"
+                class="w-full"
+              />
+            </UFormField>
+
+            <UFormField
+              :label="t('pages.forgetPassword.confirmPassword')"
+              name="passwordConfirmation"
+              required
+            >
+              <UInput
+                v-model="passwordState.passwordConfirmation"
+                type="password"
+                autocomplete="new-password"
+                class="w-full"
+              />
+            </UFormField>
+
+            <div class="flex justify-end pt-1">
+              <UButton
+                type="submit"
+                color="primary"
+                :loading="submitting"
+              >
+                {{ t('docetra.userProfile.updatePassword') }}
+              </UButton>
+            </div>
+          </UForm>
+        </div>
       </div>
     </template>
   </UModal>

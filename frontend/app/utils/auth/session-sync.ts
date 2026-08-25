@@ -1,6 +1,6 @@
 export const AUTH_SESSION_EVENT_KEY = 'docetra:auth:session-event'
 
-export type AuthSessionEvent = 'login' | 'logout'
+type AuthSessionEvent = 'login' | 'logout'
 
 export function publishAuthSessionEvent(kind: AuthSessionEvent) {
   if (typeof window === 'undefined') return

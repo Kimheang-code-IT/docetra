@@ -1,27 +1,51 @@
 <script setup lang="ts">
+import type { MeetingHistory, MeetingTopic } from '~/types/docetra/entities'
+import { MEETING_BOARD_UNASSIGNED } from '~/composables/meeting/useMeetingTopicBoard'
 import { usePointerDrop } from '~/composables/common/usePointerDrop'
 import type { WorkflowStage } from '~/types/docetra/common'
 import type { CardDisplayEntityKey } from '~/types/docetra/settings'
 import { useCardFields } from '~/composables/settings/useCardFields'
-import { isCardFooterSlot, splitCardSlots } from '~/utils/card-fields'
+import { isCardFooterSlot, splitCardSlots, statusBadgeColor } from '~/utils/card-fields'
+import {
+  computeMeetingTiming,
+  isJoinableMeeting,
+} from '~/utils/meeting/board'
 import { useAppLocalization } from '~/composables/settings/useAppLocalization'
 
+/**
+ * Single board card for records AND meetings.
+ * Pass `row` (+ stages) for record boards; pass `meeting` (+ topics) to enable
+ * meeting behaviors: imminent pulse, join, topic assign/reorder, notes.
+ */
 const props = withDefaults(defineProps<{
-  row: Record<string, unknown>
+  row?: Record<string, unknown>
+  meeting?: MeetingHistory | null
+  topics?: MeetingTopic[]
   title: string
   statusLabel?: string
   stageLabel?: string
-  stages: WorkflowStage[]
+  stages?: WorkflowStage[]
   dragging?: boolean
   entityKey?: CardDisplayEntityKey
   canMove?: boolean
   canViewLogs?: boolean
   canDelete?: boolean
+  /** Meeting-only controls. */
+  showTopic?: boolean
+  canAssign?: boolean
+  canEditNotes?: boolean
 }>(), {
+  row: () => ({}),
+  meeting: null,
+  topics: () => [],
+  stages: () => [],
   entityKey: 'documents',
   canMove: true,
   canViewLogs: true,
   canDelete: true,
+  showTopic: false,
+  canAssign: true,
+  canEditNotes: true,
 })
 
 const emit = defineEmits<{
@@ -31,11 +55,18 @@ const emit = defineEmits<{
   moveStage: [stage: string]
   logs: []
   delete: []
+  openNotes: []
+  assign: [topicId: string | null]
+  reorderBefore: [beforeId: string | null]
 }>()
 
 const { t, te } = useI18n()
-const { formatDate } = useAppLocalization()
+const { formatDate, formatDateTime } = useAppLocalization()
 const { show, visibleSlots, footerAlign } = useCardFields(() => props.entityKey)
+
+/** True when rendering a meeting-history card. */
+const m = computed(() => props.meeting)
+const r = computed<Record<string, unknown>>(() => props.row)
 
 function orgName(value: unknown) {
   if (!value || typeof value !== 'object') return ''
@@ -64,82 +95,141 @@ function listText(value: unknown) {
         : String(value || '')
 }
 
-const referenceNumber = computed(() => String(props.row.referenceNumber || ''))
+// --- shared identity fields -------------------------------------------------
+
+const referenceNumber = computed(() => String(r.value.referenceNumber || ''))
 const recordTypeLabel = computed(() =>
-  String(props.row.recordTypeName || props.row.recordTypeId || ''),
+  String(r.value.recordTypeName || r.value.recordTypeId || ''),
 )
 const description = computed(() => {
-  const raw = String(props.row.recordContent || props.row.description || '').trim()
+  const raw = String(r.value.recordContent || r.value.description || '').trim()
   if (!raw) return ''
   return raw.length > 90 ? `${raw.slice(0, 90)}…` : raw
 })
 const recordTime = computed(() =>
-  day(props.row.recordTime)
-  || day(props.row.receivedDate)
-  || day(props.row.sentDate)
-  || day(props.row.createdAt),
+  day(props.row?.recordTime)
+  || day(props.row?.receivedDate)
+  || day(props.row?.sentDate)
+  || day(props.row?.createdAt),
 )
 const tags = computed(() => {
-  if (Array.isArray(props.row.tags)) return props.row.tags.map(String).filter(Boolean)
-  const raw = props.row.recordTag ?? props.row.tags
-  if (typeof raw === 'string' && raw.trim()) {
-    return raw.split(/[,;]/).map(s => s.trim()).filter(Boolean)
+  const source: unknown = props.meeting
+    ? (Array.isArray(props.meeting.tags) && props.meeting.tags.length
+        ? props.meeting.tags
+        : props.meeting.recordTag)
+    : (props.row?.tags ?? props.row?.recordTag)
+  if (Array.isArray(source)) return source.map(String).filter(Boolean)
+  if (typeof source === 'string' && source.trim()) {
+    return source.split(/[,;]/).map(s => s.trim()).filter(Boolean)
   }
   return []
 })
-const sender = computed(() => orgName(props.row.senderOrganization))
-const recipient = computed(() => orgName(props.row.recipientOrganization))
-const ownerDepartment = computed(() => orgName(props.row.ownerDepartment))
-const owner = computed(() => personName(props.row.owner))
-const assignee = computed(() => listText(props.row.assignees || props.row.assignee))
-const waiting = computed(() => Boolean(props.row.waiting))
-const attachmentCount = computed(() => Number(props.row.attachmentCount || 0))
-const commentCount = computed(() => Number(props.row.commentCount || 0))
+const sender = computed(() => orgName(r.value.senderOrganization))
+const recipient = computed(() => orgName(r.value.recipientOrganization))
+const ownerDepartment = computed(() => orgName(r.value.ownerDepartment))
+const owner = computed(() => personName(r.value.owner))
+const assignee = computed(() => listText(r.value.assignees || r.value.assignee))
+const waiting = computed(() => Boolean(r.value.waiting))
+const attachmentCount = computed(() => Number(r.value.attachmentCount || 0))
+const commentCount = computed(() => Number(r.value.commentCount || 0))
 
-const statusColor = computed(() => {
-  const status = String(props.row.status || '').toLowerCase()
-  if (status === 'active' || status === 'completed') return 'success' as const
-  if (status === 'pending' || status === 'draft') return 'warning' as const
-  if (status === 'deleted' || status === 'disabled' || status === 'failed') return 'error' as const
-  return 'info' as const
+// --- labels -----------------------------------------------------------------
+
+const effectiveStatusText = computed(() => {
+  if (m.value) {
+    const key = `docetra.status.${m.value.status}`
+    return te(key) ? t(key) : m.value.status
+  }
+  return props.statusLabel || ''
 })
+
+const effectiveStageText = computed(() => {
+  const raw = m.value ? m.value.stage : props.stageLabel
+  if (!raw) return ''
+  if (m.value) {
+    const key = `docetra.stages.${raw}`
+    return te(key) ? t(key) : raw
+  }
+  return raw
+})
+
+const statusColor = computed(() => statusBadgeColor(m.value ? m.value.status : props.row?.status))
+
+// --- meeting extras ---------------------------------------------------------
+
+const timing = computed(() => {
+  if (!m.value) return { imminent: false, inProgress: false }
+  if (m.value.imminent != null || m.value.inProgress != null) {
+    return {
+      imminent: Boolean(m.value.imminent || m.value.inProgress),
+      inProgress: Boolean(m.value.inProgress),
+    }
+  }
+  const result = computeMeetingTiming(m.value.meetingDate, m.value.durationMinutes)
+  return { imminent: Boolean(result.imminent), inProgress: Boolean(result.inProgress) }
+})
+
+const isImminent = computed(() => timing.value.imminent)
+const canJoin = computed(() => Boolean(m.value && isJoinableMeeting(m.value.meetingMode, m.value.meetingUrl)))
+
+function joinMeeting() {
+  const url = safeExternalUrl(m.value?.meetingUrl)
+  if (!url) return
+  if (import.meta.client) window.open(url, '_blank', 'noopener,noreferrer')
+}
+
+function meetingModeLabel(mode?: string) {
+  if (!mode) return ''
+  const key = `docetra.meetingMode.${mode}`
+  return te(key) ? t(key) : mode
+}
+
+// --- slot helpers -----------------------------------------------------------
 
 function bodySlotText(slot: string) {
   const values: Record<string, unknown> = {
-    recordFlowCode: props.row.recordFlowCode,
-    recordContent: props.row.recordContent || props.row.description,
-    documentType: props.row.documentType || props.row.recordTypeName || props.row.recordTypeId,
-    letterNumber: props.row.referenceNumber,
-    letterSubject: props.row.letterSubject,
-    involvedOfficers: listText(props.row.involvedOfficers),
-    externalUnits: listText(props.row.externalUnits),
-    officeInCharge: listText(props.row.officeInCharge),
-    officerInCharge: listText(props.row.officerInCharge),
+    recordFlowCode: r.value.recordFlowCode,
+    recordContent: r.value.recordContent || r.value.description,
+    documentType: r.value.documentType || r.value.recordTypeName || r.value.recordTypeId,
+    letterNumber: r.value.referenceNumber,
+    letterSubject: r.value.letterSubject,
+    involvedOfficers: listText(r.value.involvedOfficers),
+    externalUnits: listText(r.value.externalUnits),
+    officeInCharge: listText(r.value.officeInCharge),
+    officerInCharge: listText(r.value.officerInCharge),
   }
   return String(values[slot] || '').trim()
 }
 
 function footerDate(slot: string) {
+  if (m.value) {
+    if (slot === 'letterDate') return formatDate(m.value.letterDate, '')
+    if (slot === 'meetingDate') return formatDateTime(m.value.meetingDate)
+    if (slot === 'recordTime') return formatDateTime(m.value.recordTime || m.value.meetingDate)
+    if (slot === 'createdAt') return day(m.value.createdAt)
+    if (slot === 'updatedAt') return day(m.value.updatedAt)
+    return day(m.value.recordTime) || day(m.value.meetingDate)
+  }
   const values: Record<string, unknown> = {
-    recordTime: props.row.recordTime,
-    receivedDate: props.row.receivedDate,
-    sentDate: props.row.sentDate,
-    documentDate: props.row.documentDate,
-    letterDate: props.row.letterDate,
-    directorGeneralDate: props.row.directorGeneralDate,
-    directorDate: props.row.directorDate,
-    createdAt: props.row.createdAt,
-    updatedAt: props.row.updatedAt,
+    recordTime: r.value.recordTime,
+    receivedDate: r.value.receivedDate,
+    sentDate: r.value.sentDate,
+    documentDate: r.value.documentDate,
+    letterDate: r.value.letterDate,
+    directorGeneralDate: r.value.directorGeneralDate,
+    directorDate: r.value.directorDate,
+    createdAt: r.value.createdAt,
+    updatedAt: r.value.updatedAt,
   }
   return day(values[slot])
 }
 
 function fieldTone(slot: string) {
   if (slot === 'referenceNumber' || slot === 'letterNumber') return 'app-card-field-highlight--info'
-  if (slot === 'recordType' || slot === 'documentType') return 'app-card-field-highlight--secondary'
-  if (slot === 'party' || slot === 'externalUnits') return 'app-card-field-highlight--warning'
-  if (slot === 'officeInCharge') return 'app-card-field-highlight--info'
-  if (slot === 'owner' || slot === 'assignee' || slot === 'involvedOfficers' || slot === 'officerInCharge') return 'app-card-field-highlight--success'
+  if (slot === 'recordType' || slot === 'documentType' || slot === 'topicTitle' || slot === 'meetingMode') return 'app-card-field-highlight--secondary'
+  if (slot === 'party' || slot === 'externalUnits' || slot === 'durationMinutes') return 'app-card-field-highlight--warning'
+  if (slot === 'officeInCharge' || slot === 'internalUnits') return 'app-card-field-highlight--info'
+  if (slot === 'owner' || slot === 'assignee' || slot === 'involvedOfficers' || slot === 'officerInCharge' || slot === 'participants') return 'app-card-field-highlight--success'
   if (slot === 'description' || slot === 'recordContent') return 'app-card-field-highlight--neutral'
   return ''
 }
@@ -150,28 +240,39 @@ function fieldIcon(slot: string) {
   if (slot === 'description' || slot === 'recordContent' || slot === 'letterSubject') return 'i-lucide-align-left'
   if (slot === 'involvedOfficers' || slot === 'officerInCharge') return 'i-lucide-user-round'
   if (slot === 'externalUnits') return 'i-lucide-landmark'
-  if (slot === 'officeInCharge') return 'i-lucide-building-2'
+  if (slot === 'officeInCharge' || slot === 'internalUnits') return 'i-lucide-building-2'
+  if (slot === 'topicTitle') return 'i-lucide-messages-square'
+  if (slot === 'participants') return 'i-lucide-users'
+  if (slot === 'meetingMode') return 'i-lucide-video'
+  if (slot === 'durationMinutes') return 'i-lucide-timer'
   return 'i-lucide-file-text'
 }
 
 function footerTone(slot: string) {
   if (slot === 'attachmentCount') return 'app-card-field-highlight--secondary'
   if (slot === 'commentCount') return 'app-card-field-highlight--info'
+  if (m.value) {
+    if (slot === 'location' || slot === 'durationMinutes') return 'app-card-field-highlight--warning'
+    if (slot === 'attendeesCount') return 'app-card-field-highlight--success'
+    if (slot === 'meetingMode') return 'app-card-field-highlight--secondary'
+    if (slot === 'createdAt' || slot === 'updatedAt') return 'app-card-field-highlight--neutral'
+    return 'app-card-field-highlight--info'
+  }
   return 'app-card-field-highlight--success'
 }
 
 const startDate = computed(() =>
-  day(props.row.receivedDate)
-  || day(props.row.sentDate)
-  || day(props.row.createdAt),
+  day(r.value.receivedDate)
+  || day(r.value.sentDate)
+  || day(r.value.createdAt),
 )
 
 const endDate = computed(() => {
-  const updated = day(props.row.updatedAt)
+  const updated = day(r.value.updatedAt)
   const start = startDate.value
   if (updated && start && updated !== start) return updated
-  const received = day(props.row.receivedDate)
-  const sent = day(props.row.sentDate)
+  const received = day(r.value.receivedDate)
+  const sent = day(r.value.sentDate)
   if (received && sent && received !== sent) return sent
   return ''
 })
@@ -188,9 +289,27 @@ const partyLabel = computed(() => {
   return null
 })
 
-const orderedSlots = computed(() =>
-  visibleSlots.value.filter((slot) => {
+// --- slot ordering ----------------------------------------------------------
+
+const orderedSlots = computed(() => {
+  return visibleSlots.value.filter((slot) => {
     if (isCardFooterSlot(props.entityKey, slot)) return true
+    if (m.value) {
+      if (slot === 'topicTitle') return Boolean(props.showTopic)
+      if (slot === 'status') return Boolean(effectiveStatusText.value)
+      if (slot === 'sortOrder') return m.value.sortOrder != null
+      if (slot === 'letterNumber') return Boolean(m.value.letterNumber)
+      if (slot === 'stage') return Boolean(effectiveStageText.value)
+      if (slot === 'tags') return tags.value.length > 0
+      if (slot === 'participants') return Boolean(listText(m.value.participants))
+      if (slot === 'internalUnits') return Boolean(listText(m.value.internalUnits))
+      if (slot === 'externalUnits') return Boolean(listText(m.value.externalUnits))
+      if (slot === 'letterDate') return Boolean(m.value.letterDate)
+      if (slot === 'meetingMode') return Boolean(m.value.meetingMode)
+      if (slot === 'meetingUrl') return Boolean(m.value.meetingUrl)
+      if (slot === 'durationMinutes') return m.value.durationMinutes != null
+      return show(slot)
+    }
     if (slot === 'referenceNumber') return Boolean(referenceNumber.value)
     if (slot === 'recordType') return Boolean(recordTypeLabel.value)
     if (slot === 'description') return Boolean(description.value)
@@ -203,65 +322,148 @@ const orderedSlots = computed(() =>
     if (slot === 'tags') return tags.value.length > 0
     if (bodySlotText(slot)) return true
     return show(slot)
-  }),
-)
+  })
+})
 
 const split = computed(() => splitCardSlots(props.entityKey, orderedSlots.value))
-/** Exactly one status on the title (matches sample card) — never status + stage together. */
+/** Exactly one status on the title — never status + stage together. */
 const titleStatusText = computed(() => {
-  if (split.value.titleChrome.includes('status') && props.statusLabel) {
-    return props.statusLabel
+  if (split.value.titleChrome.includes('status') && effectiveStatusText.value) {
+    return effectiveStatusText.value
   }
   return ''
 })
-const bodySlots = computed(() => {
-  return split.value.body
+const showSortOrder = computed(() => m.value != null && split.value.titleChrome.includes('sortOrder'))
+const showTopicTitleRow = computed(() =>
+  m.value != null && split.value.titleChrome.includes('topicTitle'))
+const bodySlots = computed(() => split.value.body)
+const footerSlots = computed(() => {
+  const slots = split.value.footer
+  // Prefer meetingDate when both time slots are enabled (meetings).
+  if (m.value && slots.includes('meetingDate') && slots.includes('recordTime')) {
+    return slots.filter(s => s !== 'recordTime')
+  }
+  return slots
 })
-const footerSlots = computed(() => split.value.footer)
 const footerLeft = computed(() => footerSlots.value.filter(s => footerAlign(s) === 'left'))
 const footerRight = computed(() => footerSlots.value.filter(s => footerAlign(s) === 'right'))
 
-const menuItems = computed(() => [
-  [{
-    label: t('docetra.rowActions.detail'),
-    icon: 'i-lucide-eye',
-    onSelect: () => emit('open'),
-  }, ...(props.canViewLogs ? [{
-    label: t('docetra.rowActions.logs'),
-    icon: 'i-lucide-scroll-text',
-    onSelect: () => emit('logs'),
-  }] : [])],
-  ...(props.canMove ? [[{
-    label: t('docetra.recordStageBoard.moveToStage'),
-    icon: 'i-lucide-layers',
-    children: props.stages.map(stage => ({
-      label: stage.label || (te(stage.labelKey) ? t(stage.labelKey) : stage.code),
-      icon: String(props.row.stage) === stage.code ? 'i-lucide-check' : 'i-lucide-circle',
-      onSelect: () => emit('moveStage', stage.code),
-    })),
-  }]] : []),
-  ...(props.canDelete ? [[{
-    label: t('docetra.rowActions.delete'),
-    icon: 'i-lucide-trash-2',
-    color: 'error' as const,
-    onSelect: () => emit('delete'),
-  }]] : []),
+/** One rendering loop for both footer columns (left wraps, right is fixed). */
+const footerColumns = computed(() => [
+  { id: 'left', slots: footerLeft.value, columnClass: 'flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1' },
+  { id: 'right', slots: footerRight.value, columnClass: 'inline-flex shrink-0 flex-wrap items-center justify-end gap-2' },
 ])
 
+// --- menus ------------------------------------------------------------------
+
+const menuItems = computed(() => {
+  if (m.value) {
+    const meeting = m.value
+    const topicItems = props.topics.map(topic => ({
+      label: topic.title,
+      icon: topic.id === meeting.topicId ? 'i-lucide-check' : 'i-lucide-messages-square',
+      onSelect: () => emit('assign', topic.id),
+    }))
+    return [
+      [{
+        label: t('docetra.meetingBoard.openMeeting'),
+        icon: 'i-lucide-external-link',
+        onSelect: () => emit('open'),
+      }, ...(props.canEditNotes ? [{
+        label: t('docetra.meetingBoard.openNotes'),
+        icon: 'i-lucide-notebook-pen',
+        onSelect: () => emit('openNotes'),
+      }] : []),
+      ...(canJoin.value
+        ? [{
+            label: t('docetra.meetingBoard.joinMeeting'),
+            icon: 'i-lucide-video',
+            onSelect: () => joinMeeting(),
+          }]
+        : [])],
+      ...(props.canAssign ? [[
+        {
+          label: t('docetra.meetingBoard.assignToTopic'),
+          icon: 'i-lucide-link',
+          children: topicItems.length
+            ? topicItems
+            : [{ label: t('docetra.states.empty'), disabled: true }],
+        },
+        {
+          label: t('docetra.meetingBoard.unassignFromTopic'),
+          icon: 'i-lucide-unlink',
+          disabled: !meeting.topicId,
+          onSelect: () => emit('assign', null),
+        },
+      ]] : []),
+      ...(props.canDelete ? [[{
+        label: t('docetra.rowActions.delete'),
+        icon: 'i-lucide-trash-2',
+        color: 'error' as const,
+        onSelect: () => emit('delete'),
+      }]] : []),
+    ]
+  }
+
+  return [
+    [{
+      label: t('docetra.rowActions.detail'),
+      icon: 'i-lucide-eye',
+      onSelect: () => emit('open'),
+    }, ...(props.canViewLogs ? [{
+      label: t('docetra.rowActions.logs'),
+      icon: 'i-lucide-scroll-text',
+      onSelect: () => emit('logs'),
+    }] : [])],
+    ...(props.canMove ? [[{
+      label: t('docetra.recordStageBoard.moveToStage'),
+      icon: 'i-lucide-layers',
+      children: props.stages.map(stage => ({
+        label: stage.label || (te(stage.labelKey) ? t(stage.labelKey) : stage.code),
+        icon: String(r.value.stage) === stage.code ? 'i-lucide-check' : 'i-lucide-circle',
+        onSelect: () => emit('moveStage', stage.code),
+      })),
+    }]] : []),
+    ...(props.canDelete ? [[{
+      label: t('docetra.rowActions.delete'),
+      icon: 'i-lucide-trash-2',
+      color: 'error' as const,
+      onSelect: () => emit('delete'),
+    }]] : []),
+  ]
+})
+
+// --- drag & drop ------------------------------------------------------------
+
 function onDragStart(event: DragEvent) {
-  if (!props.canMove) return
-  const id = String(props.row.id || '')
-  event.dataTransfer?.setData('text/plain', id)
+  const id = String((m.value ? m.value.id : r.value.id) || '')
+  if (m.value) {
+    if (!props.canAssign) return
+    event.dataTransfer?.setData('text/plain', id)
+    event.dataTransfer?.setData('application/x-meeting-id', id)
+  }
+  else {
+    if (!props.canMove) return
+    event.dataTransfer?.setData('text/plain', id)
+  }
   if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move'
   emit('dragStart', id)
 }
 
 const pointerDrop = usePointerDrop({
-  selector: '[data-record-stage-drop]',
-  dataKey: 'recordStageDrop',
-  onDragStart: () => emit('dragStart', String(props.row.id || '')),
-  onDrop: stage => {
-    if (props.canMove) emit('moveStage', stage)
+  get selector() {
+    return m.value ? '[data-meeting-topic-drop]' : '[data-record-stage-drop]'
+  },
+  get dataKey() {
+    return m.value ? 'meetingTopicDrop' : 'recordStageDrop'
+  },
+  onDragStart: () => emit('dragStart', String((m.value ? m.value.id : r.value.id) || '')),
+  onDrop: (value) => {
+    if (m.value) {
+      if (props.canAssign) emit('assign', value === MEETING_BOARD_UNASSIGNED ? null : value)
+      return
+    }
+    if (props.canMove) emit('moveStage', value)
   },
   onDragEnd: () => emit('dragEnd'),
 })
@@ -269,28 +471,54 @@ const pointerDrop = usePointerDrop({
 function onCardClick(event: MouseEvent) {
   if (!pointerDrop.onClick(event)) emit('open')
 }
+
+function onDragOver(event: DragEvent) {
+  if (!m.value) return
+  event.preventDefault()
+  if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
+}
+
+function onDrop(event: DragEvent) {
+  if (!m.value) return
+  event.preventDefault()
+  event.stopPropagation()
+  const id = event.dataTransfer?.getData('text/plain') || ''
+  const selfId = String(m.value.id || '')
+  if (!id || id === selfId) return
+  emit('reorderBefore', selfId)
+}
 </script>
 
 <template>
   <article
-    :draggable="canMove"
+    :draggable="m ? canAssign : canMove"
     class="group relative flex h-full min-h-30 touch-pan-y flex-col rounded-lg border border-default bg-default p-3 text-left shadow-xs transition"
     :class="[
-      canMove ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer',
+      (m ? canAssign : canMove) ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer',
       dragging ? 'opacity-40 ring-2 ring-primary/30' : 'hover:border-primary/35 hover:shadow-sm',
+      isImminent ? 'meeting-card--imminent border-primary/60' : '',
     ]"
     tabindex="0"
     role="button"
     @dragstart="onDragStart"
     @dragend="emit('dragEnd')"
-    @pointerdown="canMove && pointerDrop.onPointerDown($event)"
-    @pointermove="canMove && pointerDrop.onPointerMove($event)"
-    @pointerup="canMove && pointerDrop.onPointerUp($event)"
-    @pointercancel="canMove && pointerDrop.onPointerCancel($event)"
+    @pointerdown="(m ? canAssign : canMove) && pointerDrop.onPointerDown($event)"
+    @pointermove="(m ? canAssign : canMove) && pointerDrop.onPointerMove($event)"
+    @pointerup="(m ? canAssign : canMove) && pointerDrop.onPointerUp($event)"
+    @pointercancel="(m ? canAssign : canMove) && pointerDrop.onPointerCancel($event)"
+    @dragover="onDragOver"
+    @drop="onDrop"
     @click="onCardClick"
     @keydown.enter.prevent="emit('open')"
   >
-    <div class="flex items-start gap-2">
+    <span
+      v-if="showSortOrder"
+      class="pointer-events-none absolute top-1 inset-e-1 z-10 inline-flex size-5 items-center justify-center rounded-full border border-default bg-elevated text-[11px] font-medium tabular-nums text-toned shadow-xs"
+    >
+      {{ ((m?.sortOrder ?? 0) as number) + 1 }}
+    </span>
+
+    <div class="flex items-start gap-2" :class="showSortOrder ? 'pe-6' : ''">
       <div class="min-w-0 flex-1">
         <div class="flex flex-wrap items-center gap-1.5">
           <p class="text-sm font-semibold text-highlighted wrap-break-word">
@@ -305,6 +533,23 @@ function onCardClick(event: MouseEvent) {
           >
             {{ titleStatusText }}
           </UBadge>
+          <UBadge
+            v-if="isImminent"
+            size="sm"
+            color="primary"
+            variant="soft"
+            icon="i-lucide-clock-3"
+          >
+            {{ timing.inProgress ? $t('docetra.meetingBoard.inProgress') : $t('docetra.meetingBoard.soon') }}
+          </UBadge>
+        </div>
+        <div
+          v-if="showTopicTitleRow"
+          class="app-card-field-highlight mt-1 flex min-w-0 items-center gap-1.5 text-xs app-card-text"
+          :class="fieldTone('topicTitle')"
+        >
+          <UIcon :name="fieldIcon('topicTitle')" class="size-3 shrink-0" />
+          <span class="truncate">{{ m?.topicTitle || $t('docetra.meetingBoard.unassigned') }}</span>
         </div>
       </div>
       <UDropdownMenu :items="menuItems" :content="{ align: 'end' }">
@@ -337,6 +582,14 @@ function onCardClick(event: MouseEvent) {
         </span>
       </div>
       <div
+        v-else-if="slot === 'letterNumber'"
+        class="app-card-field-highlight mt-1.5 flex min-w-0 items-center gap-1.5 text-xs app-card-text"
+        :class="fieldTone(slot)"
+      >
+        <UIcon :name="fieldIcon(slot)" class="size-3 shrink-0" />
+        <span class="truncate">{{ m?.letterNumber }}</span>
+      </div>
+      <div
         v-else-if="slot === 'party' && partyLabel"
         class="app-card-field-highlight mt-1.5 flex items-center gap-1.5 truncate text-xs app-card-text"
         :class="fieldTone(slot)"
@@ -361,7 +614,7 @@ function onCardClick(event: MouseEvent) {
         <span class="truncate">{{ assignee }}</span>
       </div>
       <div v-else-if="slot === 'stage'" class="mt-1.5">
-        <UBadge size="sm" color="info" variant="soft" icon="i-lucide-git-branch">{{ stageLabel }}</UBadge>
+        <UBadge size="sm" color="info" variant="soft" icon="i-lucide-git-branch">{{ effectiveStageText }}</UBadge>
       </div>
       <div v-else-if="slot === 'waiting'" class="mt-1.5">
         <UBadge size="sm" color="warning" variant="subtle" icon="i-lucide-clock-3">{{ $t('docetra.fields.waiting') }}</UBadge>
@@ -380,6 +633,49 @@ function onCardClick(event: MouseEvent) {
         >
           {{ tag }}
         </UBadge>
+      </div>
+      <div
+        v-else-if="slot === 'participants' || slot === 'internalUnits' || slot === 'externalUnits'"
+        class="app-card-field-highlight mt-1.5 flex min-w-0 items-center gap-1.5 truncate text-xs app-card-text"
+        :class="fieldTone(slot)"
+      >
+        <UIcon :name="fieldIcon(slot)" class="size-3 shrink-0" />
+        <span class="truncate">
+          {{ listText(slot === 'participants'
+            ? m?.participants
+            : slot === 'internalUnits'
+              ? m?.internalUnits
+              : m?.externalUnits) }}
+        </span>
+      </div>
+      <div
+        v-else-if="slot === 'meetingMode'"
+        class="app-card-field-highlight mt-1.5 flex items-center gap-1.5 text-xs app-card-text"
+        :class="fieldTone(slot)"
+      >
+        <UIcon :name="fieldIcon(slot)" class="size-3 shrink-0" />
+        <span class="truncate">{{ meetingModeLabel(m?.meetingMode) }}</span>
+      </div>
+      <div
+        v-else-if="slot === 'meetingUrl' && m?.meetingUrl"
+        class="mt-1.5"
+      >
+        <UButton
+          size="xs"
+          color="primary"
+          variant="soft"
+          icon="i-lucide-video"
+          :label="$t('docetra.meetingBoard.joinMeeting')"
+          @click.stop="joinMeeting"
+        />
+      </div>
+      <div
+        v-else-if="slot === 'durationMinutes' && m?.durationMinutes != null"
+        class="app-card-field-highlight mt-1.5 flex items-center gap-1.5 text-xs app-card-text"
+        :class="fieldTone(slot)"
+      >
+        <UIcon :name="fieldIcon(slot)" class="size-3 shrink-0" />
+        <span>{{ $t('docetra.meetingBoard.durationMinutes', { n: m.durationMinutes }) }}</span>
       </div>
       <div
         v-else-if="['involvedOfficers', 'externalUnits', 'officeInCharge', 'officerInCharge'].includes(slot) && bodySlotText(slot)"
@@ -404,12 +700,23 @@ function onCardClick(event: MouseEvent) {
     </template>
     </div>
 
+    <div v-if="canJoin && !bodySlots.includes('meetingUrl')" class="mt-2 shrink-0">
+      <UButton
+        size="xs"
+        color="primary"
+        variant="soft"
+        icon="i-lucide-video"
+        :label="$t('docetra.meetingBoard.joinMeeting')"
+        @click.stop="joinMeeting"
+      />
+    </div>
+
     <div
       v-if="footerSlots.length"
       class="mt-auto flex items-center justify-between gap-2 border-t border-default pt-2 text-xs app-card-text"
     >
-      <div class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-        <template v-for="slot in footerLeft" :key="`L-${slot}`">
+      <div v-for="column in footerColumns" :key="column.id" :class="column.columnClass">
+        <template v-for="slot in column.slots" :key="`${column.id}-${slot}`">
           <span
             v-if="slot === 'attachmentCount'"
             class="app-card-field-highlight--compact inline-flex items-center gap-1"
@@ -427,46 +734,46 @@ function onCardClick(event: MouseEvent) {
             {{ commentCount }}
           </span>
           <span
+            v-else-if="slot === 'location'"
+            class="app-card-field-highlight--compact inline-flex min-w-0 items-center gap-1 truncate"
+            :class="footerTone(slot)"
+          >
+            <UIcon name="i-lucide-map-pin" class="size-3 shrink-0" />
+            <span class="truncate">{{ m?.location || '—' }}</span>
+          </span>
+          <span
+            v-else-if="slot === 'attendeesCount'"
+            class="app-card-field-highlight--compact inline-flex items-center gap-1"
+            :class="footerTone(slot)"
+          >
+            <UIcon name="i-lucide-users" class="size-3" />
+            {{ m?.attendeesCount }}
+          </span>
+          <span
+            v-else-if="slot === 'durationMinutes'"
+            class="app-card-field-highlight--compact inline-flex items-center gap-1"
+            :class="footerTone(slot)"
+          >
+            <UIcon name="i-lucide-timer" class="size-3" />
+            {{ m?.durationMinutes }}m
+          </span>
+          <span
+            v-else-if="slot === 'meetingMode'"
+            class="app-card-field-highlight--compact inline-flex min-w-0 items-center gap-1 truncate"
+            :class="footerTone(slot)"
+          >
+            <UIcon name="i-lucide-video" class="size-3 shrink-0" />
+            {{ meetingModeLabel(m?.meetingMode) }}
+          </span>
+          <span
             v-else
             class="app-card-field-highlight--compact inline-flex min-w-0 items-center gap-1 truncate"
             :class="footerTone(slot)"
           >
             <UIcon name="i-lucide-calendar" class="size-3 shrink-0" />
             <span class="truncate">
-              <template v-if="slot === 'recordTime'">{{ recordTime || '—' }}</template>
-              <template v-else-if="slot === 'dateRange'">{{ dateLabel || '—' }}</template>
-              <template v-else>{{ footerDate(slot) || '—' }}</template>
-            </span>
-          </span>
-        </template>
-      </div>
-      <div class="inline-flex shrink-0 flex-wrap items-center justify-end gap-2">
-        <template v-for="slot in footerRight" :key="`R-${slot}`">
-          <span
-            v-if="slot === 'attachmentCount'"
-            class="app-card-field-highlight--compact inline-flex items-center gap-1"
-            :class="footerTone(slot)"
-          >
-            <UIcon name="i-lucide-paperclip" class="size-3" />
-            {{ attachmentCount }}
-          </span>
-          <span
-            v-else-if="slot === 'commentCount'"
-            class="app-card-field-highlight--compact inline-flex items-center gap-1"
-            :class="footerTone(slot)"
-          >
-            <UIcon name="i-lucide-message-circle" class="size-3" />
-            {{ commentCount }}
-          </span>
-          <span
-            v-else
-            class="app-card-field-highlight--compact inline-flex min-w-0 items-center gap-1 truncate"
-            :class="footerTone(slot)"
-          >
-            <UIcon name="i-lucide-calendar" class="size-3 shrink-0" />
-            <span class="truncate">
-              <template v-if="slot === 'recordTime'">{{ recordTime || '—' }}</template>
-              <template v-else-if="slot === 'dateRange'">{{ dateLabel || '—' }}</template>
+              <template v-if="!m && slot === 'recordTime'">{{ recordTime || '—' }}</template>
+              <template v-else-if="!m && slot === 'dateRange'">{{ dateLabel || '—' }}</template>
               <template v-else>{{ footerDate(slot) || '—' }}</template>
             </span>
           </span>
@@ -475,3 +782,19 @@ function onCardClick(event: MouseEvent) {
     </div>
   </article>
 </template>
+
+<style scoped>
+@keyframes meeting-imminent-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--ui-primary) 35%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--ui-primary) 55%, transparent);
+  }
+}
+
+.meeting-card--imminent {
+  animation: meeting-imminent-pulse 1.6s ease-in-out infinite;
+}
+</style>

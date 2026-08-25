@@ -55,3 +55,6 @@ def configure_logging() -> None:
     root.handlers.clear()
     root.addHandler(handler)
     root.setLevel(level)
+    # AMQP wire-protocol frame dumps are noise even under DEBUG.
+    for name in ("aiormq", "aio_pika"):
+        logging.getLogger(name).setLevel(logging.INFO)

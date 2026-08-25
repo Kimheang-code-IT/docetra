@@ -11,7 +11,7 @@ from app.core.datetime import extract_record_time, iso_utc, utcnow
 from app.core.frontend_contract import normalize_assignment_refs
 from app.modules.people_access.services.identity import strip_secrets
 from app.modules.record.domain.map import CORE_RECORD_KEYS, LIFECYCLE_TO_STATUS, STATUS_TO_LIFECYCLE
-from app.models.record import Record, RecordDetail, RecordType
+from app.models.record import Record, RecordAttribute, RecordDetail, RecordTemplate, RecordType
 
 
 def lifecycle_status(row: Record) -> str:
@@ -58,6 +58,8 @@ def record_to_payload(row: Record, details: dict[str, Any] | None = None) -> dic
         result["stage"] = row.stage
     if row.record_time:
         result["recordTime"] = iso_utc(row.record_time)
+    if row.record_type_id:
+        result["recordTypeId"] = str(row.record_type_id)
     if row.record_type_code:
         result["recordTypeCode"] = row.record_type_code
         result.setdefault("recordType", row.record_type_code)
@@ -138,25 +140,69 @@ def _detail_values(code: str, value: Any) -> dict[str, Any]:
     return cols
 
 
-async def replace_details(db: AsyncSession, record_id: uuid.UUID, payload: dict, actor_officer_id: uuid.UUID | None) -> None:
+async def _resolve_attribute(
+    db: AsyncSession,
+    code: str,
+    record_type_id: uuid.UUID | None,
+) -> RecordAttribute | None:
+    if record_type_id:
+        assigned = await db.scalar(
+            select(RecordAttribute)
+            .join(RecordTemplate, RecordTemplate.record_attribute_id == RecordAttribute.id)
+            .where(
+                RecordTemplate.record_type_id == record_type_id,
+                RecordAttribute.code == code,
+            )
+            .order_by(RecordTemplate.ordering)
+        )
+        if assigned:
+            return assigned
+    return await db.scalar(
+        select(RecordAttribute).where(RecordAttribute.code == code).order_by(RecordAttribute.created_at)
+    )
+
+
+async def replace_details(
+    db: AsyncSession,
+    record_id: uuid.UUID,
+    payload: dict,
+    actor_officer_id: uuid.UUID | None,
+    record_type_id: uuid.UUID | None = None,
+) -> None:
     await db.execute(delete(RecordDetail).where(RecordDetail.record_id == record_id))
     for key, value in payload.items():
         if key in CORE_RECORD_KEYS or value is None:
             continue
         cols = _detail_values(key, value)
+        attribute = await _resolve_attribute(db, key, record_type_id)
         db.add(RecordDetail(
             record_id=record_id,
-            record_attribute_code=key,
+            record_attribute_id=attribute.id if attribute else None,
+            record_attribute_code=attribute.code if attribute else key,
             created_by=actor_officer_id,
             updated_by=actor_officer_id,
             **cols,
         ))
 
 
-async def ensure_record_type(db: AsyncSession, code: str, actor_officer_id: uuid.UUID | None = None) -> RecordType:
+async def ensure_record_type(
+    db: AsyncSession,
+    code: str,
+    actor_officer_id: uuid.UUID | None = None,
+    organization_id: uuid.UUID | None = None,
+    *,
+    unrestricted: bool = False,
+) -> RecordType:
     from app.modules.record.domain.map import merge_type_ui_payload
+    import app.modules.record.services.type_access as type_access
 
-    row = await db.scalar(select(RecordType).where(RecordType.code == code))
+    org_id = organization_id or await type_access.organization_id_for_officer(db, actor_officer_id)
+    row = await type_access.resolve_type_by_code(
+        db,
+        code,
+        organization_id=org_id,
+        unrestricted=unrestricted or org_id is None,
+    )
     if row:
         merged = merge_type_ui_payload(code, dict(row.payload or {}))
         if dict(row.payload or {}) != merged:
@@ -173,6 +219,48 @@ async def ensure_record_type(db: AsyncSession, code: str, actor_officer_id: uuid
     )
     db.add(row)
     await db.flush()
+    if org_id:
+        await type_access.grant(
+            db,
+            row.id,
+            org_id,
+            permission_kind=type_access.OWNER,
+            actor_officer_id=actor_officer_id,
+        )
+    else:
+        await type_access.backfill_shared_grants_if_empty(db, row.id)
+    return row
+
+
+async def resolve_or_ensure_type(
+    db: AsyncSession,
+    code: str,
+    actor_officer_id: uuid.UUID | None = None,
+    organization_id: uuid.UUID | None = None,
+    *,
+    unrestricted: bool = False,
+) -> RecordType:
+    from fastapi import HTTPException
+    from app.modules.record.domain.map import TYPE_UI_DEFAULTS
+    import app.modules.record.services.type_access as type_access
+
+    if code in TYPE_UI_DEFAULTS:
+        return await ensure_record_type(
+            db,
+            code,
+            actor_officer_id,
+            organization_id,
+            unrestricted=unrestricted,
+        )
+    org_id = organization_id or await type_access.organization_id_for_officer(db, actor_officer_id)
+    row = await type_access.resolve_type_by_code(
+        db,
+        code,
+        organization_id=org_id,
+        unrestricted=unrestricted or org_id is None,
+    )
+    if not row:
+        raise HTTPException(404, "Record type not found")
     return row
 
 

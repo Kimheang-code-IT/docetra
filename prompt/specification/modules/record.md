@@ -23,13 +23,13 @@ The record module owns:
 A record is the primary operational entity in the system. It represents a business item that must be tracked through its lifecycle.
 
 ### Record type
-A record type defines the behavior, attribute set, and workflow structure of a record.
+A record type defines the behavior, attribute set, and workflow structure of a record. Runtime joins use `record.record_type_id` → `record_type.id`. HTTP `{typeCode}` is resolved among types the caller's organization can access.
 
 ### Record stage
 A stage describes the current phase of a workflow for a record type.
 
 ### Record detail
-Record detail stores typed dynamic values for record-specific fields.
+Record detail stores typed dynamic values for record-specific fields. Join the catalog through `record_attribute_id`; `record_attribute_code` is the JSON field key.
 
 ### Record attachment
 Record attachment links a record to a file or another related record when required.
@@ -147,6 +147,7 @@ The record module should own or primarily manage:
 - `record_stage_template`
 - `record_type`
 - `record_attribute`
+- `record_type_permission`
 - `record_template`
 
 ## API responsibilities

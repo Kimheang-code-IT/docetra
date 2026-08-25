@@ -1,0 +1,17 @@
+---
+description: Docetra FastAPI modules — ownership, /api/v2, workers, cache
+globs: backend/**/*.py
+alwaysApply: false
+---
+
+# Docetra backend
+
+- Put rules in `backend/app/modules/<name>/{api,domain,services,repositories}/`. HTTP stays thin.
+- Modules: `record`, `organization`, `people_access`, `storage_integration`, `admin_config`, `reporting_support`.
+- Prefix `/api/v2`. If adapters and this tree disagree on path or JSON keys, **frontend adapters win** until a versioned change. Spec wins on architecture.
+- Do not run scheduler or worker jobs inside the API process. Drive sync, exports, scans, and notifications go through RabbitMQ.
+- Redis is cache/session with TTL. PostgreSQL is business and authorization truth.
+- Enforce permissions on the server. Optimistic concurrency on writes (`version` / `If-Match`).
+- Tests: `python -m pytest -q` from `backend/`.
+
+Details: `.opencode/skills/docetra/backend.md`.

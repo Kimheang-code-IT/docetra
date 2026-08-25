@@ -13,6 +13,3 @@ from app.models.record import Entity
 async def sync_domain_row(db: AsyncSession, row: Entity) -> None:
     return
 
-
-async def upsert_meeting_schedule(db: AsyncSession, row: Entity) -> None:
-    return

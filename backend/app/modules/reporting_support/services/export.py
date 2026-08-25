@@ -16,6 +16,7 @@ from app.models.record import Record, RecordAttribute, RecordType
 from app.models.storage import File
 import app.modules.organization.services.service as org_service
 import app.modules.people_access.services.people as people
+from app.core.datetime import parse_instant
 from app.modules.organization.domain.map import ORG_RESOURCES
 from app.modules.record.domain.map import RECORD_RESOURCES
 import app.modules.record.services.serializer as record_ser
@@ -63,16 +64,44 @@ def _parse_ids(selected: list) -> list[uuid.UUID]:
     return ids
 
 
+SECRET_FIELDS = {"password", "passwordHash", "secret", "token", "objectKey"}
+
+
+def date_bounds(payload: dict) -> tuple[datetime | None, datetime | None]:
+    """Dialog startDate/endDate. Records filter on record_time; other resources on created_at."""
+    start = parse_instant(str(payload.get("startDate") or "") or None)
+    end = parse_instant(str(payload.get("endDate") or "") or None, end_of_day=True)
+    return start, end
+
+
+def range_filters(column, start, end):
+    filters = []
+    if start:
+        filters.append(column >= start)
+    if end:
+        filters.append(column <= end)
+    return filters
+
+
+def select_fields(field_codes: list, values_list: list[dict]) -> list[str]:
+    fields = [str(code) for code in field_codes or [] if str(code) not in SECRET_FIELDS]
+    if not fields:
+        fields = sorted({key for row in values_list for key in row.keys() if key not in SECRET_FIELDS})
+    return ["id", *[f for f in fields if f != "id"]]
+
+
 async def _rows_for_resource(db: AsyncSession, resource: str, payload: dict) -> list[dict]:
     selected = payload.get("selectedIds") or []
     scope_selected = payload.get("scope") == "selected"
     ids = _parse_ids(selected) if scope_selected else []
+    start, end = date_bounds(payload)
 
     if resource in RECORD_RESOURCES:
         type_code = RECORD_RESOURCES[resource]
         stmt = select(Record).where(Record.record_type_code == type_code, Record.lifecycle != "deleted")
         if scope_selected:
             stmt = stmt.where(Record.id.in_(ids or [uuid.uuid4()]))
+        stmt = stmt.where(*range_filters(Record.record_time, start, end))
         rows = (await db.scalars(stmt.order_by(Record.updated_at.desc()).limit(10000))).all()
         return await record_ser.serialize_records(db, rows)
 
@@ -81,6 +110,7 @@ async def _rows_for_resource(db: AsyncSession, resource: str, payload: dict) -> 
         stmt = select(Organization).where(Organization.organization_type == org_type, Organization.is_active != 0)
         if scope_selected:
             stmt = stmt.where(Organization.id.in_(ids or [uuid.uuid4()]))
+        stmt = stmt.where(*range_filters(Organization.created_at, start, end))
         rows = (await db.scalars(stmt.order_by(Organization.updated_at.desc()).limit(10000))).all()
         return [org_service.org_to_payload(row) for row in rows]
 
@@ -88,6 +118,7 @@ async def _rows_for_resource(db: AsyncSession, resource: str, payload: dict) -> 
         stmt = select(OrganizationSector).where(OrganizationSector.is_active != 0)
         if scope_selected:
             stmt = stmt.where(OrganizationSector.id.in_(ids or [uuid.uuid4()]))
+        stmt = stmt.where(*range_filters(OrganizationSector.created_at, start, end))
         rows = (await db.scalars(stmt.limit(10000))).all()
         return [org_service.sector_to_payload(row) for row in rows]
 
@@ -95,6 +126,7 @@ async def _rows_for_resource(db: AsyncSession, resource: str, payload: dict) -> 
         stmt = select(OrganizationPurpose).where(OrganizationPurpose.is_active != 0)
         if scope_selected:
             stmt = stmt.where(OrganizationPurpose.id.in_(ids or [uuid.uuid4()]))
+        stmt = stmt.where(*range_filters(OrganizationPurpose.created_at, start, end))
         rows = (await db.scalars(stmt.limit(10000))).all()
         return [org_service.purpose_to_payload(row) for row in rows]
 
@@ -102,6 +134,7 @@ async def _rows_for_resource(db: AsyncSession, resource: str, payload: dict) -> 
         stmt = select(Officer).where(Officer.is_active != 0)
         if scope_selected:
             stmt = stmt.where(Officer.id.in_(ids or [uuid.uuid4()]))
+        stmt = stmt.where(*range_filters(Officer.created_at, start, end))
         rows = (await db.scalars(stmt.limit(10000))).all()
         return [people.officer_to_payload(row) for row in rows]
 
@@ -109,6 +142,7 @@ async def _rows_for_resource(db: AsyncSession, resource: str, payload: dict) -> 
         stmt = select(Role).where(Role.is_active != 0)
         if scope_selected:
             stmt = stmt.where(Role.id.in_(ids or [uuid.uuid4()]))
+        stmt = stmt.where(*range_filters(Role.created_at, start, end))
         rows = (await db.scalars(stmt.limit(10000))).all()
         out = []
         for row in rows:
@@ -119,6 +153,7 @@ async def _rows_for_resource(db: AsyncSession, resource: str, payload: dict) -> 
         stmt = select(User).where(User.status != "deleted")
         if scope_selected:
             stmt = stmt.where(User.id.in_(ids or [uuid.uuid4()]))
+        stmt = stmt.where(*range_filters(User.created_at, start, end))
         rows = (await db.scalars(stmt.limit(10000))).all()
         return [people.user_to_payload(row) for row in rows]
 
@@ -126,6 +161,7 @@ async def _rows_for_resource(db: AsyncSession, resource: str, payload: dict) -> 
         stmt = select(RecordType)
         if scope_selected:
             stmt = stmt.where(RecordType.id.in_(ids or [uuid.uuid4()]))
+        stmt = stmt.where(*range_filters(RecordType.created_at, start, end))
         rows = (await db.scalars(stmt.limit(10000))).all()
         return [{"id": str(r.id), "code": r.code, "name": r.nam or r.code, "description": r.description, **(r.payload or {})} for r in rows]
 
@@ -133,6 +169,7 @@ async def _rows_for_resource(db: AsyncSession, resource: str, payload: dict) -> 
         stmt = select(RecordAttribute)
         if scope_selected:
             stmt = stmt.where(RecordAttribute.id.in_(ids or [uuid.uuid4()]))
+        stmt = stmt.where(*range_filters(RecordAttribute.created_at, start, end))
         rows = (await db.scalars(stmt.limit(10000))).all()
         return [{"id": str(r.id), "code": r.code, "name": r.nam or r.code, "dataType": r.data_type, **(r.payload or {})} for r in rows]
 
@@ -140,12 +177,14 @@ async def _rows_for_resource(db: AsyncSession, resource: str, payload: dict) -> 
         stmt = select(File).where(File.status != "deleted")
         if scope_selected:
             stmt = stmt.where(File.id.in_(ids or [uuid.uuid4()]))
+        stmt = stmt.where(*range_filters(File.created_at, start, end))
         rows = (await db.scalars(stmt.limit(10000))).all()
         return [{"id": str(r.id), "name": r.nam, "objectKey": r.path, "sizeBytes": r.file_size, "mimeType": r.mime_type, "status": r.status} for r in rows]
 
     if resource in {"record-logs", "portal-logs", "system-logs"}:
         source = {"portal-logs": "portal", "system-logs": "system"}.get(resource, "record")
         filters = [AuditLog.source_log == source] if source != "record" else [AuditLog.source_log.in_(("record", "api", "unknown"))]
+        filters.extend(range_filters(AuditLog.created_at, start, end))
         rows = (await db.scalars(select(AuditLog).where(*filters).order_by(AuditLog.created_at.desc()).limit(10000))).all()
         return [{
             "id": str(row.id),
@@ -160,6 +199,7 @@ async def _rows_for_resource(db: AsyncSession, resource: str, payload: dict) -> 
     stmt = select(Entity).where(Entity.resource == resource, Entity.status != "deleted")
     if scope_selected:
         stmt = stmt.where(Entity.id.in_(ids or [uuid.uuid4()]))
+    stmt = stmt.where(*range_filters(Entity.created_at, start, end))
     rows = (await db.scalars(stmt.order_by(Entity.updated_at.desc()).limit(10000))).all()
     return [
         {"id": str(row.id), **(row.payload or {}), "status": row.status, "stage": row.stage,
@@ -175,10 +215,7 @@ async def generate_export(db: AsyncSession, job: Entity) -> None:
     if not resource:
         raise ValueError("Export resource is required")
     values_list = await _rows_for_resource(db, resource, payload)
-    fields = [str(x) for x in payload.get("fieldCodes") or [] if str(x) not in {"password", "passwordHash", "secret", "token", "objectKey"}]
-    if not fields:
-        fields = sorted({key for row in values_list for key in row.keys() if key not in {"password", "passwordHash", "secret", "token", "objectKey"}})
-    fields = ["id", *[f for f in fields if f != "id"]]
+    fields = select_fields(list(payload.get("fieldCodes") or []), values_list)
     output = StringIO(newline="")
     writer = csv.DictWriter(output, fieldnames=fields, extrasaction="ignore")
     writer.writeheader()

@@ -1,17 +1,14 @@
-import secrets
 import uuid
-from datetime import datetime, timezone
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.errors import DomainError
-from app.core.permissions import expand_permission_rows, normalize_permission_payload
+from app.core.permissions import normalize_permission_payload
 from app.core.privileged import is_unrestricted, is_unrestricted_role_name
 from app.core.redaction import strip_secrets
-from app.core.security import hash_password, revoke_user_tokens
-from app.db import Entity, User
+from app.db import User
 from app.models.access import Role
 from app.models.people import Officer
 import app.modules.people_access.services.people as people
@@ -130,85 +127,6 @@ async def normalize_identity_payload(
             if officer.auth_id is not None and officer.auth_id != excluded:
                 raise DomainError("CONFLICT", "Officer is already linked to another user", 409)
     return data
-
-
-async def permissions_for_role(db: AsyncSession, payload: dict) -> list[str]:
-    role_id = payload.get("roleId")
-    if role_id:
-        try:
-            return await people.permissions_for_role_id(db, uuid.UUID(str(role_id)))
-        except (TypeError, ValueError):
-            return []
-    rows = payload.get("permissionRows")
-    if rows:
-        return expand_permission_rows(rows)
-    return []
-
-
-async def sync_login_user(db: AsyncSession, entity: Entity, payload: dict) -> User | None:
-    email = str(payload.get("email") or "").strip().lower()
-    name = str(payload.get("name") or email or "User")
-    if not email:
-        return None
-    role_id = None
-    if payload.get("roleId"):
-        try:
-            role_id = uuid.UUID(str(payload["roleId"]))
-        except ValueError:
-            role_id = None
-    role_name = "User"
-    permissions: list[str] = []
-    if role_id:
-        role = await db.get(Role, role_id)
-        if role:
-            role_name = role.nam
-            permissions = await people.permissions_for_role_id(db, role.id)
-    account = await db.get(User, entity.id)
-    if account is None:
-        account = await db.scalar(select(User).where(User.email == email))
-    active = entity.status == "active"
-    if account is None:
-        password = str(payload.get("password") or secrets.token_urlsafe(18))
-        account = User(
-            id=entity.id,
-            email=email,
-            name=name,
-            password_hash=hash_password(password),
-            role=role_name,
-            permissions=permissions,
-            active=active,
-            role_id=role_id,
-        )
-        db.add(account)
-    old_permissions = set(account.permissions or [])
-    account.name = name
-    account.email = email
-    if role_id:
-        account.role_id = role_id
-        account.role = role_name
-        account.permissions = permissions
-    if payload.get("password"):
-        account.password_hash = hash_password(str(payload["password"]))
-    account.active = active
-    account.status = entity.status
-    account.version = entity.version
-    account.updated_at = datetime.now(timezone.utc)
-    if payload.get("officerId"):
-        account.officer_id = uuid.UUID(str(payload["officerId"]))
-    elif "officerId" in payload:
-        account.officer_id = None
-    if not active or old_permissions != set(account.permissions or []):
-        await revoke_user_tokens(str(account.id))
-    return account
-
-
-async def refresh_role_users(db: AsyncSession, role: Role) -> None:
-    users = (await db.scalars(select(User).where(User.role_id == role.id))).all()
-    keys = await people.permissions_for_role_id(db, role.id)
-    for account in users:
-        account.permissions = keys
-        account.role = role.nam
-        await revoke_user_tokens(str(account.id))
 
 
 async def ensure_admin_entity(db: AsyncSession, user: User) -> None:

@@ -6,7 +6,7 @@ import { useAppHeader } from '~/composables/layout/useAppHeader'
 import { usePageSeo } from '~/composables/usePageSeo'
 import { getByPath } from '~/utils/object-path'
 import type { ExportRequest } from '~/types/docetra/export'
-import { createExportJob } from '~/adapters/exports'
+import { useExportJobRunner } from '~/composables/common/useExportJobRunner'
 
 const props = defineProps<{
   config: EntityConfig
@@ -52,8 +52,6 @@ const {
 
 const {
   tabs: documentTabs,
-  loadingType: loadingRecordSchema,
-  reload: reloadRecordSchema,
 } = useRecordTypeDrivenTabs({
   entityKey: props.config.key,
   recordBacked: props.config.recordBacked === true,
@@ -81,6 +79,7 @@ const {
 
 const { t, te } = useI18n()
 const auth = useAuthStore()
+const exportRunner = useExportJobRunner()
 const { setBreadcrumbs, setBadges, clear } = useAppHeader()
 const toast = useToast()
 
@@ -155,9 +154,9 @@ const currentUser = computed(() => ({
 const showMetaRail = computed(() => props.config.document?.metaRail !== false)
 const contentWide = computed(() => props.config.document?.wide === true)
 // Dynamic schema loading must not cover a new form with the full-page pending
-// overlay. Existing records still block until both record and schema are ready.
+// overlay. Show the record as soon as GET returns; type fields fill in after.
 const documentPending = computed(() =>
-  !isCreate.value && (pending.value || loadingRecordSchema.value),
+  !isCreate.value && pending.value,
 )
 const exporting = ref(false)
 const canEditDocument = computed(() => auth.canAccessPage(permissionForAction(
@@ -171,7 +170,7 @@ const canExportDocument = computed(() => auth.canAccessPage(permissionForAction(
 async function exportDocument(request: ExportRequest) {
   exporting.value = true
   try {
-    await createExportJob({
+    await exportRunner.run({
       ...request,
       resource: props.config.key,
       format: 'csv',
@@ -187,10 +186,8 @@ function saveDocument() {
   return save(documentTabs.value)
 }
 
-/** Reload the record first, then its current Record Type schema and related data. */
 async function refreshDocument() {
   await load()
-  await reloadRecordSchema()
 }
 </script>
 

@@ -5,7 +5,6 @@ import { getEntityConfig } from '~/config/entities'
 import { useConfirm } from '~/composables/common/useConfirm'
 import { useEntityWorkspace } from '~/composables/workspace/useEntityWorkspace'
 import { ApiEndpoints } from '~/utils/constants/api-endpoints'
-import { adapters } from '~/adapters'
 import { useAuthStore } from '~/stores/auth'
 import { permissionForAction } from '~/utils/role/access'
 import type { RowActionItem } from '~/types/docetra/row-actions'
@@ -56,7 +55,6 @@ const searchInput = ref(q.value)
 const selectedIds = ref<string[]>([])
 const uploading = ref(false)
 const deleting = ref(false)
-const hasStatusFilter = computed(() => Boolean(filters.value.status))
 
 const statusFilter = computed(() =>
   config.filters.find(f => f.key === 'status'),
@@ -82,9 +80,25 @@ const uploadDateEnd = computed({
   set: (value: string) => setFilter('endDate', value || undefined),
 })
 
-const hasUploadFilters = computed(() => Boolean(
-  hasStatusFilter.value || uploadDateStart.value.trim() || uploadDateEnd.value.trim(),
-))
+/** Shared workspace toolbar contract for status + created-at range. */
+const uploadFilters = computed(() => [
+  ...(statusFilter.value ? [statusFilter.value] : []),
+  { key: 'createdAt', labelKey: 'docetra.fields.createdAt', type: 'daterange' } as const,
+])
+
+const uploadFilterValues = computed<Record<string, string>>(() => ({
+  ...(statusFilter.value ? { [statusFilter.value.key]: String(filters.value.status || '') } : {}),
+  startDate: uploadDateStart.value,
+  endDate: uploadDateEnd.value,
+}))
+
+function onUploadSetFilter(key: string, value: string | string[] | undefined) {
+  if (statusFilter.value && key === statusFilter.value.key) {
+    onStatusFilterChange(value == null ? null : value)
+    return
+  }
+  setFilter(key, value)
+}
 
 watch(q, (v) => { searchInput.value = v })
 watch(searchInput, (v) => debouncedSearch(v))
@@ -310,61 +324,15 @@ onMounted(() => {
                 {{ $t('docetra.fileUploadBoard.tableTitle') }}
               </h2>
             </div>
-
-            <CommonAppLiveSearch
-              v-model="searchInput"
-              class="min-w-0 w-full max-w-[18.75rem] flex-1"
-              :placeholder="$t('docetra.fileUploadBoard.search')"
-            />
-
-            <div class="hidden shrink-0 items-center gap-2.5 lg:flex">
-              <CommonAppFilterSelect
-                v-if="statusFilter"
-                :filter="statusFilter"
-                :model-value="statusFilterValue"
-                @update:model-value="onStatusFilterChange"
-              />
-              <CommonAppDateRangeFilter
-                v-model:start="uploadDateStart"
-                v-model:end="uploadDateEnd"
-                :label="$t('docetra.fields.createdAt')"
-                size="sm"
-              />
-            </div>
-
-            <div class="ms-auto flex shrink-0 items-center lg:hidden">
-              <UPopover>
-                <UButton
-                  icon="i-lucide-filter"
-                  :color="hasUploadFilters ? 'primary' : 'neutral'"
-                  :variant="hasUploadFilters ? 'soft' : 'ghost'"
-                  size="sm"
-                  square
-                  :aria-label="$t('docetra.actions.filter')"
-                />
-                <template #content>
-                  <div class="flex w-[calc(100vw-2rem)] max-w-3xl flex-nowrap items-center gap-2 overflow-x-auto p-3">
-                    <CommonAppFilterSelect
-                      v-if="statusFilter"
-                      :filter="statusFilter"
-                      :model-value="statusFilterValue"
-                      class="shrink-0"
-                      @update:model-value="onStatusFilterChange"
-                    />
-                    <div class="shrink-0">
-                      <CommonAppDateRangeFilter
-                        v-model:start="uploadDateStart"
-                        v-model:end="uploadDateEnd"
-                        :label="$t('docetra.fields.createdAt')"
-                        size="sm"
-                        inline
-                      />
-                    </div>
-                  </div>
-                </template>
-              </UPopover>
-            </div>
           </div>
+
+          <WorkspaceAppWorkspaceToolbar
+            v-model:search="searchInput"
+            :search-placeholder="$t('docetra.fileUploadBoard.search')"
+            :filters="uploadFilters"
+            :filter-values="uploadFilterValues"
+            @set-filter="onUploadSetFilter"
+          />
 
           <WorkspaceAppServerTable
             class="min-h-0 flex-1"

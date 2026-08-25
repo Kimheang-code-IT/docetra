@@ -15,5 +15,12 @@ class JsonCache:
     async def set(self, key, value, ttl):
         await self.redis.setex(f"{self.prefix}:{key}", ttl, json.dumps(value, default=str))
 
+    async def add(self, key, value, ttl) -> bool:
+        """Set only when absent (NX) — used for short-lived locks. False if held."""
+        return bool(await self.redis.set(f"{self.prefix}:{key}", json.dumps(value, default=str), ex=ttl, nx=True))
+
+    async def delete(self, key):
+        await self.redis.delete(f"{self.prefix}:{key}")
+
 
 short_cache = JsonCache(settings.cache_short_url, "docetra:short")

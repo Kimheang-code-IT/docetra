@@ -24,8 +24,21 @@ def assert_comment_author_or_unrestricted(row: Comment, user: User) -> None:
 async def get_neighbors(db: AsyncSession, resource: str, entity_id: str) -> dict:
     uid = uuid.UUID(entity_id)
     if resource in RECORD_RESOURCES:
-        type_code = RECORD_RESOURCES[resource]
-        ids = list((await db.scalars(select(Record.id).where(Record.record_type_code == type_code, Record.lifecycle != "deleted").order_by(Record.updated_at.desc()))).all())
+        current = await db.get(Record, uid)
+        if not current:
+            raise HTTPException(404, "Not found")
+        if current.record_type_id:
+            ids = list((await db.scalars(
+                select(Record.id).where(
+                    Record.record_type_id == current.record_type_id,
+                    Record.lifecycle != "deleted",
+                ).order_by(Record.updated_at.desc())
+            )).all())
+        else:
+            type_code = RECORD_RESOURCES[resource]
+            ids = list((await db.scalars(
+                select(Record.id).where(Record.record_type_code == type_code, Record.lifecycle != "deleted").order_by(Record.updated_at.desc())
+            )).all())
     else:
         ids = list((await db.scalars(select(Entity.id).where(Entity.resource == resource, Entity.status != "deleted").order_by(Entity.updated_at.desc()))).all())
     if uid not in ids:

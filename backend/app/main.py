@@ -50,6 +50,20 @@ configure_logging()
 log = logging.getLogger(__name__)
 
 API_CONTENT_SECURITY_POLICY = "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
+# Swagger UI is dev-only (docs_url disabled in production) but still locked down:
+# CDN assets for swagger-ui-dist, inline init script/styles, same-origin openapi fetch.
+DOCS_CONTENT_SECURITY_POLICY = (
+    "default-src 'self'; "
+    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+    "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+    "img-src 'self' data: https://fastapi.tiangolo.com; "
+    "font-src 'self' data: https://cdn.jsdelivr.net; "
+    "connect-src 'self'; "
+    "frame-ancestors 'none'; "
+    "base-uri 'none'; "
+    "form-action 'self'"
+)
+DOCS_PATHS = frozenset({"/api/v2/docs", "/api/v2/openapi.json"})
 
 
 async def seed_record_type_ui() -> None:
@@ -58,8 +72,11 @@ async def seed_record_type_ui() -> None:
     from app.modules.record.services.serializer import ensure_record_type
 
     async with SessionLocal() as db:
+        import app.modules.record.services.type_access as type_access
+
         for code in TYPE_UI_DEFAULTS:
-            await ensure_record_type(db, code, None)
+            row = await ensure_record_type(db, code, None)
+            await type_access.backfill_shared_grants_if_empty(db, row.id)
         await db.commit()
 
 
@@ -158,7 +175,9 @@ def create_app() -> FastAPI:
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
-        response.headers["Content-Security-Policy"] = API_CONTENT_SECURITY_POLICY
+        response.headers["Content-Security-Policy"] = (
+            DOCS_CONTENT_SECURITY_POLICY if request.url.path in DOCS_PATHS else API_CONTENT_SECURITY_POLICY
+        )
         response.headers["X-Request-ID"] = request_id
         response.headers["X-Correlation-ID"] = correlation_id
         await observe(request, response.status_code, time.monotonic() - started)

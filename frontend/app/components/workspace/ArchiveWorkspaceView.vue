@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { AdapterKey } from '~/adapters'
+import type { FilterDef } from '~/types/docetra/common'
 import {
   ARCHIVE_COLUMNS,
   useArchiveWorkspace,
@@ -27,10 +29,25 @@ const {
   onLimitChange,
 } = useArchiveWorkspace()
 
-const hasArchiveFilters = computed(() =>
-  sourceFilter.value !== 'all'
-  || Boolean(dateStart.value.trim() || dateEnd.value.trim()),
-)
+const archiveFilters = computed<FilterDef[]>(() => [
+  { key: 'source', labelKey: 'docetra.archive.type', type: 'select', options: sourceOptions.value },
+  { key: 'archivedAt', labelKey: 'docetra.archive.archivedAt', type: 'daterange', startKey: 'archivedAtStart', endKey: 'archivedAtEnd' },
+])
+
+const archiveFilterValues = computed<Record<string, string>>(() => ({
+  source: sourceFilter.value === 'all' ? '' : sourceFilter.value,
+  archivedAtStart: dateStart.value,
+  archivedAtEnd: dateEnd.value,
+}))
+
+function onSetFilter(key: string, value: string | string[] | undefined) {
+  if (key === 'source') {
+    sourceFilter.value = (String(Array.isArray(value) ? value[0] : value) || 'all') as AdapterKey | 'all'
+    return
+  }
+  if (key === 'archivedAtStart') dateStart.value = value ? String(value) : ''
+  if (key === 'archivedAtEnd') dateEnd.value = value ? String(value) : ''
+}
 </script>
 
 <template>
@@ -65,63 +82,16 @@ const hasArchiveFilters = computed(() =>
         @retry="refresh"
       >
         <template #toolbar>
-          <div class="flex shrink-0 items-center gap-2 border-b border-default bg-default px-3 py-2.5 lg:justify-between">
-            <CommonAppLiveSearch
-              v-model="search"
-              :placeholder="$t('docetra.archive.searchPlaceholder')"
-              size="md"
-              class="min-w-0 w-full max-w-[18.75rem] flex-1 lg:flex-none"
-            />
-
-            <UPopover class="ms-auto shrink-0 lg:hidden">
-              <UButton
-                icon="i-lucide-filter"
-                :color="hasArchiveFilters ? 'primary' : 'neutral'"
-                :variant="hasArchiveFilters ? 'soft' : 'outline'"
-                size="sm"
-                square
-                :aria-label="$t('docetra.actions.filter')"
-              />
-              <template #content>
-                <div class="flex w-[calc(100vw-2rem)] max-w-4xl flex-nowrap items-center gap-2 overflow-x-auto p-3">
-                  <CommonAppSingleFilterSelect
-                    v-model="sourceFilter"
-                    :items="sourceOptions"
-                    :label="$t('docetra.archive.type')"
-                    :placeholder="$t('docetra.archive.allTypes')"
-                    :searchable="false"
-                    class="shrink-0"
-                  />
-                  <CommonAppDateRangeFilter
-                    v-model:start="dateStart"
-                    v-model:end="dateEnd"
-                    :label="$t('docetra.archive.archivedAt')"
-                    size="sm"
-                    inline
-                    class="shrink-0"
-                  />
-                </div>
-              </template>
-            </UPopover>
-
-            <div class="hidden ms-auto shrink-0 flex-nowrap items-center gap-2 lg:flex">
-              <CommonAppSingleFilterSelect
-                v-model="sourceFilter"
-                :items="sourceOptions"
-                :label="$t('docetra.archive.type')"
-                :placeholder="$t('docetra.archive.allTypes')"
-                :searchable="false"
-              />
-              <CommonAppDateRangeFilter
-                v-model:start="dateStart"
-                v-model:end="dateEnd"
-                :label="$t('docetra.archive.archivedAt')"
-                size="sm"
-              />
-            </div>
-          </div>
+          <WorkspaceAppWorkspaceToolbar
+            v-model:search="search"
+            :search-placeholder="$t('docetra.archive.searchPlaceholder')"
+            :filters="archiveFilters"
+            :filter-values="archiveFilterValues"
+            @set-filter="onSetFilter"
+          />
         </template>
       </WorkspaceAppServerTable>
     </div>
   </WorkspaceAppWorkspacePage>
 </template>
+

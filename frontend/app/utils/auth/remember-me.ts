@@ -5,7 +5,7 @@ const AuthKeys = {
   REMEMBER_ENABLED: 'login:remember:enabled',
 } as const
 
-export type RememberMeState = {
+type RememberMeState = {
   enabled: boolean
   email: string
 }

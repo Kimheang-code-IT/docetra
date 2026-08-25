@@ -109,6 +109,10 @@ class OrganizationApplicationService:
                 updated_by=officer_id,
             )
             db.add(row)
+            await db.flush()
+            import app.modules.record.services.type_access as type_access
+
+            await type_access.share_builtin_types(db, row.id, officer_id)
             await db.commit()
             await db.refresh(row)
             return org_service.org_to_payload(row)

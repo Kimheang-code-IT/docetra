@@ -473,8 +473,11 @@ Frontend: `frontend/app/adapters/meeting-board.ts`.
 
 | Method | Path | Response |
 | --- | --- | --- |
-| GET | `/configuration/record-types/by-code/{code}/schema` | `{ data: { recordType, tabs, fields, workflowStages, version } }` |
+| GET | `/configuration/record-types/by-code/{code}/schema` | `{ data: { recordType, tabs, fields, workflowStages, version } }` (`recordType` includes `id`, optional `ownerOrganizationId`, `organizationIds`) |
 | GET | `/configuration/record-types/{id}/schema` | same |
+| GET | `/configuration/record-types/{id}/permissions` | `{ data: [{ id, organizationId, recordTypeId, permissionKind }] }` |
+| POST | `/configuration/record-types/{id}/permissions` | body `{ organizationId }` → permission row |
+| DELETE | `/configuration/record-types/{id}/permissions/{organizationId}` | `{ data: { organizationId } }` |
 
 Used by dynamic document forms (`useRecordTypeDrivenTabs`).
 

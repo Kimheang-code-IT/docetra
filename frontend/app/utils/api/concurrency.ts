@@ -1,4 +1,4 @@
-export type VersionedRow = { id?: unknown; version?: unknown }
+type VersionedRow = { id?: unknown; version?: unknown }
 
 export function concurrencyVersion(source: unknown): number | undefined {
   if (typeof source === 'number' && Number.isFinite(source)) return source

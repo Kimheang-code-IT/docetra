@@ -20,3 +20,19 @@ export function shouldClearSessionOn401(options: {
 }): boolean {
   return !options.suppressAccessAlert
 }
+
+export function fetchErrorStatus(error: unknown): number | undefined {
+  if (!error || typeof error !== 'object') return undefined
+  const err = error as {
+    status?: number
+    statusCode?: number
+    response?: { status?: number }
+  }
+  const status = err.status ?? err.statusCode ?? err.response?.status
+  return typeof status === 'number' && Number.isFinite(status) ? status : undefined
+}
+
+/** Refresh the session only when /auth/me says it expired — not on timeouts or 5xx. */
+export function shouldRefreshSessionOnAuthMeFailure(status?: number): boolean {
+  return status === 401
+}

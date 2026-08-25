@@ -124,6 +124,24 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
     }
   }
 
+  async function loadRelatedFeeds(requestedId: string, token: number) {
+    const related = await Promise.allSettled([
+      adapter.listComments?.(requestedId, { page: 1, limit: 20 }),
+      adapter.listActivity?.(requestedId, { page: 1, limit: 20 }),
+      adapter.listAttachments?.(requestedId, { page: 1, limit: 50 }),
+    ])
+    if (token !== loadRequestToken || requestedId !== id.value) return
+    const c = related[0].status === 'fulfilled' ? related[0].value : undefined
+    const a = related[1].status === 'fulfilled' ? related[1].value : undefined
+    const f = related[2].status === 'fulfilled' ? related[2].value : undefined
+    comments.value = (c?.data || []) as EntityComment[]
+    activity.value = (a?.data || []) as ActivityEvent[]
+    attachments.value = (f?.data || []) as AttachmentMeta[]
+    commentsTotal.value = c?.meta?.total || comments.value.length
+    activityTotal.value = a?.meta?.total || activity.value.length
+    feedPage.value = 1
+  }
+
   async function toggleFavorite() {
     if (isCreate.value || !adapter.setFavorite || togglingFavorite.value) return
     const currentId = id.value
@@ -226,6 +244,17 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
         void loadFavorite()
         return
       }
+      comments.value = []
+      activity.value = []
+      attachments.value = []
+      commentsTotal.value = 0
+      activityTotal.value = 0
+      feedPage.value = 1
+      // Record GET is the only call that should block the form overlay.
+      // Comments, activity, files, neighbors, and favorite can arrive after first paint.
+      void loadRelatedFeeds(requestedId, token)
+      void loadRecordNeighbors()
+      void loadFavorite()
       const res = await adapter.get(requestedId)
       if (token !== loadRequestToken || requestedId !== id.value) return
       model.value = {
@@ -249,23 +278,6 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
         )
       }
       dirty.value = false
-      const related = await Promise.allSettled([
-        adapter.listComments?.(requestedId, { page: 1, limit: 20 }),
-        adapter.listActivity?.(requestedId, { page: 1, limit: 20 }),
-        adapter.listAttachments?.(requestedId, { page: 1, limit: 50 }),
-      ])
-      if (token !== loadRequestToken || requestedId !== id.value) return
-      const c = related[0].status === 'fulfilled' ? related[0].value : undefined
-      const a = related[1].status === 'fulfilled' ? related[1].value : undefined
-      const f = related[2].status === 'fulfilled' ? related[2].value : undefined
-      comments.value = (c?.data || []) as EntityComment[]
-      activity.value = (a?.data || []) as ActivityEvent[]
-      attachments.value = (f?.data || []) as AttachmentMeta[]
-      commentsTotal.value = c?.meta?.total || comments.value.length
-      activityTotal.value = a?.meta?.total || activity.value.length
-      feedPage.value = 1
-      void loadRecordNeighbors()
-      void loadFavorite()
     }
     catch (e: any) {
       if (token !== loadRequestToken) return

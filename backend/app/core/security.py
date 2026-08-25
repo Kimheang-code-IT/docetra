@@ -26,6 +26,16 @@ CSRF_EXEMPT_PATHS = {
 }
 
 
+def bearer_token(request: Request) -> str | None:
+    header = request.headers.get("authorization")
+    if not header:
+        return None
+    scheme, _, token = header.partition(" ")
+    if scheme.lower() != "bearer" or not token.strip():
+        return None
+    return token.strip()
+
+
 def hash_password(value: str) -> str:
     return passwords.hash(value)
 
@@ -73,7 +83,7 @@ async def revoke_user_tokens(user_id: str) -> None:
     await redis.delete(f"user-tokens:{user_id}")
 
 
-async def issue_session(response: Response, user: User, *, access_minutes: int | None = None) -> str:
+async def issue_session(response: Response, user: User, *, access_minutes: int | None = None) -> tuple[str, str, str]:
     minutes = access_minutes if access_minutes is not None else settings.jwt_access_minutes
     access, access_jti, _ = encode_token(subject=str(user.id), token_type="access", minutes=minutes)
     refresh, refresh_jti, _ = encode_token(subject=str(user.id), token_type="refresh", days=settings.jwt_refresh_days)
@@ -85,7 +95,7 @@ async def issue_session(response: Response, user: User, *, access_minutes: int |
     response.set_cookie(settings.session_cookie_name, access, **_cookie_kwargs(httponly=True, max_age=access_ttl))
     response.set_cookie(settings.refresh_cookie_name, refresh, **_cookie_kwargs(httponly=True, max_age=refresh_ttl))
     response.set_cookie(settings.csrf_cookie_name, csrf, **_cookie_kwargs(httponly=False, max_age=access_ttl))
-    return access_jti
+    return access_jti, access, refresh
 
 
 async def delete_session(response: Response, access_token: str | None, refresh_token: str | None = None) -> None:
@@ -130,14 +140,14 @@ async def _user_from_token(db: AsyncSession, token: str, *, token_type: str, ver
 
 
 async def current_user(request: Request, db: AsyncSession = Depends(get_db)) -> User:
-    token = request.cookies.get(settings.session_cookie_name)
+    token = bearer_token(request) or request.cookies.get(settings.session_cookie_name)
     if not token:
         raise HTTPException(401, "Authentication required")
     user, _payload, _session = await _user_from_token(db, token, token_type="access", verify_exp=True)
     return user
 
 
-async def refresh_session(request: Request, response: Response, db: AsyncSession) -> User:
+async def refresh_session(request: Request, response: Response, db: AsyncSession) -> tuple[User, str, str]:
     refresh = request.cookies.get(settings.refresh_cookie_name)
     if not refresh:
         raise HTTPException(401, {"code": "token_expired", "message": "Session expired"})
@@ -147,12 +157,14 @@ async def refresh_session(request: Request, response: Response, db: AsyncSession
 
     config = await runtime.load_app_config(db)
     policy = runtime.security_policy(config)
-    await issue_session(response, user, access_minutes=policy["sessionTimeoutMinutes"])
-    return user
+    _jti, access, new_refresh = await issue_session(response, user, access_minutes=policy["sessionTimeoutMinutes"])
+    return user, access, new_refresh
 
 
 async def csrf_protect(request: Request):
     if request.method in {"GET", "HEAD", "OPTIONS"}:
+        return
+    if bearer_token(request):
         return
     if request.url.path in CSRF_EXEMPT_PATHS:
         return

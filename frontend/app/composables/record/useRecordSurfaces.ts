@@ -2,7 +2,7 @@ import { ApiEndpoints } from '~/utils/constants/api-endpoints'
 import type { ApiResponse } from '~/types/docetra/common'
 import { resolveRecordSurfaceByParam } from '~/utils/record/surfaces'
 
-export type RecordUiSurface = 'meeting' | 'document' | 'system' | string
+type RecordUiSurface = 'meeting' | 'document' | 'system' | string
 
 export interface RecordSurfaceType {
   id: string
@@ -20,7 +20,9 @@ export interface RecordSurfaceType {
   routeBase: string
 }
 
-export type RecordSurfacesMap = Record<string, RecordSurfaceType[]>
+type RecordSurfacesMap = Record<string, RecordSurfaceType[]>
+
+let surfacesInflight: Promise<RecordSurfacesMap> | null = null
 
 /** Boot catalog: active record types grouped by uiSurface for menus and dynamic routes. */
 export function useRecordSurfaces() {
@@ -30,27 +32,33 @@ export function useRecordSurfaces() {
 
   async function load(force = false) {
     if (surfaces.value && !force) return surfaces.value
+    if (surfacesInflight && !force) return surfacesInflight
     loading.value = true
     error.value = null
-    try {
-      const res = await useApi().get<ApiResponse<RecordSurfacesMap>>(ApiEndpoints.RECORD_SURFACES, {
-        requestKey: 'record-surfaces',
-        cancelPrevious: true,
-        suppressAccessAlert: true,
-      })
-      surfaces.value = (res.data || {}) as RecordSurfacesMap
-      return surfaces.value
-    }
-    catch (err: any) {
-      error.value = err?.message || 'Failed to load record surfaces'
-      if (!surfaces.value) {
-        surfaces.value = { meeting: [], document: [], system: [] }
+const request = (async () => {
+      try {
+const res = await useApi().get<ApiResponse<RecordSurfacesMap>>(ApiEndpoints.RECORD_SURFACES, {
+          requestKey: 'record-surfaces',
+          cancelPrevious: true,
+          suppressAccessAlert: true,
+        })
+        surfaces.value = (res.data || {}) as RecordSurfacesMap
+        return surfaces.value
       }
-      return surfaces.value
-    }
-    finally {
-      loading.value = false
-    }
+      catch (err: any) {
+        error.value = err?.message || 'Failed to load record surfaces'
+        if (!surfaces.value) {
+          surfaces.value = { meeting: [], document: [], system: [] }
+        }
+        return surfaces.value
+      }
+      finally {
+        loading.value = false
+        surfacesInflight = null
+      }
+    })()
+    surfacesInflight = request
+    return request
   }
 
   const meetingTypes = computed(() => surfaces.value?.meeting || [])

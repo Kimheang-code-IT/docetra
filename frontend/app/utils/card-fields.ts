@@ -73,13 +73,21 @@ export const RECORD_CARD_SLOTS = [
   'officerInCharge',
 ] as const
 
-export type TopicCardSlot = (typeof TOPIC_CARD_SLOTS)[number]
-export type MeetingCardSlot = (typeof MEETING_CARD_SLOTS)[number]
-export type RecordCardSlot = (typeof RECORD_CARD_SLOTS)[number]
 export type CardFooterAlign = 'left' | 'right'
 
+export type StatusBadgeColor = 'success' | 'warning' | 'error' | 'info'
+
+/** Shared status → badge color mapping for record/meeting/topic cards. */
+export function statusBadgeColor(status: unknown): StatusBadgeColor {
+  const value = String(status || '').toLowerCase()
+  if (value === 'active' || value === 'completed') return 'success'
+  if (value === 'pending' || value === 'draft') return 'warning'
+  if (value === 'deleted' || value === 'disabled' || value === 'failed') return 'error'
+  return 'info'
+}
+
 /** Defaults: core record fields + meeting date/location footer (date L, location R). */
-export const DEFAULT_MEETING_CARD_FIELDS: string[] = [
+const DEFAULT_MEETING_CARD_FIELDS: string[] = [
   'sortOrder',
   'status',
   'stage',
@@ -91,7 +99,7 @@ export const DEFAULT_MEETING_CARD_FIELDS: string[] = [
 ]
 
 /** Defaults align with draft record columns: title, stage, tags, record_time, content. */
-export const DEFAULT_RECORD_CARD_FIELDS: string[] = [
+const DEFAULT_RECORD_CARD_FIELDS: string[] = [
   'status',
   'stage',
   'tags',
@@ -127,19 +135,19 @@ export const CARD_DISPLAY_ENTITIES: Array<{
   { key: 'masterListRequests', labelKey: 'docetra.settings.cardFields.masterListRequests', kind: 'record' },
 ]
 
-export const TOPIC_CARD_BLOCKS: CardSlotBlock[] = [
+const TOPIC_CARD_BLOCKS: CardSlotBlock[] = [
   { id: 'titleRow', labelKey: 'docetra.cardSlotBlocks.titleRow', slots: ['status'] },
   { id: 'context', labelKey: 'docetra.cardSlotBlocks.context', slots: ['stage', 'tags'] },
   { id: 'footer', labelKey: 'docetra.cardSlotBlocks.footer', slots: ['recordTime'] },
 ]
 
-export interface CardSlotBlock {
+interface CardSlotBlock {
   id: string
   labelKey: string
   slots: string[]
 }
 
-export const MEETING_CARD_BLOCKS: CardSlotBlock[] = [
+const MEETING_CARD_BLOCKS: CardSlotBlock[] = [
   { id: 'titleRow', labelKey: 'docetra.cardSlotBlocks.titleRow', slots: ['sortOrder', 'status'] },
   { id: 'identity', labelKey: 'docetra.cardSlotBlocks.identity', slots: ['letterNumber'] },
   {
@@ -154,7 +162,7 @@ export const MEETING_CARD_BLOCKS: CardSlotBlock[] = [
   },
 ]
 
-export const RECORD_CARD_BLOCKS: CardSlotBlock[] = [
+const RECORD_CARD_BLOCKS: CardSlotBlock[] = [
   { id: 'titleRow', labelKey: 'docetra.cardSlotBlocks.titleRow', slots: ['status'] },
   {
     id: 'identity',
@@ -208,13 +216,13 @@ export function blocksForEntity(entityKey: CardDisplayEntityKey): CardSlotBlock[
 }
 
 /** Renders in the title row (order # before title, status with title). */
-export const TITLE_CHROME_SLOTS = new Set(['sortOrder', 'status'])
+const TITLE_CHROME_SLOTS = new Set(['sortOrder', 'status'])
 
 export function isTitleChromeSlot(slot: string): boolean {
   return TITLE_CHROME_SLOTS.has(slot)
 }
 
-export const MEETING_FOOTER_SLOTS = new Set([
+const MEETING_FOOTER_SLOTS = new Set([
   'letterDate',
   'meetingDate',
   'recordTime',
@@ -224,9 +232,9 @@ export const MEETING_FOOTER_SLOTS = new Set([
   'updatedAt',
 ])
 
-export const TOPIC_FOOTER_SLOTS = new Set(['recordTime'])
+const TOPIC_FOOTER_SLOTS = new Set(['recordTime'])
 
-export const RECORD_FOOTER_SLOTS = new Set([
+const RECORD_FOOTER_SLOTS = new Set([
   'recordTime',
   'dateRange',
   'receivedDate',
@@ -289,4 +297,47 @@ export function resolveVisibleSlots(
   const catalog = new Set(catalogForEntity(entityKey))
   if (!Array.isArray(selected)) return [...DEFAULT_CARD_FIELDS[entityKey]]
   return selected.filter(slot => catalog.has(slot))
+}
+
+/**
+ * Type-aware slot resolution. Precedence:
+ *   record-type payload override → app-config display setting → defaults.
+ * Both override sources use the `AppConfigDisplay` map shape keyed by entity
+ * key; selections are validated against the entity's slot catalog.
+ */
+export function resolveTypeAwareCardFields(
+  entityKey: CardDisplayEntityKey,
+  sources: {
+    typeOverride?: Partial<Record<CardDisplayEntityKey, string[]>> | null
+    appConfig?: Partial<Record<CardDisplayEntityKey, string[]>> | null
+  } = {},
+): string[] {
+  const fromType = sources.typeOverride?.[entityKey]
+  if (Array.isArray(fromType) && fromType.length) {
+    return resolveVisibleSlots(entityKey, fromType)
+  }
+  const fromConfig = sources.appConfig?.[entityKey]
+  if (Array.isArray(fromConfig)) {
+    return resolveVisibleSlots(entityKey, fromConfig)
+  }
+  return [...DEFAULT_CARD_FIELDS[entityKey]]
+}
+
+/**
+ * Type-aware footer alignment. Per-slot precedence mirrors slots:
+ * record-type override → app config → default alignment.
+ */
+export function resolveTypeAwareFooterAlign(
+  entityKey: CardDisplayEntityKey,
+  slot: string,
+  sources: {
+    typeOverride?: Partial<Record<CardDisplayEntityKey, Partial<Record<string, CardFooterAlign>>>> | null
+    appConfig?: Partial<Record<CardDisplayEntityKey, Partial<Record<string, CardFooterAlign>>>> | null
+  } = {},
+): CardFooterAlign {
+  const fromType = sources.typeOverride?.[entityKey]?.[slot]
+  if (fromType === 'left' || fromType === 'right') return fromType
+  const fromConfig = sources.appConfig?.[entityKey]?.[slot]
+  if (fromConfig === 'left' || fromConfig === 'right') return fromConfig
+  return defaultFooterAlign(slot)
 }

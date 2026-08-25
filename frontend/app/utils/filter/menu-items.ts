@@ -1,4 +1,4 @@
-export type MenuRow = {
+type MenuRow = {
   label: string
   value: string | number | boolean
   icon?: string

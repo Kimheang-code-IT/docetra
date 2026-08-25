@@ -5,6 +5,7 @@ import type {
   RecordAttribute,
   RecordTypeAttribute,
 } from '~/types/docetra/configuration'
+import type { RecordTypePayload } from '~/types/docetra/vocabulary'
 import {
   defaultRecordTypeFeatures,
   defaultRecordTypeNumbering,
@@ -17,6 +18,7 @@ import { useAppHeader } from '~/composables/layout/useAppHeader'
 import { usePageSeo } from '~/composables/usePageSeo'
 import { toConfigCode } from '~/utils/config-code'
 import { getByPath, setByPath } from '~/utils/object-path'
+import { cardEntityKeyForRecordType } from '~/utils/vocabulary'
 import {
   clearPendingTypeAttributeIds,
   readPendingTypeAttributeIds,
@@ -85,6 +87,7 @@ const tabs = computed(() => recordTypeTabs({
   typeId: isCreate.value ? 'new' : (props.recordTypeId || model.value.id),
   stages: model.value.stages,
   searchAttributes: debouncedAttributeSearch,
+  cardEntityKey: cardEntityKeyForRecordType(model.value.code),
 }))
 
 watch(() => model.value.features.enableWorkflow, (enabled) => {
@@ -234,6 +237,12 @@ function fieldValue(key: string) {
       transitions: model.value.transitions,
     }
   }
+  if (key === '__cardFields') {
+    return {
+      cardFields: model.value.payload?.cardFields || {},
+      cardFooterAlign: model.value.payload?.cardFooterAlign || {},
+    }
+  }
   return getByPath(model.value, key)
 }
 
@@ -243,6 +252,15 @@ function setFieldValue(key: string, value: unknown) {
     const payload = value as { stages?: any[], transitions?: any[] }
     model.value.stages = payload.stages || []
     model.value.transitions = payload.transitions || []
+    return
+  }
+  if (key === '__cardFields') {
+    const next = value as { cardFields?: RecordTypePayload['cardFields'], cardFooterAlign?: RecordTypePayload['cardFooterAlign'] }
+    model.value.payload = {
+      ...(model.value.payload || {}),
+      cardFields: next.cardFields || {},
+      cardFooterAlign: next.cardFooterAlign || {},
+    }
     return
   }
   setByPath(model.value as any, key, value)
@@ -277,6 +295,7 @@ function toInput(): CreateRecordTypeInput {
     stages: m.features.enableWorkflow ? m.stages : [],
     transitions: m.features.enableWorkflow ? m.transitions : [],
     status: m.status,
+    payload: m.payload || {},
   }
 }
 

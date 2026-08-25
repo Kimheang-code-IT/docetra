@@ -1,4 +1,4 @@
-export type AccessAlertKind = 'permission' | 'session-expired'
+type AccessAlertKind = 'permission' | 'session-expired'
 
 type AccessAlertState = {
   open: boolean

@@ -73,8 +73,8 @@ async def register(body: Register, request: Request, response: Response, db: Asy
 
     config = await runtime.load_app_config(db)
     policy = runtime.security_policy(config)
-    await issue_session(response, user, access_minutes=policy["sessionTimeoutMinutes"])
-    return {"data": {"user": public_user(user)}}
+    _jti, access, refresh = await issue_session(response, user, access_minutes=policy["sessionTimeoutMinutes"])
+    return {"data": {"user": public_user(user), "token": access, "refreshToken": refresh}}
 
 
 @router.post("/login", response_model=DataEnvelope)
@@ -94,8 +94,8 @@ async def login(body: Login, request: Request, response: Response, db: AsyncSess
 
     config = await runtime.load_app_config(db)
     policy = runtime.security_policy(config)
-    await issue_session(response, user, access_minutes=policy["sessionTimeoutMinutes"])
-    return {"data": {"user": public_user(user)}}
+    _jti, access, refresh = await issue_session(response, user, access_minutes=policy["sessionTimeoutMinutes"])
+    return {"data": {"user": public_user(user), "token": access, "refreshToken": refresh}}
 
 
 @router.get("/me", response_model=DataEnvelope)
@@ -105,8 +105,8 @@ async def me(user: User = Depends(current_user)):
 
 @router.post("/refresh", response_model=DataEnvelope)
 async def refresh(request: Request, response: Response, db: AsyncSession = Depends(get_db)):
-    user = await refresh_session(request, response, db)
-    return {"data": public_user(user)}
+    user, access, new_refresh = await refresh_session(request, response, db)
+    return {"data": {**public_user(user), "token": access, "refreshToken": new_refresh}}
 
 
 @router.post("/logout", response_model=DataEnvelope)

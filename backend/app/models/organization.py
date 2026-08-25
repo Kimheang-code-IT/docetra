@@ -1,11 +1,11 @@
 import uuid
 
 from sqlalchemy import ForeignKey, Integer, SmallInteger, String, Text
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
-from app.db.mixins import ActiveFlagMixin, OfficerActorMixin, StatusMixin, TimestampMixin, UUIDPrimaryKeyMixin
+from app.db.mixins import ActiveFlagMixin, OfficerActorMixin, TimestampMixin, UUIDPrimaryKeyMixin
 
 
 class OrganizationSector(UUIDPrimaryKeyMixin, TimestampMixin, OfficerActorMixin, ActiveFlagMixin, Base):
@@ -41,13 +41,3 @@ class Organization(UUIDPrimaryKeyMixin, TimestampMixin, OfficerActorMixin, Activ
     logo_url: Mapped[str | None] = mapped_column(String(500))
     child_ids: Mapped[str | None] = mapped_column(Text)
     code: Mapped[str | None] = mapped_column(String(80))
-
-
-class LegacyOrganization(UUIDPrimaryKeyMixin, StatusMixin, TimestampMixin, Base):
-    __tablename__ = "organizations"
-
-    kind: Mapped[str] = mapped_column(String(40), index=True)
-    code: Mapped[str | None] = mapped_column(String(80))
-    name: Mapped[str] = mapped_column(String(200))
-    parent_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="SET NULL"))
-    payload: Mapped[dict] = mapped_column(JSONB, default=dict)

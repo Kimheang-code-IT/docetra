@@ -23,12 +23,20 @@ const model = defineModel<Pick<AppConfigDisplay, 'cardFields' | 'cardFooterAlign
 
 const props = withDefaults(defineProps<{
   disabled?: boolean
+  /** Restrict the sidebar to these entity keys (e.g. one record type's editor). */
+  entityKeys?: CardDisplayEntityKey[]
 }>(), {
   disabled: false,
 })
 
 const { t, te } = useI18n()
-const selectedEntity = ref<CardDisplayEntityKey>('meetingHistory')
+const selectedEntity = ref<CardDisplayEntityKey>(props.entityKeys?.[0] || 'meetingHistory')
+
+const displayedEntities = computed(() =>
+  props.entityKeys?.length
+    ? CARD_DISPLAY_ENTITIES.filter(entity => props.entityKeys!.includes(entity.key))
+    : CARD_DISPLAY_ENTITIES,
+)
 
 const blocks = computed(() => blocksForEntity(selectedEntity.value))
 
@@ -194,7 +202,7 @@ function selectEntity(key: CardDisplayEntityKey) {
       <aside class="col-span-2 hidden min-h-0 overflow-y-auto border-b border-default lg:col-span-3 lg:block lg:border-b-0 lg:border-r">
         <ul class="divide-y divide-default">
           <li
-            v-for="entity in CARD_DISPLAY_ENTITIES"
+            v-for="entity in displayedEntities"
             :key="entity.key"
           >
             <button
@@ -231,7 +239,7 @@ function selectEntity(key: CardDisplayEntityKey) {
             <template #content>
               <ul class="max-h-[min(50vh,20rem)] w-64 max-w-[calc(100vw-2rem)] divide-y divide-default overflow-y-auto">
                 <li
-                  v-for="entity in CARD_DISPLAY_ENTITIES"
+                  v-for="entity in displayedEntities"
                   :key="entity.key"
                 >
                   <button

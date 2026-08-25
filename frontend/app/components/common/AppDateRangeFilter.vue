@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { useMediaQuery } from '@vueuse/core'
 import type { DateValue } from '@internationalized/date'
-import type { DatePickerGranularity } from '~/utils/date-picker'
 import {
-  isDateTimeGranularity,
-  parsePickerValue,
-  serializePickerValue,
+  dateFilterFieldLocale,
   datePickerPopoverContent,
+  parsePickerValue,
+  serializeDateOnly,
+  toDateOnlyString,
 } from '~/utils/date-picker'
 import { getFilterDateUi, isFilterValueActive } from '~/utils/filter/select-ui'
 import { usePreferencesStore } from '~/stores/preferences'
@@ -17,7 +17,6 @@ const end = defineModel<string>('end', { default: '' })
 const props = withDefaults(defineProps<{
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl'
   disabled?: boolean
-  granularity?: DatePickerGranularity
   label?: string
   placeholder?: string
   class?: string
@@ -25,10 +24,9 @@ const props = withDefaults(defineProps<{
   inline?: boolean
 }>(), {
   size: 'sm',
-  granularity: 'minute',
 })
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const preferences = usePreferencesStore()
 preferences.hydrate()
 
@@ -36,8 +34,7 @@ const inputDate = useTemplateRef<{ inputsRef?: Array<{ $el?: HTMLElement }> } | 
 const pickerAnchor = useTemplateRef<HTMLElement | null>('pickerAnchor')
 const isCompact = useMediaQuery('(max-width: 639px)')
 const pickerDialogOpen = ref(false)
-
-const isDateTime = computed(() => isDateTimeGranularity(props.granularity))
+const fieldLocale = computed(() => dateFilterFieldLocale(locale.value))
 
 /** Toolbar: icon-only on small screens or when app font is large/extra large. */
 const iconOnly = computed(() => {
@@ -54,22 +51,25 @@ const hasActiveFilter = computed(() =>
 const pickerTitle = computed(() => props.label || t('docetra.fields.meetingDate'))
 
 const dateUi = computed(() => getFilterDateUi(hasActiveFilter.value, {
-  isDateTime: isDateTime.value,
+  isDateTime: false,
   isRange: true,
   fitContent: !props.inline,
   fullWidth: props.inline,
   fontSize: preferences.fontSize,
 }))
 
-const pickerIcon = computed(() =>
-  isDateTime.value ? 'i-lucide-calendar-clock' : 'i-lucide-calendar',
-)
+watch([start, end], () => {
+  const nextStart = toDateOnlyString(start.value)
+  if (start.value && start.value !== nextStart) start.value = nextStart
+  const nextEnd = toDateOnlyString(end.value)
+  if (end.value && end.value !== nextEnd) end.value = nextEnd
+}, { immediate: true })
 
 /** Shared with UInputDate + UCalendar in popover (Nuxt UI pattern). */
 const dateRangeValue = computed({
   get() {
-    const startValue = parsePickerValue(start.value, isDateTime.value)
-    const endValue = parsePickerValue(end.value, isDateTime.value)
+    const startValue = parsePickerValue(toDateOnlyString(start.value) || start.value, false)
+    const endValue = parsePickerValue(toDateOnlyString(end.value) || end.value, false)
     if (!startValue && !endValue) return undefined
     return {
       start: startValue ?? endValue!,
@@ -82,8 +82,8 @@ const dateRangeValue = computed({
       end.value = ''
       return
     }
-    start.value = value.start ? serializePickerValue(value.start) : ''
-    end.value = value.end ? serializePickerValue(value.end) : ''
+    start.value = value.start ? serializeDateOnly(value.start) : ''
+    end.value = value.end ? serializeDateOnly(value.end) : ''
   },
 })
 
@@ -108,7 +108,7 @@ function openPickerDialog() {
   >
     <UButton
       v-if="iconOnly"
-      :icon="pickerIcon"
+      icon="i-lucide-calendar"
       :color="hasActiveFilter ? 'primary' : 'neutral'"
       :variant="hasActiveFilter ? 'soft' : 'outline'"
       size="sm"
@@ -131,7 +131,9 @@ function openPickerDialog() {
         range
         fixed
         trailing
-        :granularity="granularity"
+        granularity="day"
+        hide-time-zone
+        :locale="fieldLocale"
         :disabled="disabled"
         :size="size"
         color="neutral"
@@ -149,7 +151,7 @@ function openPickerDialog() {
               color="neutral"
               variant="link"
               :size="size === 'xs' || size === 'sm' ? 'sm' : size"
-              :icon="pickerIcon"
+              icon="i-lucide-calendar"
               class="shrink-0 px-2 text-muted"
               :aria-label="pickerTitle"
               :disabled="disabled"
@@ -159,7 +161,8 @@ function openPickerDialog() {
               <CommonAppDatePickerPopover
                 v-model:range-value="dateRangeValue"
                 mode="range"
-                :granularity="granularity"
+                granularity="day"
+                :locale="fieldLocale"
                 :disabled="disabled"
               />
             </template>
@@ -205,7 +208,8 @@ function openPickerDialog() {
         <CommonAppDatePickerPopover
           v-model:range-value="dateRangeValue"
           mode="range"
-          :granularity="granularity"
+          granularity="day"
+          :locale="fieldLocale"
           :disabled="disabled"
         />
       </template>

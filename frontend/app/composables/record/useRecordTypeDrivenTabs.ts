@@ -4,6 +4,7 @@
 import type { DocumentTabSchema, FieldOption } from '~/types/docetra/common'
 import type { RecordAttribute, RecordType, ResolvedRecordTypeSchema } from '~/types/docetra/configuration'
 import { useConfigurationRepositories } from '~/repositories'
+import { provideCardFieldsOverride } from '~/composables/settings/useCardFields'
 import {
   mapTypeAttributesToSections,
   pruneDetailsForType,
@@ -23,6 +24,14 @@ function schemaCacheKey(lookup: { id?: string, code?: string }) {
   return ''
 }
 
+function rememberSchema(schema: ResolvedRecordTypeSchema, primaryKey: string) {
+  const entry = { at: Date.now(), data: schema }
+  schemaCache.set(primaryKey, entry)
+  const type = schema.recordType
+  if (type?.id) schemaCache.set(`id:${type.id}`, entry)
+  if (type?.code) schemaCache.set(`code:${type.code}`, entry)
+}
+
 export function useRecordTypeDrivenTabs(options: {
   entityKey: string
   recordBacked?: boolean
@@ -37,6 +46,8 @@ export function useRecordTypeDrivenTabs(options: {
   const { t } = useI18n()
 
   const loadedType = ref<RecordType | null>(null)
+  // Show/create views resolve per-type card slots from the loaded type payload.
+  provideCardFieldsOverride(() => loadedType.value?.payload || null)
   const catalog = ref<RecordAttribute[]>([])
   const loadingType = ref(false)
   let loadSeq = 0
@@ -55,10 +66,19 @@ export function useRecordTypeDrivenTabs(options: {
     if (cached?.data && Date.now() - cached.at < SCHEMA_CACHE_TTL_MS) {
       return cached.data
     }
+    // Show pages first load schema by type code, then again by id when the
+    // record arrives. Reuse the in-flight code lookup instead of a second GET.
+    if (id && code) {
+      const byCode = schemaCache.get(`code:${code}`)
+      if (byCode?.inflight) return byCode.inflight
+      if (byCode?.data && Date.now() - byCode.at < SCHEMA_CACHE_TTL_MS) {
+        return byCode.data
+      }
+    }
 
     const inflight = recordTypes.getResolvedSchema(lookup)
       .then((schema) => {
-        schemaCache.set(key, { at: Date.now(), data: schema })
+        rememberSchema(schema, key)
         return schema
       })
       .catch((error) => {
@@ -79,6 +99,12 @@ export function useRecordTypeDrivenTabs(options: {
       loadedType.value = null
       if (opts?.prune) options.setDetails({})
       return
+    }
+    const existing = loadedType.value
+    if (existing && !opts?.prune) {
+      const id = String(typeId || '').trim()
+      if (id && existing.id === id) return
+      if (existing.code && existing.code === options.recordTypeCode) return
     }
     const seq = ++loadSeq
     loadingType.value = true

@@ -31,9 +31,22 @@ class SupportApplicationService:
     async def list_items(self, db: AsyncSession, user: User, params: dict, page: int, limit: int, q, status) -> dict:
         kind = self.kind()
         if kind == "record_type":
-            rows = (await db.scalars(select(RecordType).order_by(RecordType.updated_at.desc()).offset((page - 1) * limit).limit(limit))).all()
-            data = [serialize_record_type(row) for row in rows]
-            return {"data": data, "meta": {"page": page, "limit": limit, "total": len(data), "totalPages": 1}}
+            from app.core.privileged import is_unrestricted
+            import app.modules.record.services.type_access as type_access
+
+            stmt = select(RecordType)
+            if not is_unrestricted(user):
+                type_ids = await type_access.permitted_type_ids(db, await type_access.actor_organization_id(db, user))
+                if not type_ids:
+                    return {"data": [], "meta": {"page": page, "limit": limit, "total": 0, "totalPages": 1}}
+                stmt = stmt.where(RecordType.id.in_(type_ids))
+            total = await db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
+            rows = (await db.scalars(
+                stmt.order_by(RecordType.updated_at.desc()).offset((page - 1) * limit).limit(limit)
+            )).all()
+            access = await type_access.permission_payload(db, [row.id for row in rows])
+            data = [{**serialize_record_type(row), **access.get(row.id, {})} for row in rows]
+            return {"data": data, "meta": {"page": page, "limit": limit, "total": total, "totalPages": max(1, math.ceil(total / limit))}}
 
         if kind == "record_attribute":
             rows = (await db.scalars(select(RecordAttribute).order_by(RecordAttribute.updated_at.desc()).offset((page - 1) * limit).limit(limit))).all()
@@ -81,14 +94,18 @@ class SupportApplicationService:
 
         raise DomainError("UNSUPPORTED", f"Resource {self.host.resource} is not mapped", 501)
 
-    async def get_item(self, db: AsyncSession, entity_id: str) -> dict:
+    async def get_item(self, db: AsyncSession, entity_id: str, user: User | None = None) -> dict:
         kind = self.kind()
         uid = uuid.UUID(entity_id)
         if kind == "record_type":
+            import app.modules.record.services.type_access as type_access
+
             row = await db.get(RecordType, uid)
             if not row:
                 raise HTTPException(404, "Not found")
-            return serialize_record_type(row)
+            await type_access.require_type_access(db, row, user)
+            access = await type_access.permission_payload(db, [row.id])
+            return {**serialize_record_type(row), **access.get(row.id, {})}
         if kind == "record_attribute":
             row = await db.get(RecordAttribute, uid)
             if not row:
@@ -114,6 +131,8 @@ class SupportApplicationService:
         officer_id = await self.host.actor_officer_id(db, user)
         kind = self.kind()
         if kind == "record_type":
+            import app.modules.record.services.type_access as type_access
+
             row = RecordType(
                 code=str(payload.get("code") or "").strip(),
                 nam=str(payload.get("name") or payload.get("code") or ""),
@@ -124,9 +143,19 @@ class SupportApplicationService:
                 updated_by=officer_id,
             )
             db.add(row)
+            await db.flush()
+            org_id = await type_access.actor_organization_id(db, user)
+            if org_id:
+                await type_access.grant(
+                    db,
+                    row.id,
+                    org_id,
+                    permission_kind=type_access.OWNER,
+                    actor_officer_id=officer_id,
+                )
             await db.commit()
             await db.refresh(row)
-            return await self.get_item(db, str(row.id))
+            return await self.get_item(db, str(row.id), user)
         if kind == "record_attribute":
             row = RecordAttribute(
                 code=str(payload.get("code") or "").strip(),
@@ -139,7 +168,7 @@ class SupportApplicationService:
             db.add(row)
             await db.commit()
             await db.refresh(row)
-            return await self.get_item(db, str(row.id))
+            return await self.get_item(db, str(row.id), user)
         if kind == "file":
             row = File(
                 nam=str(payload.get("name") or payload.get("fileName") or "file"),
@@ -156,7 +185,7 @@ class SupportApplicationService:
             db.add(row)
             await db.commit()
             await db.refresh(row)
-            return await self.get_item(db, str(row.id))
+            return await self.get_item(db, str(row.id), user)
         if kind == "entity":
             return await self.host._create_entity(db, user, payload, raw_payload or payload)
         raise DomainError("UNSUPPORTED", f"Create not supported for {self.host.resource}", 501)
@@ -169,6 +198,10 @@ class SupportApplicationService:
         if kind not in {"record_type", "record_attribute", "file"}:
             raise DomainError("UNSUPPORTED", f"Update not supported for {self.host.resource}", 501)
         row = await self.host._get_model(db, kind, entity_id)
+        if kind == "record_type":
+            import app.modules.record.services.type_access as type_access
+
+            await type_access.require_owner_access(db, row, user)
         for key, value in body.items():
             if key in {"version", "id"}:
                 continue
@@ -202,7 +235,7 @@ class SupportApplicationService:
         row.updated_by = officer_id
         row.updated_at = utcnow()
         await db.commit()
-        return await self.get_item(db, entity_id)
+        return await self.get_item(db, entity_id, user)
 
     async def soft_delete(self, db: AsyncSession, user: User, entity_id: str, expected) -> dict:
         kind = self.kind()
@@ -228,6 +261,10 @@ class SupportApplicationService:
         row = await db.get(model, uid)
         if not row:
             raise HTTPException(404, "Not found")
+        if kind == "record_type":
+            import app.modules.record.services.type_access as type_access
+
+            await type_access.require_owner_access(db, row, user)
         if kind == "file":
             row.status = "pending_purge"
             object_key = row.path

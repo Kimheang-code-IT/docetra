@@ -13,7 +13,6 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-docetra}:${POSTGRES_PASSWORD:-docetra_local_only}@postgres:5432/${POSTGRES_DB:-docetra}
       REDIS_URL: redis://redis:6379/0
       CACHE_SHORT_URL: redis://redis:6379/1
-      CACHE_LONG_URL: redis://redis:6379/2
       RABBITMQ_URL: amqp://${RABBITMQ_USER:-docetra}:${RABBITMQ_PASSWORD:-docetra_rabbit_local_only}@rabbitmq:5672/${RABBITMQ_VHOST:-docetra}
       S3_ENDPOINT: http://minio:9000
     ports:
@@ -54,7 +53,6 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-docetra}:${POSTGRES_PASSWORD:-docetra_local_only}@postgres:5432/${POSTGRES_DB:-docetra}
       REDIS_URL: redis://redis:6379/0
       CACHE_SHORT_URL: redis://redis:6379/1
-      CACHE_LONG_URL: redis://redis:6379/2
       RABBITMQ_URL: amqp://${RABBITMQ_USER:-docetra}:${RABBITMQ_PASSWORD:-docetra_rabbit_local_only}@rabbitmq:5672/${RABBITMQ_VHOST:-docetra}
       S3_ENDPOINT: http://minio:9000
     depends_on:

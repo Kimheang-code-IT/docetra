@@ -4,7 +4,7 @@ Canonical contract for Docetra’s unified record surface. Prefer this document 
 
 ## Principle
 
-Operational items (documents, meetings, topics, and future types) are **records** differentiated by `record_type.code`. There is **no separate meeting HTTP family** and **no `document_type` table** — types live only in `record_type`. Admins define attributes, assign them to types, and set type metadata (`uiSurface`, slug, icon). The API and UI must not require a new hardcoded collection or Vue page per type.
+Operational items (documents, meetings, topics, and future types) are **records** differentiated by record type. Persistence joins **`record.record_type_id` → `record_type.id`**. `record_type.code` is informational and is **not unique**: HTTP `{typeCode}` is resolved inside the caller's permitted types (owner grant first, then oldest). There is **no separate meeting HTTP family** and **no `document_type` table**. Admins define attributes, assign them to types, and set type metadata (`uiSurface`, slug, icon). The creator organization owns a type and can share it with other organizations via `record_type_permission`. The API and UI must not require a new hardcoded collection or Vue page per type.
 
 ## API path shape
 
@@ -20,7 +20,7 @@ Use **only**:
 
 Do **not** mount `/api/v2/meetings/…` for CRUD or board ops. Do **not** mount bare `/api/v2/{typeCode}/…`.
 
-`typeCode` must match `^[a-z][a-z0-9_]{1,63}$`. Reject unknown or inactive types with `404`.
+`typeCode` must match `^[a-z][a-z0-9_]{1,63}$`. Resolve it to a `record_type.id` the caller can access; reject unknown, inactive, or unshared types with `404`.
 
 Reserved path segments under `/records/` (not type codes): `_meta`, `logs`.
 

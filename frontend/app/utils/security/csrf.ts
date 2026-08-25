@@ -5,7 +5,7 @@ export function isMutatingMethod(method?: string) {
 }
 
 /** Read a non-HttpOnly double-submit CSRF cookie set by the API. */
-export function readBrowserCookie(name: string): string | null {
+function readBrowserCookie(name: string): string | null {
   if (typeof document === 'undefined' || !name) return null
   const prefix = `${encodeURIComponent(name)}=`
   const item = document.cookie.split('; ').find(cookie => cookie.startsWith(prefix))

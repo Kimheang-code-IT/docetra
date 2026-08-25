@@ -46,6 +46,9 @@ If a legacy behavior must be preserved for compatibility, document it here only 
 - Preserve important operational history where possible.
 - Map old concepts to the new unified record model carefully.
 - Review record type and attribute mappings before migration.
+- Drop unique constraints on `record_type.code` and `record_attribute.code`; join through `id`.
+- Backfill `record.record_type_id` and `record_detail.record_attribute_id` from codes **before** uniqueness is dropped.
+- Insert `record_type_permission` so existing types remain visible (shared) to current organizations; new types grant `owner` to the creator organization only.
 - Validate organization and officer identity mappings.
 - Confirm permission mappings before enabling access in v2.
 - Reconcile file references and storage paths before cutover.

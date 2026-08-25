@@ -74,7 +74,7 @@ Assignee values are arrays of `{ id, label, type }`, where type is `officer`, `d
 - Meeting board helpers: `/meetings/*` for reorder, assign-topic, and attachment-link orchestration only (rows stay unified `record` rows; prefer `/records/{typeCode}` for CRUD).
 - Organization (dynamic): `/organizations/{orgType}` (`department` \| `company`); `/organizations/_meta/types`. Classification and officers are top-level: `/sector`, `/purpose`, `/officers`. See [`prompt/backend/08-dynamic-organization-collections.md`](../backend/08-dynamic-organization-collections.md).
 - People/access: officers (`/officers`), users, roles, permission catalog, identity resolution.
-- Configuration/settings: record types, attributes, app information, localization, storage, integrations.
+- Configuration/settings: record types (organization-owned, shareable), attributes, app information, localization, storage, integrations.
 - Portal/operations: uploads, Drive sync, jobs, portal/system audit logs.
 - Shared: comments, activity, attachments, exports, and permission-aware search.
 

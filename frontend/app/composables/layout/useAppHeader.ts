@@ -1,24 +1,24 @@
 import type { DropdownMenuItem } from '@nuxt/ui'
 import { shallowRef } from 'vue'
 
-export type AppHeaderBreadcrumb = {
+type AppHeaderBreadcrumb = {
   label: string
   to?: string
   icon?: string
 }
 
-export type AppHeaderBadge = {
+type AppHeaderBadge = {
   label: string
   color?: 'error' | 'neutral' | 'primary' | 'secondary' | 'success' | 'info' | 'warning'
 }
 
-export type AppHeaderCreateButton = {
+type AppHeaderCreateButton = {
   label: string
   icon?: string
   onClick: () => void
 }
 
-export type AppHeaderActionsConfig = {
+type AppHeaderActionsConfig = {
   /** Opt-in: only list pages that support create should set true. */
   canCreate: boolean
   createLabel: string

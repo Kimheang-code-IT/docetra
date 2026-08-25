@@ -1,6 +1,6 @@
 import type { RecordAttributeRepository, RecordTypeRepository } from '~/repositories/contracts/configuration'
 import type { ActivityEvent, ApiResponse, EntityComment } from '~/types/docetra/common'
-import type { RecordAttribute, RecordType, ResolvedRecordTypeSchema } from '~/types/docetra/configuration'
+import type { RecordAttribute, RecordType, RecordTypePermission, ResolvedRecordTypeSchema } from '~/types/docetra/configuration'
 import { ApiEndpoints } from '~/utils/constants/api-endpoints'
 import { unwrapApiData } from './response'
 
@@ -44,6 +44,13 @@ export function createHttpRecordTypeRepository(): RecordTypeRepository {
     setActive: async (id, active) => unwrapApiData(await api.patch<RecordType | ApiResponse<RecordType>>(`${resource(id)}/status`, { active })),
     remove: async id => { await api.delete(resource(id)) },
     removeMany: async ids => { await api.post(`${ApiEndpoints.RECORD_TYPES}/bulk-delete`, { ids }) },
+    listPermissions: id => api.get<ApiResponse<RecordTypePermission[]>>(`${resource(id)}/permissions`),
+    shareWithOrganization: async (id, organizationId) => unwrapApiData(
+      await api.post<RecordTypePermission | ApiResponse<RecordTypePermission>>(`${resource(id)}/permissions`, { organizationId }),
+    ),
+    unshareOrganization: async (id, organizationId) => {
+      await api.delete(`${resource(id)}/permissions/${encodeURIComponent(organizationId)}`)
+    },
     listComments: (id, query) => api.get<ApiResponse<EntityComment[]>>(`${resource(id)}/comments`, { query }),
     addComment: (id, body) => api.post<ApiResponse<EntityComment>>(`${resource(id)}/comments`, { body }),
     updateComment: (id, commentId, body) => api.patch<ApiResponse<EntityComment>>(`${resource(id)}/comments/${encodeURIComponent(commentId)}`, { body }),

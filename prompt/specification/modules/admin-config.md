@@ -19,7 +19,7 @@ The admin configuration module owns:
 ## Core concepts
 
 ### Record type
-A record type defines the behavior, attributes, and workflow shape of a record.
+A record type defines the behavior, attributes, and workflow shape of a record. The creating organization owns the type (`record_type_permission.permission_kind = owner`) and may share it with other organizations.
 
 ### Record attribute
 A record attribute defines a configurable field used by one or more record types.
@@ -36,7 +36,7 @@ A document type is a specialized classification used for document-related record
 ## Functional behavior
 
 ### Record type management
-The module must support creating, updating, listing, and disabling record types.
+The module must support creating, updating, listing, disabling, and sharing record types with other organizations. Only the owner organization (or an unrestricted administrator) may edit, share, or delete a type.
 
 ### Record attribute management
 The module must support creating and managing record attributes.
@@ -58,6 +58,7 @@ The module may support enum-style reference data where the product needs configu
 The admin configuration module should own or primarily manage:
 - `record_type`
 - `record_attribute`
+- `record_type_permission`
 - `record_template`
 - `setting`
 - `enum`
@@ -67,7 +68,7 @@ Record categories are defined only via `record_type` (no separate `document_type
 ## Key validations
 
 The module should validate:
-- codes are unique where required.
+- record type and attribute `code` values are informational (not globally unique join keys).
 - configuration references are valid.
 - required mappings are complete.
 - disabled configuration is not used incorrectly.
@@ -78,6 +79,7 @@ The module should validate:
 The module should expose APIs for:
 - record type list and detail.
 - record type create and update.
+- record type share / unshare with organizations.
 - record attribute list and detail.
 - record attribute create and update.
 - record template mapping.

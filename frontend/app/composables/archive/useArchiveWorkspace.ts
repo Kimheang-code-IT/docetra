@@ -9,7 +9,7 @@ import { permissionForAction } from '~/utils/role/access'
 import { useAppLocalization } from '~/composables/settings/useAppLocalization'
 import { concurrencyVersion, withConcurrencyToken } from '~/utils/api/concurrency'
 
-export type ArchiveRow = Record<string, unknown> & {
+type ArchiveRow = Record<string, unknown> & {
   id: string
   recordId: string
   sourceKey: AdapterKey
@@ -19,7 +19,7 @@ export type ArchiveRow = Record<string, unknown> & {
   archivedAt: string
 }
 
-export const ARCHIVE_SOURCE_KEYS: AdapterKey[] = [
+const ARCHIVE_SOURCE_KEYS: AdapterKey[] = [
   'meetingTopics',
   'meetingHistory',
   'incomingDocuments',

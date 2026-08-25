@@ -36,7 +36,6 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
-const toast = useToast()
 const { setActions, clearActions } = useAppHeader()
 const slots = useSlots()
 const ownerId = ref(0)
@@ -81,10 +80,7 @@ const menuItems = computed(() => {
 
 function submitExport(request: ExportRequest) {
   emit('export', request)
-  if (!props.exporting) {
-    exportOpen.value = false
-    toast.add({ title: t('docetra.exportDialog.requestReady'), color: 'success' })
-  }
+  if (!props.exporting) exportOpen.value = false
 }
 
 function syncActions() {

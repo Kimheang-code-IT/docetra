@@ -99,16 +99,18 @@
 
 ## record_type
 
-- `id [uuid]`: use as `primary key`
+- `id [uuid]`: `primary key` — join records and permissions through `id`, never through `code`
 - `created_at [timestamp with time zone]`: by default is `now()`
 - `updated_at [timestamp with time zone]`: by default is `now()`
 - `created_by [uuid]`: the fkey, reference `officer.id`
 - `updated_by [uuid]`: the fkey, reference `officer.id`
-- `code [character varying]`: it's `UNIQUE`
+- `code [character varying]`: informational key only (not unique, not a join key). HTTP `{typeCode}` is resolved inside the caller's permitted types
 - `description [text]`: info
 - `is_active [smallint]`: by default it's `0`, while `0` is inactive, `1` is active
 - `deletable [smallint]`: by default it's `1`, while `1` is deletable, `0` is not
 - `payload [jsonb]`: type UI/API metadata (see below)
+
+Record types are **organization-based**. The creating organization owns the type; it can share the same type row with other organizations via `record_type_permission`.
 
 `payload` JSON fields (see also `prompt/backend/07-dynamic-record-collections.md`):
 
@@ -128,13 +130,26 @@ Record categories are **`record_type` only**. There is no separate `document_typ
 
 ## record_attribute
 
-- `id [uuid]`: use as `primary key`
+- `id [uuid]`: `primary key` — join `record_detail` through `id`, never through `code`
 - `created_at [timestamp with time zone]`: by default is `now()`
 - `updated_at [timestamp with time zone]`: by default is `now()`
 - `created_by [uuid]`: the fkey, reference `officer.id`
 - `updated_by [uuid]`: the fkey, reference `officer.id`
-- `code [character varying]`: it's `UNIQUE`
+- `code [character varying]`: informational field key only (not unique, not a join key). Still copied onto `record_detail` for JSON payloads
 - `data_type [character varying]`: the data type of the attribute
+
+## record_type_permission
+
+Organization access to a record type. One organization has many permission rows; each permission row points to exactly one record type. Sharing a type inserts another row (one per target organization). Unique on `(organization_id, record_type_id)`. At most one `owner` row per type.
+
+- `id [uuid]`: `primary key`
+- `created_at [timestamp with time zone]`: by default is `now()`
+- `updated_at [timestamp with time zone]`: by default is `now()`
+- `created_by [uuid]`: the fkey, reference `officer.id`
+- `updated_by [uuid]`: the fkey, reference `officer.id`
+- `organization_id [uuid]`: the fkey, reference `organization.id` {Organization 1 → N RecordTypePermission}
+- `record_type_id [uuid]`: the fkey, reference `record_type.id` {RecordTypePermission → RecordType}
+- `permission_kind [character varying]`: `owner` (creator organization) or `shared` (granted to another organization)
 
 ## record_template
 
@@ -155,11 +170,11 @@ Record categories are **`record_type` only**. There is no separate `document_typ
 - `updated_at [timestamp with time zone]`: by default is `now()`
 - `created_by [uuid]`: the fkey, reference `officer.id`
 - `updated_by [uuid]`: the fkey, reference `officer.id`
-- `record_type_id [uuid]`: the fkey, reference `record_type.id {join }`
+- `record_type_id [uuid]`: the fkey, reference `record_type.id` — **join key**
 - `title [character varying]`: the record title​ ១
 - `status [smallint]`: the record status
 - `record_stage_id [uuid]`: the fkey, reference `record_stage_template.id​ ២`
-- `record_type_code [character varying]`: store the record type code, from `record.code`
+- `record_type_code [character varying]`: denormalized copy of `record_type.code` for display/filter only (not a join key)
 - `record_content [text]`: the main content ៥
 - `record_metadata [text]`: metadata as text
 - `record_time [timestamp with time zone]`: the record timestamp ៤
@@ -186,7 +201,8 @@ Record categories are **`record_type` only**. There is no separate `document_typ
 - `created_by [uuid]`: the fkey, reference `officer.id`
 - `updated_by [uuid]`: the fkey, reference `officer.id`
 - `record_id [uuid]`: the fkey, reference `record.id`
-- `record_attribute_code [character varying]`: the fkey, reference `record_attribute.code`
+- `record_attribute_id [uuid]`: the fkey, reference `record_attribute.id` — **join key** (nullable SET NULL)
+- `record_attribute_code [character varying]`: denormalized copy of `record_attribute.code` for JSON field keys (not a join key)
 - `value_number [numeric]`: for numeric values
 - `value_string [text]`: for string values
 - `value_time [timestamp with time zone]`: for datetime values

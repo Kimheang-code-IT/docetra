@@ -7,5 +7,5 @@ export async function createExportJob(input: CreateExportJobInput): Promise<ApiR
 }
 
 export async function getExportJob(id: string): Promise<ApiResponse<ExportJob>> {
-  return useApi().get<ApiResponse<ExportJob>>(`${ApiEndpoints.EXPORT_JOBS}/${encodeURIComponent(id)}`)
+  return useApi().get<ApiResponse<ExportJob>>(`${ApiEndpoints.EXPORT_JOBS}/${id}`)
 }

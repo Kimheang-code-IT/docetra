@@ -1,6 +1,6 @@
 import { AUTH_SESSION_EVENT_KEY } from '~/utils/auth/session-sync'
 
-export default defineNuxtPlugin(async () => {
+export default defineNuxtPlugin(() => {
   const auth = useAuthStore()
   const route = useRoute()
 
@@ -19,8 +19,18 @@ export default defineNuxtPlugin(async () => {
   window.addEventListener('storage', onStorage)
   if (import.meta.hot) import.meta.hot.dispose(() => window.removeEventListener('storage', onStorage))
 
-  const valid = await auth.validateSession()
-  if (!valid && !route.path.startsWith('/auth/')) {
-    await navigateTo('/auth/login', { replace: true })
+  async function guardSession() {
+    const valid = await auth.validateSession()
+    if (!valid && !route.path.startsWith('/auth/')) {
+      await navigateTo('/auth/login', { replace: true })
+    }
   }
+
+  // A stored user is enough to paint the shell. Re-check /auth/me in the background
+  // so a slow or down API does not freeze the first page for up to 30s+.
+  if (auth.isLoggedIn) {
+    void guardSession()
+    return
+  }
+  return guardSession()
 })

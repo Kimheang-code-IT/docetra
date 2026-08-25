@@ -49,22 +49,3 @@ class OfficerIdentifier(UUIDPrimaryKeyMixin, TimestampMixin, OfficerActorMixin, 
     identifier_type: Mapped[str] = mapped_column(Text)
     identifier: Mapped[str] = mapped_column(Text)
     key1: Mapped[str | None] = mapped_column(Text)
-
-
-# Legacy projection tables (Entity era) — dropped in Phase 6
-class LegacyRole(UUIDPrimaryKeyMixin, StatusMixin, TimestampMixin, Base):
-    __tablename__ = "roles"
-
-    code: Mapped[str] = mapped_column(String(80), unique=True)
-    name: Mapped[str] = mapped_column(String(200))
-    permissions: Mapped[list] = mapped_column(JSONB, default=list)
-    payload: Mapped[dict] = mapped_column(JSONB, default=dict)
-
-
-class LegacyOfficer(UUIDPrimaryKeyMixin, StatusMixin, TimestampMixin, Base):
-    __tablename__ = "officers"
-
-    name: Mapped[str] = mapped_column(String(200))
-    email: Mapped[str | None] = mapped_column(String(320))
-    organization_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="SET NULL"))
-    payload: Mapped[dict] = mapped_column(JSONB, default=dict)
