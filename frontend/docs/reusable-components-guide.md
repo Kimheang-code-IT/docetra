@@ -244,8 +244,9 @@ Keep these in their domain folder. Reuse **inside** the domain; do not promote t
 | Domain                     | Components                                                                                                                             |
 | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | **Auth**                   | `AppAuthTermsDialog`                                                                                                                   |
-| **Meeting**                | `AppMeetingBoardCard`, `AppMeetingTopicSideCard`, `AppMeetingNotesDialog`                                                              |
-| **Record**                 | `AppRecordBoardCard`, `AppRecordStageSideCard`                                                                                         |
+| **Meeting**                | `AppMeetingTopicBoard`, `AppMeetingNotesDialog`, `AppMeetingTopicNameDialog`                                                           |
+| **Record**                 | `AppRecordBoardCard`, `AppRecordStageBoard`, `AppRecordLogBoard`                                                                        |
+| **Workspace board chrome** | `AppBoardShell`, `AppBoardRailPill`, `AppBoardRailItem`, `AppBoardContent` (shared by topic/stage/log boards)                           |
 | **Configuration builders** | `AppAttributeOptionsBuilder`, `AppWorkflowStageBuilder`, `AppValidationRuleBuilder`, `AppVisibilityRuleBuilder`, `AppNumberingPreview` |
 | **Settings**               | Use `AppDocumentPage` + settings schemas (no dedicated settings card kit)                                                              |
 

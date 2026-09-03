@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createEntityAdapter } from '../../app/adapters/createEntityAdapter'
+import { createEntityApi } from '../../app/composables/api/useEntityApi'
 import { usePathModel } from '../../app/composables/common/usePathModel'
 import { resolveRecordSurfaceByParam } from '../../app/utils/record/surfaces'
 import {
@@ -176,7 +176,7 @@ describe('record surface routing composable helper', () => {
   })
 })
 
-describe('entity adapter concurrency', () => {
+describe('entity API concurrency', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
   })
@@ -205,29 +205,29 @@ describe('entity adapter concurrency', () => {
         return Promise.resolve({ data: {} })
       },
     }))
-    const adapter = createEntityAdapter({ endpoint: '/api/v2/records/document' })
-    await adapter.update('doc-1', { title: 'X', version: 4 })
-    await adapter.list({ view: 'list' })
-    await adapter.get('doc-1')
-    await adapter.create({ title: 'N' })
-    await adapter.archive('doc-1', { version: 4 })
-    await adapter.restore?.('doc-1', { version: 4 })
-    await adapter.delete('doc-1', { version: 4 })
-    await adapter.deleteMany(['doc-1'], { 'doc-1': 4 })
-    await adapter.purge?.('doc-1', { version: 4 })
-    await adapter.transitionStage('doc-1', 'review', { version: 4 })
-    await adapter.listByStage?.('review')
-    await adapter.getGroupCounts?.('stage')
-    await adapter.listComments?.('doc-1')
-    await adapter.addComment?.('doc-1', 'hi')
-    await adapter.updateComment?.('doc-1', 'c1', 'bye')
-    await adapter.deleteComment?.('doc-1', 'c1')
-    await adapter.getNeighbors?.('doc-1')
-    await adapter.getFavorite?.('doc-1')
-    await adapter.setFavorite?.('doc-1', true)
-    await adapter.listActivity?.('doc-1')
-    await adapter.listAttachments?.('doc-1')
-    await adapter.replaceAttachments('doc-1', [], { version: 5 })
+    const api = createEntityApi({ endpoint: '/api/v2/records/document' })
+    await api.update('doc-1', { title: 'X', version: 4 })
+    await api.list({ view: 'list' })
+    await api.get('doc-1')
+    await api.create({ title: 'N' })
+    await api.archive('doc-1', { version: 4 })
+    await api.restore?.('doc-1', { version: 4 })
+    await api.delete('doc-1', { version: 4 })
+    await api.deleteMany(['doc-1'], { 'doc-1': 4 })
+    await api.purge?.('doc-1', { version: 4 })
+    await api.transitionStage('doc-1', 'review', { version: 4 })
+    await api.listByStage?.('review')
+    await api.getGroupCounts?.('stage')
+    await api.listComments?.('doc-1')
+    await api.addComment?.('doc-1', 'hi')
+    await api.updateComment?.('doc-1', 'c1', 'bye')
+    await api.deleteComment?.('doc-1', 'c1')
+    await api.getNeighbors?.('doc-1')
+    await api.getFavorite?.('doc-1')
+    await api.setFavorite?.('doc-1', true)
+    await api.listActivity?.('doc-1')
+    await api.listAttachments?.('doc-1')
+    await api.replaceAttachments('doc-1', [], { version: 5 })
     expect(calls.find(call => call.method === 'PATCH' && (call.body as { title?: string })?.title === 'X')).toMatchObject({
       body: { title: 'X', version: 4 },
       options: { headers: { 'If-Match': '4' } },
@@ -299,13 +299,18 @@ describe('forms and configuration helpers', () => {
 
 describe('major component helpers', () => {
   it('splits board card slots for title, body, and footer', () => {
-    expect(isTitleChromeSlot('status')).toBe(true)
-    const split = splitCardSlots('meetingHistory', ['sortOrder', 'status', 'letterNumber', 'location'])
-    expect(split.titleChrome).toEqual(['sortOrder', 'status'])
+    expect(isTitleChromeSlot('sortOrder')).toBe(true)
+    expect(isTitleChromeSlot('status')).toBe(false)
+    const split = splitCardSlots('meetingHistory', ['sortOrder', 'letterNumber', 'location'])
+    expect(split.titleChrome).toEqual(['sortOrder'])
     expect(split.body).toContain('letterNumber')
     expect(split.footer).toContain('location')
-    expect(resolveVisibleSlots('meetingTopics', ['status', 'unknown'])).toEqual(['status'])
-    expect(catalogForEntity('meetingTopics')).toContain('status')
+    expect(resolveVisibleSlots('meetingTopics', ['status', 'unknown'])).toEqual([])
+    expect(catalogForEntity('meetingTopics')).toContain('tags')
+    expect(catalogForEntity('documents')).not.toContain('status')
+    expect(catalogForEntity('documents')).not.toContain('stage')
+    expect(catalogForEntity('meetingHistory')).not.toContain('status')
+    expect(catalogForEntity('meetingHistory')).not.toContain('stage')
     expect(blocksForEntity('documents').length).toBeGreaterThan(0)
     expect(isCardFooterSlot('documents', 'recordTime')).toBe(true)
     expect(defaultFooterAlign('location')).toBe('right')

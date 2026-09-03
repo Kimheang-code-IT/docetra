@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import type { AttachmentMeta, PersonSummary } from '~/types/docetra/common'
+import { ApiEndpoints } from '~/utils/constants/api-endpoints'
 import { fileTypeIcon } from '~/utils/file-icon'
 
 const props = defineProps<{
   title?: string
   subtitle?: string
-  status?: string
-  stage?: string
   owner?: PersonSummary
   assignee?: PersonSummary
   attachments?: AttachmentMeta[]
@@ -17,6 +16,12 @@ const props = defineProps<{
   isFavorite?: boolean
   togglingFavorite?: boolean
   favoriteEnabled?: boolean
+  /** Record upload endpoint (multipart): stores real bytes and links the file.
+   *  When absent (create mode) files upload to the portal file store and are
+   *  linked when the record is saved. */
+  uploadEndpoint?: string
+  /** Current record version for optimistic concurrency on upload+attach. */
+  uploadVersion?: () => string | number | undefined
 }>()
 
 const emit = defineEmits<{
@@ -24,6 +29,7 @@ const emit = defineEmits<{
   'update:attachments': [AttachmentMeta[]]
   'update:assignees': [PersonSummary[]]
   'update:shares': [PersonSummary[]]
+  attached: [version: number | undefined]
   toggleFavorite: []
 }>()
 
@@ -168,32 +174,112 @@ function removeTag(tag: string) {
 }
 
 function openAttachmentPicker() {
-  if (props.readOnly) return
+  if (props.readOnly || uploading.value) return
   fileInput.value?.click()
 }
 
-function onFilesSelected(event: Event) {
+const uploading = ref(false)
+const toast = useToast()
+
+function attachmentFromUpload(data: Record<string, unknown>): AttachmentMeta {
+  return {
+    id: String(data.id || ''),
+    name: String(data.name || data.fileName || 'file'),
+    mimeType: String(data.mimeType || 'application/octet-stream'),
+    sizeBytes: Number(data.sizeBytes || 0),
+    url: data.url ? String(data.url) : undefined,
+    uploadedAt: String(data.uploadedAt || new Date().toISOString()),
+    storageSource: 'local',
+  }
+}
+
+async function onFilesSelected(event: Event) {
   const input = event.target as HTMLInputElement
   const files = Array.from(input.files || [])
-  if (!files.length) return
-
-  const next = files.map((file, index) => ({
-    id: `local-file-${Date.now()}-${index}`,
-    name: file.name,
-    mimeType: file.type || 'application/octet-stream',
-    sizeBytes: file.size,
-    uploadedAt: new Date().toISOString(),
-  }))
-
-  localAttachments.value = [...localAttachments.value, ...next]
-  emit('update:attachments', localAttachments.value)
   input.value = ''
+  if (!files.length || props.readOnly) return
+  // Duplicate-submit prevention: a picker cycle cannot start while an upload
+  // batch is still in flight.
+  if (uploading.value) return
+
+  uploading.value = true
+  try {
+    const uploaded: AttachmentMeta[] = []
+    let attachedVersion: number | undefined
+    for (const file of files) {
+      const form = new FormData()
+      form.append('file', file)
+      // Existing record → upload + immediate attachment; create mode → the
+      // portal file store (real File row) and the record links on save.
+      const target = props.uploadEndpoint || ApiEndpoints.FILE_UPLOADS
+      const version = props.uploadEndpoint ? props.uploadVersion?.() : undefined
+      const response = await useApi().post<Record<string, unknown>>(
+        version != null ? `${target}${target.includes('?') ? '&' : '?'}version=${version}` : target,
+        form,
+      )
+      const data = (response as { data?: Record<string, unknown>; meta?: Record<string, unknown> }).data || response
+      if (data?.id) uploaded.push(attachmentFromUpload(data))
+      const meta = (response as { meta?: { version?: unknown } }).meta
+      const parsedVersion = Number(meta?.version)
+      if (Number.isFinite(parsedVersion)) attachedVersion = parsedVersion
+    }
+    if (uploaded.length) {
+      localAttachments.value = [...localAttachments.value, ...uploaded]
+      emit('update:attachments', localAttachments.value)
+      toast.add({ title: t('docetra.attachments.uploaded'), color: 'success' })
+      onAttachVersion(attachedVersion)
+    }
+  }
+  catch (error) {
+    toast.add({
+      title: t('docetra.attachments.uploadFailed'),
+      description: error instanceof Error ? error.message : undefined,
+      color: 'error',
+    })
+  }
+  finally {
+    uploading.value = false
+  }
+}
+
+function onAttachVersion(event: unknown) {
+  // Upload+attach bumped the record version on the server: surface it so the
+  // next save does not conflict (409).
+  const parsed = Number(event)
+  if (Number.isFinite(parsed)) emit('attached', parsed)
+  else emit('attached', undefined)
 }
 
 function removeAttachment(id: string) {
   if (props.readOnly) return
   localAttachments.value = localAttachments.value.filter(f => f.id !== id)
   emit('update:attachments', localAttachments.value)
+}
+
+const downloadingId = ref<string | null>(null)
+
+async function downloadAttachment(file: AttachmentMeta) {
+  if (downloadingId.value) return
+  downloadingId.value = file.id
+  try {
+    const blob = await useApi().get<Blob>(
+      file.url || ApiEndpoints.FILES(file.id),
+      { responseType: 'blob', requestKey: `download:${file.id}` },
+    )
+    const anchor = document.createElement('a')
+    anchor.href = URL.createObjectURL(blob)
+    anchor.download = file.name || 'download'
+    document.body.appendChild(anchor)
+    anchor.click()
+    anchor.remove()
+    URL.revokeObjectURL(anchor.href)
+  }
+  catch {
+    // 401/403/5xx toasts are handled centrally by useApi().
+  }
+  finally {
+    downloadingId.value = null
+  }
 }
 </script>
 
@@ -293,7 +379,8 @@ function removeAttachment(id: string) {
             variant="ghost"
             size="xs"
             square
-            :disabled="readOnly"
+            :loading="uploading"
+            :disabled="readOnly || uploading"
             @click="openAttachmentPicker"
           />
           <input
@@ -319,6 +406,18 @@ function removeAttachment(id: string) {
               />
             </span>
             <span class="min-w-0 flex-1 truncate">{{ file.name }}</span>
+            <UButton
+              icon="i-lucide-download"
+              color="neutral"
+              variant="ghost"
+              size="xs"
+              square
+              :loading="downloadingId === file.id"
+              :disabled="downloadingId !== null"
+              :aria-label="$t('docetra.attachments.download')"
+              :title="$t('docetra.attachments.download')"
+              @click="downloadAttachment(file)"
+            />
             <UButton
               icon="i-lucide-x"
               color="neutral"

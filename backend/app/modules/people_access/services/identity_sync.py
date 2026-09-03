@@ -7,9 +7,6 @@ is retained only so Entity-era side-effect call sites stay import-safe.
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.record import Entity
-
-
-async def sync_domain_row(db: AsyncSession, row: Entity) -> None:
+async def sync_domain_row(db: AsyncSession, row: object) -> None:
     return
 

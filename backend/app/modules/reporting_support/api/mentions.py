@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v2.deps import current_user, get_db
 from app.core.http_schemas import DataEnvelope
-from app.db import User
+from typing import Any as User
 from app.modules.reporting_support.services.mentions import search_mentions
 
 router = APIRouter(prefix="/mentions", tags=["mentions"])

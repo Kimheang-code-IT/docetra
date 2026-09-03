@@ -1,14 +1,13 @@
 /**
  * Merge static entity document tabs with fields from the selected record type.
  */
-import type { DocumentTabSchema, FieldOption } from '~/types/docetra/common'
+import type { DocumentTabSchema } from '~/types/docetra/common'
 import type { RecordAttribute, RecordType, ResolvedRecordTypeSchema } from '~/types/docetra/configuration'
 import { useConfigurationRepositories } from '~/repositories'
 import { provideCardFieldsOverride } from '~/composables/settings/useCardFields'
 import {
   mapTypeAttributesToSections,
   pruneDetailsForType,
-  stageOptionsFromType,
 } from '~/utils/record-type-fields'
 
 const SCHEMA_CACHE_TTL_MS = 60_000
@@ -139,7 +138,6 @@ export function useRecordTypeDrivenTabs(options: {
     if (!enabled.value) return base
 
     const type = loadedType.value
-    const stageOptions = stageOptionsFromType(type)
     const typeSections = type
       ? mapTypeAttributesToSections(
           type.attributes || [],
@@ -152,13 +150,8 @@ export function useRecordTypeDrivenTabs(options: {
       if (tab.id !== 'details') return tab
 
       const sections = tab.sections.map((section) => {
-        const fields = section.fields.map((field) => {
-          if (field.key !== 'stage' || !stageOptions?.length) return field
-          return {
-            ...field,
-            options: stageOptions as FieldOption[],
-          }
-        })
+        // Status/stage are board/workflow concerns — never show as document form fields.
+        const fields = section.fields.filter(field => field.key !== 'status' && field.key !== 'stage')
         return { ...section, fields }
       })
 

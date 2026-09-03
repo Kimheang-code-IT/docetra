@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { WorkflowStage } from '~/types/docetra/common'
+import type { CardDisplayEntityKey } from '~/types/docetra/settings'
 
 export type KanbanColumnData = {
   items: Record<string, unknown>[]
@@ -13,14 +14,18 @@ const props = withDefaults(
     column?: KanbanColumnData
     stages: WorkflowStage[]
     titleField?: string
+    entityKey?: CardDisplayEntityKey
     pending?: boolean
     draggingId?: string | null
+    canMove?: boolean
   }>(),
   {
     column: () => ({ items: [], total: 0, page: 1 }),
     titleField: 'title',
+    entityKey: 'documents',
     pending: false,
     draggingId: null,
+    canMove: true,
   },
 )
 
@@ -88,9 +93,9 @@ function onCardMove(id: string, stage: string) {
         <h3 class="truncate text-sm font-semibold text-highlighted">
           {{ $t(stage.labelKey) }}
         </h3>
-        <UBadge color="neutral" variant="subtle" size="sm" class="tabular-nums">
+        <span class="shrink-0 tabular-nums text-xs text-muted">
           {{ total }}
-        </UBadge>
+        </span>
       </div>
       <slot name="header-actions" />
     </header>
@@ -104,14 +109,17 @@ function onCardMove(id: string, stage: string) {
         :title="cardTitle(card)"
         :stage="stage"
       >
-        <WorkspaceAppKanbanCard
-          :card="card"
+        <RecordAppRecordBoardCard
+          :row="card"
           :title="cardTitle(card)"
           :stages="stages"
-          :current-stage="stage.code"
+          :entity-key="entityKey"
           :dragging="draggingId === String(card.id)"
-          @click="emit('cardClick', card)"
-          @move="(next) => onCardMove(String(card.id), next)"
+          :can-move="canMove"
+          :can-view-logs="false"
+          :can-delete="false"
+          @open="emit('cardClick', card)"
+          @move-stage="(next) => onCardMove(String(card.id), next)"
           @drag-start="emit('dragStart', $event)"
           @drag-end="emit('dragEnd')"
         />

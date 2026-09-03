@@ -3,26 +3,24 @@
  *
  * Product source: prompt/idea + prompt/specification (unified record model).
  * Meetings are a special record type — share core record summary fields
- * (title, status, stage, tags, record_time) plus meeting extras.
+ * (title, tags, record_time) plus meeting extras.
  *
- * Title is always shown. sortOrder + status render in the title row.
+ * Title is always shown. Stage moves happen via board drag-and-drop / menu,
+ * not by rendering status/stage badges on the card.
  * Footer slots render in the bordered footer with left/right alignment.
  */
 import type { CardDisplayEntityKey } from '~/types/docetra/settings'
 
 export const TOPIC_CARD_SLOTS = [
-  'status',
-  'stage',
+  'description',
   'tags',
   'recordTime',
 ] as const
 
 export const MEETING_CARD_SLOTS = [
   'topicTitle',
-  'status',
   'sortOrder',
   'letterNumber',
-  'stage',
   'tags',
   'participants',
   'internalUnits',
@@ -45,8 +43,6 @@ export const RECORD_CARD_SLOTS = [
   'party',
   'owner',
   'assignee',
-  'status',
-  'stage',
   'waiting',
   'tags',
   'description',
@@ -86,11 +82,9 @@ export function statusBadgeColor(status: unknown): StatusBadgeColor {
   return 'info'
 }
 
-/** Defaults: core record fields + meeting date/location footer (date L, location R). */
+/** Defaults: meeting summary fields + date/location footer (date L, location R). */
 const DEFAULT_MEETING_CARD_FIELDS: string[] = [
   'sortOrder',
-  'status',
-  'stage',
   'tags',
   'topicTitle',
   'letterNumber',
@@ -98,10 +92,8 @@ const DEFAULT_MEETING_CARD_FIELDS: string[] = [
   'location',
 ]
 
-/** Defaults align with draft record columns: title, stage, tags, record_time, content. */
+/** Defaults: title always shown; stage is changed by drag-and-drop, not card badges. */
 const DEFAULT_RECORD_CARD_FIELDS: string[] = [
-  'status',
-  'stage',
   'tags',
   'description',
   'recordTime',
@@ -113,13 +105,13 @@ const DEFAULT_RECORD_CARD_FIELDS: string[] = [
 ]
 
 export const DEFAULT_CARD_FIELDS: Record<CardDisplayEntityKey, string[]> = {
-  /** Topic rail: no date on folder cards by default */
-  meetingTopics: ['status', 'stage', 'tags'],
+  /** Topic cards: description + optional tags — no status/stage/date by default */
+  meetingTopics: ['description', 'tags'],
   meetingHistory: DEFAULT_MEETING_CARD_FIELDS,
   incomingDocuments: [...DEFAULT_RECORD_CARD_FIELDS, 'documentType', 'letterSubject', 'officeInCharge', 'involvedOfficers', 'externalUnits'],
   outgoingDocuments: [...DEFAULT_RECORD_CARD_FIELDS, 'documentType', 'letterSubject', 'officeInCharge', 'involvedOfficers', 'externalUnits'],
   documents: [...DEFAULT_RECORD_CARD_FIELDS, 'documentType', 'letterSubject', 'officeInCharge', 'involvedOfficers', 'externalUnits'],
-  masterListRequests: ['status', 'stage', 'tags', 'letterNumber', 'letterSubject', 'officeInCharge', 'officerInCharge', 'externalUnits', 'letterDate'],
+  masterListRequests: ['tags', 'letterNumber', 'letterSubject', 'officeInCharge', 'officerInCharge', 'externalUnits', 'letterDate'],
 }
 
 export const CARD_DISPLAY_ENTITIES: Array<{
@@ -136,8 +128,7 @@ export const CARD_DISPLAY_ENTITIES: Array<{
 ]
 
 const TOPIC_CARD_BLOCKS: CardSlotBlock[] = [
-  { id: 'titleRow', labelKey: 'docetra.cardSlotBlocks.titleRow', slots: ['status'] },
-  { id: 'context', labelKey: 'docetra.cardSlotBlocks.context', slots: ['stage', 'tags'] },
+  { id: 'context', labelKey: 'docetra.cardSlotBlocks.context', slots: ['description', 'tags'] },
   { id: 'footer', labelKey: 'docetra.cardSlotBlocks.footer', slots: ['recordTime'] },
 ]
 
@@ -148,12 +139,12 @@ interface CardSlotBlock {
 }
 
 const MEETING_CARD_BLOCKS: CardSlotBlock[] = [
-  { id: 'titleRow', labelKey: 'docetra.cardSlotBlocks.titleRow', slots: ['sortOrder', 'status'] },
+  { id: 'titleRow', labelKey: 'docetra.cardSlotBlocks.titleRow', slots: ['sortOrder'] },
   { id: 'identity', labelKey: 'docetra.cardSlotBlocks.identity', slots: ['letterNumber'] },
   {
     id: 'context',
     labelKey: 'docetra.cardSlotBlocks.context',
-    slots: ['topicTitle', 'stage', 'tags', 'participants', 'internalUnits', 'externalUnits'],
+    slots: ['topicTitle', 'tags', 'participants', 'internalUnits', 'externalUnits'],
   },
   {
     id: 'footer',
@@ -163,7 +154,6 @@ const MEETING_CARD_BLOCKS: CardSlotBlock[] = [
 ]
 
 const RECORD_CARD_BLOCKS: CardSlotBlock[] = [
-  { id: 'titleRow', labelKey: 'docetra.cardSlotBlocks.titleRow', slots: ['status'] },
   {
     id: 'identity',
     labelKey: 'docetra.cardSlotBlocks.identity',
@@ -184,7 +174,7 @@ const RECORD_CARD_BLOCKS: CardSlotBlock[] = [
     labelKey: 'docetra.cardSlotBlocks.people',
     slots: ['owner', 'assignee', 'involvedOfficers', 'externalUnits', 'officeInCharge', 'officerInCharge'],
   },
-  { id: 'extra', labelKey: 'docetra.cardSlotBlocks.extra', slots: ['stage', 'waiting', 'tags'] },
+  { id: 'extra', labelKey: 'docetra.cardSlotBlocks.extra', slots: ['waiting', 'tags'] },
   {
     id: 'footer',
     labelKey: 'docetra.cardSlotBlocks.footer',
@@ -215,8 +205,8 @@ export function blocksForEntity(entityKey: CardDisplayEntityKey): CardSlotBlock[
   return entityKey === 'meetingHistory' ? MEETING_CARD_BLOCKS : RECORD_CARD_BLOCKS
 }
 
-/** Renders in the title row (order # before title, status with title). */
-const TITLE_CHROME_SLOTS = new Set(['sortOrder', 'status'])
+/** Renders in the title row (order # before title). */
+const TITLE_CHROME_SLOTS = new Set(['sortOrder'])
 
 export function isTitleChromeSlot(slot: string): boolean {
   return TITLE_CHROME_SLOTS.has(slot)
@@ -340,4 +330,21 @@ export function resolveTypeAwareFooterAlign(
   const fromConfig = sources.appConfig?.[entityKey]?.[slot]
   if (fromConfig === 'left' || fromConfig === 'right') return fromConfig
   return defaultFooterAlign(slot)
+}
+
+/**
+ * Map a record-type code to its card-display entity key. Custom types share
+ * the generic record bucket (`documents`) — the unified record model renders
+ * one card layout family.
+ */
+export function cardEntityKeyForRecordType(code: string | null | undefined):
+  'meetingTopics' | 'meetingHistory' | 'incomingDocuments' | 'outgoingDocuments' | 'documents' | 'masterListRequests' {
+  switch (code) {
+    case 'meeting_topic': return 'meetingTopics'
+    case 'meeting_history': return 'meetingHistory'
+    case 'incoming_document': return 'incomingDocuments'
+    case 'outgoing_document': return 'outgoingDocuments'
+    case 'master_list_request': return 'masterListRequests'
+    default: return 'documents'
+  }
 }

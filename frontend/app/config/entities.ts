@@ -5,20 +5,20 @@ import type {
   TableColumnDef,
   WorkflowStage,
 } from '~/types/docetra/common'
-import type { AdapterKey } from '~/adapters'
+import type { EntityApiKey } from '~/composables/api/useEntityApis'
 import type { EntityAdapter } from '~/types/docetra/adapter'
-import { adapters, createRecordAdapter } from '~/adapters'
+import { createRecordApi, entityApis } from '~/composables/api/useEntityApis'
 import {
-  ENTITY_TYPE_OPTIONS_FALLBACK,
-  LOG_ACTION_OPTIONS_FALLBACK,
-  MEETING_MODE_OPTIONS_FALLBACK,
-  SEVERITY_OPTIONS_FALLBACK,
-  STATUS_OPTIONS_FALLBACK,
-} from '~/config/vocabulary-fallbacks'
+  ENTITY_TYPE_OPTIONS,
+  LOG_ACTION_OPTIONS,
+  MEETING_MODE_OPTIONS,
+  SEVERITY_OPTIONS,
+  STATUS_OPTIONS,
+} from '~/config/select-options'
 import { ApiEndpoints } from '~/utils/constants/api-endpoints'
 
 export interface EntityConfig {
-  key: AdapterKey
+  key: EntityApiKey
   routeBase: string
   titleKey: string
   descriptionKey?: string
@@ -78,22 +78,7 @@ const statusFilter: FilterDef = {
   key: 'status',
   labelKey: 'docetra.fields.status',
   type: 'multiselect',
-  // Instant-render fallback — DB vocabulary merges over this at render time.
-  options: STATUS_OPTIONS_FALLBACK,
-}
-
-const stageFilter: FilterDef = {
-  key: 'stage',
-  labelKey: 'docetra.fields.stage',
-  type: 'multiselect',
-  options: workflowStages.map(s => ({ label: s.code, value: s.code, labelKey: s.labelKey })),
-}
-
-const recordStageFilter: FilterDef = {
-  key: 'stage',
-  labelKey: 'docetra.fields.stage',
-  type: 'multiselect',
-  options: recordWorkflowStages.map(s => ({ label: s.code, value: s.code, labelKey: s.labelKey })),
+  options: STATUS_OPTIONS,
 }
 
 const updatedAtDateFilter: FilterDef = {
@@ -117,7 +102,6 @@ const occurredAtDateFilter: FilterDef = {
 /** Incoming / Outgoing / Document create/edit — no record-flow / content blob; company + org selects. */
 function orgSelectDocumentTabs(options: { dateKey: 'receivedDate' | 'sentDate' | 'documentDate' }): DocumentTabSchema[] {
   return masterDataTabs([
-    { key: 'status', labelKey: 'docetra.fields.status', type: 'select', required: true, options: statusFilter.options },
     { key: 'title', labelKey: 'docetra.fields.title', type: 'text', required: true },
     {
       key: 'documentType',
@@ -161,7 +145,6 @@ function orgSelectDocumentTabs(options: { dateKey: 'receivedDate' | 'sentDate' |
 
 function masterListRequestTabs(): DocumentTabSchema[] {
   return masterDataTabs([
-    { key: 'status', labelKey: 'docetra.fields.status', type: 'select', required: true, options: statusFilter.options },
     { key: 'title', labelKey: 'docetra.fields.title', type: 'text', required: true, colSpan: 2 },
     { key: 'recordTime', labelKey: 'docetra.fields.recordTime', type: 'datetime', required: true },
     { key: 'tags', labelKey: 'docetra.fields.recordTag', type: 'csv-list', colSpan: 2 },
@@ -199,18 +182,16 @@ export const entityConfigs: Record<string, EntityConfig> = {
     stages: workflowStages,
     titleField: 'title',
     columns: [
-      { key: 'status', labelKey: 'docetra.fields.status' },
       { key: 'title', labelKey: 'docetra.fields.title', sortable: true, priority: 'high' },
+      { key: 'description', labelKey: 'docetra.fields.description', priority: 'medium' },
       { key: 'recordTime', labelKey: 'docetra.fields.recordTime', sortable: true },
-      { key: 'stage', labelKey: 'docetra.fields.stage', priority: 'high' },
       { key: 'tags', labelKey: 'docetra.fields.recordTag' },
       { key: 'childMeetingCount', labelKey: 'docetra.fields.childMeetings' },
     ],
-    filters: [statusFilter, stageFilter],
+    filters: [],
     tabs: masterDataTabs([
       { key: 'title', labelKey: 'docetra.fields.title', type: 'text', required: true, colSpan: 2 },
-      { key: 'status', labelKey: 'docetra.fields.status', type: 'select', required: true, options: statusFilter.options },
-      { key: 'stage', labelKey: 'docetra.fields.stage', type: 'select', required: true, options: stageFilter.options },
+      { key: 'description', labelKey: 'docetra.fields.description', type: 'textarea', colSpan: 2 },
       { key: 'recordTime', labelKey: 'docetra.fields.recordTime', type: 'datetime', required: true },
       { key: 'tags', labelKey: 'docetra.fields.recordTag', type: 'csv-list', colSpan: 2 },
     ]),
@@ -238,8 +219,6 @@ export const entityConfigs: Record<string, EntityConfig> = {
     stages: workflowStages,
     titleField: 'title',
     columns: [
-      { key: 'status', labelKey: 'docetra.fields.status' },
-      { key: 'stage', labelKey: 'docetra.fields.stage', priority: 'high' },
       { key: 'letterNumber', labelKey: 'docetra.fields.letterNumber', sortable: true },
       { key: 'title', labelKey: 'docetra.fields.letterSubject', sortable: true, priority: 'high' },
       { key: 'letterDate', labelKey: 'docetra.fields.letterDate', sortable: true },
@@ -252,13 +231,9 @@ export const entityConfigs: Record<string, EntityConfig> = {
       { key: 'tags', labelKey: 'docetra.fields.recordTag', priority: 'low' },
     ],
     filters: [
-      statusFilter,
-      stageFilter,
       { key: 'meetingDate', labelKey: 'docetra.fields.meetingDate', type: 'daterange' },
     ],
     tabs: masterDataTabs([
-      { key: 'status', labelKey: 'docetra.fields.status', type: 'select', required: true, options: statusFilter.options },
-      { key: 'stage', labelKey: 'docetra.fields.stage', type: 'select', required: true, options: stageFilter.options },
       { key: 'topicId', labelKey: 'docetra.fields.topicId', type: 'text', helpKey: 'docetra.fields.topicIdHelp' },
       { key: 'letterNumber', labelKey: 'docetra.fields.letterNumber', type: 'text', required: true },
       { key: 'title', labelKey: 'docetra.fields.letterSubject', type: 'text', required: true },
@@ -269,8 +244,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
         key: 'meetingMode',
         labelKey: 'docetra.fields.meetingMode',
         type: 'select',
-        // Instant-render fallback — DB vocabulary merges over this at render time.
-        options: MEETING_MODE_OPTIONS_FALLBACK,
+              options: MEETING_MODE_OPTIONS,
       },
       { key: 'meetingUrl', labelKey: 'docetra.fields.meetingUrl', type: 'url' },
       { key: 'location', labelKey: 'docetra.fields.location', type: 'text' },
@@ -323,13 +297,10 @@ export const entityConfigs: Record<string, EntityConfig> = {
       { key: 'receivedDate', labelKey: 'docetra.fields.receivedDate', sortable: true },
       { key: 'owner.name', labelKey: 'docetra.fields.owner' },
       { key: 'assignee.name', labelKey: 'docetra.fields.assignee' },
-      { key: 'stage', labelKey: 'docetra.fields.stage', priority: 'high' },
       { key: 'waiting', labelKey: 'docetra.fields.waiting' },
       { key: 'attachmentCount', labelKey: 'docetra.fields.attachments', priority: 'low' },
     ],
     filters: [
-      statusFilter,
-      recordStageFilter,
       { key: 'receivedDate', labelKey: 'docetra.fields.receivedDate', type: 'daterange' },
       { key: 'waiting', labelKey: 'docetra.fields.waiting', type: 'boolean' },
     ],
@@ -357,12 +328,8 @@ export const entityConfigs: Record<string, EntityConfig> = {
       { key: 'title', labelKey: 'docetra.fields.title', sortable: true, priority: 'high' },
       { key: 'recipientOrganization.name', labelKey: 'docetra.fields.recipient' },
       { key: 'sentDate', labelKey: 'docetra.fields.sentDate', sortable: true },
-      { key: 'stage', labelKey: 'docetra.fields.stage' },
-      { key: 'status', labelKey: 'docetra.fields.status' },
     ],
     filters: [
-      statusFilter,
-      recordStageFilter,
       { key: 'sentDate', labelKey: 'docetra.fields.sentDate', type: 'daterange' },
     ],
     tabs: orgSelectDocumentTabs({ dateKey: 'sentDate' }),
@@ -389,13 +356,9 @@ export const entityConfigs: Record<string, EntityConfig> = {
       { key: 'title', labelKey: 'docetra.fields.title', sortable: true, priority: 'high' },
       { key: 'recordTypeName', labelKey: 'docetra.fields.recordType' },
       { key: 'documentDate', labelKey: 'docetra.fields.date', sortable: true },
-      { key: 'stage', labelKey: 'docetra.fields.stage' },
-      { key: 'status', labelKey: 'docetra.fields.status' },
       { key: 'updatedAt', labelKey: 'docetra.fields.updatedAt', sortable: true },
     ],
     filters: [
-      statusFilter,
-      recordStageFilter,
       { key: 'documentDate', labelKey: 'docetra.fields.date', type: 'daterange' },
     ],
     tabs: orgSelectDocumentTabs({ dateKey: 'documentDate' }),
@@ -421,14 +384,10 @@ export const entityConfigs: Record<string, EntityConfig> = {
       { key: 'referenceNumber', labelKey: 'docetra.fields.letterNumber', sortable: true },
       { key: 'title', labelKey: 'docetra.fields.title', sortable: true },
       { key: 'letterDate', labelKey: 'docetra.fields.letterDate', sortable: true },
-      { key: 'stage', labelKey: 'docetra.fields.stage' },
-      { key: 'status', labelKey: 'docetra.fields.status' },
       { key: 'owner.name', labelKey: 'docetra.fields.owner' },
       { key: 'updatedAt', labelKey: 'docetra.fields.updatedAt' },
     ],
     filters: [
-      statusFilter,
-      recordStageFilter,
       { key: 'letterDate', labelKey: 'docetra.fields.letterDate', type: 'daterange' },
     ],
     tabs: masterListRequestTabs(),
@@ -453,7 +412,6 @@ export const entityConfigs: Record<string, EntityConfig> = {
       { key: 'rowNumber', labelKey: 'docetra.fields.number', priority: 'high' },
       { key: 'entityType', labelKey: 'docetra.fields.recordType', priority: 'high', cell: 'badge' },
       { key: 'entityTitle', labelKey: 'docetra.fields.title', priority: 'high' },
-      { key: 'recordStage', labelKey: 'docetra.fields.recordStage', priority: 'high', cell: 'badge' },
       { key: 'parentRecord', labelKey: 'docetra.fields.parentRecord', priority: 'high' },
       { key: 'updatedAt', labelKey: 'docetra.fields.updatedAt', sortable: true, priority: 'high', cell: 'datetime' },
       { key: 'actor.name', labelKey: 'docetra.fields.updater', priority: 'high', cell: 'person' },
@@ -463,22 +421,19 @@ export const entityConfigs: Record<string, EntityConfig> = {
         key: 'action',
         labelKey: 'docetra.fields.action',
         type: 'select',
-        // Instant-render fallback — DB vocabulary merges over this at render time.
-        options: LOG_ACTION_OPTIONS_FALLBACK,
+              options: LOG_ACTION_OPTIONS,
       },
       {
         key: 'entityType',
         labelKey: 'docetra.fields.recordType',
         type: 'select',
-        // Instant-render fallback — DB vocabulary merges over this at render time.
-        options: ENTITY_TYPE_OPTIONS_FALLBACK,
+              options: ENTITY_TYPE_OPTIONS,
       },
       {
         key: 'severity',
         labelKey: 'docetra.fields.severity',
         type: 'select',
-        // Instant-render fallback — DB vocabulary merges over this at render time.
-        options: SEVERITY_OPTIONS_FALLBACK,
+              options: SEVERITY_OPTIONS,
       },
     ],
     tabs: [
@@ -765,7 +720,6 @@ export const entityConfigs: Record<string, EntityConfig> = {
       { key: 'name', labelKey: 'docetra.fields.roleName', sortable: true, priority: 'high' },
       { key: 'userCount', labelKey: 'docetra.fields.users', sortable: true, priority: 'high' },
       { key: 'permissionCount', labelKey: 'docetra.fields.permissions', priority: 'high' },
-      { key: 'status', labelKey: 'docetra.fields.status', priority: 'high' },
     ],
     filters: [statusFilter, updatedAtDateFilter],
     tabs: [
@@ -819,7 +773,6 @@ export const entityConfigs: Record<string, EntityConfig> = {
       { key: 'email', labelKey: 'docetra.fields.email', sortable: true },
       { key: 'roleName', labelKey: 'docetra.fields.role' },
       { key: 'officerName', labelKey: 'docetra.fields.officer' },
-      { key: 'status', labelKey: 'docetra.fields.status' },
       { key: 'lastLoginAt', labelKey: 'docetra.fields.lastLogin' },
     ],
     filters: [statusFilter, updatedAtDateFilter],
@@ -873,7 +826,6 @@ export const entityConfigs: Record<string, EntityConfig> = {
       { key: 'stageCount', labelKey: 'docetra.fields.stages' },
       { key: 'attributeCount', labelKey: 'docetra.fields.attributes' },
       { key: 'usageCount', labelKey: 'docetra.fields.usage' },
-      { key: 'status', labelKey: 'docetra.fields.status' },
     ],
     filters: [statusFilter, updatedAtDateFilter],
     tabs: masterDataTabs([
@@ -904,7 +856,6 @@ export const entityConfigs: Record<string, EntityConfig> = {
       { key: 'fieldType', labelKey: 'docetra.fields.fieldType' },
       { key: 'required', labelKey: 'docetra.fields.required' },
       { key: 'usageCount', labelKey: 'docetra.fields.usage' },
-      { key: 'status', labelKey: 'docetra.fields.status' },
     ],
     filters: [statusFilter, updatedAtDateFilter],
     tabs: masterDataTabs([
@@ -953,7 +904,6 @@ export const entityConfigs: Record<string, EntityConfig> = {
       { key: 'mimeType', labelKey: 'docetra.fields.mimeType' },
       { key: 'sizeBytes', labelKey: 'docetra.fields.size' },
       { key: 'uploader.name', labelKey: 'docetra.fields.uploader' },
-      { key: 'status', labelKey: 'docetra.fields.status' },
       { key: 'storageSource', labelKey: 'docetra.fields.storage' },
       { key: 'linkedRecordTitle', labelKey: 'docetra.fields.linkedRecord' },
       { key: 'createdAt', labelKey: 'docetra.fields.uploadedAt', sortable: true },
@@ -985,7 +935,6 @@ export const entityConfigs: Record<string, EntityConfig> = {
     columns: [
       { key: 'name', labelKey: 'docetra.fields.name', sortable: true },
       { key: 'folderName', labelKey: 'docetra.fields.folder' },
-      { key: 'status', labelKey: 'docetra.fields.status' },
       { key: 'filesSynced', labelKey: 'docetra.fields.filesSynced' },
       { key: 'lastSyncAt', labelKey: 'docetra.fields.lastSync' },
     ],
@@ -1084,8 +1033,8 @@ export function getEntityConfig(key: string): EntityConfig {
   return config
 }
 
-export function getEntityAdapter<T = any>(key: AdapterKey): EntityAdapter<T> {
-  return adapters[key] as unknown as EntityAdapter<T>
+export function getEntityAdapter<T = any>(key: EntityApiKey): EntityAdapter<T> {
+  return entityApis[key] as unknown as EntityAdapter<T>
 }
 
 const TYPE_CODE_TO_ENTITY_KEY: Record<string, string> = {
@@ -1141,30 +1090,23 @@ export function buildEntityConfigForType(options: {
     stages,
     titleField: 'title',
     columns: [
-      { key: 'status', labelKey: 'docetra.fields.status' },
       { key: 'title', labelKey: 'docetra.fields.title', sortable: true, priority: 'high' },
       { key: 'recordTime', labelKey: 'docetra.fields.recordTime', sortable: true },
-      { key: 'stage', labelKey: 'docetra.fields.stage', priority: 'high' },
       { key: 'tags', labelKey: 'docetra.fields.recordTag' },
     ],
-    filters: [
-      statusFilter,
-      options.uiSurface === 'meeting' ? stageFilter : recordStageFilter,
-    ],
+    filters: [],
     tabs: masterDataTabs([
       { key: 'title', labelKey: 'docetra.fields.title', type: 'text', required: true, colSpan: 2 },
-      { key: 'status', labelKey: 'docetra.fields.status', type: 'select', required: true, options: statusFilter.options },
-      { key: 'stage', labelKey: 'docetra.fields.stage', type: 'select', options: (options.uiSurface === 'meeting' ? stageFilter : recordStageFilter).options },
       { key: 'recordTime', labelKey: 'docetra.fields.recordTime', type: 'datetime' },
       { key: 'tags', labelKey: 'docetra.fields.recordTag', type: 'csv-list', colSpan: 2 },
     ]),
   }
 }
 
-/** Adapter for a config — prefers recordTypeCode dynamic API over closed AdapterKey map. */
+/** API client for a config — prefers recordTypeCode dynamic API over the closed EntityApiKey map. */
 export function getAdapterForConfig<T = any>(config: EntityConfig): EntityAdapter<T> {
   if (config.recordBacked && config.recordTypeCode) {
-    return createRecordAdapter(config.recordTypeCode) as unknown as EntityAdapter<T>
+    return createRecordApi(config.recordTypeCode) as unknown as EntityAdapter<T>
   }
-  return getEntityAdapter(config.key as AdapterKey)
+  return getEntityAdapter(config.key)
 }

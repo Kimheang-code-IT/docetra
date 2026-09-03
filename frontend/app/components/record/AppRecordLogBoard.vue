@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import { useMediaQuery } from '@vueuse/core'
 import { useRecordLogBoard } from '~/composables/record/useRecordLogBoard'
+import { useBoardViewMode } from '~/composables/common/useBoardViewMode'
+import { useAppLocalization } from '~/composables/settings/useAppLocalization'
 
 const {
   pending,
@@ -27,19 +30,38 @@ const {
 
 const leftCollapsed = useState('record-log-left-collapsed', () => false)
 const mobileLogListOpen = ref(false)
-const hasLogFilters = computed(() => Boolean(
-  dateStart.value.trim() || dateEnd.value.trim(),
-))
+const isSmallScreen = useMediaQuery('(max-width: 1023px)')
+const viewMode = useBoardViewMode('record-log-view-mode', 'table')
+const { formatDateTime } = useAppLocalization()
+const { t, te } = useI18n()
 
-function toggleLeftPanel() {
-  leftCollapsed.value = !leftCollapsed.value
-}
+const railCollapsedProxy = computed(() =>
+  isSmallScreen.value ? false : leftCollapsed.value,
+)
 
 function selectLogTab(id: string) {
   selectTab(id)
-  mobileLogListOpen.value = false
+  if (isSmallScreen.value) mobileLogListOpen.value = false
 }
 
+function tabLabel(tab: { label?: string, labelKey: string }) {
+  return tab.label || t(tab.labelKey)
+}
+
+function logActionLabel(action: unknown) {
+  const text = String(action || '')
+  if (!text) return '—'
+  const actionKey = `docetra.logActions.${text}`
+  return te(actionKey) ? t(actionKey) : text.replaceAll('_', ' ')
+}
+
+function logActorName(row: Record<string, unknown>) {
+  const actor = row.actor
+  if (actor && typeof actor === 'object' && 'name' in actor) {
+    return String((actor as { name?: string }).name || '—')
+  }
+  return '—'
+}
 </script>
 
 <template>
@@ -51,260 +73,105 @@ function selectLogTab(id: string) {
     :refreshing="pending"
     @refresh="refresh"
   >
-    <div class="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-sm border border-default bg-default">
-      <div
-        v-if="pending && !pageItems.length && !tabCounts.get('all')"
-        class="absolute inset-0 z-10 flex items-center justify-center bg-default/50"
-      >
-        <UIcon name="i-lucide-loader-circle" class="size-6 animate-spin text-primary" />
-      </div>
-
-      <UAlert
-        v-if="error"
-        class="m-3"
-        color="error"
-        :title="error"
-        :actions="[{ label: $t('docetra.actions.retry'), onClick: refresh }]"
-      />
-
-      <!-- Always left rail + right table (never stacked) -->
-      <div class="relative flex min-h-0 flex-1 flex-row overflow-hidden">
-        <button
-          v-if="mobileLogListOpen"
-          type="button"
-          class="absolute inset-0 z-20 bg-black/25 lg:hidden"
-          :aria-label="$t('actions.close')"
-          @click="mobileLogListOpen = false"
+    <WorkspaceAppBoardShell
+      v-model:collapsed="leftCollapsed"
+      v-model:mobile-open="mobileLogListOpen"
+      v-model:header-search="search"
+      v-model:date-start="dateStart"
+      v-model:date-end="dateEnd"
+      v-model:view-mode="viewMode"
+      rail-title-key="docetra.recordLogBoard.tabsTitle"
+      rail-icon="i-lucide-scroll-text"
+      expand-label-key="docetra.recordLogBoard.expandTabs"
+      collapse-label-key="docetra.recordLogBoard.collapseTabs"
+      header-search-placeholder-key="docetra.recordLogBoard.search"
+      :header-title="tabLabel(selectedTab)"
+      :pending="pending"
+      :show-pending-overlay="pending && !pageItems.length && !tabCounts.get('all')"
+      :error="error || undefined"
+      @retry="refresh"
+    >
+      <template #rail-items>
+        <WorkspaceAppBoardRailItem
+          v-for="tab in tabs"
+          :key="tab.id"
+          :title="tabLabel(tab)"
+          :count="tabCounts.get(tab.id) || 0"
+          :icon="tab.icon"
+          :selected="selectedTabId === tab.id"
+          :collapsed="railCollapsedProxy"
+          count-style="badge"
+          @select="selectLogTab(tab.id)"
         />
 
-        <!-- Left 1-col tab rail -->
-        <aside
-          class="flex h-full min-h-0 shrink-0 flex-col overflow-hidden border-e border-default bg-default transition-[width] duration-200 lg:static lg:z-auto lg:shadow-none"
-          :class="[
-            mobileLogListOpen
-              ? 'absolute inset-y-0 start-0 z-30 w-[min(22rem,calc(100%-3rem))] shadow-xl'
-              : 'relative w-14',
-            leftCollapsed ? 'lg:w-14' : 'lg:w-[22rem]',
-          ]"
+        <UButton
+          v-if="hasMoreRecordTypes && !railCollapsedProxy"
+          block
+          color="neutral"
+          variant="soft"
+          icon="i-lucide-chevrons-down"
+          :loading="loadingMoreRecordTypes"
+          @click="loadMoreRecordTypes"
         >
-          <div
-            class="flex shrink-0 items-center border-b border-default"
-            :class="mobileLogListOpen
-              ? 'justify-between px-4 py-3.5'
-              : leftCollapsed
-              ? 'justify-center px-1.5 py-3.5'
-              : 'justify-center px-1.5 py-3.5 lg:justify-start lg:px-4'"
-          >
-            <h2
-              v-if="mobileLogListOpen || !leftCollapsed"
-              class="truncate text-sm font-semibold text-highlighted"
-              :class="mobileLogListOpen ? '' : 'hidden lg:block'"
-            >
-              {{ $t('docetra.recordLogBoard.tabsTitle') }}
-            </h2>
-            <UIcon
-              v-if="leftCollapsed && !mobileLogListOpen"
-              name="i-lucide-scroll-text"
-              class="size-4 text-muted"
-              :aria-label="$t('docetra.recordLogBoard.tabsTitle')"
-            />
-            <UIcon
-              v-else-if="!mobileLogListOpen"
-              name="i-lucide-scroll-text"
-              class="size-4 text-muted lg:hidden"
-              :aria-label="$t('docetra.recordLogBoard.tabsTitle')"
-            />
-            <UButton
-              v-if="mobileLogListOpen"
-              icon="i-lucide-x"
-              color="neutral"
-              variant="ghost"
-              size="sm"
-              square
-              class="lg:hidden"
-              :aria-label="$t('actions.close')"
-              @click="mobileLogListOpen = false"
-            />
-          </div>
+          {{ $t('docetra.actions.loadMore') }}
+        </UButton>
+      </template>
 
-          <nav
-            class="min-h-0 flex-1 overflow-y-auto overflow-x-hidden"
-            :class="mobileLogListOpen
-              ? 'space-y-1.5 p-3'
-              : leftCollapsed
-                ? 'space-y-1 p-1.5'
-                : 'space-y-1 p-1.5 lg:space-y-1.5 lg:p-3'"
-            :aria-label="$t('docetra.recordLogBoard.tabsTitle')"
-          >
-            <UTooltip
-              v-for="tab in tabs"
-              :key="tab.id"
-              :text="tab.label || $t(tab.labelKey)"
-              :content="{ side: 'right', sideOffset: 8 }"
-            >
-              <button
-                type="button"
-                class="flex w-full items-center transition"
-                :class="[
-                  mobileLogListOpen
-                    ? 'gap-2 rounded-lg border px-2.5 py-2 text-left'
-                    : leftCollapsed
-                    ? 'justify-center rounded-md p-2'
-                    : 'justify-center rounded-md p-2 lg:justify-start lg:gap-2 lg:rounded-lg lg:border lg:px-2.5 lg:py-2 lg:text-left',
-                  selectedTabId === tab.id
-                    ? (mobileLogListOpen
-                        ? 'border-primary bg-primary/5 ring-1 ring-primary/25'
-                        : leftCollapsed
-                        ? 'bg-primary/10 text-primary ring-1 ring-primary/30'
-                        : 'bg-primary/10 text-primary ring-1 ring-primary/30 lg:border-primary lg:bg-primary/5 lg:text-inherit lg:ring-primary/25')
-                    : (mobileLogListOpen
-                        ? 'border-default hover:border-primary/30'
-                        : leftCollapsed
-                        ? 'text-muted hover:bg-elevated hover:text-highlighted'
-                        : 'text-muted hover:bg-elevated hover:text-highlighted lg:border-default lg:text-inherit lg:hover:border-primary/30 lg:hover:bg-transparent'),
-                ]"
-                :aria-label="tab.label || $t(tab.labelKey)"
-                :aria-current="selectedTabId === tab.id ? 'page' : undefined"
-                @click="selectLogTab(tab.id)"
-              >
-                <UIcon
-                  :name="tab.icon"
-                  class="size-4 shrink-0"
-                  :class="selectedTabId === tab.id ? 'text-primary' : 'text-muted'"
-                />
-
-                <template v-if="mobileLogListOpen || !leftCollapsed">
-                  <span
-                    class="min-w-0 flex-1 truncate text-sm"
-                    :class="[
-                      mobileLogListOpen ? '' : 'hidden lg:block',
-                      selectedTabId === tab.id ? 'font-semibold text-highlighted' : 'font-medium text-toned',
-                    ]"
-                  >
-                    {{ tab.label || $t(tab.labelKey) }}
-                  </span>
-                  <UBadge
-                    color="neutral"
-                    variant="subtle"
-                    size="sm"
-                    class="shrink-0 tabular-nums"
-                    :class="mobileLogListOpen ? '' : 'hidden lg:inline-flex'"
-                  >
-                    {{ tabCounts.get(tab.id) || 0 }}
-                  </UBadge>
-                </template>
-              </button>
-            </UTooltip>
-            <UButton
-              v-if="hasMoreRecordTypes && (mobileLogListOpen || !leftCollapsed)"
-              block
-              color="neutral"
-              variant="soft"
-              icon="i-lucide-chevrons-down"
-              :loading="loadingMoreRecordTypes"
-              :class="mobileLogListOpen ? '' : 'hidden lg:inline-flex'"
-              @click="loadMoreRecordTypes"
-            >
-              {{ $t('docetra.actions.loadMore') }}
-            </UButton>
-          </nav>
-        </aside>
-
-        <!-- Right table area -->
-        <section class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-          <div class="flex shrink-0 items-center gap-2 border-b border-default px-4 py-3.5">
-            <div class="flex min-w-0 shrink-0 items-center gap-1.5">
-              <UButton
-                icon="i-lucide-menu"
-                color="neutral"
-                variant="ghost"
-                size="sm"
-                square
-                class="shrink-0 lg:hidden"
-                :aria-label="$t('docetra.recordLogBoard.tabsTitle')"
-                :aria-expanded="mobileLogListOpen"
-                @click="mobileLogListOpen = true"
-              />
-              <UButton
-                :icon="leftCollapsed ? 'i-lucide-panel-left-open' : 'i-lucide-panel-left-close'"
-                color="neutral"
-                variant="ghost"
-                size="sm"
-                square
-                class="hidden shrink-0 lg:inline-flex"
-                :aria-label="leftCollapsed
-                  ? $t('docetra.recordLogBoard.expandTabs')
-                  : $t('docetra.recordLogBoard.collapseTabs')"
-                :aria-expanded="!leftCollapsed"
-                @click="toggleLeftPanel"
-              />
-              <h2 class="hidden min-w-0 max-w-40 truncate text-sm font-semibold text-highlighted sm:block">
-                {{ selectedTab.label || $t(selectedTab.labelKey) }}
-              </h2>
+      <WorkspaceAppBoardContent
+        :view-mode="viewMode"
+        :pending="pending"
+        :empty="!pageItems.length"
+        empty-icon="i-lucide-scroll-text"
+        empty-label-key="docetra.states.empty"
+        :columns="columns"
+        :rows="pageItems as unknown as Record<string, unknown>[]"
+        :total="total"
+        :page="page"
+        :limit="limit"
+        :cell-value="cellValue"
+        :selectable="false"
+        :can-delete="false"
+        :show-meta="true"
+        :table-error="error"
+        :row-actions="[
+          { key: 'detail', labelKey: 'docetra.rowActions.detail', icon: 'i-lucide-eye' },
+          { key: 'logs', labelKey: 'docetra.rowActions.logs', icon: 'i-lucide-scroll-text' },
+        ]"
+        @update:page="page = $event"
+        @update:limit="limit = $event"
+        @row-click="openRow"
+        @row-action="({ key, row }) => key === 'detail' || key === 'logs' ? openRow(row) : undefined"
+        @retry="refresh"
+      >
+        <article
+          v-for="row in pageItems"
+          :key="String(row.id)"
+          role="button"
+          tabindex="0"
+          class="cursor-pointer rounded-lg border border-default bg-default p-3 text-left transition hover:border-primary/35"
+          @click="openRow(row as unknown as Record<string, unknown>)"
+          @keydown.enter.prevent="openRow(row as unknown as Record<string, unknown>)"
+        >
+          <div class="flex items-start gap-2">
+            <div class="min-w-0 flex-1">
+              <h3 class="truncate text-sm font-semibold text-highlighted">
+                {{ row.entityTitle || row.summary || '—' }}
+              </h3>
+              <p class="mt-1 truncate text-xs text-muted">
+                {{ logActionLabel(row.action) }}
+                ·
+                {{ row.recordTypeName || row.entityType || '—' }}
+              </p>
             </div>
-
-            <CommonAppLiveSearch
-              v-model="search"
-              class="min-w-0 w-full max-w-[18.75rem] flex-1"
-              :placeholder="$t('docetra.recordLogBoard.search')"
-            />
-
-            <div class="ms-auto hidden shrink-0 lg:block">
-              <CommonAppDateRangeFilter
-                v-model:start="dateStart"
-                v-model:end="dateEnd"
-                :label="$t('docetra.fields.occurredAt')"
-                size="sm"
-              />
-            </div>
-            <UPopover class="ms-auto shrink-0 lg:hidden">
-              <UButton
-                icon="i-lucide-filter"
-                :color="hasLogFilters ? 'primary' : 'neutral'"
-                :variant="hasLogFilters ? 'soft' : 'outline'"
-                size="sm"
-                square
-                :aria-label="$t('docetra.actions.filter')"
-              />
-              <template #content>
-                <div class="flex w-[calc(100vw-2rem)] flex-nowrap items-center gap-2 overflow-x-auto p-3">
-                  <CommonAppDateRangeFilter
-                    v-model:start="dateStart"
-                    v-model:end="dateEnd"
-                    :label="$t('docetra.fields.occurredAt')"
-                    size="sm"
-                    inline
-                  />
-                </div>
-              </template>
-            </UPopover>
+            <span class="app-card-field-highlight app-card-field-highlight--info shrink-0 text-xs">
+              {{ formatDateTime(String(row.occurredAt || row.updatedAt || '')) || '—' }}
+            </span>
           </div>
-
-          <WorkspaceAppServerTable
-            class="min-h-0 flex-1"
-            :columns="columns"
-            :rows="pageItems as any"
-            :total="total"
-            :page="page"
-            :limit="limit"
-            :pending="pending"
-            :error="error"
-            :cell-value="cellValue"
-            :can-delete="false"
-            :selectable="false"
-            :show-meta="true"
-            :row-actions="[
-              { key: 'detail', labelKey: 'docetra.rowActions.detail', icon: 'i-lucide-eye' },
-              { key: 'logs', labelKey: 'docetra.rowActions.logs', icon: 'i-lucide-scroll-text' },
-            ]"
-            @update:page="page = $event"
-            @update:limit="limit = $event"
-            @row-click="openRow"
-            @row-action="({ key, row }) => key === 'detail' || key === 'logs' ? openRow(row) : undefined"
-            @retry="refresh"
-          />
-        </section>
-      </div>
-    </div>
+          <p class="mt-2 truncate text-xs app-card-text">
+            {{ logActorName(row as unknown as Record<string, unknown>) }}
+          </p>
+        </article>
+      </WorkspaceAppBoardContent>
+    </WorkspaceAppBoardShell>
   </WorkspaceAppWorkspacePage>
 </template>

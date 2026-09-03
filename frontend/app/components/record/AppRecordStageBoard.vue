@@ -3,11 +3,15 @@ import { useMediaQuery } from '@vueuse/core'
 import type { EntityConfig } from '~/config/entities'
 import { getAdapterForConfig } from '~/config/entities'
 import { useConfirm } from '~/composables/common/useConfirm'
+import { useBoardDragDrop } from '~/composables/common/useBoardDragDrop'
+import { useBoardViewMode } from '~/composables/common/useBoardViewMode'
 import { useRecordStageBoard } from '~/composables/record/useRecordStageBoard'
 import type { CardDisplayEntityKey } from '~/types/docetra/settings'
+import type { RowActionItem } from '~/types/docetra/row-actions'
 import { consumeListStale } from '~/utils/workspace-list-stale'
 import { permissionForAction } from '~/utils/role/access'
 import { concurrencyVersion, versionsById } from '~/utils/api/concurrency'
+import { getByPath } from '~/utils/object-path'
 
 const props = defineProps<{
   config: EntityConfig
@@ -17,13 +21,24 @@ const props = defineProps<{
 }>()
 
 const toast = useToast()
-const { t } = useI18n()
+const { t, te } = useI18n()
 const { confirm } = useConfirm()
 const auth = useAuthStore()
 const adapter = getAdapterForConfig(props.config)
 const cardEntityKey = computed(() => props.config.key as CardDisplayEntityKey)
 const mobileStagesOpen = ref(false)
 const isSmallScreen = useMediaQuery('(max-width: 1023px)')
+const viewMode = useBoardViewMode(`record-stage-view-${props.config.key}`, 'cards')
+const {
+  draggingId,
+  dropTargetId,
+  onDragStart,
+  onDragEnd,
+  onDragOver,
+  onDragLeave,
+  consumeDrop,
+} = useBoardDragDrop()
+
 /** Mirrors BoardShell's desktop icon-rail state for pill/item rendering. */
 const railCollapsedProxy = computed(() =>
   isSmallScreen.value ? false : leftCollapsed.value,
@@ -55,8 +70,6 @@ const {
   loadingMore,
   hasMore,
   error,
-  draggingId,
-  dropStageCode,
   refresh,
   loadMore,
   selectStage,
@@ -64,7 +77,6 @@ const {
   openRow,
   moveToStage,
   labelOf,
-  statusLabel,
   stageLabel,
   stages,
   stageConfigurationError,
@@ -75,13 +87,48 @@ const {
   stateKey: props.stateKey,
 })
 
+const stageColorMap = computed<Record<string, string>>(() => {
+  const map: Record<string, string> = {}
+  for (const stage of stages.value) {
+    if (stage.code && stage.color) map[stage.code] = stage.color
+  }
+  return map
+})
+
+const tableColumns = computed(() => props.config.columns || [])
+
+const tableRowActions = computed<RowActionItem[]>(() => [
+  { key: 'detail', labelKey: 'docetra.rowActions.detail', icon: 'i-lucide-eye' },
+  ...(canViewLogs.value
+    ? [{ key: 'logs', labelKey: 'docetra.rowActions.logs', icon: 'i-lucide-scroll-text' } satisfies RowActionItem]
+    : []),
+  ...(canDelete.value
+    ? [{ key: 'delete', labelKey: 'docetra.rowActions.delete', icon: 'i-lucide-trash-2', color: 'error' } satisfies RowActionItem]
+    : []),
+])
+
 function selectStageFromPanel(code: string | null) {
   selectStage(code)
   if (isSmallScreen.value) mobileStagesOpen.value = false
 }
 
+function stageName(stage: { label?: string, labelKey: string, code: string }) {
+  return stage.label || (te(stage.labelKey) ? t(stage.labelKey) : stage.code)
+}
+
+function cellValue(row: Record<string, unknown>, key: string) {
+  const value = getByPath(row, key)
+  if (value == null || value === '') return '—'
+  const text = String(value)
+  if (key === 'stage') return stageLabel(text) || text
+  if (key === 'status') {
+    const statusKey = `docetra.status.${text}`
+    return te(statusKey) ? t(statusKey) : text
+  }
+  return text
+}
+
 onMounted(() => {
-  // Always reload when entering the board (including return from /new).
   consumeListStale(props.config.key)
   void refresh()
 })
@@ -90,10 +137,10 @@ onActivated(() => {
   if (consumeListStale(props.config.key)) void refresh()
 })
 
-async function onDropRecord(stageCode: string, id: string) {
+async function onDropRecord(stageCode: string) {
   if (!canTransition.value) return
-  dropStageCode.value = null
-  draggingId.value = null
+  const id = consumeDrop()
+  if (!id) return
   try {
     await moveToStage(id, stageCode)
     toast.add({
@@ -155,6 +202,18 @@ async function onDelete(row: Record<string, unknown>) {
     toast.add({ title: e?.message || t('docetra.actions.deleteFailed'), color: 'error' })
   }
 }
+
+function onRowAction(payload: { key: string, row: Record<string, unknown> }) {
+  if (payload.key === 'detail') {
+    openRow(payload.row)
+    return
+  }
+  if (payload.key === 'logs') {
+    onLogs(payload.row)
+    return
+  }
+  if (payload.key === 'delete') void onDelete(payload.row)
+}
 </script>
 
 <template>
@@ -174,6 +233,7 @@ async function onDelete(row: Record<string, unknown>) {
       v-model:header-search="recordSearch"
       v-model:date-start="dateStart"
       v-model:date-end="dateEnd"
+      v-model:view-mode="viewMode"
       rail-title-key="docetra.recordStageBoard.stagesTitle"
       rail-icon="i-lucide-layers"
       expand-label-key="docetra.recordStageBoard.expandStages"
@@ -200,55 +260,40 @@ async function onDelete(row: Record<string, unknown>) {
       </template>
 
       <template #rail-pills>
-        <UTooltip
-          :text="$t('docetra.recordStageBoard.allRecords')"
-          :disabled="!railCollapsedProxy"
-          :content="{ side: 'right', sideOffset: 8 }"
-        >
-          <button
-            type="button"
-            class="w-full transition"
-            :class="!railCollapsedProxy
-              ? [
-                  'flex justify-center rounded-md p-2',
-                  selectedStage == null
-                    ? 'bg-primary/10 text-primary ring-1 ring-primary/30'
-                    : 'text-muted hover:bg-elevated hover:text-highlighted',
-                ]
-              : [
-                  'rounded-lg border px-3 py-2 text-left text-sm',
-                  selectedStage == null
-                    ? 'border-primary bg-primary/5 font-medium text-highlighted ring-1 ring-primary/25'
-                    : 'border-default text-muted hover:border-primary/30',
-                ]"
-            :aria-label="$t('docetra.recordStageBoard.allRecords')"
-            @click="selectStageFromPanel(null)"
-          >
-            <template v-if="!railCollapsedProxy">
-              <UIcon name="i-lucide-layout-grid" class="size-4" />
-            </template>
-            <template v-else>
-              {{ $t('docetra.recordStageBoard.allRecords') }}
-              <span class="ml-1 tabular-nums text-xs">({{ allCount }})</span>
-            </template>
-          </button>
-        </UTooltip>
+        <WorkspaceAppBoardRailPill
+          :label="$t('docetra.recordStageBoard.allRecords')"
+          :count="allCount"
+          icon="i-lucide-layout-grid"
+          :selected="selectedStage == null"
+          :collapsed="railCollapsedProxy"
+          @select="selectStageFromPanel(null)"
+        />
       </template>
 
       <template #rail-items>
-        <RecordAppRecordStageSideCard
+        <WorkspaceAppBoardRailItem
           v-for="stage in filteredStages"
           :key="stage.id"
-          :stage="stage"
+          :title="stageName(stage)"
           :count="stageCounts[stage.code] || 0"
+          icon="i-lucide-layers"
           :selected="selectedStage === stage.code"
           :collapsed="railCollapsedProxy"
-          :drop-active="dropStageCode === stage.code"
+          :drop-active="dropTargetId === stage.code"
+          :can-drop="canTransition"
+          drop-data-attr="record-stage-drop"
+          :drop-value="stage.code"
           @select="selectStageFromPanel(stage.code)"
-          @drag-over="dropStageCode = stage.code"
-          @drag-leave="dropStageCode = dropStageCode === stage.code ? null : dropStageCode"
-          @drop-record="(id) => onDropRecord(stage.code, id)"
-        />
+          @drag-over="onDragOver(stage.code)"
+          @drag-leave="onDragLeave(stage.code)"
+          @drop="onDropRecord(stage.code)"
+        >
+          <template #subtitle>
+            <p class="mt-1 truncate text-xs app-card-text">
+              {{ $t('docetra.recordStageBoard.stageHint') }}
+            </p>
+          </template>
+        </WorkspaceAppBoardRailItem>
 
         <p
           v-if="!filteredStages.length && !pending && !railCollapsedProxy"
@@ -258,55 +303,50 @@ async function onDelete(row: Record<string, unknown>) {
         </p>
       </template>
 
-      <div class="min-h-0 flex-1 overflow-y-auto p-3">
-        <div
-          class="grid items-stretch gap-2"
-          style="grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));"
-        >
-          <RecordAppRecordBoardCard
-            v-for="row in filteredItems"
-            :key="String(row.id)"
-            :row="row"
-            :title="labelOf(row)"
-            :status-label="statusLabel(row.status)"
-            :stage-label="stageLabel(row.stage)"
-            :stages="stages"
-            :dragging="draggingId === row.id"
-            :entity-key="cardEntityKey"
-            :can-move="canTransition"
-            :can-view-logs="canViewLogs"
-            :can-delete="canDelete"
-            @open="openRow(row)"
-            @drag-start="draggingId = $event"
-            @drag-end="draggingId = null; dropStageCode = null"
-            @move-stage="(stage) => onMoveStage(String(row.id), stage)"
-            @logs="onLogs(row)"
-            @delete="onDelete(row)"
-          />
-        </div>
-
-        <div v-if="hasMore" class="flex justify-center py-4">
-          <UButton
-            :loading="loadingMore"
-            color="neutral"
-            variant="soft"
-            icon="i-lucide-chevrons-down"
-            @click="loadMore"
-          >
-            {{ $t('docetra.actions.loadMore') }}
-          </UButton>
-        </div>
-
-        <div
-          v-if="!filteredItems.length && !pending"
-          class="flex flex-col items-center justify-center gap-2 py-16 text-center"
-        >
-          <UIcon name="i-lucide-file-x" class="size-8 text-muted" />
-          <p class="text-sm text-muted">
-            {{ $t('docetra.recordStageBoard.emptyRecords') }}
-          </p>
-        </div>
-      </div>
+      <WorkspaceAppBoardContent
+        :view-mode="viewMode"
+        :pending="pending"
+        :empty="!filteredItems.length"
+        empty-icon="i-lucide-file-x"
+        empty-label-key="docetra.recordStageBoard.emptyRecords"
+        :has-more="hasMore"
+        :loading-more="loadingMore"
+        :columns="tableColumns"
+        :rows="filteredItems"
+        :total="filteredItems.length"
+        :page="1"
+        :limit="Math.max(filteredItems.length, 1)"
+        :cell-value="cellValue"
+        :row-actions="tableRowActions"
+        :selectable="false"
+        :can-delete="canDelete"
+        :show-meta="true"
+        :stage-colors="stageColorMap"
+        :table-error="error"
+        @load-more="loadMore"
+        @row-click="openRow"
+        @row-action="onRowAction"
+        @retry="refresh"
+      >
+        <RecordAppRecordBoardCard
+          v-for="row in filteredItems"
+          :key="String(row.id)"
+          :row="row"
+          :title="labelOf(row)"
+          :stages="stages"
+          :dragging="draggingId === row.id"
+          :entity-key="cardEntityKey"
+          :can-move="canTransition"
+          :can-view-logs="canViewLogs"
+          :can-delete="canDelete"
+          @open="openRow(row)"
+          @drag-start="onDragStart"
+          @drag-end="onDragEnd"
+          @move-stage="(stage) => onMoveStage(String(row.id), stage)"
+          @logs="onLogs(row)"
+          @delete="onDelete(row)"
+        />
+      </WorkspaceAppBoardContent>
     </WorkspaceAppBoardShell>
   </WorkspaceAppWorkspacePage>
 </template>

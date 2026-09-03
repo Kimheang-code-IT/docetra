@@ -12,6 +12,8 @@ type ApiRequestOptions = {
     headers?: Record<string, string>
     body?: Record<string, any> | BodyInit | null
     query?: Record<string, any> | TableQueryParams
+    /** Response body shape; 'blob' supports file download flows. */
+    responseType?: 'json' | 'blob'
     suppressErrorToast?: boolean
     suppressAccessAlert?: boolean
     requestKey?: string
@@ -39,12 +41,12 @@ type ToastItem = {
 }
 
 // Shared across every useApi() consumer so a later request can cancel an older
-// request even when adapters/composables created separate useApi instances.
+// request even when composables created separate useApi instances.
 const requestControllers = new Map<string, AbortController>()
 
 /**
  * Push a toast without `useToast()` — Nuxt UI's useToast() calls Vue `inject()`,
- * which throws outside `<script setup>` (e.g. adapter calls from submit handlers).
+ * which throws outside `<script setup>` (e.g. API calls from submit handlers).
  */
 function pushErrorToast(title: string, description: string) {
     const toasts = useState<ToastItem[]>('toasts', () => [])
@@ -55,11 +57,12 @@ function pushErrorToast(title: string, description: string) {
 /**
  * Standard API Fetching Composable
  * ───────────────────────────────────────
- * Safe to call from adapters / event handlers (uses Nuxt app + useState only;
+ * Safe to call from composables / event handlers (uses Nuxt app + useState only;
  * avoids inject()-based composables like useToast / useRoute / useI18n).
  */
 export function useApi() {
     const nuxtApp = useNuxtApp()
+    const router = useRouter()
     const { showPermissionDenied, showSessionExpired } = useAccessAlert()
     const config = useRuntimeConfig()
     const activeRequests = ref(0)
@@ -77,7 +80,7 @@ export function useApi() {
     }
 
     function currentPath() {
-        return nuxtApp.$router.currentRoute.value.fullPath
+        return router.currentRoute.value.fullPath
     }
 
     function getRequestKey(url: string, options: ApiRequestOptions): string {
@@ -120,6 +123,7 @@ export function useApi() {
                 ...options,
                 method,
                 query: compactQuery(options.query),
+                responseType: options.responseType || 'json',
                 signal: controller.signal,
                 timeout: Number(config.public.apiTimeoutMs) || 30000,
                 credentials: cookieAuth ? 'include' : 'same-origin',

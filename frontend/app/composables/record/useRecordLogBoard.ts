@@ -48,7 +48,6 @@ const recordLogColumns = pickColumns(
   'rowNumber',
   'recordType',
   'entityTitle',
-  'recordStage',
   'parentRecord',
   'updatedAt',
   'actor',

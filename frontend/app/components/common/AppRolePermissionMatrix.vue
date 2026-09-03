@@ -6,6 +6,7 @@ import {
   normalizePermissionRows,
   setPermissionAction,
 } from '~/utils/role/permissions'
+import { usePermissionCatalogRows } from '~/composables/config/usePermissionCatalog'
 
 const rows = defineModel<AppRolePermissionRow[]>({ default: () => [] })
 
@@ -14,11 +15,16 @@ const props = withDefaults(defineProps<{ disabled?: boolean }>(), {
 })
 
 const { t, te } = useI18n()
+// Dynamic catalog rows (server first, static matrix fallback) so database-
+// configured RecordTypes appear automatically without hardcoding them here.
+const { rows: catalogRows } = usePermissionCatalogRows()
 
 const displayRows = computed(() => normalizePermissionRows(rows.value))
 const grantedCount = computed(() => displayRows.value.reduce((sum, row) => sum + row.actions.length, 0))
-const totalCount = ROLE_DOCUMENT_TYPES.reduce((sum, definition) => sum + definition.actions.length, 0)
-const allGranted = computed(() => grantedCount.value === totalCount)
+const totalCount = computed(() =>
+  catalogRows.value.reduce((sum, definition) => sum + definition.actions.length, 0),
+)
+const allGranted = computed(() => grantedCount.value === totalCount.value)
 const someGranted = computed(() => grantedCount.value > 0 && !allGranted.value)
 
 const actionColumns = computed(() => {
@@ -40,8 +46,10 @@ onMounted(ensureAllRows)
 watch(rows, ensureAllRows, { deep: false })
 
 function documentTypeLabel(value: string) {
+  const dynamic = catalogRows.value.find(item => item.documentType === value)
   const found = ROLE_DOCUMENT_TYPES.find(item => item.value === value)
   if (found && te(found.labelKey)) return t(found.labelKey)
+  if (dynamic?.label) return dynamic.label
   return value.replaceAll('_', ' ')
 }
 
@@ -55,7 +63,9 @@ function hasAction(row: AppRolePermissionRow, action: string) {
 }
 
 function allowedActions(documentType: string) {
-  return ROLE_DOCUMENT_TYPES.find(item => item.value === documentType)?.actions || []
+  return catalogRows.value.find(item => item.documentType === documentType)?.actions
+    || ROLE_DOCUMENT_TYPES.find(item => item.value === documentType)?.actions
+    || []
 }
 
 function actionAllowed(documentType: string, action: string) {

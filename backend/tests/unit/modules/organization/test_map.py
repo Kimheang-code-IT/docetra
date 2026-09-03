@@ -36,8 +36,8 @@ def test_permission_prefixes():
 
 
 def test_classification_http_is_top_level():
-    from app.modules.organization.api.purposes import router as purposes_router
-    from app.modules.organization.api.sectors import router as sectors_router
+    from app.application.organization_router import router
 
-    assert sectors_router.prefix == "/sector"
-    assert purposes_router.prefix == "/purpose"
+    paths = {route.path for route in router.routes}
+    assert "/sector" in paths
+    assert "/purpose" in paths

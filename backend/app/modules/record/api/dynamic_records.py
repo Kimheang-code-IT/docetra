@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.authorization import authorize_type_code
+from app.modules.record.dependencies import authorize_type_code
 from app.core.datetime import iso_utc
 from app.core.http_schemas import (
     AttachmentsBody,
@@ -21,10 +21,12 @@ from app.core.http_schemas import (
 )
 from app.core.mutations import request_mutation_body
 from app.core.privileged import is_unrestricted
-from app.core.security import current_user, person
+from app.core.security import current_user
+from app.modules.people_access.dependencies import person
 from app.db.session import get_db
-from app.models.people import User
-from app.models.record import RecordType
+from typing import Any as User
+from app.modules.record.model import RecordType
+from app.modules.admin_config.service import runtime
 import app.modules.record.services.collaboration as collaboration
 from app.modules.record.domain.map import (
     TYPE_CODE_TO_RESOURCE,
@@ -321,8 +323,6 @@ async def comments(type_code: str, entity_id: str, db: AsyncSession = Depends(ge
 @type_router.post("/{entity_id}/comments", response_model=DataEnvelope)
 async def add_comment(type_code: str, entity_id: str, body: CommentBody, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
     from app.core.errors import DomainError
-    import app.modules.admin_config.services.runtime as runtime
-
     general = runtime.general_defaults(await runtime.load_app_config(db))
     if not general["enableComments"]:
         raise DomainError("COMMENTS_DISABLED", "Comments are disabled in application settings", 403)

@@ -34,7 +34,6 @@
       "user": "អ្នកប្រើប្រាស់",
       "recordType": "ប្រភេទកំណត់ត្រា",
       "recordAttribute": "កាតាឡុកវាល",
-      "vocabularies": "ពាក្យសម្បូរបែប",
       "fileUpload": "ផ្ទុកឯកសារឡើង",
       "googleDriveSync": "ធ្វើសមកាលកម្ម Google Drive",
       "portalLog": "កំណត់ហេតុ",
@@ -73,22 +72,6 @@
     },
     "sector": {
       "cannotBeOwnParent": "វិស័យមិនអាចជាមេរបស់ខ្លួនឯងបានទេ។"
-    },
-    "vocabulary": {
-      "code": "កូដ",
-      "labelEn": "អត្ថន័យ (អង់គ្លេស)",
-      "labelKm": "អត្ថន័យ (ខ្មែរ)",
-      "color": "ពណ៌",
-      "order": "លំដាប់",
-      "addValue": "បន្ថែមតម្លៃ",
-      "emptyGroup": "មិនមានតម្លៃនៅក្នុងក្រុមនេះទេ។",
-      "codeLabelRequired": "ត្រូវការកូដ និងអត្ថន័យជាអង់គ្លេស។",
-      "saveFailed": "រក្សាទុកតម្លៃមិនបាន",
-      "deleteFailed": "លុបតម្លៃមិនបាន",
-      "saved": "តម្លៃបានរក្សាទុក",
-      "deleted": "តម្លៃបានលុប",
-      "created": "តម្លៃបានបង្កើត",
-      "fallbackHint": "តម្លៃដែលបង្ហាញមុនពេលភ្ជាប់ម៉ាស៊ីនបម្រើមកពីគោលដៅបែបបទ។"
     },
     "meetingModes": {
       "in_person": "ជួបផ្ទាល់",
@@ -212,6 +195,8 @@
       "previous": "មុន",
       "next": "បន្ទាប់",
       "time": "ម៉ោង",
+      "selectDate": "ជ្រើសរើសថ្ងៃ",
+      "selectDateTime": "ជ្រើសរើសថ្ងៃ និងម៉ោង",
       "startTime": "ម៉ោងចាប់ផ្តើម",
       "endTime": "ម៉ោងបញ្ចប់",
       "hour": "ម៉ោង",
@@ -548,10 +533,17 @@
       "storageTabs": {
         "amazonS3": "S3",
         "googleDrive": "Google Drive"
-      }
+      },
+      "providerCreated": "បានបង្កើតក្រុមហ៊ុនផ្តល់សេវា",
+      "providerDeleted": "បានលុបក្រុមហ៊ុនផ្តល់សេវា",
+      "activate": "ដំណើរការ",
+      "deactivate": "បញ្ឈប់ដំណើរការ",
+      "createProvider": "បង្កើតក្រុមហ៊ុនផ្តល់សេវា"
     },
     "views": {
       "table": "តារាង",
+      "cards": "កាត",
+      "toggle": "របៀបបង្ហាញ",
       "kanban": "កានបង់",
       "hierarchy": "ឋានានុក្រម",
       "timeline": "បន្ទាត់ពេលវេលា",
@@ -605,6 +597,16 @@
       "addMeeting": "កិច្ចប្រជុំថ្មី",
       "createTopic": "ប្រធានបទថ្មី",
       "createMeeting": "កិច្ចប្រជុំថ្មី",
+      "createTopicTitle": "ប្រធានបទថ្មី",
+      "editTopicTitle": "កែប្រធានបទ",
+      "editTopic": "កែប្រធានបទ",
+      "topicName": "ឈ្មោះប្រធានបទ",
+      "topicNamePlaceholder": "បញ្ចូលឈ្មោះប្រធានបទ",
+      "topicNameRequired": "ត្រូវការឈ្មោះប្រធានបទ",
+      "topicDescription": "ការពិពណ៌នា",
+      "topicDescriptionPlaceholder": "ការពិពណ៌នាប្រធានបទ (ស្រេចចិត្ត)",
+      "topicSaved": "បានរក្សាទុកប្រធានបទ",
+      "topicSaveFailed": "មិនអាចរក្សាទុកប្រធានបទបានទេ",
       "searchTopics": "ស្វែងរកប្រធានបទ…",
       "searchMeetings": "ស្វែងរកកិច្ចប្រជុំ…",
       "allTopics": "ប្រធានបទទាំងអស់",
@@ -621,6 +623,7 @@
       "assignFailed": "មិនអាចភ្ជាប់កិច្ចប្រជុំបានទេ",
       "reorderFailed": "មិនអាចតម្រៀបកិច្ចប្រជុំបានទេ",
       "invalidTopicDrop": "ប្រធានបទនេះមិនមែនជាទីតាំងទម្លាក់ត្រឹមត្រូវទេ",
+      "inactiveTopicDrop": "មិនអាចភ្ជាប់កិច្ចប្រជុំទៅប្រធានបទដែលមិនសកម្មបានទេ",
       "collapseTopics": "បង្រួមប្រធានបទ",
       "expandTopics": "ពង្រីកប្រធានបទ",
       "joinMeeting": "ចូលរួមកិច្ចប្រជុំ",
@@ -897,7 +900,10 @@
       "level": "កម្រិត",
       "source": "ប្រភព",
       "message": "សារ",
-      "correlationId": "លេខទំនាក់ទំនង"
+      "correlationId": "លេខទំនាក់ទំនង",
+      "syncStatus": "ស្ថានភាពសមកាលកម្ម",
+      "syncedAt": "ពេលសមកាលកម្ម",
+      "type": "ប្រភេទ"
     },
     "tabs": {
       "details": "ព័ត៌មានលម្អិត",
@@ -1116,7 +1122,10 @@
       "title": "ឯកសារភ្ជាប់",
       "drop": "ទម្លាក់ឯកសារ ឬចុចដើម្បីផ្ទុក",
       "hint": "PDF រូបភាព និងឯកសារការិយាល័យរហូតដល់ 25 MB",
-      "uploaded": "បានផ្ទុកឯកសារ"
+      "uploaded": "បានផ្ទុកឯកសារ",
+      "uploadFailed": "ការផ្ទុកឯកសារបរាជ័យ",
+      "download": "ទាញយក",
+      "downloading": "កំពុងទាញយក…"
     },
     "search": {
       "placeholderKeyword": "ស្វែងរកទំព័រ កំណត់ត្រា និងឯកសារ…",
@@ -1124,7 +1133,7 @@
       "modeKeyword": "ពាក្យគន្លឹះ",
       "modeSemantic": "អត្ថន័យ",
       "hintKeyword": "ផ្គូផ្គងរហ័សលើចំណងជើង និងអត្ថបទដែលស្រង់ចេញ",
-      "hintSemantic": "ផ្គូផ្គងអត្ថន័យទូលំទូលាយលើលិបិក្រមដូចគ្នា",
+      "hintSemantic": "ការស្វែងរកតាមអត្ថន័យនឹងមកដល់ក្រោយ — បង្ហាញលទ្ធផលផ្គូផ្គងពាក្យគន្លឹះ",
       "askAi": "សួរ AI",
       "askAiGroup": "សួរ AI",
       "askAiHint": "សង្ខេបលទ្ធផលបច្ចុប្បន្នជាមួយតំណប្រភព",
@@ -1133,7 +1142,9 @@
       "sources": "ប្រភព",
       "source": "ប្រភព",
       "recordsAndFiles": "កំណត់ត្រា និងឯកសារ",
-      "empty": "គ្មានកំណត់ត្រា ឬឯកសារដែលត្រូវគ្នា"
+      "empty": "គ្មានកំណត់ត្រា ឬឯកសារដែលត្រូវគ្នា",
+      "placeholderSemanticUnavailable": "ការស្វែងរកតាមអត្ថន័យនឹងមកដល់ក្រោយ — បង្ហាញលទ្ធផលផ្គូផ្គងពាក្យគន្លឹះ",
+      "askAiUnavailable": "Ask AI មិនអាចប្រើបានដល់ពេលនេះទេ — មិនមានអ្នកផ្តល់សេវា AI ទេ"
     },
     "dashboard": {
       "workByStage": "ការងារតាមដំណាក់កាល",
@@ -1173,6 +1184,20 @@
         "incoming": "ឯកសារចូល",
         "outgoing": "ឯកសារចេញ"
       }
+    },
+    "drive": {
+      "newSource": "ប្រភព Drive ថ្មី",
+      "sourceCreated": "បានបង្កើតប្រភព Drive",
+      "sourceCreateFailed": "មិនអាចបង្កើតប្រភព Drive បានទេ",
+      "folderId": "អត្តសញ្ញាណថត Drive",
+      "nameAndFolderRequired": "ត្រូវការឈ្មោះ និងអត្តសញ្ញាណថត",
+      "syncNow": "ធ្វើសមកាលកម្មឥឡូវនេះ",
+      "syncRunning": "កំពុងធ្វើសមកាលកម្ម…",
+      "syncCompleted": "សមកាលកម្មបានបញ្ចប់ ({count} ឯកសារ)",
+      "syncFailed": "សមកាលកម្មបរាជ័យ",
+      "jobPollFailed": "មិនអាចអានស្ថានភាពសមកាលកម្មបានទេ",
+      "syncedFiles": "ឯកសារដែលបានសមកាលកម្ម ({count})",
+      "openInDrive": "បើកក្នុង Drive"
     }
   },
   "actions": {

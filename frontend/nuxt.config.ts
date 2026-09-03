@@ -63,7 +63,10 @@ export default defineNuxtConfig({
   },
 
   devtools: {
-    enabled: import.meta.env.DEV
+    // Vite DevTools' bundled @vitejs/devtools-kit logs noisy `[nostics]:
+    // import.meta.hot.send()` warnings until a devtools client attaches.
+    // Disabled in dev only; production bundles never include it.
+    enabled: false
   },
 
   runtimeConfig: {

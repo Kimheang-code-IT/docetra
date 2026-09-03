@@ -3,17 +3,15 @@
 from __future__ import annotations
 
 import asyncio
-import re
-from io import BytesIO
 
 from minio import Minio
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.secrets import reveal_mapping
-from app.db import Entity
 from app.db.session import SessionLocal
+from app.integrations import objectstore
+from app.modules.record.service import entity_bags
 
 _client: Minio | None = None
 _bucket: str | None = None
@@ -54,15 +52,13 @@ async def resolve_storage(db: AsyncSession | None = None) -> tuple[Minio, str]:
         return _client, _bucket
 
     async def _load(session: AsyncSession) -> tuple[Minio, str]:
-        rows = (
-            await session.scalars(
-                select(Entity).where(Entity.resource == "storage-providers", Entity.status != "deleted")
-            )
-        ).all()
+        rows = await entity_bags.list_entities(session, "storage-providers")
         default = None
         active = None
         for row in rows:
-            payload = reveal_mapping(dict(row.payload or {}))
+            if row["status"] == "deleted":
+                continue
+            payload = reveal_mapping(row["payload"])
             if not payload.get("active", True):
                 continue
             if payload.get("isDefault"):
@@ -93,58 +89,39 @@ async def invalidate_storage_client() -> None:
 
 
 async def ensure_bucket(db: AsyncSession | None = None):
-    storage, bucket = await resolve_storage(db)
-    exists = await asyncio.to_thread(storage.bucket_exists, bucket)
-    if not exists:
-        await asyncio.to_thread(storage.make_bucket, bucket)
+    return await objectstore.ensure_bucket(db, resolver=resolve_storage)
 
 
-_MISSING_OBJECT_CODES = frozenset({"NoSuchKey", "NoSuchObject", "NoSuchBucket", "NotFound"})
-
-
-async def put_bytes(key: str, data: bytes, content_type: str, db: AsyncSession | None = None, *, attempts: int = 3):
-    last_error: BaseException | None = None
-    for attempt in range(1, max(1, attempts) + 1):
-        try:
-            storage, bucket = await resolve_storage(db)
-            await ensure_bucket(db)
-            await asyncio.to_thread(storage.put_object, bucket, key, BytesIO(data), len(data), content_type=content_type)
-            return
-        except Exception as exc:
-            last_error = exc
-            if attempt >= attempts:
-                break
-            await asyncio.sleep(0.15 * (2 ** (attempt - 1)))
-    assert last_error is not None
-    raise last_error
+async def put_bytes(
+    key: str,
+    data: bytes,
+    content_type: str,
+    db: AsyncSession | None = None,
+    *,
+    attempts: int = 3,
+):
+    return await objectstore.put_bytes(
+        key,
+        data,
+        content_type,
+        db,
+        attempts=attempts,
+        resolver=resolve_storage,
+        bucket_ensurer=ensure_bucket,
+    )
 
 
 async def delete_object(key: str, db: AsyncSession | None = None, *, missing_ok: bool = True):
-    if not key:
-        return
-    storage, bucket = await resolve_storage(db)
-    try:
-        await asyncio.to_thread(storage.remove_object, bucket, key)
-    except Exception as exc:
-        code = str(getattr(exc, "code", "") or "")
-        if missing_ok and code in _MISSING_OBJECT_CODES:
-            return
-        raise
-
-
-def _read_object(storage: Minio, bucket: str, key: str) -> bytes:
-    response = storage.get_object(bucket, key)
-    try:
-        return response.read()
-    finally:
-        response.close()
-        response.release_conn()
+    return await objectstore.delete_object(
+        key,
+        db,
+        missing_ok=missing_ok,
+        resolver=resolve_storage,
+    )
 
 
 async def get_object_bytes(key: str, db: AsyncSession | None = None) -> bytes:
-    storage, bucket = await resolve_storage(db)
-    return await asyncio.to_thread(_read_object, storage, bucket, key)
+    return await objectstore.get_object_bytes(key, db, resolver=resolve_storage)
 
 
-def safe_name(value: str):
-    return re.sub(r"[^A-Za-z0-9._-]", "_", value)[:180] or "file"
+safe_name = objectstore.safe_name

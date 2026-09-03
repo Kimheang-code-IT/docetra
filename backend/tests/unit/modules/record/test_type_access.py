@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
-from app.models.record import Record, RecordAttribute, RecordDetail, RecordType, RecordTypePermission
+from app.modules.record.model import Record, RecordAttribute, RecordDetail, RecordType, RecordTypePermission
 from app.modules.record.services.serializer import record_to_payload
 from app.modules.record.services.type_access import OWNER, SHARED, pick_type_for_code
 

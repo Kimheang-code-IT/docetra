@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import type { StorageProvider, StorageProviderType } from '~/types/docetra/settings'
+import type { CreateStorageProviderInput, StorageProvider, StorageProviderType } from '~/types/docetra/settings'
 import type { ConnectionStatusFieldValue } from '~/types/docetra/common'
 import { storageSettingsTabs } from '~/config/settings-schemas'
 import { useSettingsRepositories } from '~/repositories'
 import { usePathModel } from '~/composables/common/usePathModel'
+import { useConfirm } from '~/composables/common/useConfirm'
 import { useAppPageTitle } from '~/composables/layout/useAppPageTitle'
 
 definePageMeta({
@@ -23,6 +24,8 @@ const canConfigure = computed(() => auth.canAccessPage('settings.storage.configu
 const pending = ref(true)
 const saving = ref(false)
 const testing = ref(false)
+const creating = ref(false)
+const { confirm } = useConfirm()
 const providers = ref<StorageProvider[]>([])
 const draft = ref<StorageProvider | null>(null)
 const pathModel = usePathModel(draft)
@@ -126,6 +129,65 @@ async function setDefault() {
   }
 }
 
+async function createProvider() {
+  if (creating.value) return
+  const type = activeTab.value as StorageProviderType
+  creating.value = true
+  try {
+    await storage.create({
+      name: t(`docetra.settings.storageTabs.${type === 'minio' ? 'minio' : type}`),
+      type,
+      active: false,
+    } as CreateStorageProviderInput)
+    toast.add({ title: t('docetra.settings.providerCreated'), color: 'success' })
+    await load()
+  }
+  catch (e: any) {
+    toast.add({ title: e?.message || t('docetra.common.actionFailed'), color: 'error' })
+  }
+  finally {
+    creating.value = false
+  }
+}
+
+async function toggleActive() {
+  if (!draft.value) return
+  saving.value = true
+  try {
+    await storage.setActive(draft.value.id, !draft.value.active)
+    toast.add({
+      title: draft.value.active ? t('docetra.settings.deactivated') : t('docetra.settings.activated'),
+      color: 'success',
+    })
+    await load()
+  }
+  catch (e: any) {
+    toast.add({ title: e?.message || t('docetra.common.actionFailed'), color: 'error' })
+  }
+  finally {
+    saving.value = false
+  }
+}
+
+async function removeProvider() {
+  if (!draft.value || draft.value.isDefault) return
+  const ok = await confirm({ kind: 'delete' })
+  if (!ok) return
+  saving.value = true
+  try {
+    await storage.remove(draft.value.id)
+    toast.add({ title: t('docetra.settings.providerDeleted'), color: 'success' })
+    draft.value = null
+    await load()
+  }
+  catch (e: any) {
+    toast.add({ title: e?.message || t('docetra.common.actionFailed'), color: 'error' })
+  }
+  finally {
+    saving.value = false
+  }
+}
+
 async function testConnection() {
   if (!draft.value) return
   testing.value = true
@@ -167,11 +229,30 @@ useAppPageTitle(() => t('docetra.pages.storage'))
     @refresh="load"
   >
     <template #actions>
+      <UButton
+        v-if="!draft && canConfigure"
+        size="sm"
+        icon="i-lucide-plus"
+        :loading="creating"
+        :disabled="creating"
+        @click="createProvider"
+      >
+        {{ t('docetra.settings.createProvider') }}
+      </UButton>
       <CommonAppConnectionTestButton
         v-if="draft && canConfigure"
         :loading="testing"
         @click="testConnection"
       />
+      <UButton
+        v-if="draft && canConfigure"
+        color="neutral"
+        variant="soft"
+        :icon="draft.active ? 'i-lucide-toggle-right' : 'i-lucide-toggle-left'"
+        @click="toggleActive"
+      >
+        {{ draft.active ? t('docetra.settings.deactivate') : t('docetra.settings.activate') }}
+      </UButton>
       <UButton
         v-if="draft && !draft.isDefault && canConfigure"
         color="neutral"
@@ -180,6 +261,15 @@ useAppPageTitle(() => t('docetra.pages.storage'))
         @click="setDefault"
       >
         {{ t('docetra.settings.setDefault') }}
+      </UButton>
+      <UButton
+        v-if="draft && !draft.isDefault && canConfigure"
+        color="error"
+        variant="soft"
+        icon="i-lucide-trash-2"
+        @click="removeProvider"
+      >
+        {{ t('actions.delete') }}
       </UButton>
       <UBadge
         v-else-if="draft?.isDefault"

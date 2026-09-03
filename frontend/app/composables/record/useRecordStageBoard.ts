@@ -101,8 +101,6 @@ export function useRecordStageBoard(
   const stageCounts = ref<Record<string, number>>({})
   const pending = ref(false)
   const error = ref<string | null>(null)
-  const draggingId = ref<string | null>(null)
-  const dropStageCode = ref<string | null>(null)
 
   let requestToken = 0
 
@@ -316,8 +314,6 @@ export function useRecordStageBoard(
     loadingMore,
     hasMore,
     error,
-    draggingId,
-    dropStageCode,
     refresh,
     loadMore,
     reloadStageConfiguration,

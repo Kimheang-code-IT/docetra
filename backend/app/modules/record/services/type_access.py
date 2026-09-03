@@ -16,9 +16,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.datetime import iso_utc
 from app.core.privileged import is_unrestricted
-from app.models.organization import Organization
-from app.models.people import Officer, User
-from app.models.record import Record, RecordOrganization, RecordType, RecordTypePermission
+from typing import Any as User
+from app.modules.record.model import Record, RecordOrganization, RecordType, RecordTypePermission
+from app.modules.organization.service import service as organization_service
+from app.modules.people_access.service import ensure_officer_for_user, officer_ids_for_organization, officer_organization_id
 
 OWNER = "owner"
 SHARED = "shared"
@@ -38,17 +39,12 @@ def pick_type_for_code(
 
 
 async def organization_id_for_officer(db: AsyncSession, officer_id: uuid.UUID | None) -> uuid.UUID | None:
-    if not officer_id:
-        return None
-    officer = await db.get(Officer, officer_id)
-    return officer.organization_id if officer else None
+    return await officer_organization_id(db, officer_id)
 
 
 async def actor_organization_id(db: AsyncSession, user: User | None) -> uuid.UUID | None:
     if user is None:
         return None
-    from app.modules.people_access.services.people import ensure_officer_for_user
-
     officer = await ensure_officer_for_user(db, user)
     return officer.organization_id
 
@@ -182,7 +178,7 @@ async def backfill_shared_grants_if_empty(db: AsyncSession, record_type_id: uuid
     )
     if count:
         return
-    org_ids = (await db.scalars(select(Organization.id))).all()
+    org_ids = await organization_service.list_organization_ids(db)
     for org_id in org_ids:
         await grant(db, record_type_id, org_id, permission_kind=SHARED)
 
@@ -263,6 +259,10 @@ async def require_type_access(
     if user is None or is_unrestricted(user):
         return
     org_id = await actor_organization_id(db, user)
+    # Accounts not attached to an organization are governed by their explicit
+    # role permissions. Organization grants only narrow organization-scoped users.
+    if org_id is None:
+        return
     if not await org_can_access_type(db, record_type.id, org_id):
         raise HTTPException(404, "Record type not found")
 
@@ -279,10 +279,9 @@ async def require_owner_access(
         raise HTTPException(403, "Only the owner organization can change this record type")
 
 
-def record_in_organization(organization_id: uuid.UUID):
-    created_in_org = Record.created_by.in_(
-        select(Officer.id).where(Officer.organization_id == organization_id)
-    )
+async def record_in_organization(db: AsyncSession, organization_id: uuid.UUID):
+    officer_ids = await officer_ids_for_organization(db, organization_id)
+    created_in_org = Record.created_by.in_(officer_ids)
     linked = Record.id.in_(
         select(RecordOrganization.record_id).where(RecordOrganization.organization_id == organization_id)
     )
@@ -294,10 +293,10 @@ async def record_visible_to_user(db: AsyncSession, row: Record, user: User | Non
         return True
     org_id = await actor_organization_id(db, user)
     if org_id is None:
-        return False
+        return True
     if row.created_by:
-        officer = await db.get(Officer, row.created_by)
-        if officer and officer.organization_id == org_id:
+        creator_org_id = await officer_organization_id(db, row.created_by)
+        if creator_org_id == org_id:
             return True
     linked = await db.scalar(
         select(RecordOrganization.id).where(

@@ -4,6 +4,8 @@ import { useConfirm } from '~/composables/common/useConfirm'
 import { useEntityWorkspace } from '~/composables/workspace/useEntityWorkspace'
 import { consumeListStale } from '~/utils/workspace-list-stale'
 import type { RowActionItem } from '~/types/docetra/row-actions'
+import type { CardDisplayEntityKey } from '~/types/docetra/settings'
+import { permissionForAction } from '~/utils/role/access'
 
 const props = defineProps<{
   config: EntityConfig
@@ -75,6 +77,10 @@ const canDelete = computed(() => props.config.canDelete !== false
   && auth.canAccessPage(permissionForAction(props.config.permission, 'delete')))
 const canExport = computed(() => auth.canAccessPage(permissionForAction(props.config.permission, 'export')))
 const canViewLogs = computed(() => auth.canAccessPage('records.logs.view'))
+const canTransition = computed(() =>
+  auth.canAccessPage(permissionForAction(props.config.permission, 'transition')),
+)
+const cardEntityKey = computed(() => props.config.key as CardDisplayEntityKey)
 
 const tableRowActions = computed<RowActionItem[]>(() => [
   { key: 'detail', labelKey: 'docetra.rowActions.detail', icon: 'i-lucide-eye' },
@@ -180,6 +186,8 @@ function onRowAction(payload: { key: string, row: Record<string, unknown> }) {
         :columns="kanbanColumns"
         :pending="pending"
         :title-field="config.titleField"
+        :entity-key="cardEntityKey"
+        :can-move="canTransition"
         @card-click="openRow"
         @load-more="loadMoreStage"
         @move="onMove"

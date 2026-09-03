@@ -8,6 +8,7 @@ import {
   datePickerPopoverContent,
 } from '~/utils/date-picker'
 import { getFilterDateUi, isFilterValueActive } from '~/utils/filter/select-ui'
+import { useAppLocalization } from '~/composables/settings/useAppLocalization'
 
 const props = withDefaults(defineProps<{
   modelValue?: string | null
@@ -15,9 +16,10 @@ const props = withDefaults(defineProps<{
   required?: boolean
   granularity?: DatePickerGranularity
   color?: 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'error' | 'neutral'
-  variant?: 'outline' | 'soft' | 'subtle' | 'ghost' | 'none'
+  variant?: 'outline' | 'soft' | 'subtle' | 'ghost' | 'solid' | 'link'
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl'
   class?: string
+  placeholder?: string
 }>(), {
   granularity: 'day',
   color: 'neutral',
@@ -29,92 +31,98 @@ const emit = defineEmits<{
   'update:modelValue': [string]
 }>()
 
-const inputDate = useTemplateRef<{ inputsRef?: Array<{ $el?: HTMLElement }> } | null>('inputDate')
-const pickerAnchor = useTemplateRef<HTMLElement | null>('pickerAnchor')
+const { t } = useI18n()
+const { formatDate, formatDateTime } = useAppLocalization()
+const open = ref(false)
 
 const isDateTime = computed(() => isDateTimeGranularity(props.granularity))
 const isActive = computed(() => isFilterValueActive(props.modelValue))
 const dateUi = computed(() => getFilterDateUi(isActive.value, {
   isDateTime: isDateTime.value,
   isRange: false,
+  fullWidth: true,
 }))
 
 const pickerIcon = computed(() =>
   isDateTime.value ? 'i-lucide-calendar-clock' : 'i-lucide-calendar',
 )
 
-/** Shared with UInputDate + UCalendar in popover (Nuxt UI pattern). */
 const dateValue = computed({
   get: () => parsePickerValue(props.modelValue, isDateTime.value),
   set: (value: DateValue | null | undefined) => {
     emit('update:modelValue', serializePickerValue(value))
   },
 })
+
+const displayValue = computed(() => {
+  const raw = String(props.modelValue || '').trim()
+  if (!raw) return ''
+  return isDateTime.value
+    ? formatDateTime(raw, '')
+    : formatDate(raw, '')
+})
+
+const placeholderText = computed(() =>
+  props.placeholder
+  || (isDateTime.value
+    ? t('docetra.common.selectDateTime')
+    : t('docetra.common.selectDate')),
+)
+
+/** Same width as other form fields; trailing calendar icon like UInput. */
+const triggerUi = computed(() => ({
+  base: [
+    dateUi.value.base,
+    'inline-flex w-full items-center justify-between gap-2 px-2.5 text-left font-normal',
+    props.size === 'xs' ? 'h-7 text-xs' : '',
+    props.size === 'sm' ? 'h-8 text-sm' : '',
+    props.size === 'md' ? 'h-9 text-sm' : '',
+    props.size === 'lg' ? 'h-10 text-base' : '',
+    props.size === 'xl' ? 'h-11 text-base' : '',
+  ].filter(Boolean).join(' '),
+}))
 </script>
 
 <template>
   <div
-    ref="pickerAnchor"
-    class="app-input-date relative min-w-0"
-    :class="[props.class || 'w-full', isDateTime ? 'app-input-date--datetime' : '']"
+    class="app-input-date relative min-w-0 w-full"
+    :class="props.class"
   >
-    <UInputDate
-      ref="inputDate"
-      v-model="dateValue"
-      fixed
-      :granularity="granularity"
+    <UPopover
+      v-model:open="open"
+      :content="datePickerPopoverContent"
       :disabled="disabled"
-      :required="required"
-      :color="color"
-      :variant="variant"
-      :size="size"
-      class="w-full min-w-0"
-      :ui="dateUi"
-    />
-
-    <div class="pointer-events-none absolute inset-y-0 end-0 z-10 flex items-center pe-1.5">
-      <UPopover
-        :reference="pickerAnchor ?? inputDate?.inputsRef?.[0]?.$el"
-        :content="datePickerPopoverContent"
+    >
+      <UButton
+        type="button"
+        :color="color"
+        :variant="variant"
+        :size="size"
+        :disabled="disabled"
+        :aria-required="required || undefined"
+        :aria-label="placeholderText"
+        :aria-expanded="open"
+        block
+        :ui="triggerUi"
       >
-        <UButton
-          color="neutral"
-          variant="ghost"
-          size="xs"
-          square
-          :icon="pickerIcon"
-          class="pointer-events-auto size-7 text-muted hover:text-highlighted"
-          :aria-label="isDateTime ? 'Select date and time' : 'Select a date'"
+        <span
+          class="min-w-0 flex-1 truncate tabular-nums"
+          :class="displayValue ? 'text-highlighted' : 'text-muted'"
+        >
+          {{ displayValue || placeholderText }}
+        </span>
+        <UIcon :name="pickerIcon" class="size-4 shrink-0 text-muted" />
+      </UButton>
+
+      <template #content>
+        <CommonAppDatePickerPopover
+          v-model="dateValue"
+          mode="single"
+          :granularity="granularity"
+          :number-of-months="1"
           :disabled="disabled"
         />
-
-        <template #content>
-          <CommonAppDatePickerPopover
-            v-model="dateValue"
-            mode="single"
-            :granularity="granularity"
-            :disabled="disabled"
-          />
-        </template>
-      </UPopover>
-    </div>
+      </template>
+    </UPopover>
   </div>
 </template>
-
-<style scoped>
-.app-input-date :deep([data-slot="base"]) {
-  width: 100%;
-  min-width: 0;
-  max-width: 100%;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.app-input-date--datetime :deep([data-slot="base"]) {
-  padding-inline-end: 2.75rem;
-}
-
-.app-input-date :deep([data-slot="base"]::-webkit-scrollbar) {
-  display: none;
-}
-</style>

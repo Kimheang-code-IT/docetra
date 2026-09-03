@@ -5,7 +5,7 @@ import { usePointerDrop } from '~/composables/common/usePointerDrop'
 import type { WorkflowStage } from '~/types/docetra/common'
 import type { CardDisplayEntityKey } from '~/types/docetra/settings'
 import { useCardFields } from '~/composables/settings/useCardFields'
-import { isCardFooterSlot, splitCardSlots, statusBadgeColor } from '~/utils/card-fields'
+import { isCardFooterSlot, splitCardSlots } from '~/utils/card-fields'
 import {
   computeMeetingTiming,
   isJoinableMeeting,
@@ -22,8 +22,6 @@ const props = withDefaults(defineProps<{
   meeting?: MeetingHistory | null
   topics?: MeetingTopic[]
   title: string
-  statusLabel?: string
-  stageLabel?: string
   stages?: WorkflowStage[]
   dragging?: boolean
   entityKey?: CardDisplayEntityKey
@@ -132,28 +130,6 @@ const assignee = computed(() => listText(r.value.assignees || r.value.assignee))
 const waiting = computed(() => Boolean(r.value.waiting))
 const attachmentCount = computed(() => Number(r.value.attachmentCount || 0))
 const commentCount = computed(() => Number(r.value.commentCount || 0))
-
-// --- labels -----------------------------------------------------------------
-
-const effectiveStatusText = computed(() => {
-  if (m.value) {
-    const key = `docetra.status.${m.value.status}`
-    return te(key) ? t(key) : m.value.status
-  }
-  return props.statusLabel || ''
-})
-
-const effectiveStageText = computed(() => {
-  const raw = m.value ? m.value.stage : props.stageLabel
-  if (!raw) return ''
-  if (m.value) {
-    const key = `docetra.stages.${raw}`
-    return te(key) ? t(key) : raw
-  }
-  return raw
-})
-
-const statusColor = computed(() => statusBadgeColor(m.value ? m.value.status : props.row?.status))
 
 // --- meeting extras ---------------------------------------------------------
 
@@ -296,17 +272,16 @@ const orderedSlots = computed(() => {
     if (isCardFooterSlot(props.entityKey, slot)) return true
     if (m.value) {
       if (slot === 'topicTitle') return Boolean(props.showTopic)
-      if (slot === 'status') return Boolean(effectiveStatusText.value)
       if (slot === 'sortOrder') return m.value.sortOrder != null
       if (slot === 'letterNumber') return Boolean(m.value.letterNumber)
-      if (slot === 'stage') return Boolean(effectiveStageText.value)
       if (slot === 'tags') return tags.value.length > 0
       if (slot === 'participants') return Boolean(listText(m.value.participants))
       if (slot === 'internalUnits') return Boolean(listText(m.value.internalUnits))
       if (slot === 'externalUnits') return Boolean(listText(m.value.externalUnits))
       if (slot === 'letterDate') return Boolean(m.value.letterDate)
       if (slot === 'meetingMode') return Boolean(m.value.meetingMode)
-      if (slot === 'meetingUrl') return Boolean(m.value.meetingUrl)
+      // Join CTA is a single dedicated button below the body — not a body slot.
+      if (slot === 'meetingUrl') return false
       if (slot === 'durationMinutes') return m.value.durationMinutes != null
       return show(slot)
     }
@@ -316,8 +291,6 @@ const orderedSlots = computed(() => {
     if (slot === 'party') return Boolean(partyLabel.value)
     if (slot === 'owner') return Boolean(owner.value)
     if (slot === 'assignee') return Boolean(assignee.value)
-    if (slot === 'status') return Boolean(props.statusLabel)
-    if (slot === 'stage') return Boolean(props.stageLabel)
     if (slot === 'waiting') return waiting.value
     if (slot === 'tags') return tags.value.length > 0
     if (bodySlotText(slot)) return true
@@ -326,13 +299,6 @@ const orderedSlots = computed(() => {
 })
 
 const split = computed(() => splitCardSlots(props.entityKey, orderedSlots.value))
-/** Exactly one status on the title — never status + stage together. */
-const titleStatusText = computed(() => {
-  if (split.value.titleChrome.includes('status') && effectiveStatusText.value) {
-    return effectiveStatusText.value
-  }
-  return ''
-})
 const showSortOrder = computed(() => m.value != null && split.value.titleChrome.includes('sortOrder'))
 const showTopicTitleRow = computed(() =>
   m.value != null && split.value.titleChrome.includes('topicTitle'))
@@ -373,14 +339,7 @@ const menuItems = computed(() => {
         label: t('docetra.meetingBoard.openNotes'),
         icon: 'i-lucide-notebook-pen',
         onSelect: () => emit('openNotes'),
-      }] : []),
-      ...(canJoin.value
-        ? [{
-            label: t('docetra.meetingBoard.joinMeeting'),
-            icon: 'i-lucide-video',
-            onSelect: () => joinMeeting(),
-          }]
-        : [])],
+      }] : [])],
       ...(props.canAssign ? [[
         {
           label: t('docetra.meetingBoard.assignToTopic'),
@@ -492,7 +451,7 @@ function onDrop(event: DragEvent) {
 <template>
   <article
     :draggable="m ? canAssign : canMove"
-    class="group relative flex h-full min-h-30 touch-pan-y flex-col rounded-lg border border-default bg-default p-3 text-left shadow-xs transition"
+    class="group relative flex h-full min-h-30 min-w-0 w-full touch-pan-y flex-col overflow-hidden rounded-lg border border-default bg-default p-3 text-left shadow-xs transition"
     :class="[
       (m ? canAssign : canMove) ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer',
       dragging ? 'opacity-40 ring-2 ring-primary/30' : 'hover:border-primary/35 hover:shadow-sm',
@@ -518,30 +477,21 @@ function onDrop(event: DragEvent) {
       {{ ((m?.sortOrder ?? 0) as number) + 1 }}
     </span>
 
-    <div class="flex items-start gap-2" :class="showSortOrder ? 'pe-6' : ''">
-      <div class="min-w-0 flex-1">
-        <div class="flex flex-wrap items-center gap-1.5">
-          <p class="text-sm font-semibold text-highlighted wrap-break-word">
+    <div class="flex min-w-0 items-start gap-2" :class="showSortOrder ? 'pe-6' : ''">
+      <div class="min-w-0 flex-1 overflow-hidden">
+        <div class="flex min-w-0 flex-wrap items-center gap-1.5">
+          <p class="min-w-0 max-w-full line-clamp-2 text-sm font-semibold text-highlighted wrap-break-word">
             {{ title }}
           </p>
-          <UBadge
-            v-if="titleStatusText"
-            size="sm"
-            :color="statusColor"
-            variant="subtle"
-            icon="i-lucide-circle-dot"
-          >
-            {{ titleStatusText }}
-          </UBadge>
-          <UBadge
+          <span
             v-if="isImminent"
-            size="sm"
-            color="primary"
-            variant="soft"
-            icon="i-lucide-clock-3"
+            class="app-card-field-highlight app-card-field-highlight--secondary text-xs"
           >
-            {{ timing.inProgress ? $t('docetra.meetingBoard.inProgress') : $t('docetra.meetingBoard.soon') }}
-          </UBadge>
+            <UIcon name="i-lucide-clock-3" class="size-3 shrink-0" />
+            <span class="truncate">
+              {{ timing.inProgress ? $t('docetra.meetingBoard.inProgress') : $t('docetra.meetingBoard.soon') }}
+            </span>
+          </span>
         </div>
         <div
           v-if="showTopicTitleRow"
@@ -613,26 +563,25 @@ function onDrop(event: DragEvent) {
         <UIcon name="i-lucide-user-check" class="size-3 shrink-0" />
         <span class="truncate">{{ assignee }}</span>
       </div>
-      <div v-else-if="slot === 'stage'" class="mt-1.5">
-        <UBadge size="sm" color="info" variant="soft" icon="i-lucide-git-branch">{{ effectiveStageText }}</UBadge>
-      </div>
-      <div v-else-if="slot === 'waiting'" class="mt-1.5">
-        <UBadge size="sm" color="warning" variant="subtle" icon="i-lucide-clock-3">{{ $t('docetra.fields.waiting') }}</UBadge>
+      <div
+        v-else-if="slot === 'waiting'"
+        class="app-card-field-highlight app-card-field-highlight--warning mt-1.5 text-xs"
+      >
+        <UIcon name="i-lucide-clock-3" class="size-3 shrink-0" />
+        <span class="truncate">{{ $t('docetra.fields.waiting') }}</span>
       </div>
       <div
         v-else-if="slot === 'tags'"
-        class="mt-1.5 flex flex-wrap gap-1.5"
+        class="mt-1.5 flex min-w-0 flex-wrap gap-x-2 gap-y-1"
       >
-        <UBadge
+        <span
           v-for="tag in tags.slice(0, 2)"
           :key="tag"
-          size="sm"
-          color="secondary"
-          variant="soft"
-          icon="i-lucide-tag"
+          class="app-card-field-highlight app-card-field-highlight--secondary text-xs"
         >
-          {{ tag }}
-        </UBadge>
+          <UIcon name="i-lucide-tag" class="size-3 shrink-0" />
+          <span class="truncate">{{ tag }}</span>
+        </span>
       </div>
       <div
         v-else-if="slot === 'participants' || slot === 'internalUnits' || slot === 'externalUnits'"
@@ -655,19 +604,6 @@ function onDrop(event: DragEvent) {
       >
         <UIcon :name="fieldIcon(slot)" class="size-3 shrink-0" />
         <span class="truncate">{{ meetingModeLabel(m?.meetingMode) }}</span>
-      </div>
-      <div
-        v-else-if="slot === 'meetingUrl' && m?.meetingUrl"
-        class="mt-1.5"
-      >
-        <UButton
-          size="xs"
-          color="primary"
-          variant="soft"
-          icon="i-lucide-video"
-          :label="$t('docetra.meetingBoard.joinMeeting')"
-          @click.stop="joinMeeting"
-        />
       </div>
       <div
         v-else-if="slot === 'durationMinutes' && m?.durationMinutes != null"
@@ -700,7 +636,7 @@ function onDrop(event: DragEvent) {
     </template>
     </div>
 
-    <div v-if="canJoin && !bodySlots.includes('meetingUrl')" class="mt-2 shrink-0">
+    <div v-if="canJoin" class="mt-2 shrink-0">
       <UButton
         size="xs"
         color="primary"

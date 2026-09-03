@@ -1,16 +1,20 @@
-from sqlalchemy import String, cast, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import Entity
+from app.modules.organization.service import search_for_reporting as search_organizations
+from app.modules.people_access.service import search_for_reporting as search_people
 
 
 async def search_mentions(db: AsyncSession, q: str, mention_type: str, limit: int) -> list[dict]:
-    resource = {"officer": "officers", "department": "departments", "company": "companies"}.get(mention_type, "officers")
-    rows = (await db.scalars(
-        select(Entity).where(
-            Entity.resource == resource,
-            Entity.status == "active",
-            cast(Entity.payload, String).ilike(f"%{q}%"),
-        ).limit(min(limit, 50))
-    )).all()
-    return [{"id": str(row.id), "label": (row.payload or {}).get("name") or (row.payload or {}).get("title") or str(row.id), "type": mention_type} for row in rows]
+    cap = min(limit, 50)
+    pattern = f"%{q}%"
+    candidates = (
+        await search_people(db, pattern, cap)
+        if mention_type == "officer"
+        else await search_organizations(db, pattern, cap)
+    )
+    expected = {"department": "departments", "company": "companies"}.get(mention_type)
+    return [
+        {"id": item["id"], "label": item["title"], "type": mention_type}
+        for item in candidates
+        if expected is None or item.get("resource") == expected
+    ][:cap]

@@ -5,7 +5,7 @@ import type {
   RecordAttribute,
   RecordTypeAttribute,
 } from '~/types/docetra/configuration'
-import type { RecordTypePayload } from '~/types/docetra/vocabulary'
+import type { RecordTypePayload } from '~/types/docetra/configuration'
 import {
   defaultRecordTypeFeatures,
   defaultRecordTypeNumbering,
@@ -18,7 +18,7 @@ import { useAppHeader } from '~/composables/layout/useAppHeader'
 import { usePageSeo } from '~/composables/usePageSeo'
 import { toConfigCode } from '~/utils/config-code'
 import { getByPath, setByPath } from '~/utils/object-path'
-import { cardEntityKeyForRecordType } from '~/utils/vocabulary'
+import { cardEntityKeyForRecordType } from '~/utils/card-fields'
 import {
   clearPendingTypeAttributeIds,
   readPendingTypeAttributeIds,

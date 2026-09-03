@@ -1,0 +1,14 @@
+- generic [ref=f3e1]:
+  - generic [ref=f3e3]:
+    - link "Docetra" [ref=f3e4] [cursor=pointer]:
+      - /url: /
+      - img "Docetra logo" [ref=f3e6]
+    - button "Search… k" [ref=f3e9]:
+      - generic [ref=f3e11]: Search…
+      - generic [ref=f3e12]: k
+  - separator
+  - generic [ref=f3e19]:
+    - generic [ref=f3e21]:
+      - button "Collapse sidebar" [ref=f3e22]
+      - heading "Dashboard" [level=1] [ref=f3e24]
+    - main [ref=f3e28]

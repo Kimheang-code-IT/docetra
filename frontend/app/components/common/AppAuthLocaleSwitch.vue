@@ -5,7 +5,10 @@ import { usePreferencesStore, type AppLocale } from '~/stores/preferences'
 const preferences = usePreferencesStore()
 const { locale, locales } = useI18n()
 
-preferences.hydrate()
+// The public auth shell must not wait for or start app-config. The root loads
+// remote localization after authentication; the safe en/km defaults and the
+// user's stored choice are enough for this switch.
+preferences.hydrateLocal()
 
 const currentLabel = computed(() => {
   const match = (locales.value || []).find((loc: { code?: string }) => loc.code === locale.value)

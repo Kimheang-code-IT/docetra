@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.datetime import iso_utc
 from app.core.secrets import MASK, mask_mapping, protect_mapping, reveal_mapping
-from app.db import AppSetting
+from app.modules.admin_config.model import AppSetting
 from app.shared.dicts import deep_merge
 
 DEFAULT_APP_INFO = {
@@ -59,7 +59,7 @@ async def get_setting(db: AsyncSession, key: str, default: dict) -> dict:
     if not row:
         row = AppSetting(key=key, value=protect_mapping(default))
         db.add(row)
-        await db.commit()
+        await db.flush()
         await db.refresh(row)
     value = mask_mapping(dict(row.value))
     value["updatedAt"] = iso_utc(row.updated_at)
@@ -71,7 +71,7 @@ async def update_app_info(db: AsyncSession, body: dict) -> dict:
     row.value = merge_setting(row.value or DEFAULT_APP_INFO, body)
     row.updated_at = datetime.now(timezone.utc)
     db.add(row)
-    await db.commit()
+    await db.flush()
     return await get_setting(db, "app-info", DEFAULT_APP_INFO)
 
 
@@ -80,7 +80,7 @@ async def reset_app_info(db: AsyncSession) -> dict:
     row.value = DEFAULT_APP_INFO
     row.updated_at = datetime.now(timezone.utc)
     db.add(row)
-    await db.commit()
+    await db.flush()
     return await get_setting(db, "app-info", DEFAULT_APP_INFO)
 
 
@@ -90,7 +90,7 @@ async def update_app_config(db: AsyncSession, body: dict) -> dict:
     row.value = protect_mapping(merge_setting(current, body))
     row.updated_at = datetime.now(timezone.utc)
     db.add(row)
-    await db.commit()
+    await db.flush()
     from app.modules.admin_config.services.runtime import invalidate_app_config_cache
 
     await invalidate_app_config_cache()

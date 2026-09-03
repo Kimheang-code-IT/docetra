@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { useMediaQuery } from '@vueuse/core'
+import type { BoardViewMode } from '~/composables/common/useBoardViewMode'
 
 /**
  * Shared two-pane board chrome: collapsible rail (drawer on mobile) +
- * right-panel header (panel toggles, title, search, date range).
+ * right-panel header (panel toggles, title, search, date range, card/table toggle).
  * Boards supply rail pills/items and content via slots; domain logic stays
  * in each board's composable.
  */
@@ -23,6 +24,8 @@ const props = withDefaults(defineProps<{
   headerSearchPlaceholderKey?: string
   dateStart?: string
   dateEnd?: string
+  /** When bound, shows cards/table toggle in the header. */
+  viewMode?: BoardViewMode
   pending?: boolean
   /** Gate for the first-load overlay (e.g. `pending && !items.length`). */
   showPendingOverlay?: boolean
@@ -39,6 +42,7 @@ const emit = defineEmits<{
   'update:headerSearch': [value: string]
   'update:dateStart': [value: string]
   'update:dateEnd': [value: string]
+  'update:viewMode': [value: BoardViewMode]
   retry: []
 }>()
 
@@ -48,8 +52,32 @@ const railCollapsed = computed(() =>
   isSmallScreen.value ? false : props.collapsed,
 )
 
+const showViewToggle = computed(() => props.viewMode !== undefined)
+
+const { t } = useI18n()
+
+const viewItems = computed(() => [
+  {
+    label: t('docetra.views.cards'),
+    value: 'cards',
+    icon: 'i-lucide-layout-grid',
+  },
+  {
+    label: t('docetra.views.table'),
+    value: 'table',
+    icon: 'i-lucide-table',
+  },
+])
+
 function closeMobile() {
   emit('update:mobileOpen', false)
+}
+
+function onViewModeChange(value: string | number) {
+  const mode = String(value) as BoardViewMode
+  if (mode !== 'cards' && mode !== 'table') return
+  if (props.viewMode === mode) return
+  emit('update:viewMode', mode)
 }
 </script>
 
@@ -119,6 +147,7 @@ function closeMobile() {
           <CommonAppLiveSearch
             v-if="!railCollapsed && railSearch !== undefined"
             :model-value="railSearch"
+            size="md"
             class="w-full"
             :placeholder="railSearchPlaceholderKey ? $t(railSearchPlaceholderKey) : $t('common.search')"
             @update:model-value="(v: string) => emit('update:railSearch', v)"
@@ -169,17 +198,30 @@ function closeMobile() {
           <CommonAppLiveSearch
             v-if="headerSearch !== undefined"
             :model-value="headerSearch"
+            size="md"
             class="min-w-0 w-full max-w-75 flex-1"
             :placeholder="headerSearchPlaceholderKey ? $t(headerSearchPlaceholderKey) : $t('common.search')"
             @update:model-value="(v: string) => emit('update:headerSearch', v)"
           />
           <slot name="header-extra" />
+
+          <UTabs
+            v-if="showViewToggle"
+            :model-value="viewMode"
+            :items="viewItems"
+            :content="false"
+            size="sm"
+            class="shrink-0"
+            :aria-label="$t('docetra.views.toggle')"
+            @update:model-value="onViewModeChange"
+          />
+
           <CommonAppDateRangeFilter
             v-if="dateStart !== undefined"
             :start="dateStart"
             :end="dateEnd ?? ''"
             class="ms-auto shrink-0"
-            size="sm"
+            size="md"
             @update:start="(v: string) => emit('update:dateStart', v)"
             @update:end="(v: string) => emit('update:dateEnd', v)"
           />

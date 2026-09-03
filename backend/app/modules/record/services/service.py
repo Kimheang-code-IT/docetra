@@ -11,27 +11,21 @@ from sqlalchemy import String, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.datastructures import UploadFile as StarletteUploadFile
 
-from app.core.authorization import creator_only
+from app.modules.record.services.creator_scope import creator_only
 from app.core.concurrency import VERSIONED_KINDS, require_matching_version
 from app.core.datetime import extract_record_time, utcnow
-from app.models.organization import Organization, OrganizationPurpose, OrganizationSector
-from app.models.people import User
-from app.models.record import Entity, Record, RecordAttribute, RecordType
-from app.models.storage import File
-from app.modules.people_access.services.identity import normalize_identity_payload, strip_secrets
-import app.modules.organization.services.service as org_service
-import app.modules.people_access.services.people as people
-from app.modules.organization.domain.map import ORG_RESOURCES, db_org_type_for
+from typing import Any as User
+from app.modules.record.model import Entity, Record, RecordAttribute, RecordType
+from app.modules.people_access.service import normalize_identity_payload, people, strip_secrets
 from app.modules.record.domain.map import RECORD_RESOURCES
-from app.modules.organization.services.org_collections import OrganizationApplicationService
-from app.modules.people_access.services.identity_collections import IdentityApplicationService
 from app.modules.record.services.kind import CollectionSpec
 from app.modules.record.services.record_collections import RecordApplicationService
 from app.modules.record.services.support_collections import SupportApplicationService
 from app.modules.record.services.stamp import assert_writable, entity_or_404, stamp, apply_side_effects, audit
-from app.modules.storage_integration.services.storage import delete_object, put_bytes, safe_name
-from app.modules.storage_integration.services.upload_validation import detect_upload_type
+from app.integrations.objectstore import delete_object, put_bytes, safe_name
+from app.shared.upload_validation import detect_upload_type
 from app.shared.pagination import parse_limit
+from app.modules.admin_config.service import runtime
 
 
 class CollectionService:
@@ -42,16 +36,12 @@ class CollectionService:
         resource: str | None = None,
         *,
         type_code: str | None = None,
-        org_type: str | None = None,
     ):
-        spec = CollectionSpec(resource, type_code=type_code, org_type=org_type)
+        spec = CollectionSpec(resource, type_code=type_code)
         self._spec = spec
         self.resource = spec.resource
         self.type_code = spec.type_code
-        self.org_type = spec.org_type
         self.records = RecordApplicationService(self)
-        self.organizations = OrganizationApplicationService(self)
-        self.identity = IdentityApplicationService(self)
         self.support = SupportApplicationService(self)
 
     def kind(self) -> str:
@@ -65,14 +55,6 @@ class CollectionService:
             from fastapi import HTTPException
             raise HTTPException(404, "Record type not found")
         return code
-
-    def resolve_db_org_type(self) -> str:
-        if self.org_type:
-            return db_org_type_for(self.org_type)
-        if self.resource in ORG_RESOURCES:
-            return ORG_RESOURCES[self.resource]
-        from fastapi import HTTPException
-        raise HTTPException(404, "Organization type not found")
 
     async def get_record_row_or_404(self, db: AsyncSession, entity_id: str, user: User | None = None) -> Record:
         try:
@@ -99,12 +81,6 @@ class CollectionService:
                 raise HTTPException(404, "Not found")
         return row
 
-    async def get_org_row_or_404(self, db: AsyncSession, entity_id: str) -> Organization:
-        row = await org_service.get_org(db, entity_id)
-        if row.organization_type != self.resolve_db_org_type():
-            raise HTTPException(404, "Not found")
-        return row
-
     async def actor_officer_id(self, db: AsyncSession, user: User) -> uuid.UUID | None:
         officer = await people.ensure_officer_for_user(db, user)
         return officer.id
@@ -116,8 +92,6 @@ class CollectionService:
     async def list_items(self, db: AsyncSession, user: User, params: dict) -> dict:
         kind = self.kind()
         page = max(1, int(params.get("page") or 1))
-        import app.modules.admin_config.services.runtime as runtime
-
         config = await runtime.load_app_config(db)
         default_limit = runtime.general_defaults(config)["defaultPageSize"]
         limit = parse_limit(params.get("limit"), default=default_limit)
@@ -126,10 +100,6 @@ class CollectionService:
 
         if kind == "record":
             return await self.records.list_items(db, user, params, page, limit, q, status)
-        if kind in {"organization", "sector", "purpose"}:
-            return await self.organizations.list_items(db, user, params, page, limit, q, status)
-        if kind in {"officer", "role", "user"}:
-            return await self.identity.list_items(db, user, params, page, limit, q, status)
         return await self.support.list_items(db, user, params, page, limit, q, status)
 
     async def get_item(self, db: AsyncSession, entity_id: str, user: User | None = None) -> dict:
@@ -142,10 +112,6 @@ class CollectionService:
             if user is None:
                 raise HTTPException(401, "Authentication required")
             return await self.records.get_item(db, user, entity_id)
-        if kind in {"organization", "sector", "purpose"}:
-            return await self.organizations.get_item(db, entity_id)
-        if kind in {"officer", "role", "user"}:
-            return await self.identity.get_item(db, entity_id)
         return await self.support.get_item(db, entity_id, user)
 
     async def create(self, db: AsyncSession, user: User, payload: dict, raw_payload: dict | None = None) -> dict:
@@ -153,10 +119,6 @@ class CollectionService:
         kind = self.kind()
         if kind == "record":
             return await self.records.create(db, user, payload)
-        if kind in {"organization", "sector", "purpose"}:
-            return await self.organizations.create(db, user, payload)
-        if kind in {"officer", "role", "user"}:
-            return await self.identity.create(db, user, payload)
         return await self.support.create(db, user, payload, raw_payload)
 
     async def update(self, db: AsyncSession, user: User, entity_id: str, body: dict) -> dict:
@@ -168,20 +130,33 @@ class CollectionService:
 
         if kind == "record":
             return await self.records.update(db, user, entity_id, body, current)
-        if kind in {"organization", "sector", "purpose"}:
-            return await self.organizations.update(db, user, entity_id, body)
-        if kind in {"officer", "role", "user"}:
-            return await self.identity.update(db, user, entity_id, body, current)
         return await self.support.update(db, user, entity_id, body)
+
+    async def duplicate(self, db: AsyncSession, user: User, entity_id: str) -> dict:
+        if self.kind() != "record":
+            return await self.support.duplicate(db, user, entity_id)
+        raise HTTPException(404, "Not found")
+
+    async def set_active(self, db: AsyncSession, user: User, entity_id: str, active: bool) -> dict:
+        if self.kind() != "record":
+            return await self.support.set_active(db, user, entity_id, active)
+        raise HTTPException(404, "Not found")
+
+    async def attach_file(self, db: AsyncSession, user: User, entity_id: str, file_payload: dict, expected=None) -> dict:
+        if self.kind() != "record":
+            raise HTTPException(404, "Not found")
+        return await self.records.attach_file(db, user, entity_id, file_payload, expected)
+
+    async def detach_file(self, db: AsyncSession, user: User, entity_id: str, file_id: str, expected=None) -> dict:
+        if self.kind() != "record":
+            raise HTTPException(404, "Not found")
+        return await self.records.detach_file(db, user, entity_id, file_id, expected)
 
     async def _get_model(self, db, kind, entity_id):
         uid = uuid.UUID(entity_id)
         mapping = {
             "record_type": RecordType,
             "record_attribute": RecordAttribute,
-            "file": File,
-            "sector": OrganizationSector,
-            "purpose": OrganizationPurpose,
         }
         row = await db.get(mapping[kind], uid)
         if not row:
@@ -194,12 +169,6 @@ class CollectionService:
         expected = (body or {}).get("version")
         if kind == "record":
             return await self.records.soft_delete(db, user, entity_id, expected)
-        if kind in {"organization", "sector", "purpose"}:
-            return await self.organizations.soft_delete(db, entity_id)
-        if kind == "officer":
-            return await self.identity.purge(db, user, entity_id, expected)
-        if kind in {"role", "user"}:
-            return await self.identity.soft_delete(db, entity_id, expected)
         return await self.support.soft_delete(db, user, entity_id, expected)
 
     async def purge(self, db: AsyncSession, user: User, entity_id: str, body: dict | None = None) -> dict:
@@ -208,10 +177,6 @@ class CollectionService:
         expected = (body or {}).get("version")
         if kind == "record":
             return await self.records.purge(db, user, entity_id, expected)
-        if kind in {"organization", "sector", "purpose"}:
-            return await self.organizations.purge(db, entity_id)
-        if kind in {"officer", "role", "user"}:
-            return await self.identity.purge(db, user, entity_id, expected)
         return await self.support.purge(db, user, entity_id, expected)
 
     async def lifecycle(self, db: AsyncSession, user: User, entity_id: str, status: str, body: dict | None = None) -> dict:
@@ -248,8 +213,6 @@ class CollectionService:
             content = await upload.read()
             filename = safe_name(upload.filename or "file")
             extension = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
-            import app.modules.admin_config.services.runtime as runtime
-
             policy = runtime.upload_policy(await runtime.load_app_config(db))
             if extension not in policy["allowedUploadExtensions"]:
                 raise HTTPException(415, "File extension is not allowed")
@@ -266,7 +229,7 @@ class CollectionService:
                 "objectKey": object_key,
                 "url": f"/api/v2/files/{row_id}",
             })
-            if self.kind() in {"file", "entity"}:
+            if self.kind() == "entity":
                 payload["status"] = "pending"
 
         async def store_object() -> None:
@@ -275,31 +238,6 @@ class CollectionService:
             object_key, content, detected = pending_object
             await put_bytes(object_key, content, detected, db)
 
-        if self.kind() == "file":
-            row = File(
-                id=row_id,
-                nam=str(payload.get("name") or "file"),
-                path=str(payload.get("objectKey") or ""),
-                file_size=int(payload.get("sizeBytes") or 0),
-                mime_type=payload.get("mimeType"),
-                storage_type="s3",
-                direct_url=payload.get("url"),
-                source_table="file-uploads",
-                status="pending" if pending_object else "active",
-                created_by=officer_id,
-                updated_by=officer_id,
-            )
-            db.add(row)
-            await db.flush()
-            try:
-                await store_object()
-            except Exception:
-                row.status = "failed"
-                await db.commit()
-                raise
-            row.status = "active"
-            await db.commit()
-            return await self.get_item(db, str(row.id))
         if self.kind() == "entity":
             payload = {**payload, "id": str(row_id)}
             created = await self._create_entity(db, user, payload, payload, row_id=row_id)
@@ -309,7 +247,7 @@ class CollectionService:
                 try:
                     failed = await entity_or_404(db, self.resource, str(row_id))
                     failed.status = "failed"
-                    await db.commit()
+                    await db.flush()
                 except Exception:
                     pass
                 raise
@@ -358,7 +296,7 @@ class CollectionService:
         await db.flush()
         await apply_side_effects(db, row, raw_payload)
         await audit(db, row, user, "created", f"{user.name} created this record")
-        await db.commit()
+        await db.flush()
         await db.refresh(row)
         return stamp(row)
 
@@ -381,7 +319,7 @@ class CollectionService:
         row.version += 1
         await apply_side_effects(db, row, {**merged, **raw_body})
         await audit(db, row, user, "updated", f"{user.name} updated this record")
-        await db.commit()
+        await db.flush()
         await db.refresh(row)
         return stamp(row)
 
@@ -393,7 +331,7 @@ class CollectionService:
         row.version += 1
         await apply_side_effects(db, row)
         await audit(db, row, user, "deleted", f"{user.name} deleted this record")
-        await db.commit()
+        await db.flush()
         return {"id": entity_id}
 
     async def _purge_entity(self, db, user, entity_id, expected=None):
@@ -401,10 +339,10 @@ class CollectionService:
         self._assert_version(row.version, expected)
         object_key = (row.payload or {}).get("objectKey")
         row.status = "pending_purge"
-        await db.commit()
+        await db.flush()
         if object_key:
             await delete_object(object_key)
         row = await entity_or_404(db, self.resource, entity_id)
         await db.delete(row)
-        await db.commit()
+        await db.flush()
         return {"id": entity_id}

@@ -35,7 +35,9 @@ from app.core.metrics import observe, prometheus_response
 from app.core.permissions import ALL_PERMISSIONS
 from app.core.readiness import readiness_payload
 from app.core.security import hash_password
-from app.db import SessionLocal, User
+from app.db import SessionLocal
+from app.modules.people_access import dependencies as _people_access_dependencies  # noqa: F401 - registers identity resolver
+from app.modules.people_access.model import User
 from app.jobs.consumers import handle_message
 from app.jobs.consumers.exports import complete_exports
 from app.jobs.consumers.outbox import publish_outbox
@@ -44,7 +46,9 @@ from app.jobs.scheduler.cleanup import cleanup_expired_exports
 from app.jobs.scheduler.meeting_reminders import due_meeting_reminders
 from app.jobs.scheduler.reconcile import reconcile
 from app.jobs.topology import DEAD_LETTER_EXCHANGE, EVENT_EXCHANGE
-from app.modules.people_access.services.identity import ensure_admin_entity
+from app.modules.people_access.service import ensure_admin_entity, ensure_officer_for_user, ensure_superadmin_role, seed_menus
+from app.modules.record.service import TYPE_UI_DEFAULTS, ensure_record_type, type_access
+from app.modules.storage_integration.service import probe_storage
 
 configure_logging()
 log = logging.getLogger(__name__)
@@ -68,12 +72,7 @@ DOCS_PATHS = frozenset({"/api/v2/docs", "/api/v2/openapi.json"})
 
 async def seed_record_type_ui() -> None:
     """Ensure built-in record types exist with uiSurface payload for menus/API."""
-    from app.modules.record.domain.map import TYPE_UI_DEFAULTS
-    from app.modules.record.services.serializer import ensure_record_type
-
     async with SessionLocal() as db:
-        import app.modules.record.services.type_access as type_access
-
         for code in TYPE_UI_DEFAULTS:
             row = await ensure_record_type(db, code, None)
             await type_access.backfill_shared_grants_if_empty(db, row.id)
@@ -82,8 +81,6 @@ async def seed_record_type_ui() -> None:
 
 async def seed_system() -> None:
     async with SessionLocal() as db:
-        from app.modules.people_access.services.people import ensure_officer_for_user, ensure_superadmin_role, seed_menus
-
         try:
             await seed_menus(db)
             role = await ensure_superadmin_role(db)
@@ -235,7 +232,7 @@ def create_app() -> FastAPI:
 
     @application.get("/ready", tags=["health"])
     async def ready():
-        status_code, body = await readiness_payload()
+        status_code, body = await readiness_payload(probe_storage)
         return JSONResponse(status_code=status_code, content=body)
 
     @application.get("/metrics", include_in_schema=False)

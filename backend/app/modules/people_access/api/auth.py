@@ -14,12 +14,12 @@ from app.core.security import (
     delete_session,
     hash_password,
     issue_session,
-    public_user,
     redis,
     refresh_session,
     revoke_user_tokens,
     verify_password,
 )
+from app.modules.people_access.dependencies import public_user
 from app.core.secrets import encrypt_value
 from app.core.http_schemas import AvatarBody, ChangePasswordBody, DataEnvelope, ResetPasswordBody, VerifyResetBody
 from app.core.rate_limit import (
@@ -29,7 +29,11 @@ from app.core.rate_limit import (
     record_login_failure,
     safe_key,
 )
-from app.db import Entity, Outbox, User, get_db
+from app.db import get_db
+from app.platform.messaging.model import Outbox
+from app.modules.people_access.model import User
+from app.platform.audit.model import AuditLog
+from app.modules.admin_config.service import runtime
 from app.modules.people_access.services.people import count_users, provision_first_administrator
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -51,6 +55,10 @@ class EmailBody(BaseModel):
     email: str
 
 
+async def _security_policy(db: AsyncSession) -> dict:
+    return runtime.security_policy(await runtime.load_app_config(db))
+
+
 @router.get("/bootstrap", response_model=DataEnvelope)
 async def bootstrap(db: AsyncSession = Depends(get_db)):
     return {"data": {"needsSetup": await count_users(db) == 0}}
@@ -69,10 +77,7 @@ async def register(body: Register, request: Request, response: Response, db: Asy
     user = await provision_first_administrator(db, name=name, email=email, password=body.password)
     user.last_login_at = datetime.now(timezone.utc)
     await db.commit()
-    import app.modules.admin_config.services.runtime as runtime
-
-    config = await runtime.load_app_config(db)
-    policy = runtime.security_policy(config)
+    policy = await _security_policy(db)
     _jti, access, refresh = await issue_session(response, user, access_minutes=policy["sessionTimeoutMinutes"])
     return {"data": {"user": public_user(user), "token": access, "refreshToken": refresh}}
 
@@ -85,15 +90,17 @@ async def login(body: Login, request: Request, response: Response, db: AsyncSess
     await ensure_not_locked(email)
     user = await db.scalar(select(User).where(User.email == email))
     if not user or not user.active or not verify_password(body.password, user.password_hash):
-        await record_login_failure(email, db=db)
+        policy = await _security_policy(db)
+        await record_login_failure(
+            email,
+            account_lock_minutes=policy["accountLockMinutes"],
+            max_login_attempts=policy["maxLoginAttempts"],
+        )
         raise HTTPException(401, "Invalid email or password")
     await clear_login_failures(email)
     user.last_login_at = datetime.now(timezone.utc)
     await db.commit()
-    import app.modules.admin_config.services.runtime as runtime
-
-    config = await runtime.load_app_config(db)
-    policy = runtime.security_policy(config)
+    policy = await _security_policy(db)
     _jti, access, refresh = await issue_session(response, user, access_minutes=policy["sessionTimeoutMinutes"])
     return {"data": {"user": public_user(user), "token": access, "refreshToken": refresh}}
 
@@ -105,7 +112,13 @@ async def me(user: User = Depends(current_user)):
 
 @router.post("/refresh", response_model=DataEnvelope)
 async def refresh(request: Request, response: Response, db: AsyncSession = Depends(get_db)):
-    user, access, new_refresh = await refresh_session(request, response, db)
+    policy = await _security_policy(db)
+    user, access, new_refresh = await refresh_session(
+        request,
+        response,
+        db,
+        access_minutes=policy["sessionTimeoutMinutes"],
+    )
     return {"data": {**public_user(user), "token": access, "refreshToken": new_refresh}}
 
 
@@ -171,7 +184,16 @@ async def reset_password(body: ResetPasswordBody, db: AsyncSession = Depends(get
     user = await db.scalar(select(User).where(User.email == email))
     if user:
         user.password_hash = hash_password(password)
-        db.add(Entity(resource="system-logs", payload={"level": "info", "action": "security.password_reset", "userId": str(user.id), "occurredAt": datetime.now(timezone.utc).isoformat()}, status="active", created_by=user.id, updated_by=user.id))
+        db.add(AuditLog(
+            action_code="security.password_reset",
+            table_name="users",
+            row_id=user.id,
+            message="Password reset completed",
+            detail_data={"userId": str(user.id), "occurredAt": datetime.now(timezone.utc).isoformat()},
+            source_log="system",
+            status_code="success",
+            created_by=user.officer_id,
+        ))
         await db.commit()
         await redis.delete(f"password-reset:{email}")
         await revoke_user_tokens(str(user.id))

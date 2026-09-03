@@ -1,0 +1,24 @@
+- generic [ref=f2e1]:
+  - generic [ref=f2e2]:
+    - generic [ref=f2e3]:
+      - link "Docetra" [ref=f2e4] [cursor=pointer]:
+        - /url: /
+        - img "Docetra logo" [ref=f2e6]
+      - button "Search… k" [ref=f2e9]:
+        - generic [ref=f2e11]: Search…
+        - generic [ref=f2e12]: k
+    - generic [ref=f2e15]:
+      - navigation
+    - button "User User" [ref=f2e18]:
+      - img "User" [ref=f2e20]
+      - generic [ref=f2e21]: User
+  - separator
+  - generic [ref=f2e23]:
+    - generic [ref=f2e24]:
+      - generic [ref=f2e25]:
+        - button "Collapse sidebar" [ref=f2e26]
+        - heading "Dashboard" [level=1] [ref=f2e28]
+      - generic [ref=f2e31]:
+        - button "Refresh" [ref=f2e32]
+        - button "Actions" [ref=f2e34]
+    - main [ref=f2e36]

@@ -42,14 +42,7 @@ async def probe_rabbitmq() -> None:
     await connection.close()
 
 
-async def probe_storage() -> None:
-    from app.modules.storage_integration.services.storage import resolve_storage
-
-    storage, bucket = await resolve_storage()
-    await asyncio.to_thread(storage.bucket_exists, bucket)
-
-
-async def readiness_payload() -> tuple[int, dict]:
+async def readiness_payload(storage_probe) -> tuple[int, dict]:
     database = await _probe("database", probe_database)
     if database != "ok":
         return 503, {
@@ -62,7 +55,7 @@ async def readiness_payload() -> tuple[int, dict]:
     redis_status, rabbitmq_status, storage_status = await asyncio.gather(
         _probe("redis", probe_redis),
         _probe("rabbitmq", probe_rabbitmq),
-        _probe("storage", probe_storage),
+        _probe("storage", storage_probe),
     )
     body = {
         "database": database,

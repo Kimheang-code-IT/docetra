@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { EntityConfig } from '~/config/entities'
 import { useDocumentPage } from '~/composables/workspace/useDocumentPage'
+import { ApiEndpoints } from '~/utils/constants/api-endpoints'
 import { useRecordTypeDrivenTabs } from '~/composables/record/useRecordTypeDrivenTabs'
 import { useAppHeader } from '~/composables/layout/useAppHeader'
 import { usePageSeo } from '~/composables/usePageSeo'
@@ -14,6 +15,7 @@ const props = defineProps<{
 
 const {
   isCreate,
+  id,
   model,
   pending,
   saving,
@@ -50,6 +52,20 @@ const {
   toggleFavorite,
 } = useDocumentPage(props.config)
 
+// Existing records upload+attach in one call; create mode uploads to the file
+// store and links the real files when the record is saved.
+function onAttachmentAttached(version: number | undefined) {
+  // Upload+attach bumped the server version; keep the local model in sync so
+  // the next save does not fail with a 409 conflict.
+  if (version != null) model.value = { ...model.value, version }
+}
+
+const attachmentUploadEndpoint = computed(() =>
+  isCreate.value
+    ? ApiEndpoints.FILE_UPLOADS
+    : ApiEndpoints.RECORD_ATTACHMENT_UPLOAD(String(props.config.recordTypeCode || props.config.key), String(id.value)),
+)
+
 const {
   tabs: documentTabs,
 } = useRecordTypeDrivenTabs({
@@ -77,25 +93,18 @@ const {
   },
 })
 
-const { t, te } = useI18n()
+const { t } = useI18n()
 const auth = useAuthStore()
 const exportRunner = useExportJobRunner()
 const { setBreadcrumbs, setBadges, clear } = useAppHeader()
 const toast = useToast()
-
-const statusLabel = computed(() => {
-  const status = String(model.value.status || '')
-  if (!status) return ''
-  const key = `docetra.status.${status}`
-  return te(key) ? t(key) : status
-})
 
 const codeOrRef = computed(() =>
   String(model.value.code || model.value.referenceNumber || model.value.id || ''),
 )
 
 watch(
-  [title, isCreate, statusLabel, dirty, () => props.config],
+  [title, isCreate, dirty, () => props.config],
   () => {
     setBreadcrumbs([
       {
@@ -112,9 +121,6 @@ watch(
     ])
 
     const nextBadges: { label: string, color: 'info' | 'warning' }[] = []
-    if (statusLabel.value) {
-      nextBadges.push({ label: statusLabel.value, color: 'info' })
-    }
     if (dirty.value) {
       nextBadges.push({ label: t('docetra.document.unsaved'), color: 'warning' })
     }
@@ -217,6 +223,9 @@ async function refreshDocument() {
     :comments="comments"
     :activity="activity"
     :attachments="attachments"
+    :attachment-upload-endpoint="attachmentUploadEndpoint"
+    :attachment-upload-version="() => concurrencyVersion(model)"
+    @attached="onAttachmentAttached"
     :comment-body="commentBody"
     :submitting-comment="submittingComment"
     :updating-comment-id="updatingCommentId"
@@ -226,8 +235,6 @@ async function refreshDocument() {
     :current-user="currentUser"
     :meta-title="title"
     :meta-subtitle="codeOrRef"
-    :meta-status="statusLabel"
-    :meta-stage="model.stage ? String(model.stage) : undefined"
     :meta-owner="(model.owner as any) || null"
     :meta-assignee="(model.assignee as any) || null"
     :meta-tags="(model.tags as string[]) || []"

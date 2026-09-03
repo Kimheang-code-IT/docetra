@@ -10,8 +10,8 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.datetime import utcnow
-from app.models.organization import Organization, OrganizationPurpose, OrganizationSector
-from app.models.people import User
+from app.modules.organization.model import Organization, OrganizationPurpose, OrganizationSector
+from typing import Any as User
 import app.modules.organization.services.service as org_service
 
 
@@ -43,8 +43,11 @@ class OrganizationApplicationService:
                     filters.append(Organization.id == None)  # noqa: E711
             elif str(params.get("rootsOnly") or "").lower() in {"1", "true", "yes"}:
                 filters.append(Organization.parent_id.is_(None))
+            from app.shared.list_query import date_filters, order_clause
+
+            filters.extend(date_filters(params, Organization.updated_at))
             total = await db.scalar(select(func.count()).select_from(Organization).where(*filters)) or 0
-            rows = (await db.scalars(select(Organization).where(*filters).order_by(Organization.updated_at.desc()).offset((page - 1) * limit).limit(limit))).all()
+            rows = (await db.scalars(select(Organization).where(*filters).order_by(order_clause(params, Organization)).offset((page - 1) * limit).limit(limit))).all()
             return {"data": [org_service.org_to_payload(row) for row in rows], "meta": {"page": page, "limit": limit, "total": total, "totalPages": max(1, math.ceil(total / limit))}}
 
         if kind == "sector":
@@ -110,10 +113,8 @@ class OrganizationApplicationService:
             )
             db.add(row)
             await db.flush()
-            import app.modules.record.services.type_access as type_access
-
-            await type_access.share_builtin_types(db, row.id, officer_id)
-            await db.commit()
+            await self.host.after_organization_created(db, row.id, officer_id)
+            await db.flush()
             await db.refresh(row)
             return org_service.org_to_payload(row)
         if kind == "sector":
@@ -121,12 +122,12 @@ class OrganizationApplicationService:
             if payload.get("parentId"):
                 row.parent_id = uuid.UUID(str(payload["parentId"]))
             db.add(row)
-            await db.commit()
+            await db.flush()
             await db.refresh(row)
             return org_service.sector_to_payload(row)
         row = OrganizationPurpose(nam=str(payload.get("name") or ""), description=payload.get("description"), is_active=1, created_by=officer_id, updated_by=officer_id)
         db.add(row)
-        await db.commit()
+        await db.flush()
         await db.refresh(row)
         return org_service.purpose_to_payload(row)
 
@@ -173,7 +174,7 @@ class OrganizationApplicationService:
                 row.is_active = 0 if body["status"] == "inactive" else 1
             row.updated_by = officer_id
             row.updated_at = utcnow()
-            await db.commit()
+            await db.flush()
             await db.refresh(row)
             return org_service.org_to_payload(row)
         row = await self.host._get_model(db, kind, entity_id)
@@ -183,14 +184,14 @@ class OrganizationApplicationService:
             row.nam = str(body["name"])
         row.updated_by = officer_id
         row.updated_at = utcnow()
-        await db.commit()
+        await db.flush()
         return await self.get_item(db, entity_id)
 
     async def soft_delete(self, db: AsyncSession, entity_id: str) -> dict:
         if self.kind() == "organization":
             row = await self.host.get_org_row_or_404(db, entity_id)
             row.is_active = 0
-            await db.commit()
+            await db.flush()
             return {"id": entity_id}
         return await self.purge(db, entity_id)
 
@@ -198,9 +199,9 @@ class OrganizationApplicationService:
         if self.kind() == "organization":
             row = await self.host.get_org_row_or_404(db, entity_id)
             await db.delete(row)
-            await db.commit()
+            await db.flush()
             return {"id": entity_id}
         row = await self.host._get_model(db, self.kind(), entity_id)
         await db.delete(row)
-        await db.commit()
+        await db.flush()
         return {"id": entity_id}

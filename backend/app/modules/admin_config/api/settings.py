@@ -6,7 +6,8 @@ from app.core.authorization import require_permission
 from app.core.config import settings
 from app.core.http_schemas import AppSettingsBody, DataEnvelope
 from app.core.security import now_iso
-from app.db import AppSetting, User
+from app.modules.admin_config.model import AppSetting
+from typing import Any as User
 from app.core.secrets import reveal_mapping
 import app.modules.admin_config.services.settings as admin_settings
 
@@ -58,11 +59,11 @@ async def test_connection(request: Request, db: AsyncSession = Depends(get_db), 
 
         email_cfg = config.get("email") or {}
         to_addr = str(email_cfg.get("fromEmail") or settings.email_from_address or user.email)
-        result = await send_test_email(to_addr, smtp=email_cfg, db=db)
+        result = await send_test_email(to_addr, smtp=email_cfg)
         return {"data": {**result, "testedAt": now_iso()}}
     if "telegram" in path:
         from app.integrations.telegram import test_bot
 
-        result = await test_bot("meeting", config=config.get("telegram") or {}, db=db)
+        result = await test_bot("meeting", config=config.get("telegram") or {})
         return {"data": {**result, "testedAt": now_iso()}}
     return {"data": {"status": "connected", "message": "Configuration accepted", "testedAt": now_iso()}}

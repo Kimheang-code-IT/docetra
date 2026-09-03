@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.v2.deps import current_user, get_db
 from app.core.authorization import require_permission
 from app.core.http_schemas import DataEnvelope, StorageActiveBody
-from app.db import User
+from typing import Any as User
 import app.modules.storage_integration.services.provider_service as admin_storage
 from app.modules.storage_integration.domain.schemas import StorageProviderPayload
 

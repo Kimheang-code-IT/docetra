@@ -38,7 +38,7 @@ export default defineConfig({
         'app/utils/pending-type-attributes.ts',
         'app/composables/common/usePathModel.ts',
         'app/utils/record/surfaces.ts',
-        'app/adapters/createEntityAdapter.ts',
+        'app/composables/api/useEntityApi.ts',
       ],
       exclude: [
         'app/utils/auth/session.ts',

@@ -10,4 +10,9 @@ SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
 async def get_db() -> AsyncIterator[AsyncSession]:
     async with SessionLocal() as session:
-        yield session
+        try:
+            yield session
+            await session.commit()
+        except BaseException:
+            await session.rollback()
+            raise

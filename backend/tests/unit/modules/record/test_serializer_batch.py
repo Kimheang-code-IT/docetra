@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from app.models.record import Record, RecordDetail
+from app.modules.record.model import Record, RecordDetail
 from app.modules.record.services.serializer import details_map, record_to_payload, value_from_detail
 
 

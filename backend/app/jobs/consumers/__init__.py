@@ -7,9 +7,9 @@ import aio_pika
 
 from app.core.config import settings
 from app.core.secrets import decrypt_value
-from app.db import Entity, SessionLocal
-from app.models.audit import AuditLog
-from app.models.record import Record
+from app.db import SessionLocal
+from app.modules.record.model import Entity, Record
+from app.platform.audit.model import AuditLog
 
 log = logging.getLogger(__name__)
 
@@ -18,14 +18,21 @@ async def handle_security_email(payload: dict) -> None:
     if payload.get("kind") != "password_reset":
         return
     from app.integrations.email import send_password_reset
+    from app.modules.admin_config.service import runtime
 
-    await send_password_reset(str(payload.get("email") or ""), decrypt_value(str(payload.get("code") or "")))
+    async with SessionLocal() as db:
+        smtp = runtime.email_smtp(await runtime.load_app_config(db))
+    await send_password_reset(
+        str(payload.get("email") or ""),
+        decrypt_value(str(payload.get("code") or "")),
+        smtp=smtp,
+    )
 
 
 async def handle_meeting_message(payload: dict, routing: str) -> None:
-    import app.modules.admin_config.services.runtime as runtime
+    from app.modules.admin_config.service import runtime
     from app.integrations.telegram import send_meeting_alert
-    from app.modules.record.services.serializer import details_as_dict
+    from app.modules.record.service import details_as_dict
 
     meeting_id = payload.get("meetingId") or payload.get("id")
     kind = payload.get("kind") or "reminder"
@@ -51,7 +58,7 @@ async def handle_meeting_message(payload: dict, routing: str) -> None:
         destinations = bot["destinations"] or []
         for destination in destinations:
             if destination.get("enabled", True) and destination.get("verified", False) and destination.get("chatId"):
-                await send_meeting_alert(str(destination["chatId"]), text, db=db)
+                await send_meeting_alert(str(destination["chatId"]), text, bot=bot)
         db.add(AuditLog(
             action_code=routing,
             table_name="meeting-history",
@@ -73,9 +80,10 @@ async def handle_drive_sync(payload: dict) -> None:
                 return
             job.payload = {**(job.payload or {}), "status": "processing", "attempts": int((job.payload or {}).get("attempts") or 0) + 1}
             await db.commit()
-            from app.integrations.google import sync_job
+            from app.modules.storage_integration.service import drive_sync
 
-            await sync_job(db, job)
+            await drive_sync.run_sync_job(db, job)
+            await db.commit()
         except Exception as exc:
             if job:
                 attempts = int((job.payload or {}).get("attempts") or 0)

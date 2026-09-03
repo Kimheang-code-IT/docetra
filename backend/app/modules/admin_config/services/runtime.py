@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.cache import short_cache
 from app.core.config import settings
 from app.core.secrets import reveal_mapping
-from app.db import AppSetting
+from app.modules.admin_config.model import AppSetting
 from app.modules.admin_config.services.settings import DEFAULT_APP_CONFIG, merge_setting
 
 CACHE_KEY = "runtime:app-config"

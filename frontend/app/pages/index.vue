@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { fetchDashboardSummary } from '~/adapters'
+import { fetchDashboardSummary } from '~/composables/reporting/useDashboardSummary'
 import { usePageSeo } from '~/composables/usePageSeo'
 import type { DashboardSummary } from '~/types/docetra/entities'
 
@@ -115,6 +115,10 @@ const filteredTrendSeries = computed(() => {
 })
 
 async function load() {
+  // Route hydration can notify the query watcher twice during the login ->
+  // dashboard transition. Reuse the active load instead of issuing an
+  // identical permission-filtered dashboard request.
+  if (pending.value) return
   pending.value = true
   error.value = null
   try {
@@ -129,7 +133,15 @@ async function load() {
   }
 }
 
-watch(() => route.query, load, { deep: true, immediate: true })
+// Load on mount and when the route genuinely changes. chartPeriod/chartYear
+// are client-side display toggles stored in the query — refetching identical
+// summary data for them wastes a request.
+watch(() => route.query, (next, prev) => {
+  const displayKeys = new Set(['chartPeriod', 'chartYear'])
+  const keys = new Set([...Object.keys(next || {}), ...Object.keys(prev || {})])
+  const serverQueryChanged = [...keys].some(key => !displayKeys.has(key) && (next as any)[key] !== (prev as any)[key])
+  if (serverQueryChanged || prev === undefined) load()
+}, { immediate: true })
 
 const stageChartOption = computed(() => ({
   tooltip: { trigger: 'axis' },

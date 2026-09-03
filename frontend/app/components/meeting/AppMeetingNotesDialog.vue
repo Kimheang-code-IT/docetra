@@ -2,7 +2,7 @@
 import type { MeetingHistory } from '~/types/docetra/entities'
 import type { AttachmentMeta } from '~/types/docetra/common'
 import { getEntityAdapter } from '~/config/entities'
-import { linkMeetingDriveFile } from '~/adapters/meeting-board'
+import { linkMeetingDriveFile } from '~/composables/meeting/useMeetingBoardApi'
 import { useConfirm } from '~/composables/common/useConfirm'
 import type { DriveFileCatalogItem } from '~/types/docetra/meeting-api'
 import { ApiEndpoints } from '~/utils/constants/api-endpoints'
@@ -109,6 +109,16 @@ async function onClose(value: boolean) {
   finishClose()
 }
 
+// Uppy posts real file bytes to the upload endpoint; the backend stores the
+// object, creates the File row, and attaches it to the meeting in one call.
+// The record's current version rides along for optimistic concurrency.
+const attachmentUploadEndpoint = computed(() => {
+  if (!props.meetingId) return ''
+  const version = concurrencyVersion(meeting.value)
+  return ApiEndpoints.RECORD_ATTACHMENT_UPLOAD('meeting_history', props.meetingId)
+    + (version != null ? `?version=${version}` : '')
+})
+
 function onUploadsComplete(files: AttachmentMeta[]) {
   attachments.value = [...files, ...attachments.value]
   if (meeting.value) {
@@ -156,7 +166,9 @@ async function save() {
       attachmentCount: attachments.value.length,
     } as any)
     if (meetingsAdapter.replaceAttachments) {
-      await meetingsAdapter.replaceAttachments(props.meetingId, attachments.value)
+      await meetingsAdapter.replaceAttachments(props.meetingId, attachments.value, {
+        version: concurrencyVersion(meeting.value),
+      })
     }
     meeting.value = res.data as MeetingHistory
     syncBaseline()
@@ -289,7 +301,7 @@ async function save() {
             v-if="meetingId && !pending"
             :key="`uppy-${meetingId}`"
             :entity-id="meetingId"
-            :endpoint="ApiEndpoints.MEETING_ATTACHMENTS(meetingId)"
+            :endpoint="attachmentUploadEndpoint"
             :height="260"
             @complete="onUploadsComplete"
           />

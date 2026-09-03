@@ -1,3 +1,4 @@
+import uuid
 from typing import Any
 
 from fastapi import HTTPException
@@ -7,11 +8,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.datetime import extract_record_time, iso_utc, utcnow
 from app.core.frontend_contract import normalize_assignment_refs
 from app.core.errors import DomainError
-from app.db import Activity, Entity, Outbox, User
-from app.models.audit import AuditLog
-from app.modules.people_access.services.identity import strip_secrets
-from app.modules.people_access.services.identity_sync import sync_domain_row
+from app.modules.record.model import Activity
+from app.platform.messaging.model import Outbox
+from typing import Any as User
+from app.platform.audit.model import AuditLog
+from app.modules.people_access.service import identity_sync, strip_secrets
 from app.modules.record.domain.constants import DOMAIN_STATUS, READ_ONLY
+from app.modules.record.model import Entity
+from app.modules.record.repository import RecordRepository
+from app.modules.admin_config.service import runtime
 
 
 def stamp(entity: Entity) -> dict[str, Any]:
@@ -38,16 +43,18 @@ def stamp(entity: Entity) -> dict[str, Any]:
 
 
 async def entity_or_404(db: AsyncSession, resource: str, entity_id: str) -> Entity:
-    import uuid
-
     try:
         uid = uuid.UUID(entity_id)
     except ValueError as exc:
         raise HTTPException(404, "Not found") from exc
-    row = await db.scalar(select(Entity).where(Entity.id == uid, Entity.resource == resource))
+    row = await RecordRepository(db).entity(resource, uid)
     if not row:
         raise HTTPException(404, "Not found")
     return row
+
+
+async def entity_by_id(db: AsyncSession, entity_id: uuid.UUID) -> Entity | None:
+    return await RecordRepository(db).entity_by_id(entity_id)
 
 
 async def audit(db: AsyncSession, entity: Entity, user: User, action: str, summary: str) -> None:
@@ -76,8 +83,6 @@ async def audit(db: AsyncSession, entity: Entity, user: User, action: str, summa
 async def assert_writable(db: AsyncSession, resource: str) -> None:
     if resource in READ_ONLY:
         raise DomainError("READ_ONLY", "This resource is read-only", 405)
-    import app.modules.admin_config.services.runtime as runtime
-
     config = await runtime.load_app_config(db)
     general = runtime.general_defaults(config)
     if general["maintenanceMode"]:
@@ -87,4 +92,4 @@ async def assert_writable(db: AsyncSession, resource: str) -> None:
 
 
 async def apply_side_effects(db: AsyncSession, row: Entity, source_payload: dict | None = None) -> None:
-    await sync_domain_row(db, row)
+    await identity_sync.sync_domain_row(db, row)

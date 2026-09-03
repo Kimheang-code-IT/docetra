@@ -1,4 +1,4 @@
-import type { AdapterKey } from '~/adapters'
+import type { EntityApiKey } from '~/composables/api/useEntityApis'
 import { useConfirm } from '~/composables/common/useConfirm'
 import { getEntityAdapter, getEntityConfig } from '~/config/entities'
 import type { TableColumnDef } from '~/types/docetra/common'
@@ -12,14 +12,14 @@ import { concurrencyVersion, withConcurrencyToken } from '~/utils/api/concurrenc
 type ArchiveRow = Record<string, unknown> & {
   id: string
   recordId: string
-  sourceKey: AdapterKey
+  sourceKey: EntityApiKey
   entityType: string
   recordName: string
   status: 'archived' | 'deleted'
   archivedAt: string
 }
 
-const ARCHIVE_SOURCE_KEYS: AdapterKey[] = [
+const ARCHIVE_SOURCE_KEYS: EntityApiKey[] = [
   'meetingTopics',
   'meetingHistory',
   'incomingDocuments',
@@ -31,7 +31,6 @@ const ARCHIVE_SOURCE_KEYS: AdapterKey[] = [
 export const ARCHIVE_COLUMNS: TableColumnDef[] = [
   { key: 'recordName', labelKey: 'docetra.archive.record', priority: 'high' },
   { key: 'entityType', labelKey: 'docetra.archive.type', cell: 'badge' },
-  { key: 'status', labelKey: 'docetra.fields.status', cell: 'badge' },
   { key: 'referenceNumber', labelKey: 'docetra.fields.referenceNumber', priority: 'medium' },
   { key: 'archivedAt', labelKey: 'docetra.archive.archivedAt', cell: 'datetime' },
   { key: 'owner.name', labelKey: 'docetra.fields.owner', cell: 'person', priority: 'low' },
@@ -41,7 +40,7 @@ function displayName(row: Record<string, unknown>, titleField: string) {
   return String(row[titleField] || row.title || row.name || row.fileName || row.referenceNumber || row.id)
 }
 
-export function useArchiveWorkspace(sourceKeys: AdapterKey[] = ARCHIVE_SOURCE_KEYS) {
+export function useArchiveWorkspace(sourceKeys: EntityApiKey[] = ARCHIVE_SOURCE_KEYS) {
   const { t } = useI18n()
   const { formatDateTime } = useAppLocalization()
   const auth = useAuthStore()
@@ -58,13 +57,13 @@ export function useArchiveWorkspace(sourceKeys: AdapterKey[] = ARCHIVE_SOURCE_KE
   ])
 
   function canRestoreRow(row: ArchiveRow | Record<string, unknown>) {
-    const sourceKey = String(row.sourceKey || '') as AdapterKey
+    const sourceKey = String(row.sourceKey || '') as EntityApiKey
     if (!sourceKey) return false
     return auth.canAccessPage(permissionForAction(getEntityConfig(sourceKey).permission, 'restore'))
   }
 
   function canDeleteRow(row: ArchiveRow | Record<string, unknown>) {
-    const sourceKey = String(row.sourceKey || '') as AdapterKey
+    const sourceKey = String(row.sourceKey || '') as EntityApiKey
     if (!sourceKey) return false
     return auth.canAccessPage(permissionForAction(getEntityConfig(sourceKey).permission, 'purge'))
   }
@@ -95,7 +94,7 @@ export function useArchiveWorkspace(sourceKeys: AdapterKey[] = ARCHIVE_SOURCE_KE
   const pending = ref(false)
   const error = ref<string | null>(null)
   const search = ref('')
-  const sourceFilter = ref<AdapterKey | 'all'>('all')
+  const sourceFilter = ref<EntityApiKey | 'all'>('all')
   const dateStart = ref('')
   const dateEnd = ref('')
   const page = ref(1)
@@ -123,15 +122,14 @@ export function useArchiveWorkspace(sourceKeys: AdapterKey[] = ARCHIVE_SOURCE_KE
     if (page.value > lastPage) page.value = lastPage
   })
 
-  async function loadSource(sourceKey: AdapterKey) {
+  async function loadSource(sourceKey: EntityApiKey) {
     const config = getEntityConfig(sourceKey)
     const adapter = getEntityAdapter<Record<string, unknown> & { id: string }>(sourceKey)
     const limit = TABLE_PAGE_SIZES.at(-1) || 100
-    const [archivedResponse, deletedResponse] = await Promise.all([
-      adapter.list({ status: 'archived', page: 1, limit, sort: '-updatedAt' }),
-      adapter.list({ status: 'deleted', page: 1, limit, sort: '-updatedAt' }),
-    ])
-    return [...(archivedResponse.data || []), ...(deletedResponse.data || [])].map((row): ArchiveRow => ({
+    // One request per source: the backend accepts a comma-separated lifecycle
+    // status list (previously two requests per source = 12 list calls).
+    const response = await adapter.list({ status: 'archived,deleted', page: 1, limit, sort: '-updatedAt' })
+    return (response.data || []).map((row): ArchiveRow => ({
       ...row,
       id: `${sourceKey}:${row.id}`,
       recordId: String(row.id),

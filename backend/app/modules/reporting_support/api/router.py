@@ -1,11 +1,10 @@
-"""reporting_support HTTP — dashboard, search, exports, mentions."""
+"""Reporting Support HTTP — dashboard, search, and mentions."""
 
 from fastapi import APIRouter
 
-from app.modules.reporting_support.api import dashboard, exports, mentions, search
+from app.modules.reporting_support.api import dashboard, mentions, search
 
 router = APIRouter()
 router.include_router(dashboard.router)
 router.include_router(search.router)
-router.include_router(exports.router)
 router.include_router(mentions.router)

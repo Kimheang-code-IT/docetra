@@ -1,7 +1,8 @@
+import type { ApiResponse } from '~/types/docetra/common'
 import type { CreateExportJobInput, ExportJob } from '~/types/docetra/export'
-import { createExportJob, getExportJob } from '~/adapters/exports'
+import { ApiEndpoints } from '~/utils/constants/api-endpoints'
 
-const POLL_INTERVAL_MS = 1500
+const POLL_INTERVALS_MS = [1500, 2000, 3000, 5000]
 /** Worker executes exports via RabbitMQ; give long exports room before giving up. */
 const POLL_TIMEOUT_MS = 120000
 
@@ -9,6 +10,14 @@ const POLL_TIMEOUT_MS = 120000
  * Shared export pipeline for every entity: create the job, poll its status
  * (Redis-backed status endpoint), toast the outcome, and download the file.
  */
+async function createExportJob(input: CreateExportJobInput): Promise<ApiResponse<ExportJob>> {
+  return useApi().post<ApiResponse<ExportJob>>(ApiEndpoints.EXPORT_JOBS, input)
+}
+
+async function getExportJob(id: string): Promise<ApiResponse<ExportJob>> {
+  return useApi().get<ApiResponse<ExportJob>>(`${ApiEndpoints.EXPORT_JOBS}/${id}`)
+}
+
 export function useExportJobRunner() {
   const { t } = useI18n()
   const toast = useToast()
@@ -25,8 +34,12 @@ export function useExportJobRunner() {
 
   async function pollUntilDone(id: string): Promise<ExportJob | undefined> {
     const deadline = Date.now() + POLL_TIMEOUT_MS
+    let attempt = 0
     while (Date.now() < deadline) {
-      await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS))
+      // Backoff: 1.5s → 2s → 3s → 5s; stops immediately on completion/failure.
+      const delay = POLL_INTERVALS_MS[Math.min(attempt, POLL_INTERVALS_MS.length - 1)]
+      await new Promise(resolve => setTimeout(resolve, delay))
+      attempt += 1
       try {
         const response = await getExportJob(id)
         const job = response?.data

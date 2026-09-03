@@ -2,9 +2,9 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
 
-from app.db import MeetingSchedule, SessionLocal
+from app.db import SessionLocal
 from app.jobs.publishers import publish
-from app.models.record import Record
+from app.modules.record.model import MeetingSchedule, Record
 
 
 async def due_meeting_reminders() -> None:

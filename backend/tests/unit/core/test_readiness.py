@@ -14,9 +14,7 @@ async def test_readiness_is_degraded_when_optional_dependencies_fail(monkeypatch
     monkeypatch.setattr(readiness, "probe_database", db_ok)
     monkeypatch.setattr(readiness, "probe_redis", fail)
     monkeypatch.setattr(readiness, "probe_rabbitmq", db_ok)
-    monkeypatch.setattr(readiness, "probe_storage", fail)
-
-    status, body = await readiness.readiness_payload()
+    status, body = await readiness.readiness_payload(fail)
     assert status == 200
     assert body["status"] == "degraded"
     assert body["database"] == "ok"
@@ -31,7 +29,7 @@ async def test_readiness_is_unavailable_when_database_fails(monkeypatch):
         raise RuntimeError("db")
 
     monkeypatch.setattr(readiness, "probe_database", fail)
-    status, body = await readiness.readiness_payload()
+    status, body = await readiness.readiness_payload(fail)
     assert status == 503
     assert body["status"] == "unavailable"
     assert body["database"] == "unavailable"
@@ -45,7 +43,6 @@ async def test_readiness_is_ready_when_all_probes_pass(monkeypatch):
     monkeypatch.setattr(readiness, "probe_database", ok)
     monkeypatch.setattr(readiness, "probe_redis", ok)
     monkeypatch.setattr(readiness, "probe_rabbitmq", ok)
-    monkeypatch.setattr(readiness, "probe_storage", ok)
-    status, body = await readiness.readiness_payload()
+    status, body = await readiness.readiness_payload(ok)
     assert status == 200
     assert body == {"status": "ready", "database": "ok", "redis": "ok", "rabbitmq": "ok", "storage": "ok"}

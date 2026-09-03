@@ -1,5 +1,5 @@
 import type { AppConfigLocalization } from '~/types/docetra/settings'
-import { useSettingsRepositories } from '~/repositories'
+import { createHttpAppConfigRepository } from '~/repositories/http/settings'
 
 const DEFAULT_APP_LOCALIZATION: AppConfigLocalization = {
   defaultLanguage: 'en',
@@ -58,7 +58,7 @@ function formatPattern(
 }
 
 /** Single source of truth for App Config localization on every page. */
-export function useAppLocalization() {
+export function useAppLocalization(options: { autoLoad?: boolean } = {}) {
   const localization = useState<AppConfigLocalization>('app-localization-config', () => ({
     ...DEFAULT_APP_LOCALIZATION,
     availableLanguages: [...DEFAULT_APP_LOCALIZATION.availableLanguages],
@@ -74,7 +74,7 @@ export function useAppLocalization() {
     }
     loading.value = true
     try {
-      const config = await useSettingsRepositories().appConfig.get()
+      const config = await createHttpAppConfigRepository().get()
       localization.value = {
         ...DEFAULT_APP_LOCALIZATION,
         ...(config.localization || {}),
@@ -181,7 +181,9 @@ export function useAppLocalization() {
     return formatNumber(value, { style: 'currency', currency })
   }
 
-  onMounted(() => { void load() })
+  if (options.autoLoad !== false) {
+    onMounted(() => { void load() })
+  }
 
   return {
     localization: readonly(localization),

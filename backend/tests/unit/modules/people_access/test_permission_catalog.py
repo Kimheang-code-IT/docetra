@@ -1,6 +1,6 @@
 """people_access — permission catalog and auth schemas."""
 
-from app.modules.people_access.api.officers import router as officers_router
+from app.application.people_router import router as people_router
 from app.modules.people_access.domain.schemas import AuthUser, LoginRequest
 from app.modules.people_access.services.permission_catalog import permission_catalog
 
@@ -23,4 +23,4 @@ def test_login_request():
 
 
 def test_officers_http_is_top_level():
-    assert officers_router.prefix == "/officers"
+    assert any(route.path == "/officers" for route in people_router.routes)

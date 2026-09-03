@@ -29,11 +29,18 @@ STATIC_DOCUMENT_TYPES: list[tuple[str, str, list[str]]] = [
 ]
 
 
-def _record_document_types() -> list[tuple[str, str, list[str]]]:
-    """Generate record-type permission rows from built-in type codes (no hand-edited DOCUMENT_TYPES)."""
-    from app.modules.record.domain.map import TYPE_UI_DEFAULTS, permission_prefix_for_type_code
+_configured_record_types: list[tuple[str, str]] = []
 
-    return [(code, permission_prefix_for_type_code(code), WORKFLOW) for code in TYPE_UI_DEFAULTS]
+
+def configure_record_permissions(rows: list[tuple[str, str]]) -> None:
+    """Accept Record-owned permission prefixes at the application boundary."""
+    global _configured_record_types
+    _configured_record_types = list(rows)
+    refresh_permission_tables()
+
+
+def _record_document_types() -> list[tuple[str, str, list[str]]]:
+    return [(code, prefix, WORKFLOW) for code, prefix in _configured_record_types]
 
 
 def _all_document_types() -> list[tuple[str, str, list[str]]]:
@@ -106,11 +113,13 @@ def catalog_rows() -> list[dict]:
         {
             "id": f"perm_{doc_type}",
             "documentType": doc_type,
+            "permissionPrefix": prefix,
+            "label": doc_type.replace("_", " ").title(),
             "actions": list(actions),
             "onlyIfCreator": False,
             "level": 0,
         }
-        for doc_type, _prefix, actions in DOCUMENT_TYPES
+        for doc_type, prefix, actions in DOCUMENT_TYPES
     ]
 
 

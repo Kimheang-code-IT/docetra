@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 from uuid import uuid4
 
-from app.modules.admin_config.services.configuration import build_resolved_schema, serialize_record_type
+from app.modules.record.services.configuration import build_resolved_schema, serialize_record_type
 from app.modules.record.domain.map import merge_type_ui_payload
 
 

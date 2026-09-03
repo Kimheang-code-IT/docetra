@@ -1,5 +1,4 @@
 import type { BaseEntity, EntityStatus } from './common'
-import type { RecordTypePayload } from './vocabulary'
 
 /** Controlled attribute data types for dynamic record fields. */
 export type AttributeDataType =
@@ -284,4 +283,13 @@ export function previewRecordNumber(numbering: RecordTypeNumbering, seq = 1): st
   const year = numbering.includeYear ? `-${new Date().getFullYear()}` : ''
   const padded = String(seq).padStart(Math.max(1, numbering.sequenceLength), '0')
   return `${numbering.prefix}${year}-${padded}`
+}
+
+/**
+ * Per-record-type card display override stored in `record_type.payload`.
+ * Same shape as `AppConfigDisplay` so both sources merge with one resolver.
+ */
+export interface RecordTypePayload extends Record<string, unknown> {
+  cardFields?: import('./settings').AppConfigDisplay['cardFields']
+  cardFooterAlign?: import('./settings').AppConfigDisplay['cardFooterAlign']
 }

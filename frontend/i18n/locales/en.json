@@ -34,7 +34,6 @@
       "user": "User",
       "recordType": "Record Type",
       "recordAttribute": "Attribute Catalog",
-      "vocabularies": "Vocabularies",
       "fileUpload": "File Upload",
       "googleDriveSync": "Google Drive Sync",
       "portalLog": "Logs",
@@ -73,22 +72,6 @@
     },
     "sector": {
       "cannotBeOwnParent": "A sector cannot be its own parent."
-    },
-    "vocabulary": {
-      "code": "Code",
-      "labelEn": "Label (English)",
-      "labelKm": "Label (Khmer)",
-      "color": "Color",
-      "order": "Order",
-      "addValue": "Add value",
-      "emptyGroup": "No values in this group yet.",
-      "codeLabelRequired": "Code and English label are required.",
-      "saveFailed": "Could not save the value",
-      "deleteFailed": "Could not delete the value",
-      "saved": "Value saved",
-      "deleted": "Value deleted",
-      "created": "Value created",
-      "fallbackHint": "Values shown before connecting to the server come from built-in defaults."
     },
     "meetingModes": {
       "in_person": "In person",
@@ -320,6 +303,8 @@
       "previous": "Previous",
       "next": "Next",
       "time": "Time",
+      "selectDate": "Select date",
+      "selectDateTime": "Select date and time",
       "startTime": "Start time",
       "endTime": "End time",
       "hour": "Hour",
@@ -656,10 +641,17 @@
       "storageTabs": {
         "amazonS3": "S3",
         "googleDrive": "Google Drive"
-      }
+      },
+      "providerCreated": "Provider created",
+      "providerDeleted": "Provider deleted",
+      "activate": "Activate",
+      "deactivate": "Deactivate",
+      "createProvider": "Create provider"
     },
     "views": {
       "table": "Table",
+      "cards": "Cards",
+      "toggle": "View mode",
       "kanban": "Kanban",
       "hierarchy": "Hierarchy",
       "timeline": "Timeline",
@@ -713,6 +705,16 @@
       "addMeeting": "New Meeting",
       "createTopic": "New Topic",
       "createMeeting": "New Meeting",
+      "createTopicTitle": "New topic",
+      "editTopicTitle": "Edit topic",
+      "editTopic": "Edit topic",
+      "topicName": "Topic name",
+      "topicNamePlaceholder": "Enter topic name",
+      "topicNameRequired": "Topic name is required",
+      "topicDescription": "Description",
+      "topicDescriptionPlaceholder": "Optional topic description",
+      "topicSaved": "Topic saved",
+      "topicSaveFailed": "Could not save topic",
       "searchTopics": "Search topics…",
       "searchMeetings": "Search meetings…",
       "allTopics": "All topics",
@@ -729,6 +731,7 @@
       "assignFailed": "Could not assign meeting",
       "reorderFailed": "Could not reorder meetings",
       "invalidTopicDrop": "This topic is not a valid drop target",
+      "inactiveTopicDrop": "Cannot assign meetings to an inactive topic",
       "collapseTopics": "Collapse topics",
       "expandTopics": "Expand topics",
       "joinMeeting": "Join meeting",
@@ -1019,7 +1022,10 @@
       "level": "Level",
       "source": "Source",
       "message": "Message",
-      "correlationId": "Correlation ID"
+      "correlationId": "Correlation ID",
+      "syncStatus": "Sync status",
+      "syncedAt": "Synced at",
+      "type": "Type"
     },
     "tabs": {
       "details": "Details",
@@ -1238,7 +1244,10 @@
       "title": "Attachments",
       "drop": "Drop files or click to upload",
       "hint": "PDF, images, and office files up to 25 MB",
-      "uploaded": "Files uploaded"
+      "uploaded": "Files uploaded",
+      "uploadFailed": "File upload failed",
+      "download": "Download",
+      "downloading": "Downloading…"
     },
     "search": {
       "placeholderKeyword": "Search pages, records, and files…",
@@ -1246,7 +1255,7 @@
       "modeKeyword": "Keyword",
       "modeSemantic": "Semantic",
       "hintKeyword": "Fast match on titles and extracted text",
-      "hintSemantic": "Broader meaning match over the same index",
+      "hintSemantic": "Semantic search is coming later — keyword matches are shown",
       "askAi": "Ask AI",
       "askAiGroup": "Ask AI",
       "askAiHint": "Summarize current results with source links",
@@ -1255,7 +1264,9 @@
       "sources": "Sources",
       "source": "Source",
       "recordsAndFiles": "Records & files",
-      "empty": "No matching records or files"
+      "empty": "No matching records or files",
+      "placeholderSemanticUnavailable": "Semantic search is coming later — keyword matches are shown",
+      "askAiUnavailable": "Ask AI is not available yet — no AI provider is configured"
     },
     "dashboard": {
       "workByStage": "Work by stage",
@@ -1295,6 +1306,20 @@
         "incoming": "Incoming",
         "outgoing": "Outgoing"
       }
+    },
+    "drive": {
+      "newSource": "New Drive source",
+      "sourceCreated": "Drive source created",
+      "sourceCreateFailed": "Could not create Drive source",
+      "folderId": "Drive folder ID",
+      "nameAndFolderRequired": "Name and folder ID are required",
+      "syncNow": "Sync now",
+      "syncRunning": "Sync is running…",
+      "syncCompleted": "Sync completed ({count} files)",
+      "syncFailed": "Sync failed",
+      "jobPollFailed": "Could not read the sync job status",
+      "syncedFiles": "Synced files ({count})",
+      "openInDrive": "Open in Drive"
     }
   },
   "actions": {

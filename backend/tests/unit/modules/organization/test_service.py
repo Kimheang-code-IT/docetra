@@ -3,7 +3,7 @@
 from types import SimpleNamespace
 from uuid import uuid4
 
-from app.modules.organization.services.record_links import (
+from app.modules.record.services.organization_links import (
     COMPANY_FIELD_ROLES,
     DEPARTMENT_FIELD_ROLES,
     _as_list,

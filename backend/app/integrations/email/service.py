@@ -4,10 +4,7 @@ import smtplib
 from email.message import EmailMessage
 from email.utils import formataddr
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.core.config import settings
-import app.modules.admin_config.services.runtime as runtime
 
 log = logging.getLogger(__name__)
 
@@ -21,9 +18,7 @@ def _deliver_smtp(*, host: str, port: int, username: str, password: str, use_tls
         client.send_message(message)
 
 
-async def send_password_reset(to_email: str, code: str, *, db: AsyncSession | None = None) -> dict:
-    config = await runtime.load_app_config(db)
-    smtp = runtime.email_smtp(config)
+async def send_password_reset(to_email: str, code: str, *, smtp: dict) -> dict:
     body = (
         f"Your Docetra password reset code is {code}.\n"
         f"It expires in 15 minutes.\n"
@@ -55,11 +50,8 @@ async def send_password_reset(to_email: str, code: str, *, db: AsyncSession | No
         raise
 
 
-async def send_test_email(to_email: str, *, smtp: dict | None = None, db: AsyncSession | None = None) -> dict:
-    if smtp is None:
-        config = await runtime.load_app_config(db)
-        cfg = runtime.email_smtp(config)
-    else:
+async def send_test_email(to_email: str, *, smtp: dict | None = None) -> dict:
+    if smtp is not None:
         encryption = str(smtp.get("encryption") or "starttls").lower()
         cfg = {
             "enabled": True,
@@ -73,6 +65,18 @@ async def send_test_email(to_email: str, *, smtp: dict | None = None, db: AsyncS
             "fromName": str(smtp.get("fromName") or "Docetra"),
             "fromEmail": str(smtp.get("fromEmail") or settings.email_from_address or ""),
             "timeoutSeconds": int(smtp.get("timeoutSeconds") or 10),
+        }
+    else:
+        cfg = {
+            "enabled": bool(settings.smtp_host),
+            "smtpHost": settings.smtp_host or "",
+            "smtpPort": settings.smtp_port or 587,
+            "username": settings.smtp_username or "",
+            "password": settings.smtp_password or "",
+            "useTls": settings.smtp_use_tls,
+            "fromName": "Docetra",
+            "fromEmail": settings.email_from_address or "",
+            "timeoutSeconds": 10,
         }
     host = cfg["smtpHost"]
     if not host:

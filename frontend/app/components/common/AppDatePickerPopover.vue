@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CalendarDate, CalendarDateTime, Time, getLocalTimeZone, today } from '@internationalized/date'
+import { CalendarDate, CalendarDateTime, getLocalTimeZone, today } from '@internationalized/date'
 import type { DateValue } from '@internationalized/date'
 import type { DatePickerGranularity } from '~/utils/date-picker'
 import {
@@ -13,20 +13,37 @@ const props = withDefaults(defineProps<{
   granularity?: DatePickerGranularity
   locale?: string
   disabled?: boolean
+  /** Page filters use 2 months; document fields keep 1. */
+  numberOfMonths?: 1 | 2
 }>(), {
   mode: 'single',
   granularity: 'day',
+  numberOfMonths: 1,
 })
 
-/** Single date / datetime — shared with UInputDate v-model. */
+/** Single date / datetime — shared with field v-model. */
 const modelValue = defineModel<DateValue | undefined>()
-/** Range — shared with UInputDate range v-model. */
+/** Range — shared with filter range v-model. */
 const rangeValue = defineModel<{ start: DateValue, end: DateValue } | undefined>('rangeValue')
 
 const { t } = useI18n()
 
 const isDateTime = computed(() => isDateTimeGranularity(props.granularity))
 const calendarSize = computed(() => 'xs' as const)
+
+const hourItems = computed(() =>
+  Array.from({ length: 24 }, (_, hour) => ({
+    label: String(hour).padStart(2, '0'),
+    value: String(hour),
+  })),
+)
+
+const minuteItems = computed(() =>
+  Array.from({ length: 60 }, (_, minute) => ({
+    label: String(minute).padStart(2, '0'),
+    value: String(minute),
+  })),
+)
 
 const initialPlaceholder = today(getLocalTimeZone())
 const placeholder = ref(new CalendarDate(
@@ -62,13 +79,6 @@ const rangeCalendar = computed({
     if (props.mode !== 'range') return undefined
     const value = rangeValue.value
     if (!value?.start && !value?.end) return undefined
-
-    if (!isDateTime.value) {
-      return {
-        start: toCalendarDate(value.start) ?? toCalendarDate(value.end)!,
-        end: toCalendarDate(value.end) ?? toCalendarDate(value.start)!,
-      }
-    }
 
     return {
       start: toCalendarDate(value.start) ?? toCalendarDate(value.end)!,
@@ -123,38 +133,53 @@ function writeRangeTime(bound: 'start' | 'end', hour: number, minute: number) {
   }
 }
 
-const singleTime = computed({
-  get: (): Time => {
-    const { hour, minute } = readTimePart(modelValue.value, 'start')
-    return new Time(hour, minute, 0)
-  },
-  set: (value: Time | null | undefined) => {
-    if (!value) return
-    writeSingleTime(value.hour, value.minute)
-  },
-})
+function timeSelectModel(
+  getParts: () => { hour: number, minute: number },
+  write: (hour: number, minute: number) => void,
+  part: 'hour' | 'minute',
+) {
+  return computed({
+    get: () => String(getParts()[part]),
+    set: (value: string | number | null | undefined) => {
+      const parts = getParts()
+      const next = Number(value)
+      if (!Number.isFinite(next)) return
+      if (part === 'hour') write(next, parts.minute)
+      else write(parts.hour, next)
+    },
+  })
+}
 
-const rangeStartTime = computed({
-  get: (): Time => {
-    const { hour, minute } = readTimePart(rangeValue.value?.start, 'start')
-    return new Time(hour, minute, 0)
-  },
-  set: (value: Time | null | undefined) => {
-    if (!value) return
-    writeRangeTime('start', value.hour, value.minute)
-  },
-})
-
-const rangeEndTime = computed({
-  get: (): Time => {
-    const { hour, minute } = readTimePart(rangeValue.value?.end, 'end')
-    return new Time(hour, minute, 0)
-  },
-  set: (value: Time | null | undefined) => {
-    if (!value) return
-    writeRangeTime('end', value.hour, value.minute)
-  },
-})
+const singleHour = timeSelectModel(
+  () => readTimePart(modelValue.value, 'start'),
+  writeSingleTime,
+  'hour',
+)
+const singleMinute = timeSelectModel(
+  () => readTimePart(modelValue.value, 'start'),
+  writeSingleTime,
+  'minute',
+)
+const rangeStartHour = timeSelectModel(
+  () => readTimePart(rangeValue.value?.start, 'start'),
+  (h, m) => writeRangeTime('start', h, m),
+  'hour',
+)
+const rangeStartMinute = timeSelectModel(
+  () => readTimePart(rangeValue.value?.start, 'start'),
+  (h, m) => writeRangeTime('start', h, m),
+  'minute',
+)
+const rangeEndHour = timeSelectModel(
+  () => readTimePart(rangeValue.value?.end, 'end'),
+  (h, m) => writeRangeTime('end', h, m),
+  'hour',
+)
+const rangeEndMinute = timeSelectModel(
+  () => readTimePart(rangeValue.value?.end, 'end'),
+  (h, m) => writeRangeTime('end', h, m),
+  'minute',
+)
 
 function goToday() {
   const now = today(getLocalTimeZone())
@@ -198,14 +223,13 @@ const dayRangeCalendar = computed({
 </script>
 
 <template>
-  <div class="w-full max-w-136">
+  <div class="w-fit max-w-full">
     <UCalendar
       v-if="mode === 'single'"
       v-model="singleCalendar"
       v-model:placeholder="placeholderBinding"
       class="p-2"
-      :number-of-months="2"
-      :paged-navigation="true"
+      :number-of-months="numberOfMonths"
       :size="calendarSize"
       :locale="locale"
       :disabled="disabled"
@@ -216,8 +240,7 @@ const dayRangeCalendar = computed({
       v-model:placeholder="placeholderBinding"
       class="p-2"
       range
-      :number-of-months="2"
-      :paged-navigation="true"
+      :number-of-months="numberOfMonths"
       :size="calendarSize"
       :locale="locale"
       :disabled="disabled"
@@ -228,8 +251,7 @@ const dayRangeCalendar = computed({
       v-model:placeholder="placeholderBinding"
       class="p-2"
       range
-      :number-of-months="2"
-      :paged-navigation="true"
+      :number-of-months="numberOfMonths"
       :size="calendarSize"
       :locale="locale"
       :disabled="disabled"
@@ -239,25 +261,17 @@ const dayRangeCalendar = computed({
       class="flex flex-wrap items-end gap-2 border-t border-default px-2 pb-2 pt-2"
       :class="isDateTime ? 'justify-between' : 'justify-end'"
     >
-      <UInputTime
-        v-if="isDateTime && mode === 'single'"
-        v-model="singleTime"
-        color="neutral"
-        variant="outline"
-        size="sm"
-        :disabled="disabled"
-        class="min-w-0 flex-1"
-      />
       <div
-        v-else-if="isDateTime && mode === 'range'"
-        class="flex min-w-0 flex-1 flex-wrap items-end gap-3"
+        v-if="isDateTime && mode === 'single'"
+        class="flex min-w-0 flex-1 items-end gap-2"
       >
-        <div class="min-w-34 flex-1 space-y-1">
+        <div class="min-w-0 flex-1 space-y-1">
           <label class="block text-xs font-medium text-muted">
-            {{ t('docetra.common.startTime') }}
+            {{ t('docetra.common.hour') }}
           </label>
-          <UInputTime
-            v-model="rangeStartTime"
+          <USelect
+            v-model="singleHour"
+            :items="hourItems"
             color="neutral"
             variant="outline"
             size="sm"
@@ -265,18 +279,74 @@ const dayRangeCalendar = computed({
             class="w-full"
           />
         </div>
-        <div class="min-w-34 flex-1 space-y-1">
+        <div class="min-w-0 flex-1 space-y-1">
           <label class="block text-xs font-medium text-muted">
-            {{ t('docetra.common.endTime') }}
+            {{ t('docetra.common.minute') }}
           </label>
-          <UInputTime
-            v-model="rangeEndTime"
+          <USelect
+            v-model="singleMinute"
+            :items="minuteItems"
             color="neutral"
             variant="outline"
             size="sm"
             :disabled="disabled"
             class="w-full"
           />
+        </div>
+      </div>
+      <div
+        v-else-if="isDateTime && mode === 'range'"
+        class="flex min-w-0 flex-1 flex-wrap items-end gap-3"
+      >
+        <div class="min-w-40 flex-1 space-y-1">
+          <label class="block text-xs font-medium text-muted">
+            {{ t('docetra.common.startTime') }}
+          </label>
+          <div class="flex gap-2">
+            <USelect
+              v-model="rangeStartHour"
+              :items="hourItems"
+              color="neutral"
+              variant="outline"
+              size="sm"
+              :disabled="disabled"
+              class="min-w-0 flex-1"
+            />
+            <USelect
+              v-model="rangeStartMinute"
+              :items="minuteItems"
+              color="neutral"
+              variant="outline"
+              size="sm"
+              :disabled="disabled"
+              class="min-w-0 flex-1"
+            />
+          </div>
+        </div>
+        <div class="min-w-40 flex-1 space-y-1">
+          <label class="block text-xs font-medium text-muted">
+            {{ t('docetra.common.endTime') }}
+          </label>
+          <div class="flex gap-2">
+            <USelect
+              v-model="rangeEndHour"
+              :items="hourItems"
+              color="neutral"
+              variant="outline"
+              size="sm"
+              :disabled="disabled"
+              class="min-w-0 flex-1"
+            />
+            <USelect
+              v-model="rangeEndMinute"
+              :items="minuteItems"
+              color="neutral"
+              variant="outline"
+              size="sm"
+              :disabled="disabled"
+              class="min-w-0 flex-1"
+            />
+          </div>
         </div>
       </div>
 

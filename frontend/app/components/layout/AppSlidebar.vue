@@ -88,6 +88,7 @@ const sidebarUi = computed(() => ({
     </template>
 
     <template #default="{ collapsed: isCollapsed }">
+      <ClientOnly>
       <UNavigationMenu
         :collapsed="isCollapsed"
         :items="links[0]"
@@ -133,10 +134,19 @@ const sidebarUi = computed(() => ({
               linkLabel: 'app-sidebar-text',
             }"
       />
+        <template #fallback>
+          <div class="h-24 w-full animate-pulse rounded-md bg-elevated/50" aria-hidden="true" />
+        </template>
+      </ClientOnly>
     </template>
 
     <template #footer="{ collapsed: isCollapsed }">
-      <LayoutUserMenu :collapsed="isCollapsed" />
+      <ClientOnly>
+        <LayoutUserMenu :collapsed="isCollapsed" />
+        <template #fallback>
+          <div class="h-9 w-full rounded-md bg-elevated/50" aria-hidden="true" />
+        </template>
+      </ClientOnly>
     </template>
   </UDashboardSidebar>
 </template>

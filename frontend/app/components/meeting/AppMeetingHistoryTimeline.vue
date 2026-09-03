@@ -57,15 +57,6 @@ function translated(group: string, value?: string) {
   return te(key) ? t(key) : value.replaceAll('_', ' ')
 }
 
-function badgeColor(value?: string): 'neutral' | 'primary' | 'success' | 'warning' | 'error' | 'info' {
-  const normalized = String(value || '').toLowerCase()
-  if (normalized === 'completed' || normalized === 'active') return 'success'
-  if (normalized === 'draft' || normalized === 'pending' || normalized === 'review') return 'warning'
-  if (normalized === 'deleted' || normalized === 'failed' || normalized === 'disabled') return 'error'
-  if (normalized === 'approval') return 'primary'
-  return 'info'
-}
-
 function listText(value: unknown) {
   if (Array.isArray(value)) return value.map(String).filter(Boolean).join(', ')
   return String(value || '')
@@ -143,14 +134,8 @@ function openMeeting(meeting: MeetingHistory) {
                 <UIcon name="i-lucide-calendar-clock" class="size-5" />
               </span>
               <div class="min-w-0 flex-1">
-                <div class="flex flex-wrap items-center gap-1.5">
+                <div class="flex min-w-0 flex-wrap items-center gap-1.5">
                   <h3 class="min-w-0 flex-1 truncate font-semibold text-highlighted group-hover:text-primary">{{ meeting.title }}</h3>
-                  <UBadge :color="badgeColor(meeting.status)" variant="soft" size="sm">
-                    {{ translated('status', meeting.status) }}
-                  </UBadge>
-                  <UBadge v-if="meeting.stage" :color="badgeColor(meeting.stage)" variant="subtle" size="sm">
-                    {{ translated('stages', meeting.stage) }}
-                  </UBadge>
                 </div>
                 <div class="mt-2 flex flex-wrap gap-2 text-xs text-toned">
                   <span class="app-card-field-highlight app-card-field-highlight--info inline-flex items-center gap-1">

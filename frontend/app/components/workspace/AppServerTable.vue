@@ -6,9 +6,7 @@ import type { TableColumnDef } from '~/types/docetra/common'
 import type { RowActionItem } from '~/types/docetra/row-actions'
 import { useAppLocalization } from '~/composables/settings/useAppLocalization'
 import { DEFAULT_ROW_ACTIONS } from '~/types/docetra/row-actions'
-import { normalizeBadgeColor } from '~/utils/vocabulary'
-import { VOCABULARY_GROUP_BY_KEY } from '~/config/vocabulary-fallbacks'
-import { useVocabulary } from '~/composables/config/useVocabulary'
+import { normalizeBadgeColor } from '~/utils/badge'
 import {
   TABLE_PAGE_SIZES,
   paginationItemsPerPage,
@@ -166,18 +164,13 @@ function cellMode(col: TableColumnDef) {
 
 type BadgeTone = 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'error' | 'neutral'
 
-const { colorOf: vocabularyColorOf } = useVocabulary()
-
 function badgeColor(key: string, raw: unknown): BadgeTone {
   const value = String(raw || '').toLowerCase()
-  // Record-type stage config wins, then DB enum colors, then heuristics.
+  // Record-type stage config wins, then heuristics.
   if ((key === 'stage' || key === 'recordStage') && props.stageColors?.[value]) {
     const tone = normalizeBadgeColor(props.stageColors[value])
     if (tone) return tone
   }
-  const group = VOCABULARY_GROUP_BY_KEY[key]
-  const vocabTone = group ? vocabularyColorOf(group, value) : null
-  if (vocabTone) return vocabTone
   if (key === 'action') {
     if (value === 'created') return 'success'
     if (value === 'updated') return 'info'

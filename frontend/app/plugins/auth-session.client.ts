@@ -1,6 +1,6 @@
 import { AUTH_SESSION_EVENT_KEY } from '~/utils/auth/session-sync'
 
-export default defineNuxtPlugin(() => {
+export default defineNuxtPlugin(async (nuxtApp): Promise<void> => {
   const auth = useAuthStore()
   const route = useRoute()
 
@@ -26,11 +26,16 @@ export default defineNuxtPlugin(() => {
     }
   }
 
+  // Public auth screens must paint immediately. With no local session there is
+  // nothing to validate, and calling /auth/me followed by /auth/refresh only
+  // delays the login screen and produces expected 401/403 console noise.
+  if (!auth.isLoggedIn && window.location.pathname.startsWith('/auth/')) return
+
   // A stored user is enough to paint the shell. Re-check /auth/me in the background
   // so a slow or down API does not freeze the first page for up to 30s+.
   if (auth.isLoggedIn) {
-    void guardSession()
+    void nuxtApp.runWithContext(() => guardSession())
     return
   }
-  return guardSession()
+  await nuxtApp.runWithContext(() => guardSession())
 })

@@ -2,13 +2,15 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.privileged import is_unrestricted
 from app.core.security import current_user
-from app.db import Entity, User, get_db
-from app.models.storage import File
+from app.db.session import get_db
+from typing import Any as User
+from app.modules.record.service import entity_by_id
+from app.modules.storage_integration.model import File
+from app.modules.storage_integration.repository import StorageRepository
 from app.modules.storage_integration.services.storage import get_object_bytes
 
 router = APIRouter(prefix="/files", tags=["files"])
@@ -27,7 +29,7 @@ async def download(file_id: str, db: AsyncSession = Depends(get_db), user: User 
     created_by = None
     resource = None
 
-    file_row = await db.get(File, uid)
+    file_row = await StorageRepository(db).file(uid)
     if file_row and file_row.path:
         object_key = file_row.path
         mime_type = file_row.mime_type or mime_type
@@ -35,7 +37,7 @@ async def download(file_id: str, db: AsyncSession = Depends(get_db), user: User 
         created_by = file_row.created_by
         resource = "file-uploads"
     else:
-        row = await db.scalar(select(Entity).where(Entity.id == uid))
+        row = await entity_by_id(db, uid)
         if not row or not (row.payload or {}).get("objectKey"):
             raise HTTPException(404, "File not found")
         object_key = row.payload["objectKey"]

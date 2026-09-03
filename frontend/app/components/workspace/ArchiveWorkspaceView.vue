@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AdapterKey } from '~/adapters'
+import type { EntityApiKey } from '~/composables/api/useEntityApis'
 import type { FilterDef } from '~/types/docetra/common'
 import {
   ARCHIVE_COLUMNS,
@@ -42,7 +42,7 @@ const archiveFilterValues = computed<Record<string, string>>(() => ({
 
 function onSetFilter(key: string, value: string | string[] | undefined) {
   if (key === 'source') {
-    sourceFilter.value = (String(Array.isArray(value) ? value[0] : value) || 'all') as AdapterKey | 'all'
+    sourceFilter.value = (String(Array.isArray(value) ? value[0] : value) || 'all') as EntityApiKey | 'all'
     return
   }
   if (key === 'archivedAtStart') dateStart.value = value ? String(value) : ''

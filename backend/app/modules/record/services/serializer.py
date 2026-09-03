@@ -9,9 +9,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.datetime import extract_record_time, iso_utc, utcnow
 from app.core.frontend_contract import normalize_assignment_refs
-from app.modules.people_access.services.identity import strip_secrets
+from app.modules.people_access.service import strip_secrets
 from app.modules.record.domain.map import CORE_RECORD_KEYS, LIFECYCLE_TO_STATUS, STATUS_TO_LIFECYCLE
-from app.models.record import Record, RecordAttribute, RecordDetail, RecordTemplate, RecordType
+from app.modules.record.model import Record, RecordAttribute, RecordDetail, RecordTemplate, RecordType
 
 
 def lifecycle_status(row: Record) -> str:

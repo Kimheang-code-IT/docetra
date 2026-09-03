@@ -5,7 +5,7 @@ import type { ActivityEvent, AttachmentMeta, DocumentTabSchema, EntityComment } 
 import type { AppRolePermissionRow } from '~/types/docetra/entities'
 import { normalizePermissionRows, permissionRowsToFlatKeys } from '~/utils/role/permissions'
 import { getByPath, setByPath } from '~/utils/object-path'
-import { loadReferenceOptions } from '~/adapters/reference-options'
+import { loadReferenceOptions } from '~/composables/common/useReferenceOptions'
 import { ApiEndpoints } from '~/utils/constants/api-endpoints'
 import {
   markListStale,
@@ -328,6 +328,11 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
         payload.documentDate = recordTime
       }
       if (typeof payload.attachmentCount !== 'number') payload.attachmentCount = attachments.value.length
+      // Create flow has no entity yet: persist the already-uploaded file
+      // references with the record itself (edit flow links via replaceAttachments).
+      if (isCreate) {
+        payload.attachments = attachments.value
+      }
       if (typeof payload.commentCount !== 'number') payload.commentCount = 0
     }
     if (['departments', 'companies', 'purposes', 'sectors', 'officers'].includes(config.key)) {
@@ -679,6 +684,7 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
 
   return {
     isCreate,
+    id,
     model,
     pending,
     saving,

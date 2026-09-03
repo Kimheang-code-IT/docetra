@@ -6,6 +6,10 @@ import { fetchErrorStatus, shouldRefreshSessionOnAuthMeFailure } from '~/utils/a
 import { readStoredUser, unwrapUserPayload, userCanAccessPage, writeStoredUser } from '~/utils/auth/session-user'
 
 export const useAuthStore = defineStore('auth', () => {
+  // Capture the Nuxt instance while the store is created from setup/plugin context.
+  // Auth API functions call useApi(), so calls made after a dynamic import must be
+  // restored to this context (Nuxt E1001 otherwise).
+  const nuxtApp = useNuxtApp()
   const config = useRuntimeConfig()
   const usesCookieSession = computed(() => config.public.authMode !== 'bearer')
   // Bearer mode only — keep a small token cookie. User profile is never stored in a cookie
@@ -40,8 +44,8 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function logout() {
     try {
-      const { logoutSession } = await import('~/adapters/auth')
-      await logoutSession()
+      const { logoutSession } = await import('~/composables/auth/useAuthApi')
+      await nuxtApp.runWithContext(() => logoutSession())
     }
     catch {
       // Always clear the browser snapshot; the backend session expires independently.
@@ -56,9 +60,9 @@ export const useAuthStore = defineStore('auth', () => {
     if (sessionChecking.value) return isLoggedIn.value
     sessionChecking.value = true
     try {
-      const { getCurrentSession, refreshSession } = await import('~/adapters/auth')
+      const { getCurrentSession, refreshSession } = await import('~/composables/auth/useAuthApi')
       try {
-        const response = await getCurrentSession()
+        const response = await nuxtApp.runWithContext(() => getCurrentSession())
         const next = unwrapUserPayload((response as { data?: unknown }).data ?? response)
         if (!next) throw new Error('Invalid session payload')
         user.value = next
@@ -69,7 +73,7 @@ export const useAuthStore = defineStore('auth', () => {
       catch (error) {
         const status = fetchErrorStatus(error)
         if (shouldRefreshSessionOnAuthMeFailure(status)) {
-          const refreshed = await refreshSession()
+          const refreshed = await nuxtApp.runWithContext(() => refreshSession())
           const next = unwrapUserPayload((refreshed as { data?: unknown }).data ?? refreshed)
           if (!next) throw new Error('Invalid refresh payload', { cause: error })
           user.value = next
@@ -112,8 +116,10 @@ export const useAuthStore = defineStore('auth', () => {
     token,
     user,
     isLoggedIn,
-    sessionChecked: readonly(sessionChecked),
-    sessionChecking: readonly(sessionChecking),
+    // A computed view is externally readonly without wrapping the writable
+    // useState ref itself (which caused Vue's readonly-set warnings).
+    sessionChecked: computed(() => sessionChecked.value),
+    sessionChecking: computed(() => sessionChecking.value),
     login,
     clearSession,
     logout,

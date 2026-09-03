@@ -3,37 +3,7 @@ import os
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 from app.db.base import Base
-from app.models import (  # noqa: F401
-    Activity,
-    AppSetting,
-    AuditLog,
-    Comment,
-    Entity,
-    EnumValue,
-    Favorite,
-    File,
-    MeetingSchedule,
-    Menu,
-    NotificationAuditLog,
-    Officer,
-    OfficerIdentifier,
-    Organization,
-    OrganizationPurpose,
-    OrganizationSector,
-    Outbox,
-    Permission,
-    Record,
-    RecordAttachment,
-    RecordAttribute,
-    RecordDetail,
-    RecordOrganization,
-    RecordStageTemplate,
-    RecordTemplate,
-    RecordType,
-    Role,
-    Setting,
-    User,
-)
+import app.db.metadata  # noqa: F401 - populate SQLAlchemy metadata from the canonical registry
 
 config = context.config
 if config.config_file_name:

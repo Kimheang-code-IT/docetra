@@ -15,7 +15,6 @@ const columns: TableColumnDef[] = [
   { key: 'icon', labelKey: 'docetra.common.icon' },
   { key: 'attributeCount', labelKey: 'docetra.fields.attributes' },
   { key: 'workflowEnabled', labelKey: 'docetra.fields.workflow' },
-  { key: 'status', labelKey: 'docetra.fields.status', cell: 'badge' },
   { key: 'updatedAt', labelKey: 'docetra.fields.updatedAt', cell: 'datetime' },
 ]
 

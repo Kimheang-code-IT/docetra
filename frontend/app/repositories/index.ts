@@ -1,10 +1,10 @@
 import type { RecordAttributeRepository, RecordTypeRepository } from '~/repositories/contracts/configuration'
 import type { AppConfigRepository, AppInfoRepository, StorageRepository } from '~/repositories/contracts/settings'
-import type { PermissionCatalogRepositoryContract, VocabularyRepositoryContract } from '~/repositories/contracts/vocabulary'
+import type { PermissionCatalogRepositoryContract } from '~/repositories/contracts/permission-catalog'
 import { createHttpRecordAttributeRepository, createHttpRecordTypeRepository } from '~/repositories/http/configuration'
 import { createHttpAppConfigRepository, createHttpAppInfoRepository } from '~/repositories/http/settings'
 import { createHttpStorageRepository } from '~/repositories/http/settings-storage'
-import { createHttpPermissionCatalogRepository, createHttpVocabularyRepository } from '~/repositories/http/vocabulary'
+import { createHttpPermissionCatalogRepository } from '~/repositories/http/permission-catalog'
 
 export function useConfigurationRepositories() {
   return {
@@ -19,10 +19,6 @@ export function useSettingsRepositories() {
     appConfig: createHttpAppConfigRepository() as AppConfigRepository,
     storage: createHttpStorageRepository() as StorageRepository,
   }
-}
-
-export function useVocabularyRepository(): VocabularyRepositoryContract {
-  return createHttpVocabularyRepository()
 }
 
 export function usePermissionCatalogRepository(): PermissionCatalogRepositoryContract {

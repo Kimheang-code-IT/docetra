@@ -8,8 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import DomainError
 from app.core.permissions import ALL_PERMISSIONS, DOCUMENT_TYPES, PREFIXES
-from app.models.access import Menu, Permission, Role
-from app.models.people import Officer, User
+from app.modules.people_access.model import Menu, Officer, Permission, Role, User
+from app.modules.people_access.repository import PeopleAccessRepository
 
 
 async def seed_menus(db: AsyncSession) -> None:
@@ -48,11 +48,56 @@ async def ensure_superadmin_role(db: AsyncSession) -> Role:
     return role
 
 
-async def replace_role_permissions(db: AsyncSession, role_id: uuid.UUID, codes: list[str]) -> None:
+from app.core.permissions import catalog_rows
+
+
+async def replace_role_permissions(db: AsyncSession, role_id: uuid.UUID, codes: list[str], creator_scoped: set[str] | None = None) -> None:
+    """Replace a role's permission rows; ``creator_scoped`` codes get scope='creator'."""
+    creator = creator_scoped or set()
     await db.execute(delete(Permission).where(Permission.role_id == role_id))
     for code in codes:
-        db.add(Permission(role_id=role_id, code=code, is_enable=1))
+        db.add(Permission(role_id=role_id, code=code, is_enable=1, scope="creator" if code in creator else "all"))
     await db.flush()
+
+
+async def creator_scoped_codes_for_role(db: AsyncSession, role_id: uuid.UUID | None) -> set[str]:
+    """Enabled permission codes carrying creator scope for this role."""
+    if not role_id:
+        return set()
+    rows = (await db.scalars(
+        select(Permission.code).where(Permission.role_id == role_id, Permission.is_enable == 1, Permission.scope == "creator")
+    )).all()
+    return set(rows)
+
+
+async def creator_scoped_actions_for_prefix(db: AsyncSession, role_id: uuid.UUID | None, prefix: str) -> set[str]:
+    """Enabled `prefix.action` codes carrying creator scope for this role."""
+    if not role_id or not prefix:
+        return set()
+    rows = (await db.scalars(
+        select(Permission).where(
+            Permission.role_id == role_id,
+            Permission.is_enable == 1,
+            Permission.code.like(f"{prefix}.%"),
+        )
+    )).all()
+    return {row.code for row in rows if row.scope == "creator"}
+
+
+def creator_scoped_codes_from_rows(permission_rows: list | None) -> set[str]:
+    """Flatten onlyIfCreator document-type rows into `prefix.action` codes."""
+    from app.core.permissions import TYPE_TO_PREFIX
+
+    keys: set[str] = set()
+    for row in permission_rows or []:
+        if not isinstance(row, dict) or not row.get("onlyIfCreator"):
+            continue
+        prefix = TYPE_TO_PREFIX.get(str(row.get("documentType") or ""))
+        if not prefix:
+            continue
+        for action in row.get("actions") or []:
+            keys.add(f"{prefix}.{action}")
+    return keys
 
 
 async def permissions_for_role_id(db: AsyncSession, role_id: uuid.UUID | None) -> list[str]:
@@ -122,6 +167,46 @@ async def ensure_officer_for_user(db: AsyncSession, user: User, role_id: uuid.UU
     return officer
 
 
+async def officer_organization_id(
+    db: AsyncSession,
+    officer_id: uuid.UUID | None,
+) -> uuid.UUID | None:
+    if officer_id is None:
+        return None
+    officer = await PeopleAccessRepository(db).officer(officer_id)
+    return officer.organization_id if officer else None
+
+
+async def officer_ids_for_organization(
+    db: AsyncSession,
+    organization_id: uuid.UUID,
+) -> list[uuid.UUID]:
+    """Expose organization membership without leaking the Officer model."""
+    rows = await db.scalars(
+        select(Officer.id).where(Officer.organization_id == organization_id)
+    )
+    return list(rows.all())
+
+
+async def officer_names_by_ids(db: AsyncSession, officer_ids: set[uuid.UUID]) -> dict[uuid.UUID, str]:
+    """Batched officer display names for audit actor enrichment."""
+    ids = {uid for uid in officer_ids if uid}
+    if not ids:
+        return {}
+    rows = (await db.scalars(select(Officer).where(Officer.id.in_(ids)))).all()
+    return {row.id: row.nam for row in rows if row.nam}
+
+
+async def public_users_by_ids(db: AsyncSession, user_ids: set[uuid.UUID]) -> dict[uuid.UUID, dict]:
+    if not user_ids:
+        return {}
+    rows = (await db.scalars(select(User).where(User.id.in_(user_ids)))).all()
+    return {
+        row.id: {"id": str(row.id), "name": row.name, "email": row.email, "avatarUrl": row.avatar}
+        for row in rows
+    }
+
+
 async def bind_user_officer(db: AsyncSession, user: User, officer_id: uuid.UUID) -> Officer:
     previous = await db.scalar(select(Officer).where(Officer.auth_id == user.id))
     if previous is not None and previous.id != officer_id:
@@ -151,7 +236,26 @@ async def user_payload(db: AsyncSession, user: User) -> dict:
     return (await hydrate_user_payloads(db, [user]))[0]
 
 
-def role_to_payload(role: Role, permissions: list[str]) -> dict:
+def role_to_payload(role: Role, permissions: list[str], creator_scoped: set[str] | None = None) -> dict:
+    from app.core.permissions import normalize_permission_payload
+
+    creator = creator_scoped or set()
+    permission_rows = []
+    for row in catalog_rows():
+        prefix = row["permissionPrefix"]
+        actions = [a for a in row["actions"] if f"{prefix}.{a}" in set(permissions)]
+        if not actions:
+            continue
+        permission_rows.append({
+            "documentType": row["documentType"],
+            "actions": actions,
+            "onlyIfCreator": any(f"{prefix}.{a}" in creator for a in actions),
+            "level": row["level"],
+        })
+    normalized = normalize_permission_payload({
+        "permissionRows": permission_rows,
+        "permissions": sorted(set(permissions)),
+    })
     return {
         "id": str(role.id),
         "code": role.nam.upper().replace(" ", "_"),
@@ -159,8 +263,10 @@ def role_to_payload(role: Role, permissions: list[str]) -> dict:
         "description": role.description,
         "status": "active" if role.is_active else "inactive",
         "lvl": role.lvl,
-        "permissions": permissions,
-        "permissionCount": len(permissions),
+        "permissions": normalized["permissions"],
+        "permissionRows": normalized["permissionRows"],
+        "permissionCount": normalized["permissionCount"],
+        "permissionSchemaVersion": normalized["permissionSchemaVersion"],
         "createdAt": role.created_at.isoformat() if role.created_at else None,
         "updatedAt": role.updated_at.isoformat() if role.updated_at else None,
         "version": 1,

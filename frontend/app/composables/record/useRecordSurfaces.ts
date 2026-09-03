@@ -26,6 +26,10 @@ let surfacesInflight: Promise<RecordSurfacesMap> | null = null
 
 /** Boot catalog: active record types grouped by uiSurface for menus and dynamic routes. */
 export function useRecordSurfaces() {
+  // Capture the API client while setup context is alive: load() is called
+  // delayed (await, onMounted, menu boot) and must not instantiate useApi()
+  // after the Nuxt instance is no longer current (Nuxt E1001 otherwise).
+  const api = useApi()
   const surfaces = useState<RecordSurfacesMap | null>('record-surfaces', () => null)
   const loading = useState('record-surfaces-loading', () => false)
   const error = useState<string | null>('record-surfaces-error', () => null)
@@ -37,7 +41,7 @@ export function useRecordSurfaces() {
     error.value = null
 const request = (async () => {
       try {
-const res = await useApi().get<ApiResponse<RecordSurfacesMap>>(ApiEndpoints.RECORD_SURFACES, {
+const res = await api.get<ApiResponse<RecordSurfacesMap>>(ApiEndpoints.RECORD_SURFACES, {
           requestKey: 'record-surfaces',
           cancelPrevious: true,
           suppressAccessAlert: true,

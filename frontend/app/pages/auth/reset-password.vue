@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import * as z from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
-import { resetPasswordWithCode } from '~/adapters/auth'
+import { useAuthApi } from '~/composables/auth/useAuthApi'
 import { usePageSeo } from '~/composables/usePageSeo'
 import {
   clearPasswordResetSession,
@@ -13,6 +13,7 @@ definePageMeta({
 })
 
 const { t } = useI18n()
+const { resetPasswordWithCode } = useAuthApi()
 const router = useRouter()
 const toast = useToast()
 const submitting = ref(false)

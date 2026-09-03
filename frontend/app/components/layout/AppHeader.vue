@@ -58,7 +58,8 @@ const { displayTitle, breadcrumbs, badges, hasBreadcrumbs, actions } = useAppHea
     <div class="min-w-0 flex-1" />
 
     <template #right>
-      <div class="flex shrink-0 flex-wrap items-center justify-end gap-1.5 sm:gap-2">
+      <ClientOnly>
+        <div class="flex shrink-0 flex-wrap items-center justify-end gap-1.5 sm:gap-2">
         <div
           id="app-header-leading"
           class="flex shrink-0 flex-wrap items-center justify-end gap-1.5 sm:gap-2"
@@ -119,7 +120,12 @@ const { displayTitle, breadcrumbs, badges, hasBreadcrumbs, actions } = useAppHea
           class="rounded-md"
           @click="actions.onCreate?.()"
         />
-      </div>
+        </div>
+
+        <template #fallback>
+          <div class="h-8 w-8 shrink-0 rounded-md bg-elevated/50" aria-hidden="true" />
+        </template>
+      </ClientOnly>
     </template>
   </UDashboardNavbar>
 </template>

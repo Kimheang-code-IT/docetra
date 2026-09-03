@@ -8,9 +8,8 @@ from app.core.errors import DomainError
 from app.core.permissions import normalize_permission_payload
 from app.core.privileged import is_unrestricted, is_unrestricted_role_name
 from app.core.redaction import strip_secrets
-from app.db import User
-from app.models.access import Role
-from app.models.people import Officer
+from app.modules.people_access.model import User
+from app.modules.people_access.model import Officer, Role
 import app.modules.people_access.services.people as people
 
 USER_AUTHORITY_KEYS = ("permissions", "permissionRows", "roleName", "role")

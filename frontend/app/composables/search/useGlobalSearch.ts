@@ -2,9 +2,40 @@
  * Cmd+K global search: keyword / semantic modes, Ask AI on demand, source links.
  */
 import type { CommandPaletteItem, CommandPaletteGroup } from '@nuxt/ui'
-import type { SearchHit, SearchMode } from '~/types/docetra/search'
-import { askAi, searchKeyword, searchSemantic } from '~/adapters/search'
+import type { AiSearchAnswer, SearchHit, SearchMode, SearchQueryOptions } from '~/types/docetra/search'
+import { ApiEndpoints } from '~/utils/constants/api-endpoints'
 import { useMenu } from '~/composables/layout/useMenu'
+
+async function searchKeyword(query: string, options: SearchQueryOptions = {}) {
+  const limit = options.limit ?? 12
+  const response = await useApi().get<{ data: SearchHit[] }>(ApiEndpoints.SEARCH, {
+    query: { q: query, mode: 'keyword', limit },
+    requestKey: 'search-keyword',
+    cancelPrevious: true,
+  })
+  return response.data || []
+}
+
+async function searchSemantic(query: string, options: SearchQueryOptions = {}) {
+  const limit = options.limit ?? 12
+  const response = await useApi().get<{ data: SearchHit[] }>(ApiEndpoints.SEARCH, {
+    query: { q: query, mode: 'semantic', limit },
+    requestKey: 'search-semantic',
+    cancelPrevious: true,
+  })
+  return response.data || []
+}
+
+async function askAi(query: string, hits: SearchHit[]): Promise<AiSearchAnswer> {
+  const response = await useApi().post<{ data: AiSearchAnswer }>(ApiEndpoints.SEARCH_ASK, {
+    q: query,
+    hitIds: hits.map(h => h.id),
+  }, {
+    requestKey: 'search-ask',
+    cancelPrevious: true,
+  })
+  return response.data
+}
 
 export function useGlobalSearch() {
   const { t } = useI18n()
@@ -19,6 +50,8 @@ export function useGlobalSearch() {
   const hits = ref<SearchHit[]>([])
   const aiAnswer = ref<string | null>(null)
   const aiCitations = ref<SearchHit[]>([])
+  /** No approved semantic/AI provider exists — both features are marked as such. */
+  const semanticNotice = computed(() => mode.value === 'semantic')
 
   const navItems = computed<CommandPaletteItem[]>(() => {
     const items: CommandPaletteItem[] = []
@@ -94,8 +127,9 @@ export function useGlobalSearch() {
     asking.value = true
     try {
       const res = await askAi(q, hits.value)
-      aiAnswer.value = res.answer
-      aiCitations.value = res.citations
+      // The backend honestly reports unavailability (no approved AI provider).
+      aiAnswer.value = res.available && res.answer ? res.answer : (res.message || t('docetra.search.askAiUnavailable'))
+      aiCitations.value = res.citations || []
     }
     finally {
       asking.value = false
@@ -208,7 +242,7 @@ export function useGlobalSearch() {
 
   const placeholder = computed(() =>
     mode.value === 'semantic'
-      ? t('docetra.search.placeholderSemantic')
+      ? t('docetra.search.placeholderSemanticUnavailable')
       : t('docetra.search.placeholderKeyword'),
   )
 
@@ -222,6 +256,7 @@ export function useGlobalSearch() {
     groups,
     placeholder,
     onAskAi,
+    semanticNotice,
     router,
   }
 }

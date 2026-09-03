@@ -1,8 +1,5 @@
 <script setup lang="ts">
-import {
-  resendPasswordResetCode,
-  verifyPasswordResetCode,
-} from '~/adapters/auth'
+import { useAuthApi } from '~/composables/auth/useAuthApi'
 import { usePageSeo } from '~/composables/usePageSeo'
 import {
   getPasswordResetSession,
@@ -14,6 +11,7 @@ definePageMeta({
 })
 
 const { t } = useI18n()
+const { resendPasswordResetCode, verifyPasswordResetCode } = useAuthApi()
 const router = useRouter()
 const toast = useToast()
 

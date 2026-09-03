@@ -28,7 +28,7 @@ const props = withDefaults(defineProps<{
 
 const { t, locale } = useI18n()
 const preferences = usePreferencesStore()
-preferences.hydrate()
+preferences.hydrateLocal()
 
 const inputDate = useTemplateRef<{ inputsRef?: Array<{ $el?: HTMLElement }> } | null>('inputDate')
 const pickerAnchor = useTemplateRef<HTMLElement | null>('pickerAnchor')
@@ -162,6 +162,7 @@ function openPickerDialog() {
                 v-model:range-value="dateRangeValue"
                 mode="range"
                 granularity="day"
+                :number-of-months="2"
                 :locale="fieldLocale"
                 :disabled="disabled"
               />
@@ -209,6 +210,7 @@ function openPickerDialog() {
           v-model:range-value="dateRangeValue"
           mode="range"
           granularity="day"
+          :number-of-months="2"
           :locale="fieldLocale"
           :disabled="disabled"
         />

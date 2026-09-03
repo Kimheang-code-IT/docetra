@@ -3,7 +3,7 @@ import type { FormSubmitEvent, AuthFormField } from '@nuxt/ui'
 import { useAuthSession } from '~/utils/auth/session'
 import { createLoginSchema, createSetupSchema } from '~/utils/auth/login-schema'
 import { readRememberMe } from '~/utils/auth/remember-me'
-import { getBootstrapStatus, loginWithCredentials, registerFirstAdministrator } from '~/adapters/auth'
+import { useAuthApi } from '~/composables/auth/useAuthApi'
 import { usePageSeo } from '~/composables/usePageSeo'
 import type { AuthUser } from '~/types/auth-user'
 
@@ -12,13 +12,13 @@ definePageMeta({
 })
 
 const { t, locale } = useI18n()
+const { getBootstrapStatus, loginWithCredentials, registerFirstAdministrator } = useAuthApi()
 const router = useRouter()
 const toast = useToast()
 const authSession = useAuthSession()
 const config = useRuntimeConfig()
 const submitting = ref(false)
 const setupMode = ref(false)
-const bootstrapPending = ref(true)
 const loginForm = useTemplateRef<{ state?: Record<string, unknown> }>('loginForm')
 
 usePageSeo({
@@ -114,9 +114,6 @@ onMounted(async () => {
   catch {
     setupMode.value = false
   }
-  finally {
-    bootstrapPending.value = false
-  }
 })
 
 async function completeLogin(token: string | undefined, user: AuthUser) {
@@ -182,7 +179,6 @@ async function onSubmit(payload: FormSubmitEvent<LoginSchema | SetupSchema>) {
 <template>
   <div class="flex flex-col items-center justify-center">
     <UAuthForm
-      v-if="!bootstrapPending"
       ref="loginForm"
       :schema="schema"
       :title="t(setupMode ? 'pages.auth.setupTitle' : 'pages.auth.loginTitle')"

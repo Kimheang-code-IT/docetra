@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { DriveFileCatalogItem } from '~/types/docetra/meeting-api'
-import { listPortalDriveFiles } from '~/adapters/meeting-board'
+import { listPortalDriveFiles } from '~/composables/meeting/useMeetingBoardApi'
 
 const open = defineModel<boolean>('open', { default: false })
 

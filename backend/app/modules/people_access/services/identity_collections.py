@@ -12,8 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.datetime import utcnow
 from app.core.errors import DomainError
 from app.core.security import hash_password, revoke_user_tokens
-from app.models.access import Role
-from app.models.people import Officer, User
+from app.modules.people_access.model import Officer, Role, User
 from app.modules.people_access.services.identity import normalize_identity_payload, parse_role_level
 import app.modules.people_access.services.people as people
 
@@ -26,30 +25,62 @@ class IdentityApplicationService:
         return self.host.kind()
 
     async def list_items(self, db: AsyncSession, user: User, params: dict, page: int, limit: int, q, status) -> dict:
+        from app.shared.list_query import date_filters, order_clause
+
         kind = self.kind()
         if kind == "officer":
             filters = []
             if not status or status in {"all", "all-status"}:
                 filters.append(Officer.is_active == 1)
+            elif "inactive" in (status or ""):
+                filters.append(Officer.is_active == 0)
             if q:
                 filters.append(Officer.nam.ilike(f"%{q}%"))
+            filters.extend(date_filters(params, Officer.updated_at))
             stmt = select(Officer)
             if filters:
                 stmt = stmt.where(*filters)
-            total = await db.scalar(select(func.count()).select_from(Officer).where(*filters)) if filters else await db.scalar(select(func.count()).select_from(Officer))
-            rows = (await db.scalars(stmt.order_by(Officer.updated_at.desc()).offset((page - 1) * limit).limit(limit))).all()
+            count_stmt = select(func.count()).select_from(Officer)
+            total = (await db.scalar(count_stmt.where(*filters)) if filters else await db.scalar(count_stmt)) or 0
+            stmt = stmt.order_by(order_clause(params, Officer)).offset((page - 1) * limit).limit(limit)
+            rows = (await db.scalars(stmt)).all()
             return {"data": [people.officer_to_payload(row) for row in rows], "meta": {"page": page, "limit": limit, "total": total or 0, "totalPages": max(1, math.ceil((total or 0) / limit))}}
 
         if kind == "role":
-            rows = (await db.scalars(select(Role).order_by(Role.updated_at.desc()).offset((page - 1) * limit).limit(limit))).all()
+            filters = []
+            if q:
+                filters.append(Role.nam.ilike(f"%{q}%"))
+            filters.extend(date_filters(params, Role.updated_at))
+            count_stmt = select(func.count()).select_from(Role)
+            total = (await db.scalar(count_stmt.where(*filters)) if filters else await db.scalar(count_stmt)) or 0
+            stmt = select(Role).order_by(order_clause(params, Role)).offset((page - 1) * limit).limit(limit)
+            if filters:
+                stmt = stmt.where(*filters)
+            rows = (await db.scalars(stmt)).all()
             data = []
             for row in rows:
                 perms = await people.permissions_for_role_id(db, row.id)
-                data.append(people.role_to_payload(row, perms))
-            return {"data": data, "meta": {"page": page, "limit": limit, "total": len(data), "totalPages": 1}}
+                data.append(people.role_to_payload(row, perms, await people.creator_scoped_codes_for_role(db, row.id)))
+            return {"data": data, "meta": {"page": page, "limit": limit, "total": total or 0, "totalPages": max(1, math.ceil((total or 0) / limit))}}
 
-        rows = (await db.scalars(select(User).order_by(User.updated_at.desc()).offset((page - 1) * limit).limit(limit))).all()
-        return {"data": await people.hydrate_user_payloads(db, rows), "meta": {"page": page, "limit": limit, "total": len(rows), "totalPages": 1}}
+        filters = []
+        if q:
+            from sqlalchemy import or_ as _or
+
+            filters.append(_or(User.email.ilike(f"%{q}%"), User.name.ilike(f"%{q}%")))
+        if status and status not in {"all", "all-status"}:
+            if "inactive" in (status or ""):
+                filters.append(User.active.is_(False))
+            else:
+                filters.append(User.active.is_(True))
+        filters.extend(date_filters(params, User.updated_at))
+        count_stmt = select(func.count()).select_from(User)
+        total = (await db.scalar(count_stmt.where(*filters)) if filters else await db.scalar(count_stmt)) or 0
+        stmt = select(User).order_by(order_clause(params, User)).offset((page - 1) * limit).limit(limit)
+        if filters:
+            stmt = stmt.where(*filters)
+        rows = (await db.scalars(stmt)).all()
+        return {"data": await people.hydrate_user_payloads(db, rows), "meta": {"page": page, "limit": limit, "total": total or 0, "totalPages": max(1, math.ceil((total or 0) / limit))}}
 
     async def get_item(self, db: AsyncSession, entity_id: str) -> dict:
         uid = uuid.UUID(entity_id)
@@ -86,7 +117,7 @@ class IdentityApplicationService:
             if payload.get("departmentId") and not row.organization_id:
                 row.organization_id = uuid.UUID(str(payload["departmentId"]))
             db.add(row)
-            await db.commit()
+            await db.flush()
             await db.refresh(row)
             return people.officer_to_payload(row)
 
@@ -102,10 +133,11 @@ class IdentityApplicationService:
             )
             db.add(row)
             await db.flush()
-            await people.replace_role_permissions(db, row.id, list(data.get("permissions") or []))
-            await db.commit()
+            creator_scoped = people.creator_scoped_codes_from_rows(data.get("permissionRows"))
+            await people.replace_role_permissions(db, row.id, list(data.get("permissions") or []), creator_scoped)
+            await db.flush()
             await db.refresh(row)
-            return people.role_to_payload(row, await people.permissions_for_role_id(db, row.id))
+            return people.role_to_payload(row, await people.permissions_for_role_id(db, row.id), await people.creator_scoped_codes_for_role(db, row.id))
 
         data = await normalize_identity_payload(db, "users", payload, actor=user)
         linked_officer_id = uuid.UUID(str(data["officerId"])) if data.get("officerId") else None
@@ -128,7 +160,7 @@ class IdentityApplicationService:
             await people.bind_user_officer(db, row, linked_officer_id)
         else:
             await people.ensure_officer_for_user(db, row, row.role_id)
-        await db.commit()
+        await db.flush()
         await db.refresh(row)
         return await people.user_payload(db, row)
 
@@ -146,15 +178,16 @@ class IdentityApplicationService:
             if "status" in body:
                 row.is_active = 0 if body["status"] == "inactive" else 1
             row.updated_by = officer_id
-            await people.replace_role_permissions(db, row.id, list(data.get("permissions") or []))
+            creator_scoped = people.creator_scoped_codes_from_rows(data.get("permissionRows"))
+            await people.replace_role_permissions(db, row.id, list(data.get("permissions") or []), creator_scoped)
             users = (await db.scalars(select(User).where(User.role_id == row.id))).all()
             perms = await people.permissions_for_role_id(db, row.id)
             for account in users:
                 account.permissions = perms
                 account.role = row.nam
                 await revoke_user_tokens(str(account.id))
-            await db.commit()
-            return people.role_to_payload(row, perms)
+            await db.flush()
+            return people.role_to_payload(row, perms, await people.creator_scoped_codes_for_role(db, row.id))
 
         if kind == "user":
             row = await db.get(User, uid)
@@ -179,7 +212,7 @@ class IdentityApplicationService:
                 row.active = body["status"] != "inactive"
             row.updated_by = officer_id
             row.version += 1
-            await db.commit()
+            await db.flush()
             return await people.user_payload(db, row)
 
         row = await db.get(Officer, uid)
@@ -195,7 +228,7 @@ class IdentityApplicationService:
         if "status" in body:
             row.is_active = 0 if body["status"] == "inactive" else 1
         row.updated_by = officer_id
-        await db.commit()
+        await db.flush()
         return people.officer_to_payload(row)
 
     async def soft_delete(self, db: AsyncSession, entity_id: str, expected) -> dict:
@@ -206,7 +239,7 @@ class IdentityApplicationService:
             if not row:
                 raise HTTPException(404, "Not found")
             row.is_active = 0
-            await db.commit()
+            await db.flush()
             return {"id": entity_id}
         if kind == "user":
             row = await db.get(User, uid)
@@ -216,7 +249,7 @@ class IdentityApplicationService:
             row.active = False
             row.status = "deleted"
             row.version += 1
-            await db.commit()
+            await db.flush()
             return {"id": entity_id}
         raise HTTPException(404, "Not found")
 
@@ -239,5 +272,5 @@ class IdentityApplicationService:
             if officer:
                 await db.delete(officer)
         await db.delete(row)
-        await db.commit()
+        await db.flush()
         return {"id": entity_id}

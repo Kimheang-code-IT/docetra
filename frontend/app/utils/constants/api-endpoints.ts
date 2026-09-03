@@ -89,4 +89,10 @@ export const ApiEndpoints = {
     `/api/v2/records/${encodeURIComponent(typeCode)}/${encodeURIComponent(entityId)}/activity`,
   RECORD_ATTACHMENTS: (typeCode: string, entityId: string) =>
     `/api/v2/records/${encodeURIComponent(typeCode)}/${encodeURIComponent(entityId)}/attachments`,
+  /** Multipart upload + immediate attachment of real file bytes to a record/meeting. */
+  RECORD_ATTACHMENT_UPLOAD: (typeCode: string, entityId: string) =>
+    `/api/v2/records/${encodeURIComponent(typeCode)}/${encodeURIComponent(entityId)}/attachments/upload`,
+  /** Detach a file reference from a record without deleting the shared File object. */
+  RECORD_ATTACHMENT_DETACH: (typeCode: string, entityId: string, fileId: string) =>
+    `/api/v2/records/${encodeURIComponent(typeCode)}/${encodeURIComponent(entityId)}/attachments/${encodeURIComponent(fileId)}`,
 } as const

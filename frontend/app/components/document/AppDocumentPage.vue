@@ -38,6 +38,10 @@ const props = withDefaults(defineProps<{
   comments?: EntityComment[]
   activity?: ActivityEvent[]
   attachments?: AttachmentMeta[]
+  /** Multipart upload endpoint for real file bytes (record show/edit mode). */
+  attachmentUploadEndpoint?: string
+  /** Current record version getter for optimistic concurrency on upload. */
+  attachmentUploadVersion?: () => string | number | undefined
   commentBody?: string
   submittingComment?: boolean
   updatingCommentId?: string | null
@@ -47,8 +51,6 @@ const props = withDefaults(defineProps<{
   currentUser?: { id: string, name: string, email?: string }
   metaTitle?: string
   metaSubtitle?: string
-  metaStatus?: string
-  metaStage?: string
   metaOwner?: PersonSummary | null
   metaAssignee?: PersonSummary | null
   metaTags?: string[]
@@ -105,6 +107,7 @@ const emit = defineEmits<{
   navigateNext: []
   toggleFavorite: []
   export: [request: ExportRequest]
+  attached: [version: number | undefined]
 }>()
 
 const { t } = useI18n()
@@ -266,19 +269,13 @@ async function onSaveClick() {
           >
             <UAlert
               v-if="notFound"
-              class="mx-auto mt-6 w-full px-4 sm:px-6 lg:px-10"
-              :class="contentWide
-                ? 'max-w-4xl lg:max-w-5xl xl:max-w-6xl'
-                : 'max-w-xl sm:max-w-2xl lg:max-w-3xl'"
+              class="mx-auto mt-6 w-full max-w-4xl px-4 sm:px-6 lg:max-w-5xl lg:px-10 xl:max-w-6xl"
               color="error"
               :title="t('docetra.states.notFound')"
             />
             <UAlert
               v-else-if="error"
-              class="mx-auto mt-6 w-full px-4 sm:px-6 lg:px-10"
-              :class="contentWide
-                ? 'max-w-4xl lg:max-w-5xl xl:max-w-6xl'
-                : 'max-w-xl sm:max-w-2xl lg:max-w-3xl'"
+              class="mx-auto mt-6 w-full max-w-4xl px-4 sm:px-6 lg:max-w-5xl lg:px-10 xl:max-w-6xl"
               color="error"
               :title="error"
             />
@@ -375,11 +372,11 @@ async function onSaveClick() {
             class="h-full min-h-0 overflow-y-auto"
             :title="metaTitle"
             :subtitle="metaSubtitle"
-            :status="metaStatus"
-            :stage="metaStage"
             :owner="metaOwner || undefined"
             :assignee="metaAssignee || undefined"
             :attachments="localAttachments"
+            :upload-endpoint="attachmentUploadEndpoint"
+            :upload-version="attachmentUploadVersion"
             :tags="metaTags"
             :created-at="metaCreatedAt"
             :updated-at="metaUpdatedAt"
@@ -389,6 +386,7 @@ async function onSaveClick() {
             :favorite-enabled="!isCreate"
             @update:tags="setFieldValue('tags', $event)"
             @update:attachments="localAttachments = $event"
+            @attached="(v: number | undefined) => emit('attached', v)"
             @update:assignees="setFieldValue('assignee', $event[0] || null)"
             @toggle-favorite="emit('toggleFavorite')"
           />

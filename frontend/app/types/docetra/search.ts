@@ -39,7 +39,9 @@ export interface SearchHit extends IndexedDocument {
 }
 
 export interface AiSearchAnswer {
-  answer: string
+  available?: boolean
+  answer: string | null
+  message?: string | null
   citations: SearchHit[]
 }
 

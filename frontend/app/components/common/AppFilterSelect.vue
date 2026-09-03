@@ -4,8 +4,6 @@
  * Single or multiple selection via Nuxt UI SelectMenu (searchable).
  */
 import type { FilterDef } from '~/types/docetra/common'
-import { VOCABULARY_GROUP_BY_KEY } from '~/config/vocabulary-fallbacks'
-import { useVocabulary } from '~/composables/config/useVocabulary'
 
 const props = withDefaults(
   defineProps<{
@@ -25,17 +23,13 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
-const { options: vocabularyOptions } = useVocabulary()
 
 const isMultiple = computed(() => props.filter.type === 'multiselect')
 
 const label = computed(() => t(props.filter.labelKey))
 
 const items = computed(() => {
-  const fallback = props.filter.options || []
-  const group = VOCABULARY_GROUP_BY_KEY[props.filter.key]
-  const resolved = group ? vocabularyOptions(group, fallback).value : fallback
-  return resolved
+  return (props.filter.options || [])
     .filter(o => o.value !== '')
     .map(o => ({
       label: t(o.labelKey || o.label),

@@ -3,7 +3,8 @@ import { getEntityAdapter } from '~/config/entities'
 import {
   assignMeetingToTopic as assignMeetingToTopicApi,
   reorderMeetingsInTopic,
-} from '~/adapters/meeting-board'
+} from '~/composables/meeting/useMeetingBoardApi'
+import { withConcurrencyToken } from '~/utils/api/concurrency'
 import { mergeMeetingTiming, sortMeetingsForBoard } from '~/utils/meeting/board'
 
 /** Sentinel for the Unassigned row on the topic rail (not a real topic id). */
@@ -25,8 +26,6 @@ export function useMeetingTopicBoard() {
    * otherwise = topic id
    */
   const selectedTopicId = ref<string | null>(null)
-  const draggingMeetingId = ref<string | null>(null)
-  const dropTopicId = ref<string | null>(null)
   const topicSearch = ref('')
   const meetingSearch = ref('')
   /** YYYY-MM-DDTHH:mm — empty = open-ended */
@@ -99,7 +98,14 @@ export function useMeetingTopicBoard() {
     error.value = null
     try {
       const [topicsRes, meetingsRes] = await Promise.all([
-        topicsAdapter.list({ q: topicSearch.value || undefined, page: 1, limit: topicPageSize, sort: '-updatedAt' }),
+        topicsAdapter.list({
+          q: topicSearch.value || undefined,
+          page: 1,
+          limit: topicPageSize,
+          sort: '-updatedAt',
+          // Keep inactive (archived) topics on the rail so Activate remains available.
+          status: 'active,archived',
+        }),
         meetingsAdapter.list(meetingQuery(1)),
         refreshCounts(),
       ])
@@ -143,7 +149,13 @@ export function useMeetingTopicBoard() {
     loadingMoreTopics.value = true
     const nextPage = topicPage.value + 1
     try {
-      const response = await topicsAdapter.list({ q: topicSearch.value || undefined, page: nextPage, limit: topicPageSize, sort: '-updatedAt' })
+      const response = await topicsAdapter.list({
+        q: topicSearch.value || undefined,
+        page: nextPage,
+        limit: topicPageSize,
+        sort: '-updatedAt',
+        status: 'active,archived',
+      })
       topics.value.push(...((response.data || []) as MeetingTopic[]))
       topicPage.value = nextPage
       topicTotal.value = response.meta?.total || topicTotal.value
@@ -178,6 +190,10 @@ export function useMeetingTopicBoard() {
     const topic = topicId ? topics.value.find(t => t.id === topicId) : null
     if (topicId && !topic) {
       toast.add({ title: t('docetra.meetingBoard.invalidTopicDrop'), color: 'error' })
+      return
+    }
+    if (topic && String(topic.status || 'active') !== 'active') {
+      toast.add({ title: t('docetra.meetingBoard.inactiveTopicDrop'), color: 'error' })
       return
     }
     const siblings = topicId
@@ -256,21 +272,73 @@ export function useMeetingTopicBoard() {
     toast.add({ title: t('docetra.actions.deletedItems', { n: 1 }), color: 'success' })
   }
 
+  async function createTopic(title: string, description = '') {
+    const now = new Date().toISOString()
+    const res = await topicsAdapter.create({
+      title: title.trim(),
+      description: description.trim() || undefined,
+      status: 'active',
+      recordTime: now,
+      childMeetingCount: 0,
+      childMeetings: [],
+    } as Partial<MeetingTopic>)
+    const created = res.data as MeetingTopic
+    await refresh()
+    if (created?.id) selectedTopicId.value = created.id
+    toast.add({ title: t('docetra.meetingBoard.topicSaved'), color: 'success' })
+    return created
+  }
+
+  async function updateTopicTitle(id: string, title: string, description?: string) {
+    const topic = topics.value.find(item => item.id === id)
+    if (!topic) throw new Error(t('docetra.meetingBoard.topicSaveFailed'))
+    const payload: Partial<MeetingTopic> = {
+      title: title.trim(),
+    }
+    if (description !== undefined) {
+      payload.description = description.trim() || undefined
+    }
+    const res = await topicsAdapter.update(
+      id,
+      withConcurrencyToken(payload, topic.version) as Partial<MeetingTopic> & { version?: number },
+    )
+    const updated = res.data as MeetingTopic
+    const index = topics.value.findIndex(item => item.id === id)
+    if (index >= 0) topics.value[index] = { ...topics.value[index], ...updated }
+    // Keep meeting cards that display this topic title in sync.
+    for (const meeting of meetings.value) {
+      if (meeting.topicId === id) meeting.topicTitle = updated.title
+    }
+    toast.add({ title: t('docetra.meetingBoard.topicSaved'), color: 'success' })
+    return updated
+  }
+
+  async function setTopicActive(id: string, active: boolean) {
+    const topic = topics.value.find(item => item.id === id)
+    if (!topic) throw new Error(t('docetra.common.actionFailed'))
+    const token = { version: topic.version }
+    if (active) {
+      if (!topicsAdapter.restore) throw new Error(t('docetra.common.actionFailed'))
+      await topicsAdapter.restore(id, token)
+    }
+    else {
+      if (!topicsAdapter.archive) throw new Error(t('docetra.common.actionFailed'))
+      await topicsAdapter.archive(id, token)
+    }
+    await refresh()
+    toast.add({
+      title: active ? t('docetra.common.activated') : t('docetra.common.deactivated'),
+      color: 'success',
+    })
+  }
+
   const debouncedTopicSearch = useDebounceFn(() => refresh(), 300)
   const debouncedMeetingFilter = useDebounceFn(() => refreshMeetings(), 300)
   watch(topicSearch, () => debouncedTopicSearch())
   watch([meetingSearch, meetingDateStart, meetingDateEnd], () => debouncedMeetingFilter())
 
-  function openTopic(id: string) {
-    navigateTo(`/meetings/topics/${id}`)
-  }
-
   function openMeeting(id: string) {
     navigateTo(`/meetings/history/${id}`)
-  }
-
-  function openCreateTopic() {
-    return navigateTo(`/meetings/topics/new?returnTo=${encodeURIComponent('/meetings/topics')}`)
   }
 
   function openCreateMeeting() {
@@ -304,8 +372,6 @@ export function useMeetingTopicBoard() {
     hasMoreMeetings,
     loadingMoreTopics,
     loadingMoreMeetings,
-    draggingMeetingId,
-    dropTopicId,
     refresh,
     loadMoreTopics,
     loadMoreMeetings,
@@ -314,9 +380,10 @@ export function useMeetingTopicBoard() {
     reorderMeeting,
     deleteTopic,
     deleteMeeting,
-    openTopic,
+    createTopic,
+    updateTopicTitle,
+    setTopicActive,
     openMeeting,
-    openCreateTopic,
     openCreateMeeting,
   }
 }

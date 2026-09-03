@@ -3,9 +3,9 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import MeetingSchedule
-from app.models.record import Record
-import app.modules.admin_config.services.runtime as runtime
+from app.modules.record.model import MeetingSchedule
+from app.modules.record.model import Record
+from app.modules.admin_config.service import runtime
 
 
 async def upsert_meeting_jobs(db: AsyncSession, row: Record, details: dict | None = None) -> None:

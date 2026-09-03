@@ -19,10 +19,8 @@ import type { ConnectionStatus, NotificationRule, TelegramDestination, CardDispl
 import { TELEGRAM_TEMPLATE_VARIABLES } from '~/types/docetra/settings'
 import { createClientId } from '~/utils/client-id'
 import { resolveFieldHelp } from '~/utils/field-help'
-import { loadReferenceOptions } from '~/adapters/reference-options'
+import { loadReferenceOptions } from '~/composables/common/useReferenceOptions'
 import { ApiEndpoints } from '~/utils/constants/api-endpoints'
-import { VOCABULARY_GROUP_BY_KEY } from '~/config/vocabulary-fallbacks'
-import { useVocabulary } from '~/composables/config/useVocabulary'
 
 const props = defineProps<{
   field: DocumentFieldSchema
@@ -37,7 +35,6 @@ const emit = defineEmits<{
 
 const { t, te } = useI18n()
 const route = useRoute()
-const { options: vocabularyOptions } = useVocabulary()
 
 const hintOpen = ref(false)
 
@@ -174,10 +171,7 @@ const searchRemoteOptions = useDebounceFn(async (search: string) => {
 }, 250)
 
 const selectItems = computed(() => {
-  const fallback = props.field.options || []
-  const group = VOCABULARY_GROUP_BY_KEY[props.field.key]
-  const merged = group ? vocabularyOptions(group, fallback).value : fallback
-  return [...merged, ...remoteOptions.value]
+  return [...(props.field.options || []), ...remoteOptions.value]
     .filter(o => o.value !== '')
     .map(o => ({
       label: o.labelKey ? t(o.labelKey) : o.label,

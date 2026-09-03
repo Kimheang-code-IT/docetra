@@ -8,7 +8,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import DomainError
-from app.models.organization import Organization, OrganizationPurpose, OrganizationSector
+from app.modules.organization.model import Organization, OrganizationPurpose, OrganizationSector
+from app.modules.organization.repository import OrganizationRepository
 
 
 def org_to_payload(row: Organization) -> dict:
@@ -151,10 +152,18 @@ async def get_org(db: AsyncSession, org_id: str) -> Organization:
         uid = uuid.UUID(org_id)
     except ValueError as exc:
         raise DomainError("NOT_FOUND", "Not found", 404) from exc
-    row = await db.get(Organization, uid)
+    row = await OrganizationRepository(db).get(uid)
     if not row:
         raise DomainError("NOT_FOUND", "Not found", 404)
     return row
+
+
+async def list_organization_ids(db: AsyncSession) -> list[uuid.UUID]:
+    return await OrganizationRepository(db).ids()
+
+
+async def organization_exists(db: AsyncSession, organization_id: uuid.UUID) -> bool:
+    return await OrganizationRepository(db).get(organization_id) is not None
 
 
 async def resolve_organization_ids(db: AsyncSession, values: list) -> list[uuid.UUID]:

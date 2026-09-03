@@ -21,7 +21,9 @@ type UiColorConfig = { primary?: string; neutral?: string }
 export const usePreferencesStore = defineStore('preferences', () => {
   const appConfig = useAppConfig()
   const i18n = useI18n()
-  const appLocalization = useAppLocalization()
+  // The app root controls when the remote config request starts. Local UI
+  // preferences can paint immediately without waiting for the API.
+  const appLocalization = useAppLocalization({ autoLoad: false })
 
   const isThemeLoaded = useState('ui-theme-loaded', () => false)
   const isLocaleLoaded = useState('ui-locale-loaded', () => false)
@@ -89,8 +91,16 @@ export const usePreferencesStore = defineStore('preferences', () => {
     applyFontSizeToDom(next)
   }
 
-  async function loadLocaleFromLocal() {
+  function loadLocaleFromLocal() {
     if (typeof window === 'undefined') return
+    const savedLocale = localStorage.getItem(LOCALE_KEY)
+    const isExplicit = localStorage.getItem(LOCALE_EXPLICIT_KEY) === '1'
+    if (isExplicit && (savedLocale === 'en' || savedLocale === 'km')) {
+      void i18n.setLocale(savedLocale)
+    }
+  }
+
+  async function loadRemoteLocalization() {
     await appLocalization.load()
     const savedLocale = localStorage.getItem(LOCALE_KEY)
     const isExplicit = localStorage.getItem(LOCALE_EXPLICIT_KEY) === '1'
@@ -125,20 +135,30 @@ export const usePreferencesStore = defineStore('preferences', () => {
     void i18n.setLocale(next)
   }
 
-  async function hydrate() {
+  function hydrateLocal() {
     if (!import.meta.client) return
     if (!isThemeLoaded.value) {
       loadThemeFromLocal()
       isThemeLoaded.value = true
     }
-    if (!isLocaleLoaded.value) {
-      await loadLocaleFromLocal()
-      isLocaleLoaded.value = true
-    }
     if (!isFontSizeLoaded.value) {
       loadFontSizeFromLocal()
       isFontSizeLoaded.value = true
     }
+    if (!isLocaleLoaded.value) {
+      loadLocaleFromLocal()
+      isLocaleLoaded.value = true
+    }
+  }
+
+  async function hydrateRemote() {
+    if (!import.meta.client) return
+    await loadRemoteLocalization()
+  }
+
+  async function hydrate() {
+    hydrateLocal()
+    await hydrateRemote()
   }
 
   return {
@@ -147,6 +167,8 @@ export const usePreferencesStore = defineStore('preferences', () => {
     availableLocales,
     fontSizePx: FONT_SIZE_PX,
     hydrate,
+    hydrateLocal,
+    hydrateRemote,
     applyThemeColor,
     setLocale,
     syncLocaleWithConfig,

@@ -19,7 +19,7 @@ export function useUserMenu() {
   const { t } = i18n
   const router = useRouter()
 
-  preferences.hydrate()
+  preferences.hydrateLocal()
 
   const aboutOpen = useState('user-menu-about-open', () => false)
   const profileOpen = useState('user-menu-profile-open', () => false)

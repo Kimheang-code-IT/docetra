@@ -5,7 +5,8 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import and_, or_, select
 
 from app.core.config import settings
-from app.db import Entity, SessionLocal
+from app.db import SessionLocal
+from app.modules.record.model import Entity
 
 log = logging.getLogger(__name__)
 
@@ -23,7 +24,7 @@ def _status_key(job_id: str) -> str:
 
 def _cache_payload(row: Entity) -> dict:
     # Same envelope the API writes so GET /exports/{id} can serve either side's writes.
-    from app.modules.record.services.stamp import stamp
+    from app.modules.record.service import stamp
 
     return {"ownerId": str(row.created_by or ""), "data": stamp(row)}
 
@@ -82,9 +83,9 @@ async def _execute(db, row: Entity) -> None:
         await db.flush()
         await _cache_status(row)
 
-        from app.modules.reporting_support.services.export import generate_export
+        from app.modules.reporting_support.service import export
 
-        await generate_export(db, row)
+        await export.generate_export(db, row)
         await db.flush()
         await _cache_status(row)
     except Exception as exc:

@@ -2,14 +2,15 @@ from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v2.deps import current_user, get_db
-from app.api.v2.entities import router_for
+from app.modules.record.service import router_for
 from app.core.authorization import require_permission
 from app.core.http_schemas import DataEnvelope, DriveSourceBody
-from app.db import User
+from typing import Any as User
 import app.modules.storage_integration.services.drive_sync as drive_sync
+from app.modules.storage_integration.services.file_collection import StorageFileCollectionService
 
 router = APIRouter(tags=["portal"])
-router.include_router(router_for("portal/file-uploads", "file-uploads"))
+router.include_router(router_for("portal/file-uploads", "file-uploads", service=StorageFileCollectionService()))
 router.include_router(router_for("portal/google-drive-sync", "google-drive-sync"))
 router.include_router(router_for("portal/logs", "portal-logs"))
 

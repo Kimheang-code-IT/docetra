@@ -230,6 +230,8 @@ export interface BaseEntity {
   code?: string
   status: string
   stage?: string
+  /** Optimistic concurrency token from the API (`If-Match` / body.version). */
+  version?: number
   createdAt: string
   updatedAt: string
   createdBy?: PersonSummary

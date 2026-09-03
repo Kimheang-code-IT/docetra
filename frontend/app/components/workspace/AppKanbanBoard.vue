@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { WorkflowStage } from '~/types/docetra/common'
+import type { CardDisplayEntityKey } from '~/types/docetra/settings'
 
 type KanbanColumnData = {
   items: Record<string, unknown>[]
@@ -12,6 +13,8 @@ defineProps<{
   columns: Record<string, KanbanColumnData>
   pending?: boolean
   titleField?: string
+  entityKey?: CardDisplayEntityKey
+  canMove?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -63,6 +66,8 @@ function onDrop(stage: string) {
         :stages="stages"
         :column="columns[stage.code]"
         :title-field="titleField"
+        :entity-key="entityKey"
+        :can-move="canMove"
         :pending="pending"
         :dragging-id="draggingId"
         @card-click="emit('cardClick', $event)"

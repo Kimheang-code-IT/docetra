@@ -7,7 +7,7 @@ import uuid
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.authorization import authorize_resource
+from app.modules.record.services.creator_scope import authorize_resource
 from app.core.datetime import iso_utc
 from app.core.http_schemas import (
     AttachmentsBody,
@@ -19,16 +19,23 @@ from app.core.http_schemas import (
     StageBody,
 )
 from app.core.mutations import request_mutation_body
-from app.core.security import current_user, person
+from app.core.security import current_user
+from app.modules.people_access.dependencies import person
 from app.db.session import get_db
-from app.models.people import User
+from typing import Any as User
+from app.modules.record.domain.map import RECORD_RESOURCES
+from app.modules.admin_config.service import runtime
 import app.modules.record.services.collaboration as collaboration
 from app.modules.record.services.service import CollectionService
 
 
-def router_for(path: str, resource: str) -> APIRouter:
-    router = APIRouter(prefix=f"/{path}", tags=[path.split("/")[0]], dependencies=[Depends(authorize_resource(resource))])
-    service = CollectionService(resource)
+def router_for(path: str, resource: str, *, service=None) -> APIRouter:
+    router = APIRouter(
+        prefix=f"/{path}",
+        tags=[path.split("/")[0]],
+        dependencies=[Depends(authorize_resource(resource, record_resources=RECORD_RESOURCES))],
+    )
+    service = service or CollectionService(resource)
 
     @router.get("", response_model=DataEnvelope)
     async def list_items(request: Request, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
@@ -170,7 +177,7 @@ def router_for(path: str, resource: str) -> APIRouter:
         await service.get_item(db, entity_id, user)
         desired = bool(body.isFavorite)
         await collaboration.set_favorite(db, user.id, entity_id, desired)
-        await db.commit()
+        await db.flush()
         return {"data": {"isFavorite": desired}}
 
     @router.get("/{entity_id}/comments", response_model=DataEnvelope)
@@ -187,14 +194,12 @@ def router_for(path: str, resource: str) -> APIRouter:
         user: User = Depends(current_user),
     ):
         from app.core.errors import DomainError
-        import app.modules.admin_config.services.runtime as runtime
-
         general = runtime.general_defaults(await runtime.load_app_config(db))
         if not general["enableComments"]:
             raise DomainError("COMMENTS_DISABLED", "Comments are disabled in application settings", 403)
         await service.get_item(db, entity_id, user)
         comment = await collaboration.add_comment(db, uuid.UUID(entity_id), body.body, user)
-        await db.commit()
+        await db.flush()
         await db.refresh(comment)
         return {"data": {"id": str(comment.id), "entityType": resource, "entityId": entity_id, "body": comment.body, "author": person(user), "createdAt": iso_utc(comment.created_at)}}
 
@@ -208,14 +213,14 @@ def router_for(path: str, resource: str) -> APIRouter:
     ):
         await service.get_item(db, entity_id, user)
         data = await collaboration.edit_comment(db, entity_id, comment_id, body.body, user)
-        await db.commit()
+        await db.flush()
         return {"data": {**data, "entityType": resource}}
 
     @router.delete("/{entity_id}/comments/{comment_id}", response_model=DataEnvelope)
     async def delete_comment(entity_id: str, comment_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
         await service.get_item(db, entity_id, user)
         comment_id = await collaboration.delete_comment(db, entity_id, comment_id, user)
-        await db.commit()
+        await db.flush()
         return {"data": {"id": comment_id}}
 
     @router.get("/{entity_id}/activity", response_model=DataEnvelope)

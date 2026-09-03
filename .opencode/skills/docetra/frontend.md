@@ -23,9 +23,10 @@ Nuxt prefixes components by folder: `common/AppEchart.vue` → `CommonAppEchart`
 | --- | --- |
 | Entity list / table / Kanban | `WorkspaceEntityWorkspaceView` + `config/entities.ts` |
 | Create / show / edit | `DocumentEntityDocumentView` + `useDocumentPage` |
-| Meeting topic board / stage board chrome | `MeetingAppMeetingTopicBoard`; shared shell: `WorkspaceAppBoardShell` |
+| Meeting topic / record stage / record log boards | `WorkspaceAppBoardShell` + `WorkspaceAppBoardRailItem` / `RailPill` + `WorkspaceAppBoardContent` (cards/table toggle) |
 | Board card (records + meetings) | `RecordAppRecordBoardCard` (`meeting` prop enables meeting mode) |
 | Record stage board | `RecordAppRecordStageBoard` |
+| Meeting topic board | `MeetingAppMeetingTopicBoard` |
 | Uploads | `CommonAppUppyUploader` |
 | HTTP | `useApi()` via adapters / repositories |
 

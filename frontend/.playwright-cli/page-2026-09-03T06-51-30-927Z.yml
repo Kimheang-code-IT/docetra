@@ -1,0 +1,23 @@
+- generic [ref=e3]:
+  - button "Language" [ref=e5]:
+    - generic [ref=e7]: English
+  - generic [ref=e13]:
+    - generic [ref=e14]:
+      - img "Logo" [ref=e16]
+      - generic [ref=e17]: Login
+    - generic [ref=e19]:
+      - generic [ref=e20]:
+        - generic [ref=e21]: Email*
+        - textbox "Email*" [ref=e26]:
+          - /placeholder: Enter your email
+      - generic [ref=e27]:
+        - generic [ref=e28]: Password*
+        - generic [ref=e32]:
+          - textbox "Password*" [ref=e33]:
+            - /placeholder: Enter your password
+          - button "Show password" [ref=e35]
+      - button "Login" [ref=e37]
+    - generic [ref=e40]:
+      - link "Forgot password?" [ref=e42] [cursor=pointer]:
+        - /url: /auth/forget-password
+      - generic [ref=e43]: © Docetra and contributors

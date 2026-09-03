@@ -1,84 +1,71 @@
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Any as User
 
 from app.core.secrets import mask_mapping, protect_mapping, reveal_mapping
 from app.core.security import now_iso
-from app.db import Entity, User
-from app.modules.admin_config.services.settings import merge_setting
-from app.modules.record.services.stamp import entity_or_404, stamp
+from app.modules.admin_config.service import merge_setting
+from app.modules.record.service import entity_bags
 
 
 async def list_providers(db: AsyncSession) -> tuple[list[dict], int]:
-    rows = (await db.scalars(select(Entity).where(Entity.resource == "storage-providers", Entity.status != "deleted"))).all()
-    data = [{**stamp(row), **mask_mapping(row.payload or {})} for row in rows]
+    rows = await entity_bags.list_entities(db, "storage-providers")
+    data = [{**row["public"], **mask_mapping(row["payload"])} for row in rows if row["status"] != "deleted"]
     total = len(data)
     return data, total
 
 
 async def create_provider(db: AsyncSession, body: dict, user: User) -> dict:
     body = {**body, "connectionStatus": "not_tested", "isDefault": bool(body.get("isDefault")), "active": bool(body.get("active", True))}
-    row = Entity(resource="storage-providers", payload=protect_mapping(body), status="active", created_by=user.id, updated_by=user.id)
-    db.add(row)
-    await db.commit()
-    await db.refresh(row)
+    row = await entity_bags.create_entity(db, "storage-providers", protect_mapping(body), status="active", created_by=user.id, updated_by=user.id)
     from app.modules.storage_integration.services.storage import invalidate_storage_client
 
     await invalidate_storage_client()
-    return {**stamp(row), **mask_mapping(row.payload or {})}
+    return {**row["public"], **mask_mapping(row["payload"])}
 
 
 async def get_provider(db: AsyncSession, entity_id: str) -> dict:
-    row = await entity_or_404(db, "storage-providers", entity_id)
-    return {**stamp(row), **mask_mapping(row.payload or {})}
+    row = await entity_bags.get_entity(db, "storage-providers", entity_id)
+    return {**row["public"], **mask_mapping(row["payload"])}
 
 
 async def update_provider(db: AsyncSession, entity_id: str, body: dict) -> dict:
-    row = await entity_or_404(db, "storage-providers", entity_id)
-    current = reveal_mapping(row.payload or {})
-    row.payload = protect_mapping(merge_setting(current, body))
-    await db.commit()
-    await db.refresh(row)
+    current = await entity_bags.get_entity(db, "storage-providers", entity_id)
+    row = await entity_bags.update_entity(db, "storage-providers", entity_id, payload=protect_mapping(merge_setting(reveal_mapping(current["payload"]), body)))
     from app.modules.storage_integration.services.storage import invalidate_storage_client
 
     await invalidate_storage_client()
-    return {**stamp(row), **mask_mapping(row.payload or {})}
+    return {**row["public"], **mask_mapping(row["payload"])}
 
 
 async def delete_provider(db: AsyncSession, entity_id: str) -> str:
-    row = await entity_or_404(db, "storage-providers", entity_id)
-    await db.delete(row)
-    await db.commit()
+    await entity_bags.delete_entity(db, "storage-providers", entity_id)
     return entity_id
 
 
 async def test_provider_connection(db: AsyncSession, entity_id: str) -> dict:
-    row = await entity_or_404(db, "storage-providers", entity_id)
+    row = await entity_bags.get_entity(db, "storage-providers", entity_id)
     from app.modules.storage_integration.services.providers import test_provider
 
-    result = await test_provider(reveal_mapping(row.payload or {}))
-    row.payload = {**(row.payload or {}), "connectionStatus": result["status"], "lastTestedAt": now_iso(), "lastTestMessage": result["message"]}
-    await db.commit()
+    result = await test_provider(reveal_mapping(row["payload"]))
+    await entity_bags.update_entity(db, "storage-providers", entity_id, payload={**row["payload"], "connectionStatus": result["status"], "lastTestedAt": now_iso(), "lastTestMessage": result["message"]})
     return result
 
 
 async def set_provider_active(db: AsyncSession, entity_id: str, active: bool) -> dict:
-    row = await entity_or_404(db, "storage-providers", entity_id)
-    row.payload = {**(row.payload or {}), "active": active}
-    await db.commit()
-    await db.refresh(row)
+    current = await entity_bags.get_entity(db, "storage-providers", entity_id)
+    row = await entity_bags.update_entity(db, "storage-providers", entity_id, payload={**current["payload"], "active": active})
     from app.modules.storage_integration.services.storage import invalidate_storage_client
 
     await invalidate_storage_client()
-    return {**stamp(row), **mask_mapping(row.payload or {})}
+    return {**row["public"], **mask_mapping(row["payload"])}
 
 
 async def set_provider_default(db: AsyncSession, entity_id: str) -> dict:
-    rows = (await db.scalars(select(Entity).where(Entity.resource == "storage-providers"))).all()
+    rows = await entity_bags.list_entities(db, "storage-providers")
     for row in rows:
-        row.payload = {**(row.payload or {}), "isDefault": str(row.id) == entity_id}
-    await db.commit()
-    row = await entity_or_404(db, "storage-providers", entity_id)
+        await entity_bags.update_entity(db, "storage-providers", str(row["id"]), payload={**row["payload"], "isDefault": str(row["id"]) == entity_id})
+    row = await entity_bags.get_entity(db, "storage-providers", entity_id)
     from app.modules.storage_integration.services.storage import invalidate_storage_client
 
     await invalidate_storage_client()
-    return {**stamp(row), **mask_mapping(row.payload or {})}
+    return {**row["public"], **mask_mapping(row["payload"])}

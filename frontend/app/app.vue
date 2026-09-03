@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { en, km } from '@nuxt/ui/locale'
-import { useSettingsRepositories } from '~/repositories'
+import { createHttpAppInfoRepository } from '~/repositories/http/settings'
 import { useAppBranding } from '~/composables/settings/useAppBranding'
 import { usePreferencesStore } from '~/stores/preferences'
 
@@ -26,14 +26,40 @@ const appKeywords = computed(() => t('app.keywords'))
 const { absoluteUrl, absolutePageUrl } = useSeoAbsoluteUrl()
 const defaultOgImage = computed(() => absoluteUrl('/og-image.png'))
 const pageUrl = computed(() => absolutePageUrl())
+const remoteSettingsStarted = ref(false)
 
-onMounted(() => {
-  void preferences.hydrate()
-  // Non-blocking branding hydrate — do not stall first paint
-  void useSettingsRepositories().appInfo.get()
+function loadRemoteSettings() {
+  if (remoteSettingsStarted.value) return
+  remoteSettingsStarted.value = true
+  void preferences.hydrateRemote()
+  void createHttpAppInfoRepository().get()
     .then(info => applyFromAppInfo(info))
     .catch(() => applyFromAppInfo(null))
+}
+
+function scheduleRemoteSettings(path = route.path) {
+  if (remoteSettingsStarted.value || path.startsWith('/auth/')) return
+  if ('requestIdleCallback' in window) {
+    window.requestIdleCallback(loadRemoteSettings, { timeout: 2000 })
+    return
+  }
+  globalThis.setTimeout(loadRemoteSettings, 0)
+}
+
+onMounted(() => {
+  // Apply browser-owned preferences before the first interactive frame. They
+  // must never wait behind a configuration request.
+  preferences.hydrateLocal()
 })
+
+onNuxtReady(() => {
+  // Remote localization and branding are enhancements. Nuxt schedules this
+  // callback during browser idle time. Public auth routes use their safe local
+  // defaults and avoid two unrelated API calls entirely.
+  scheduleRemoteSettings()
+})
+
+watch(() => route.path, path => scheduleRemoteSettings(path))
 
 useHead({
   // Page title only in the tab — do not append "Docetra" again.

@@ -8,7 +8,10 @@ from sqlalchemy import select
 
 from app.core.config import settings
 from app.core.secrets import reveal_mapping
-from app.db import AppSetting, Entity, Outbox, SessionLocal
+from app.db import SessionLocal
+from app.modules.admin_config.model import AppSetting
+from app.modules.record.model import Entity
+from app.platform.messaging.model import Outbox
 
 log = logging.getLogger(__name__)
 

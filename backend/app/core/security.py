@@ -2,19 +2,30 @@ import json
 import secrets
 import uuid
 from datetime import datetime, timezone
+from typing import Any, Awaitable, Callable
+
 from fastapi import Depends, HTTPException, Request, Response
 from jwt import ExpiredSignatureError, InvalidTokenError
 from passlib.context import CryptContext
 from redis.asyncio import Redis
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.jwt import decode_token, encode_token
 from app.core.privileged import is_unrestricted
-from app.db import User, get_db
+from app.db import get_db
 
 passwords = CryptContext(schemes=["bcrypt"], deprecated="auto")
 redis = Redis.from_url(settings.redis_url, decode_responses=True)
+
+# Identity lookup seam: People Access registers the typed user resolver so that
+# core authentication infrastructure never imports People Access ORM models.
+UserResolver = Callable[[AsyncSession, uuid.UUID], Awaitable[Any]]
+_user_resolver: UserResolver | None = None
+
+
+def register_user_resolver(resolver: UserResolver) -> None:
+    global _user_resolver
+    _user_resolver = resolver
 
 CSRF_EXEMPT_PATHS = {
     "/api/v2/auth/login",
@@ -83,7 +94,7 @@ async def revoke_user_tokens(user_id: str) -> None:
     await redis.delete(f"user-tokens:{user_id}")
 
 
-async def issue_session(response: Response, user: User, *, access_minutes: int | None = None) -> tuple[str, str, str]:
+async def issue_session(response: Response, user: Any, *, access_minutes: int | None = None) -> tuple[str, str, str]:
     minutes = access_minutes if access_minutes is not None else settings.jwt_access_minutes
     access, access_jti, _ = encode_token(subject=str(user.id), token_type="access", minutes=minutes)
     refresh, refresh_jti, _ = encode_token(subject=str(user.id), token_type="refresh", days=settings.jwt_refresh_days)
@@ -112,7 +123,7 @@ async def delete_session(response: Response, access_token: str | None, refresh_t
     response.delete_cookie(settings.csrf_cookie_name, path="/")
 
 
-async def _user_from_token(db: AsyncSession, token: str, *, token_type: str, verify_exp: bool) -> tuple[User, dict, dict]:
+async def _user_from_token(db: AsyncSession, token: str, *, token_type: str, verify_exp: bool) -> tuple[Any, dict, dict]:
     try:
         payload = decode_token(token, verify_exp=verify_exp)
     except ExpiredSignatureError as exc:
@@ -133,13 +144,15 @@ async def _user_from_token(db: AsyncSession, token: str, *, token_type: str, ver
         uid = uuid.UUID(str(payload.get("sub") or session.get("userId")))
     except ValueError as exc:
         raise HTTPException(401, "Invalid session") from exc
-    user = await db.scalar(select(User).where(User.id == uid, User.active.is_(True)))
+    if _user_resolver is None:
+        raise HTTPException(500, "Identity resolver is not configured")
+    user = await _user_resolver(db, uid)
     if not user:
         raise HTTPException(401, "Account is unavailable")
     return user, payload, session
 
 
-async def current_user(request: Request, db: AsyncSession = Depends(get_db)) -> User:
+async def current_user(request: Request, db: AsyncSession = Depends(get_db)) -> Any:
     token = bearer_token(request) or request.cookies.get(settings.session_cookie_name)
     if not token:
         raise HTTPException(401, "Authentication required")
@@ -147,17 +160,19 @@ async def current_user(request: Request, db: AsyncSession = Depends(get_db)) -> 
     return user
 
 
-async def refresh_session(request: Request, response: Response, db: AsyncSession) -> tuple[User, str, str]:
+async def refresh_session(
+    request: Request,
+    response: Response,
+    db: AsyncSession,
+    *,
+    access_minutes: int | None = None,
+) -> tuple[Any, str, str]:
     refresh = request.cookies.get(settings.refresh_cookie_name)
     if not refresh:
         raise HTTPException(401, {"code": "token_expired", "message": "Session expired"})
     user, payload, _session = await _user_from_token(db, refresh, token_type="refresh", verify_exp=True)
     await _revoke_jti(str(payload.get("jti") or ""), str(user.id))
-    import app.modules.admin_config.services.runtime as runtime
-
-    config = await runtime.load_app_config(db)
-    policy = runtime.security_policy(config)
-    _jti, access, new_refresh = await issue_session(response, user, access_minutes=policy["sessionTimeoutMinutes"])
+    _jti, access, new_refresh = await issue_session(response, user, access_minutes=access_minutes)
     return user, access, new_refresh
 
 
@@ -185,19 +200,3 @@ async def csrf_protect(request: Request):
         expected = ""
     if not expected or not secrets.compare_digest(cookie, expected):
         raise HTTPException(403, "CSRF session binding failed")
-
-
-def person(user: User | None):
-    return None if not user else {"id": str(user.id), "name": user.name, "email": user.email, "avatarUrl": user.avatar}
-
-
-def public_user(user: User):
-    return {
-        "id": str(user.id),
-        "name": user.name,
-        "email": user.email,
-        "role": user.role,
-        "avatar": user.avatar,
-        "permissions": user.permissions or [],
-        "pageAccess": ["ALL_PAGES"] if is_unrestricted(user) else [],
-    }

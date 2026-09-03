@@ -27,7 +27,6 @@ const previewTitle = computed(() =>
 
 const split = computed(() => splitCardSlots(props.entityKey, props.visibleSlots))
 const showSortOrder = computed(() => split.value.titleChrome.includes('sortOrder'))
-const showStatus = computed(() => split.value.titleChrome.includes('status'))
 const bodySlots = computed(() => split.value.body)
 const footerSlots = computed(() => {
   const slots = split.value.footer
@@ -90,27 +89,19 @@ function previewText(slot: string): string {
 </script>
 
 <template>
-  <article class="flex min-h-30 flex-col rounded-lg border border-default bg-default p-3 text-left shadow-xs">
-    <div class="flex items-start gap-2">
+  <article class="flex min-h-30 min-w-0 flex-col overflow-hidden rounded-lg border border-default bg-default p-3 text-left shadow-xs">
+    <div class="flex min-w-0 items-start gap-2">
       <span
         v-if="showSortOrder"
         class="mt-0.5 shrink-0 tabular-nums text-[11px] app-card-text"
       >
         1
       </span>
-      <div class="min-w-0 flex-1">
-        <div class="flex flex-wrap items-center gap-1.5">
-          <p class="text-sm font-semibold text-highlighted wrap-break-word">
+      <div class="min-w-0 flex-1 overflow-hidden">
+        <div class="flex min-w-0 flex-wrap items-center gap-1.5">
+          <p class="min-w-0 max-w-full line-clamp-2 text-sm font-semibold text-highlighted wrap-break-word">
             {{ previewTitle }}
           </p>
-          <UBadge
-            v-if="showStatus"
-            size="sm"
-            color="neutral"
-            variant="subtle"
-          >
-            {{ previewText('status') }}
-          </UBadge>
         </div>
         <p
           v-if="bodySlots.includes('topicTitle')"
@@ -138,16 +129,15 @@ function previewText(slot: string): string {
         {{ previewText(slot) }}
       </p>
       <div
-        v-else-if="slot === 'stage' || slot === 'waiting' || slot === 'tags'"
-        class="mt-1.5"
+        v-else-if="slot === 'waiting' || slot === 'tags'"
+        class="app-card-field-highlight mt-1.5 text-xs"
+        :class="slot === 'waiting' ? 'app-card-field-highlight--warning' : 'app-card-field-highlight--secondary'"
       >
-        <UBadge
-          size="sm"
-          :color="slot === 'waiting' ? 'warning' : 'neutral'"
-          :variant="slot === 'stage' ? 'outline' : slot === 'tags' ? 'soft' : 'subtle'"
-        >
-          {{ previewText(slot) }}
-        </UBadge>
+        <UIcon
+          :name="slot === 'waiting' ? 'i-lucide-clock-3' : 'i-lucide-tag'"
+          class="size-3 shrink-0"
+        />
+        <span class="truncate">{{ previewText(slot) }}</span>
       </div>
       <div
         v-else-if="slot === 'party' || slot === 'owner' || slot === 'assignee' || slot === 'participants' || slot === 'internalUnits' || slot === 'externalUnits'"
@@ -181,7 +171,8 @@ function previewText(slot: string): string {
         <span
           v-for="slot in footerLeft"
           :key="`L-${slot}`"
-          class="inline-flex min-w-0 items-center gap-1 truncate"
+          class="app-card-field-highlight--compact inline-flex min-w-0 items-center gap-1 truncate"
+          :class="slot === 'location' ? 'app-card-field-highlight--warning' : 'app-card-field-highlight--info'"
         >
           <UIcon
             :name="slot === 'location' ? 'i-lucide-map-pin'
@@ -198,7 +189,8 @@ function previewText(slot: string): string {
         <span
           v-for="slot in footerRight"
           :key="`R-${slot}`"
-          class="inline-flex items-center gap-1"
+          class="app-card-field-highlight--compact inline-flex items-center gap-1"
+          :class="slot === 'location' ? 'app-card-field-highlight--warning' : slot === 'attachmentCount' ? 'app-card-field-highlight--secondary' : 'app-card-field-highlight--info'"
         >
           <UIcon
             :name="slot === 'location' ? 'i-lucide-map-pin'

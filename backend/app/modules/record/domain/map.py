@@ -3,25 +3,12 @@
 `RECORD_RESOURCES` is a legacy alias map (hyphenated collection paths → type codes).
 Prefer resolving by `type_code` via `/api/v2/records/{type_code}` and TYPE_UI_DEFAULTS.
 
-Organization maps live in `organization.domain.map` and are re-exported here for older imports.
+Organization maps live exclusively in `organization.domain.map`.
 """
 
 from __future__ import annotations
 
 import re
-
-from app.modules.organization.domain.map import (
-    LEGACY_ORG_RESOURCES,
-    ORG_LOOKUP_RESOURCES,
-    ORG_RESOURCES,
-    ORG_TYPE_META,
-    ORG_TYPE_TO_RESOURCE,
-    ORG_TYPES,
-    RESERVED_ORG_SEGMENTS,
-    db_org_type_for,
-    is_valid_org_type,
-    permission_prefix_for_org_type,
-)
 
 RECORD_RESOURCES: dict[str, str] = {
     "incoming-documents": "incoming_document",
