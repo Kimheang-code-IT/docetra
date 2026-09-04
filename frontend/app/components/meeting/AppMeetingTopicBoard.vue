@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { useMediaQuery } from '@vueuse/core'
 import {
   MEETING_BOARD_UNASSIGNED,
   useMeetingTopicBoard,
@@ -26,7 +25,6 @@ const {
   meetingDateStart,
   meetingDateEnd,
   selectedTopicId,
-  selectedTopic,
   isAllMeetings,
   isUnassigned,
   isPoolView,
@@ -36,12 +34,14 @@ const {
   unassignedMeetingCount,
   topicMeetingCounts,
   hasMoreTopics,
-  hasMoreMeetings,
   loadingMoreTopics,
-  loadingMoreMeetings,
+  meetingPage,
+  meetingLimit,
+  meetingTotal,
   refresh,
   loadMoreTopics,
-  loadMoreMeetings,
+  setMeetingPage,
+  setMeetingLimit,
   selectTopic,
   assignMeetingToTopic,
   reorderMeeting,
@@ -71,12 +71,7 @@ const {
 
 const notesOpen = ref(false)
 const notesMeetingId = ref<string | null>(null)
-const topicPanelOpen = ref(false)
 const topicListCollapsed = useState('meeting-topic-left-collapsed', () => false)
-const isSmallScreen = useMediaQuery('(max-width: 1023px)')
-const topicPanelCollapsed = computed(() =>
-  isSmallScreen.value ? false : topicListCollapsed.value,
-)
 
 const topicDialogOpen = ref(false)
 const topicDialogLoading = ref(false)
@@ -123,12 +118,6 @@ const createButtons = computed(() => {
     buttons.push({ labelKey: 'docetra.meetingBoard.createMeeting', icon: 'i-lucide-calendar-plus' })
   }
   return buttons
-})
-
-const meetingsPanelTitle = computed(() => {
-  if (selectedTopic.value) return selectedTopic.value.title
-  if (isUnassigned.value) return t('docetra.meetingBoard.unassigned')
-  return t('docetra.meetingBoard.allMeetings')
 })
 
 const tableRowActions = computed<RowActionItem[]>(() => [
@@ -220,11 +209,6 @@ function onCreateButton(index: number) {
   if (!button) return
   if (button.labelKey === 'docetra.meetingBoard.createTopic') openCreateTopicDialog()
   else openCreateMeeting()
-}
-
-function selectTopicFromPanel(topicId: string | null) {
-  selectTopic(topicId)
-  if (isSmallScreen.value) topicPanelOpen.value = false
 }
 
 onMounted(() => {
@@ -355,207 +339,202 @@ function onRowAction(payload: { key: string, row: Record<string, unknown> }) {
 </script>
 
 <template>
-  <WorkspaceAppWorkspacePage
+  <WorkspaceAppWorkspaceBoardPage
+    v-model:collapsed="topicListCollapsed"
+    v-model:rail-search="topicSearch"
+    v-model:header-search="meetingSearch"
+    v-model:date-start="meetingDateStart"
+    v-model:date-end="meetingDateEnd"
+    v-model:view-mode="viewMode"
     title-key="docetra.pages.meetingTopic"
     description-key="docetra.descriptions.meetingTopic"
     icon="i-lucide-messages-square"
     :create-buttons="createButtons.length ? createButtons : undefined"
-    :refreshing="pending"
+    rail-title-key="docetra.pages.meetingTopic"
+    rail-icon="i-lucide-messages-square"
+    expand-label-key="docetra.meetingBoard.expandTopics"
+    collapse-label-key="docetra.meetingBoard.collapseTopics"
+    rail-search-placeholder-key="docetra.meetingBoard.searchTopics"
+    header-search-placeholder-key="docetra.meetingBoard.searchMeetings"
+    :pending="pending"
+    :show-pending-overlay="pending && !topics.length"
+    :error="error"
     @create-button="onCreateButton"
     @refresh="refresh"
+    @retry="refresh"
   >
-    <WorkspaceAppBoardShell
-      v-model:collapsed="topicListCollapsed"
-      v-model:mobile-open="topicPanelOpen"
-      v-model:rail-search="topicSearch"
-      v-model:header-search="meetingSearch"
-      v-model:date-start="meetingDateStart"
-      v-model:date-end="meetingDateEnd"
-      v-model:view-mode="viewMode"
-      rail-title-key="docetra.pages.meetingTopic"
-      rail-icon="i-lucide-messages-square"
-      expand-label-key="docetra.meetingBoard.expandTopics"
-      collapse-label-key="docetra.meetingBoard.collapseTopics"
-      rail-search-placeholder-key="docetra.meetingBoard.searchTopics"
-      header-search-placeholder-key="docetra.meetingBoard.searchMeetings"
-      :header-title="meetingsPanelTitle"
-      :pending="pending"
-      :show-pending-overlay="pending && !topics.length"
-      :error="error || undefined"
-      @retry="refresh"
-    >
-      <template #rail-pills>
-        <div
-          class="flex"
-          :class="topicPanelCollapsed ? 'flex-col items-center gap-1.5' : 'flex-row items-stretch gap-2'"
-        >
-          <WorkspaceAppBoardRailPill
-            class="min-w-0 flex-1"
-            :label="$t('docetra.meetingBoard.allMeetings')"
-            :count="allMeetingCount"
-            icon="i-lucide-layout-grid"
-            :selected="isAllMeetings"
-            :collapsed="topicPanelCollapsed"
-            :stacked="false"
-            @select="selectTopicFromPanel(null)"
-          />
-          <WorkspaceAppBoardRailPill
-            class="min-w-0 flex-1"
-            :label="$t('docetra.meetingBoard.unassigned')"
-            :count="unassignedMeetingCount"
-            icon="i-lucide-circle-dashed"
-            :selected="isUnassigned"
-            :collapsed="topicPanelCollapsed"
-            :stacked="false"
-            :droppable="canAssignMeeting"
-            :drop-active="dropTargetId === MEETING_BOARD_UNASSIGNED"
-            drop-data-attr="meeting-topic-drop"
-            :drop-value="MEETING_BOARD_UNASSIGNED"
-            @select="selectTopicFromPanel(MEETING_BOARD_UNASSIGNED)"
-            @drag-over="onDragOver(MEETING_BOARD_UNASSIGNED)"
-            @drag-leave="onDragLeave(MEETING_BOARD_UNASSIGNED)"
-            @drop="onUnassignedDrop"
-          />
-        </div>
-      </template>
-
-      <template #rail-items>
-        <WorkspaceAppBoardRailItem
-          v-for="topic in filteredTopics"
-          :key="topic.id"
-          :title="topic.title"
-          :count="topicMeetingCounts.get(topic.id) || 0"
-          icon="i-lucide-message-square"
-          :selected="selectedTopicId === topic.id"
-          :collapsed="topicPanelCollapsed"
-          :drop-active="dropTargetId === topic.id"
-          :can-drop="canAssignMeeting && String(topic.status || 'active') === 'active'"
-          :disabled="String(topic.status || 'active') !== 'active'"
-          drop-data-attr="meeting-topic-drop"
-          :drop-value="topic.id"
-          @select="selectTopicFromPanel(topic.id)"
-          @open="canEditTopic && openEditTopicDialog(topic.id)"
-          @drag-over="onDragOver(topic.id)"
-          @drag-leave="onDragLeave(topic.id)"
-          @drop="onTopicDrop(topic.id)"
-        >
-          <template v-if="topic.description" #subtitle>
-            <p class="mt-1 line-clamp-2 text-xs app-card-text">
-              {{ topic.description }}
-            </p>
-          </template>
-          <template v-if="topicMenuItems(topic).length" #actions>
-            <UDropdownMenu :items="topicMenuItems(topic)" :content="{ align: 'end' }">
-              <UButton
-                icon="i-lucide-ellipsis"
-                color="neutral"
-                variant="ghost"
-                size="xs"
-                class="shrink-0"
-                :aria-label="$t('docetra.actions.more')"
-                @click.stop
-              />
-            </UDropdownMenu>
-          </template>
-          <template #body>
-            <div
-              v-if="topicCardSlots(topic).showTags"
-              class="mt-2 flex flex-wrap gap-x-2 gap-y-1"
-            >
-              <span class="app-card-field-highlight app-card-field-highlight--secondary text-xs">
-                <UIcon name="i-lucide-tag" class="size-3 shrink-0" />
-                <span class="truncate">{{ topicCardSlots(topic).tag }}</span>
-              </span>
-            </div>
-            <div
-              v-if="topicCardSlots(topic).showRecordTime"
-              class="app-card-field-highlight app-card-field-highlight--info mt-2 flex items-center gap-1 text-xs app-card-text"
-            >
-              <UIcon name="i-lucide-calendar" class="size-3 shrink-0" />
-              <span class="truncate">{{ topicCardSlots(topic).recordTime }}</span>
-            </div>
-          </template>
-        </WorkspaceAppBoardRailItem>
-
-        <UButton
-          v-if="hasMoreTopics && !topicPanelCollapsed"
-          block
-          color="neutral"
-          variant="soft"
-          icon="i-lucide-chevrons-down"
-          :loading="loadingMoreTopics"
-          @click="loadMoreTopics"
-        >
-          {{ $t('docetra.actions.loadMore') }}
-        </UButton>
-
-        <p v-if="!filteredTopics.length && !pending && !topicPanelCollapsed" class="py-8 text-center text-xs text-muted">
-          {{ $t('docetra.states.empty') }}
-        </p>
-      </template>
-
-      <WorkspaceAppBoardContent
-        :view-mode="viewMode"
-        :pending="pending"
-        :empty="!filteredMeetings.length"
-        empty-icon="i-lucide-calendar-off"
-        empty-label-key="docetra.meetingBoard.emptyMeetings"
-        :has-more="hasMoreMeetings"
-        :loading-more="loadingMoreMeetings"
-        :columns="tableColumns"
-        :rows="filteredMeetings as unknown as Record<string, unknown>[]"
-        :total="filteredMeetings.length"
-        :page="1"
-        :limit="Math.max(filteredMeetings.length, 1)"
-        :cell-value="cellValue"
-        :row-actions="tableRowActions"
-        :selectable="false"
-        :can-delete="canDeleteMeeting"
-        :show-meta="true"
-        :table-error="error"
-        :panel-droppable="!isPoolView && canAssignMeeting"
-        @load-more="loadMoreMeetings"
-        @row-click="(row) => openMeeting(String(row.id || ''))"
-        @row-action="onRowAction"
-        @retry="refresh"
-        @panel-drop="onMeetingsPanelDrop"
+    <template #rail-pills="{ railCollapsed, onRailSelect }">
+      <div
+        class="flex"
+        :class="railCollapsed ? 'flex-col items-center gap-1.5' : 'flex-row items-stretch gap-2'"
       >
-        <RecordAppRecordBoardCard
-          v-for="meeting in filteredMeetings"
-          :key="meeting.id"
-          :meeting="meeting"
-          :topics="topics"
-          :title="meeting.title"
-          entity-key="meetingHistory"
-          :dragging="draggingId === meeting.id"
-          :show-topic="isPoolView"
-          :can-assign="canAssignMeeting"
-          :can-edit-notes="canEditMeeting"
-          :can-delete="canDeleteMeeting"
-          @open="openMeeting(meeting.id)"
-          @open-notes="openMeetingNotes(meeting.id)"
-          @drag-start="onMeetingDragStart"
-          @drag-end="onDragEnd"
-          @assign="(topicId) => canAssignMeeting && assignMeetingToTopic(meeting.id, topicId)"
-          @reorder-before="onReorderBefore"
-          @delete="onDeleteMeeting(meeting.id)"
+        <WorkspaceAppBoardRailPill
+          class="min-w-0 flex-1"
+          :label="$t('docetra.meetingBoard.allMeetings')"
+          :count="allMeetingCount"
+          icon="i-lucide-layout-grid"
+          :selected="isAllMeetings"
+          :collapsed="railCollapsed"
+          :stacked="false"
+          @select="onRailSelect(() => selectTopic(null))"
         />
-      </WorkspaceAppBoardContent>
-    </WorkspaceAppBoardShell>
+        <WorkspaceAppBoardRailPill
+          class="min-w-0 flex-1"
+          :label="$t('docetra.meetingBoard.unassigned')"
+          :count="unassignedMeetingCount"
+          icon="i-lucide-circle-dashed"
+          :selected="isUnassigned"
+          :collapsed="railCollapsed"
+          :stacked="false"
+          :droppable="canAssignMeeting"
+          :drop-active="dropTargetId === MEETING_BOARD_UNASSIGNED"
+          drop-data-attr="meeting-topic-drop"
+          :drop-value="MEETING_BOARD_UNASSIGNED"
+          @select="onRailSelect(() => selectTopic(MEETING_BOARD_UNASSIGNED))"
+          @drag-over="onDragOver(MEETING_BOARD_UNASSIGNED)"
+          @drag-leave="onDragLeave(MEETING_BOARD_UNASSIGNED)"
+          @drop="onUnassignedDrop"
+        />
+      </div>
+    </template>
 
-    <MeetingAppMeetingNotesDialog
-      v-if="notesOpen && notesMeetingId"
-      v-model:open="notesOpen"
-      :meeting-id="notesMeetingId"
-      @saved="onNotesSaved"
-      @closed="onNotesClosed"
-    />
+    <template #rail-items="{ railCollapsed, onRailSelect }">
+      <WorkspaceAppBoardRailItem
+        v-for="topic in filteredTopics"
+        :key="topic.id"
+        :title="topic.title"
+        :count="topicMeetingCounts.get(topic.id) || 0"
+        icon="i-lucide-message-square"
+        :selected="selectedTopicId === topic.id"
+        :collapsed="railCollapsed"
+        :drop-active="dropTargetId === topic.id"
+        :can-drop="canAssignMeeting && String(topic.status || 'active') === 'active'"
+        :disabled="String(topic.status || 'active') !== 'active'"
+        drop-data-attr="meeting-topic-drop"
+        :drop-value="topic.id"
+        @select="onRailSelect(() => selectTopic(topic.id))"
+        @open="canEditTopic && openEditTopicDialog(topic.id)"
+        @drag-over="onDragOver(topic.id)"
+        @drag-leave="onDragLeave(topic.id)"
+        @drop="onTopicDrop(topic.id)"
+      >
+        <template v-if="topic.description" #subtitle>
+          <p class="mt-1 line-clamp-2 text-xs app-card-text">
+            {{ topic.description }}
+          </p>
+        </template>
+        <template v-if="topicMenuItems(topic).length" #actions>
+          <UDropdownMenu :items="topicMenuItems(topic)" :content="{ align: 'end' }">
+            <UButton
+              icon="i-lucide-ellipsis"
+              color="neutral"
+              variant="ghost"
+              size="xs"
+              class="shrink-0"
+              :aria-label="$t('docetra.actions.more')"
+              @click.stop
+            />
+          </UDropdownMenu>
+        </template>
+        <template #body>
+          <div
+            v-if="topicCardSlots(topic).showTags"
+            class="mt-2 flex flex-wrap gap-x-2 gap-y-1"
+          >
+            <span class="app-card-field-highlight app-card-field-highlight--secondary text-xs">
+              <UIcon name="i-lucide-tag" class="size-3 shrink-0" />
+              <span class="truncate">{{ topicCardSlots(topic).tag }}</span>
+            </span>
+          </div>
+          <div
+            v-if="topicCardSlots(topic).showRecordTime"
+            class="app-card-field-highlight app-card-field-highlight--info mt-2 flex items-center gap-1 text-xs app-card-text"
+          >
+            <UIcon name="i-lucide-calendar" class="size-3 shrink-0" />
+            <span class="truncate">{{ topicCardSlots(topic).recordTime }}</span>
+          </div>
+        </template>
+      </WorkspaceAppBoardRailItem>
 
-    <MeetingAppMeetingTopicNameDialog
-      v-model:open="topicDialogOpen"
-      :topic="editingTopic"
-      :loading="topicDialogLoading"
-      @save="onSaveTopicName"
-    />
-  </WorkspaceAppWorkspacePage>
+      <UButton
+        v-if="hasMoreTopics && !railCollapsed"
+        block
+        color="neutral"
+        variant="soft"
+        icon="i-lucide-chevrons-down"
+        :loading="loadingMoreTopics"
+        @click="loadMoreTopics"
+      >
+        {{ $t('docetra.actions.loadMore') }}
+      </UButton>
+
+      <p v-if="!filteredTopics.length && !pending && !railCollapsed" class="py-8 text-center text-xs text-muted">
+        {{ $t('docetra.states.empty') }}
+      </p>
+    </template>
+
+    <WorkspaceAppBoardContent
+      :view-mode="viewMode"
+      :pending="pending"
+      :empty="!filteredMeetings.length"
+      empty-icon="i-lucide-calendar-off"
+      empty-label-key="docetra.meetingBoard.emptyMeetings"
+      :columns="tableColumns"
+      :rows="filteredMeetings as unknown as Record<string, unknown>[]"
+      :total="meetingTotal"
+      :page="meetingPage"
+      :limit="meetingLimit"
+      :cell-value="cellValue"
+      :row-actions="tableRowActions"
+      :selectable="false"
+      :can-delete="canDeleteMeeting"
+      :show-meta="true"
+      :table-error="error"
+      :panel-droppable="!isPoolView && canAssignMeeting"
+      @update:page="setMeetingPage"
+      @update:limit="setMeetingLimit"
+      @row-click="(row) => openMeeting(String(row.id || ''))"
+      @row-action="onRowAction"
+      @retry="refresh"
+      @panel-drop="onMeetingsPanelDrop"
+    >
+      <RecordAppRecordBoardCard
+        v-for="meeting in filteredMeetings"
+        :key="meeting.id"
+        :meeting="meeting"
+        :topics="topics"
+        :title="meeting.title"
+        entity-key="meetingHistory"
+        :dragging="draggingId === meeting.id"
+        :show-topic="isPoolView"
+        :can-assign="canAssignMeeting"
+        :can-edit-notes="canEditMeeting"
+        :can-delete="canDeleteMeeting"
+        @open="openMeeting(meeting.id)"
+        @open-notes="openMeetingNotes(meeting.id)"
+        @drag-start="onMeetingDragStart"
+        @drag-end="onDragEnd"
+        @assign="(topicId) => canAssignMeeting && assignMeetingToTopic(meeting.id, topicId)"
+        @reorder-before="onReorderBefore"
+        @delete="onDeleteMeeting(meeting.id)"
+      />
+    </WorkspaceAppBoardContent>
+
+    <template #dialogs>
+      <MeetingAppMeetingNotesDialog
+        v-if="notesOpen && notesMeetingId"
+        v-model:open="notesOpen"
+        :meeting-id="notesMeetingId"
+        @saved="onNotesSaved"
+        @closed="onNotesClosed"
+      />
+
+      <MeetingAppMeetingTopicNameDialog
+        v-model:open="topicDialogOpen"
+        :topic="editingTopic"
+        :loading="topicDialogLoading"
+        @save="onSaveTopicName"
+      />
+    </template>
+  </WorkspaceAppWorkspaceBoardPage>
 </template>

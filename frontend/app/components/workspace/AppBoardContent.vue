@@ -14,7 +14,7 @@ function getByPath(obj: Record<string, unknown>, path: string): unknown {
 
 /**
  * Right-pane body for board shells: card grid or server table,
- * shared empty / load-more chrome, optional panel drop for reorder.
+ * shared empty chrome + pagination footer, optional panel drop for reorder.
  */
 const props = withDefaults(defineProps<{
   viewMode: BoardViewMode
@@ -22,8 +22,6 @@ const props = withDefaults(defineProps<{
   empty?: boolean
   emptyIcon?: string
   emptyLabelKey?: string
-  hasMore?: boolean
-  loadingMore?: boolean
   columns?: TableColumnDef[]
   rows?: DataRow[]
   total?: number
@@ -37,13 +35,13 @@ const props = withDefaults(defineProps<{
   stageColors?: Record<string, string>
   tableError?: string | null
   panelDroppable?: boolean
+  /** When false, hide pagination (e.g. unpaginated rail-driven lists). */
+  showPagination?: boolean
 }>(), {
   pending: false,
   empty: false,
   emptyIcon: 'i-lucide-file-x',
   emptyLabelKey: 'docetra.states.empty',
-  hasMore: false,
-  loadingMore: false,
   columns: () => [],
   rows: () => [],
   total: 0,
@@ -55,10 +53,10 @@ const props = withDefaults(defineProps<{
   stageColors: () => ({}),
   tableError: null,
   panelDroppable: false,
+  showPagination: true,
 })
 
 const emit = defineEmits<{
-  loadMore: []
   'update:page': [number]
   'update:limit': [number]
   rowClick: [DataRow]
@@ -89,39 +87,36 @@ function onPanelDrop(event: DragEvent) {
 
 <template>
   <div
-    class="min-h-0 flex-1"
-    :class="viewMode === 'cards'
-      ? 'overflow-y-auto p-3'
-      : 'flex flex-col overflow-hidden'"
+    class="flex min-h-0 flex-1 flex-col overflow-hidden"
     @dragover="onPanelDragOver"
     @drop="onPanelDrop"
   >
     <template v-if="viewMode === 'cards'">
-      <CommonAppCardGrid>
-        <slot />
-      </CommonAppCardGrid>
+      <div class="min-h-0 flex-1 overflow-y-auto p-3">
+        <CommonAppCardGrid>
+          <slot />
+        </CommonAppCardGrid>
 
-      <div v-if="hasMore" class="flex justify-center py-4">
-        <UButton
-          :loading="loadingMore"
-          color="neutral"
-          variant="soft"
-          icon="i-lucide-chevrons-down"
-          @click="emit('loadMore')"
+        <div
+          v-if="empty && !pending"
+          class="flex flex-col items-center justify-center gap-2 py-16 text-center"
         >
-          {{ $t('docetra.actions.loadMore') }}
-        </UButton>
+          <UIcon :name="emptyIcon" class="size-8 text-muted" />
+          <p class="text-sm text-muted">
+            {{ $t(emptyLabelKey) }}
+          </p>
+        </div>
       </div>
 
-      <div
-        v-if="empty && !pending"
-        class="flex flex-col items-center justify-center gap-2 py-16 text-center"
-      >
-        <UIcon :name="emptyIcon" class="size-8 text-muted" />
-        <p class="text-sm text-muted">
-          {{ $t(emptyLabelKey) }}
-        </p>
-      </div>
+      <WorkspaceAppListPagination
+        v-if="showPagination && !tableError"
+        :page="page"
+        :limit="limit"
+        :total="total"
+        :row-count="rows.length"
+        @update:page="emit('update:page', $event)"
+        @update:limit="emit('update:limit', $event)"
+      />
     </template>
 
     <WorkspaceAppServerTable
@@ -146,17 +141,5 @@ function onPanelDrop(event: DragEvent) {
       @row-action="emit('rowAction', $event)"
       @retry="emit('retry')"
     />
-
-    <div v-if="viewMode === 'table' && hasMore" class="flex justify-center py-4">
-      <UButton
-        :loading="loadingMore"
-        color="neutral"
-        variant="soft"
-        icon="i-lucide-chevrons-down"
-        @click="emit('loadMore')"
-      >
-        {{ $t('docetra.actions.loadMore') }}
-      </UButton>
-    </div>
   </div>
 </template>

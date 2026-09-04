@@ -292,27 +292,6 @@ async function downloadAttachment(file: AttachmentMeta) {
       <div class="min-w-0 flex-1 pt-0.5">
         <p class="truncate text-sm font-semibold text-highlighted">{{ title || '—' }}</p>
         <p v-if="subtitle" class="mt-0.5 truncate text-xs text-muted">{{ subtitle }}</p>
-        <div class="mt-2 flex items-center">
-          <UButton
-            icon="i-lucide-heart"
-            :color="props.isFavorite ? 'error' : 'neutral'"
-            variant="ghost"
-            size="xs"
-            square
-            :loading="togglingFavorite"
-            :disabled="!favoriteEnabled || togglingFavorite"
-            :aria-label="$t(props.isFavorite ? 'docetra.meta.removeFavorite' : 'docetra.meta.addFavorite')"
-            :aria-pressed="props.isFavorite"
-            :title="$t(props.isFavorite ? 'docetra.meta.removeFavorite' : 'docetra.meta.addFavorite')"
-            :ui="{
-              leadingIcon: [
-                'transition-transform duration-200',
-                props.isFavorite ? 'scale-110 fill-current' : 'scale-100',
-              ],
-            }"
-            @click="emit('toggleFavorite')"
-          />
-        </div>
       </div>
     </section>
 

@@ -43,12 +43,6 @@ const relativeShort = computed(() => {
         <UIcon name="i-lucide-message-square" class="size-3.5" />
         <span class="tabular-nums">{{ formatNumber(commentCount || 0) }}</span>
       </span>
-      <span class="text-muted/70">·</span>
-      <UIcon
-        name="i-lucide-heart"
-        class="size-3.5"
-        :class="liked ? 'fill-current text-error' : ''"
-      />
     </div>
   </div>
 </template>

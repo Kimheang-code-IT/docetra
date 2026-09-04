@@ -7,11 +7,6 @@ import type { RowActionItem } from '~/types/docetra/row-actions'
 import { useAppLocalization } from '~/composables/settings/useAppLocalization'
 import { DEFAULT_ROW_ACTIONS } from '~/types/docetra/row-actions'
 import { normalizeBadgeColor } from '~/utils/badge'
-import {
-  TABLE_PAGE_SIZES,
-  paginationItemsPerPage,
-  parsePageLimit,
-} from '~/utils/pagination'
 
 type DataRow = Record<string, unknown>
 
@@ -73,28 +68,6 @@ const resolvedRowActions = computed(() => {
 const rowSelection = ref<RowSelectionState>({})
 const selectableRows = computed(() => props.rows.filter(row => props.canSelectRow?.(row) !== false))
 
-const pageSizeItems = computed(() => [
-  ...TABLE_PAGE_SIZES.map(size => ({ label: String(size), value: String(size) })),
-])
-
-const pageSizeModel = computed({
-  get: () => String(props.limit),
-  set: value => onLimitChange(value),
-})
-
-const effectiveItemsPerPage = computed(() =>
-  paginationItemsPerPage(props.limit),
-)
-
-const visibleRange = computed(() => {
-  if (!props.total || !props.rows.length) return { start: 0, end: 0 }
-  const start = ((props.page - 1) * props.limit) + 1
-  return {
-    start,
-    end: Math.min(start + props.rows.length - 1, props.total),
-  }
-})
-
 const allVisibleSelected = computed(() => {
   if (!selectableRows.value.length) return false
   return selectableRows.value.every(row => rowSelection.value[String(row.id)])
@@ -129,13 +102,6 @@ watch(selectedIds, (ids) => {
 watch(() => [props.page, props.limit, props.rows], () => {
   rowSelection.value = {}
 })
-
-function onLimitChange(value: unknown) {
-  const nextLimit = parsePageLimit(value, 10)
-  if (nextLimit === props.limit && props.page === 1) return
-  emit('update:page', 1)
-  emit('update:limit', nextLimit)
-}
 
 function selectAllVisibleRows() {
   const next: RowSelectionState = {}
@@ -316,7 +282,6 @@ const tableColumns = computed<TableColumn<DataRow>[]>(() => {
         class: 'flex w-full items-center justify-end gap-1.5 text-xs font-medium text-toned',
       }, [
         h('span', { class: 'tabular-nums' }, metaHeaderLabel.value),
-        h(UIcon, { name: 'i-lucide-heart', class: 'size-3.5 text-muted' }),
       ]),
       size: 140,
       meta: {
@@ -455,52 +420,14 @@ defineExpose({
       @select="onSelect"
     />
 
-    <div
+    <WorkspaceAppListPagination
       v-if="!error"
-      class="flex shrink-0 items-center justify-between gap-1.5 border-t border-default bg-default px-2 py-1.5 sm:gap-3 sm:px-3 sm:py-2"
-    >
-      <div class="flex shrink-0 items-center gap-1.5 text-sm text-toned sm:gap-2">
-        <span class="hidden sm:inline">{{ $t('common.rowsPerPage') }}</span>
-        <USelect
-          v-model="pageSizeModel"
-          :items="pageSizeItems"
-          value-key="value"
-          size="sm"
-          class="w-17 sm:w-22"
-          :content="{ side: 'top', align: 'start', sideOffset: 6 }"
-          :aria-label="$t('common.rowsPerPage')"
-          :ui="{ base: 'rounded-md bg-default ring-1 ring-default' }"
-        />
-        <span class="hidden whitespace-nowrap text-xs text-muted md:inline">
-          {{ $t('common.showingRows', { start: visibleRange.start, end: visibleRange.end, total }) }}
-        </span>
-      </div>
-
-      <UPagination
-        :page="page"
-        :total="total"
-        :items-per-page="effectiveItemsPerPage"
-        :sibling-count="0"
-        show-edges
-        size="sm"
-        color="neutral"
-        variant="outline"
-        active-color="primary"
-        active-variant="solid"
-        first-icon="i-lucide-chevrons-left"
-        prev-icon="i-lucide-chevron-left"
-        next-icon="i-lucide-chevron-right"
-        last-icon="i-lucide-chevrons-right"
-        :ui="{
-          list: 'gap-0.5 sm:gap-1',
-          item: 'min-w-7 h-7 justify-center rounded-md sm:min-w-8 sm:h-8',
-          first: 'hidden rounded-md sm:inline-flex',
-          prev: 'rounded-md',
-          next: 'rounded-md',
-          last: 'hidden rounded-md sm:inline-flex',
-        }"
-        @update:page="(v: number) => emit('update:page', v)"
-      />
-    </div>
+      :page="page"
+      :limit="limit"
+      :total="total"
+      :row-count="rows.length"
+      @update:page="(v: number) => emit('update:page', v)"
+      @update:limit="(v: number) => emit('update:limit', v)"
+    />
   </div>
 </template>

@@ -1,14 +1,18 @@
 <script setup lang="ts">
-import type { DateValue } from '@internationalized/date'
+import { getLocalTimeZone, today } from '@internationalized/date'
+import type { CalendarDate, Time } from '@internationalized/date'
 import type { DatePickerGranularity } from '~/utils/date-picker'
 import {
   isDateTimeGranularity,
   parsePickerValue,
   serializePickerValue,
   datePickerPopoverContent,
+  dateFilterFieldLocale,
+  toCalendarDate,
+  parseTimeValue,
+  mergeCalendarDateAndTime,
+  getFormDateUi,
 } from '~/utils/date-picker'
-import { getFilterDateUi, isFilterValueActive } from '~/utils/filter/select-ui'
-import { useAppLocalization } from '~/composables/settings/useAppLocalization'
 
 const props = withDefaults(defineProps<{
   modelValue?: string | null
@@ -16,7 +20,7 @@ const props = withDefaults(defineProps<{
   required?: boolean
   granularity?: DatePickerGranularity
   color?: 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'error' | 'neutral'
-  variant?: 'outline' | 'soft' | 'subtle' | 'ghost' | 'solid' | 'link'
+  variant?: 'outline' | 'soft' | 'subtle' | 'ghost' | 'none'
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl'
   class?: string
   placeholder?: string
@@ -31,98 +35,123 @@ const emit = defineEmits<{
   'update:modelValue': [string]
 }>()
 
-const { t } = useI18n()
-const { formatDate, formatDateTime } = useAppLocalization()
-const open = ref(false)
+const { t, locale } = useI18n()
 
 const isDateTime = computed(() => isDateTimeGranularity(props.granularity))
-const isActive = computed(() => isFilterValueActive(props.modelValue))
-const dateUi = computed(() => getFilterDateUi(isActive.value, {
-  isDateTime: isDateTime.value,
-  isRange: false,
-  fullWidth: true,
-}))
+const fieldLocale = computed(() => dateFilterFieldLocale(locale.value))
+const formUi = computed(() => getFormDateUi(true))
 
-const pickerIcon = computed(() =>
-  isDateTime.value ? 'i-lucide-calendar-clock' : 'i-lucide-calendar',
-)
+const dateInput = useTemplateRef<{ inputsRef?: Array<{ $el?: HTMLElement }> } | null>('dateInput')
+const dateAnchor = useTemplateRef<HTMLElement | null>('dateAnchor')
+
+const parsed = computed(() => parsePickerValue(props.modelValue, isDateTime.value))
 
 const dateValue = computed({
-  get: () => parsePickerValue(props.modelValue, isDateTime.value),
-  set: (value: DateValue | null | undefined) => {
-    emit('update:modelValue', serializePickerValue(value))
+  get: () => {
+    if (!isDateTime.value) {
+      return parsePickerValue(props.modelValue, false) as CalendarDate | undefined
+    }
+    return toCalendarDate(parsed.value)
+  },
+  set: (value: CalendarDate | undefined | null) => {
+    if (!value) {
+      emit('update:modelValue', '')
+      return
+    }
+    if (!isDateTime.value) {
+      emit('update:modelValue', serializePickerValue(value))
+      return
+    }
+    emit('update:modelValue', mergeCalendarDateAndTime(value, timeValue.value))
   },
 })
 
-const displayValue = computed(() => {
-  const raw = String(props.modelValue || '').trim()
-  if (!raw) return ''
-  return isDateTime.value
-    ? formatDateTime(raw, '')
-    : formatDate(raw, '')
+const timeValue = computed({
+  get: () => parseTimeValue(props.modelValue),
+  set: (value: Time | undefined | null) => {
+    const baseDate = toCalendarDate(parsed.value) || today(getLocalTimeZone())
+    emit('update:modelValue', mergeCalendarDateAndTime(baseDate, value ?? undefined))
+  },
 })
-
-const placeholderText = computed(() =>
-  props.placeholder
-  || (isDateTime.value
-    ? t('docetra.common.selectDateTime')
-    : t('docetra.common.selectDate')),
-)
-
-/** Same width as other form fields; trailing calendar icon like UInput. */
-const triggerUi = computed(() => ({
-  base: [
-    dateUi.value.base,
-    'inline-flex w-full items-center justify-between gap-2 px-2.5 text-left font-normal',
-    props.size === 'xs' ? 'h-7 text-xs' : '',
-    props.size === 'sm' ? 'h-8 text-sm' : '',
-    props.size === 'md' ? 'h-9 text-sm' : '',
-    props.size === 'lg' ? 'h-10 text-base' : '',
-    props.size === 'xl' ? 'h-11 text-base' : '',
-  ].filter(Boolean).join(' '),
-}))
 </script>
 
 <template>
   <div
-    class="app-input-date relative min-w-0 w-full"
-    :class="props.class"
+    class="app-input-date flex min-w-0 gap-2"
+    :class="[props.class, isDateTime ? 'flex-row items-start' : 'w-full']"
   >
-    <UPopover
-      v-model:open="open"
-      :content="datePickerPopoverContent"
-      :disabled="disabled"
+    <!-- Date — Nuxt UI segmented input + calendar popover (ERPNext-style outline field) -->
+    <div
+      ref="dateAnchor"
+      class="min-w-0"
+      :class="isDateTime ? 'flex-1' : 'w-full'"
     >
-      <UButton
-        type="button"
+      <UInputDate
+        ref="dateInput"
+        v-model="dateValue"
+        fixed
+        trailing
+        granularity="day"
+        hide-time-zone
+        :locale="fieldLocale"
+        :disabled="disabled"
+        :required="required"
+        :size="size"
         :color="color"
         :variant="variant"
-        :size="size"
-        :disabled="disabled"
-        :aria-required="required || undefined"
-        :aria-label="placeholderText"
-        :aria-expanded="open"
-        block
-        :ui="triggerUi"
+        class="w-full min-w-0"
+        :ui="formUi"
+        :aria-label="placeholder || $t('docetra.common.selectDate')"
       >
-        <span
-          class="min-w-0 flex-1 truncate tabular-nums"
-          :class="displayValue ? 'text-highlighted' : 'text-muted'"
-        >
-          {{ displayValue || placeholderText }}
-        </span>
-        <UIcon :name="pickerIcon" class="size-4 shrink-0 text-muted" />
-      </UButton>
+        <template #trailing>
+          <UPopover
+            :reference="dateAnchor ?? dateInput?.inputsRef?.[0]?.$el"
+            :content="datePickerPopoverContent"
+          >
+            <UButton
+              color="neutral"
+              variant="link"
+              :size="size === 'xs' || size === 'sm' ? 'sm' : size"
+              icon="i-lucide-calendar"
+              class="shrink-0 px-2 text-muted"
+              :aria-label="$t('docetra.common.selectDate')"
+              :disabled="disabled"
+            />
 
-      <template #content>
-        <CommonAppDatePickerPopover
-          v-model="dateValue"
-          mode="single"
-          :granularity="granularity"
-          :number-of-months="1"
-          :disabled="disabled"
-        />
-      </template>
-    </UPopover>
+            <template #content>
+              <UCalendar
+                v-model="dateValue"
+                class="p-2"
+                :number-of-months="1"
+                size="sm"
+                :locale="fieldLocale"
+                :disabled="disabled"
+              />
+            </template>
+          </UPopover>
+        </template>
+      </UInputDate>
+    </div>
+
+    <!-- Time — separate Nuxt UI time field (datetime only) -->
+    <UInputTime
+      v-if="isDateTime"
+      v-model="timeValue"
+      fixed
+      trailing
+      trailing-icon="i-lucide-clock"
+      granularity="minute"
+      :hour-cycle="24"
+      hide-time-zone
+      :locale="fieldLocale"
+      :disabled="disabled"
+      :required="required"
+      :size="size"
+      :color="color"
+      :variant="variant"
+      class="w-36 shrink-0"
+      :ui="formUi"
+      :aria-label="$t('docetra.common.selectTime')"
+    />
   </div>
 </template>

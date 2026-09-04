@@ -57,12 +57,18 @@ const sortMenuItems = computed(() => [sortItems.value.map(item => ({
   onSelect: () => { sortModel.value = item.value },
 }))])
 
+const toolbarFilters = computed(() =>
+  props.filters.filter(f =>
+    f.type === 'select' || f.type === 'multiselect' || f.type === 'daterange' || f.type === 'date',
+  ),
+)
+
 const selectFilters = computed(() =>
-  props.filters.filter(f => f.type === 'select' || f.type === 'multiselect'),
+  toolbarFilters.value.filter(f => f.type === 'select' || f.type === 'multiselect'),
 )
 
 const dateFilters = computed(() =>
-  props.filters.filter(f => f.type === 'daterange'),
+  toolbarFilters.value.filter(f => f.type === 'daterange' || f.type === 'date'),
 )
 
 const viewItems = computed(() =>
@@ -155,34 +161,27 @@ function onFilterChange(filter: FilterDef, value: string | string[] | null) {
         <UButton
           icon="i-lucide-filter"
           :color="hasActiveFilters ? 'primary' : 'neutral'"
-          :variant="hasActiveFilters ? 'soft' : 'outline'"
+          variant="soft"
           size="sm"
           square
           :aria-label="$t('docetra.actions.filter')"
         />
         <template #content>
           <div class="flex w-[calc(100vw-2rem)] max-w-4xl flex-nowrap items-center gap-2 overflow-x-auto p-3">
-            <CommonAppFilterSelect
-              v-for="filter in selectFilters"
+            <CommonAppFilterControl
+              v-for="filter in toolbarFilters"
               :key="filter.key"
               :filter="filter"
               :model-value="filterModelValue(filter)"
+              :start="getDateStart(filter)"
+              :end="getDateEnd(filter)"
+              size="md"
+              inline
               class="shrink-0"
               @update:model-value="(v) => onFilterChange(filter, v)"
+              @update:start="(v) => setDateStart(filter, v)"
+              @update:end="(v) => setDateEnd(filter, v)"
             />
-            <template v-for="filter in dateFilters" :key="filter.key">
-              <div class="shrink-0">
-                <CommonAppDateRangeFilter
-                  :start="getDateStart(filter)"
-                  :end="getDateEnd(filter)"
-                  :label="t(filter.labelKey)"
-                  size="sm"
-                  inline
-                  @update:start="(v) => setDateStart(filter, v)"
-                  @update:end="(v) => setDateEnd(filter, v)"
-                />
-              </div>
-            </template>
             <CommonAppSingleFilterSelect
               v-if="hasSort"
               v-model="sortModel"
@@ -197,30 +196,25 @@ function onFilterChange(filter: FilterDef, value: string | string[] | null) {
       </UPopover>
 
       <div class="hidden min-w-0 flex-1 flex-nowrap items-center justify-end gap-2 overflow-x-auto lg:flex">
-        <CommonAppFilterSelect
-          v-for="filter in selectFilters"
+        <CommonAppFilterControl
+          v-for="filter in toolbarFilters"
           :key="filter.key"
           :filter="filter"
           :model-value="filterModelValue(filter)"
+          :start="getDateStart(filter)"
+          :end="getDateEnd(filter)"
+          size="md"
+          class="shrink-0"
           @update:model-value="(v) => onFilterChange(filter, v)"
+          @update:start="(v) => setDateStart(filter, v)"
+          @update:end="(v) => setDateEnd(filter, v)"
         />
-
-        <template v-for="filter in dateFilters" :key="filter.key">
-          <CommonAppDateRangeFilter
-            :start="getDateStart(filter)"
-            :end="getDateEnd(filter)"
-            :label="t(filter.labelKey)"
-            size="sm"
-            @update:start="(v) => setDateStart(filter, v)"
-            @update:end="(v) => setDateEnd(filter, v)"
-          />
-        </template>
 
         <UDropdownMenu v-if="hasSort" :items="sortMenuItems" :content="{ align: 'end' }">
           <UButton
             icon="i-lucide-arrow-up-down"
             color="neutral"
-            variant="outline"
+            variant="soft"
             size="sm"
             square
             class="shrink-0"

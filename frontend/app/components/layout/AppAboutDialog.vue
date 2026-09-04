@@ -19,16 +19,17 @@ const socials = [
 </script>
 
 <template>
-  <UModal
+  <CommonAppDialogShell
     v-model:open="open"
+    variant="modal"
     scrollable
+    hide-footer
     :title="t('settings.about')"
     :ui="{
       overlay: 'place-items-start justify-items-center pt-[5vh] sm:pt-[5vh]',
       content: 'w-[calc(100%-2rem)] max-w-md sm:max-w-md',
     }"
   >
-    <template #body>
       <div class="flex flex-col items-center gap-5 pb-1 text-center">
         <div class="flex flex-col items-center gap-2">
           <div class="relative inline-flex">
@@ -67,12 +68,10 @@ const socials = [
           />
         </div>
       </div>
-    </template>
-
     <template #footer>
       <p class="w-full text-center text-xs text-muted">
         {{ t('settings.aboutCopyright') }}
       </p>
     </template>
-  </UModal>
+  </CommonAppDialogShell>
 </template>

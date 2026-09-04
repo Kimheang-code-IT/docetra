@@ -35,11 +35,10 @@ export function useMeetingTopicBoard() {
   const topicTotal = ref(0)
   const meetingPage = ref(1)
   const meetingTotal = ref(0)
+  const meetingLimit = ref(20)
   const loadingMoreTopics = ref(false)
-  const loadingMoreMeetings = ref(false)
   const countSummary = ref({ total: 0, unassigned: 0, groups: {} as Record<string, number> })
   const topicPageSize = 30
-  const meetingPageSize = 24
   let requestToken = 0
 
   const isAllMeetings = computed(() => selectedTopicId.value == null)
@@ -68,16 +67,15 @@ export function useMeetingTopicBoard() {
   })
 
   const hasMoreTopics = computed(() => topics.value.length < topicTotal.value)
-  const hasMoreMeetings = computed(() => meetings.value.length < meetingTotal.value)
 
-  function meetingQuery(page = 1) {
+  function meetingQuery(page = meetingPage.value) {
     return {
       q: meetingSearch.value || undefined,
       topicId: isUnassigned.value ? '__empty__' : (selectedTopicId.value || undefined),
       startDate: meetingDateStart.value || undefined,
       endDate: meetingDateEnd.value || undefined,
       page,
-      limit: meetingPageSize,
+      limit: meetingLimit.value,
       sort: isPoolView.value ? 'meetingDate' : 'sortOrder',
     }
   }
@@ -96,6 +94,7 @@ export function useMeetingTopicBoard() {
     const token = ++requestToken
     pending.value = true
     error.value = null
+    meetingPage.value = 1
     try {
       const [topicsRes, meetingsRes] = await Promise.all([
         topicsAdapter.list({
@@ -125,15 +124,18 @@ export function useMeetingTopicBoard() {
     }
   }
 
-  async function refreshMeetings() {
+  async function refreshMeetings(options: { resetPage?: boolean } = {}) {
+    if (options.resetPage) meetingPage.value = 1
     const token = ++requestToken
     pending.value = true
     error.value = null
     try {
-      const [response] = await Promise.all([meetingsAdapter.list(meetingQuery(1)), refreshCounts()])
+      const [response] = await Promise.all([
+        meetingsAdapter.list(meetingQuery(meetingPage.value)),
+        refreshCounts(),
+      ])
       if (token !== requestToken) return
       meetings.value = (response.data || []) as MeetingHistory[]
-      meetingPage.value = 1
       meetingTotal.value = response.meta?.total || meetings.value.length
     }
     catch (e: any) {
@@ -163,23 +165,21 @@ export function useMeetingTopicBoard() {
     finally { loadingMoreTopics.value = false }
   }
 
-  async function loadMoreMeetings() {
-    if (!hasMoreMeetings.value || loadingMoreMeetings.value) return
-    loadingMoreMeetings.value = true
-    const nextPage = meetingPage.value + 1
-    try {
-      const response = await meetingsAdapter.list(meetingQuery(nextPage))
-      const seen = new Set(meetings.value.map(item => item.id))
-      meetings.value.push(...((response.data || []) as MeetingHistory[]).filter(item => !seen.has(item.id)))
-      meetingPage.value = nextPage
-      meetingTotal.value = response.meta?.total || meetingTotal.value
-    }
-    finally { loadingMoreMeetings.value = false }
+  function setMeetingPage(next: number) {
+    if (meetingPage.value === next) return
+    meetingPage.value = next
+    void refreshMeetings()
+  }
+
+  function setMeetingLimit(next: number) {
+    if (meetingLimit.value === next) return
+    meetingLimit.value = next
+    void refreshMeetings({ resetPage: true })
   }
 
   function selectTopic(id: string | null) {
     selectedTopicId.value = id
-    void refreshMeetings()
+    void refreshMeetings({ resetPage: true })
   }
 
   async function assignMeetingToTopic(meetingId: string, topicId: string | null) {
@@ -333,7 +333,7 @@ export function useMeetingTopicBoard() {
   }
 
   const debouncedTopicSearch = useDebounceFn(() => refresh(), 300)
-  const debouncedMeetingFilter = useDebounceFn(() => refreshMeetings(), 300)
+  const debouncedMeetingFilter = useDebounceFn(() => refreshMeetings({ resetPage: true }), 300)
   watch(topicSearch, () => debouncedTopicSearch())
   watch([meetingSearch, meetingDateStart, meetingDateEnd], () => debouncedMeetingFilter())
 
@@ -369,12 +369,14 @@ export function useMeetingTopicBoard() {
     unassignedMeetingCount,
     topicMeetingCounts,
     hasMoreTopics,
-    hasMoreMeetings,
     loadingMoreTopics,
-    loadingMoreMeetings,
+    meetingPage,
+    meetingLimit,
+    meetingTotal,
     refresh,
     loadMoreTopics,
-    loadMoreMeetings,
+    setMeetingPage,
+    setMeetingLimit,
     selectTopic,
     assignMeetingToTopic,
     reorderMeeting,

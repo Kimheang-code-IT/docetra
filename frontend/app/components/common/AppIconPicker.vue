@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { FORM_CONTROL } from '~/utils/form-field-ui'
+
 const COMMON_ICONS = [
   'i-lucide-file-text',
   'i-lucide-inbox',
@@ -34,8 +36,10 @@ const props = withDefaults(defineProps<{
   help?: string
   icons?: string[]
   disabled?: boolean
+  embedded?: boolean
 }>(), {
   disabled: false,
+  embedded: false,
 })
 
 const { t, te } = useI18n()
@@ -67,11 +71,12 @@ function clear() {
 </script>
 
 <template>
-  <UFormField :label="labelText" :help="props.help || undefined">
+  <UFormField :label="embedded ? undefined : labelText" :help="embedded ? undefined : (props.help || undefined)">
     <div class="flex items-center gap-2">
       <UButton
         color="neutral"
-        variant="outline"
+        variant="soft"
+        :size="FORM_CONTROL.size"
         :disabled="disabled"
         class="min-w-40 justify-start"
         @click="open = true"
@@ -91,10 +96,12 @@ function clear() {
       />
     </div>
 
-    <UModal v-model:open="open">
-      <template #content>
-        <UCard>
-          <template #header>
+    <CommonAppDialogShell
+      v-model:open="open"
+      :title="t('docetra.common.chooseIcon')"
+      hide-footer
+    >
+      <template #header>
             <div class="flex items-center justify-between gap-3">
               <h3 class="text-base font-semibold">
                 {{ t('docetra.common.chooseIcon') }}
@@ -106,7 +113,7 @@ function clear() {
                 size="sm"
               />
             </div>
-          </template>
+      </template>
 
           <div class="grid max-h-80 grid-cols-6 gap-2 overflow-y-auto sm:grid-cols-8">
             <UButton
@@ -121,8 +128,6 @@ function clear() {
               <UIcon :name="icon" class="size-5" />
             </UButton>
           </div>
-        </UCard>
-      </template>
-    </UModal>
+    </CommonAppDialogShell>
   </UFormField>
 </template>

@@ -23,6 +23,14 @@ export function getFilterSelectUi(active: boolean) {
   }
 }
 
+/** Chart / form selects: no idle border, grey ring only when focused or open. */
+export function getSoftSelectUi() {
+  return {
+    ...filterSelectUi,
+    base: `${selectChrome} ring-0 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-default data-[state=open]:bg-elevated data-[state=open]:ring-1 data-[state=open]:ring-inset data-[state=open]:ring-default`,
+  }
+}
+
 export function getFilterSearchUi(active: boolean) {
   return {
     base: active
@@ -43,9 +51,8 @@ export function getFilterDateUi(
 ) {
   const fontSize = options?.fontSize ?? 'md'
 
-  const chrome = active
-    ? 'rounded-md bg-elevated/70 ring-1 ring-inset ring-default'
-    : 'rounded-md bg-elevated/70 ring-0 has-focus:ring-1 has-focus:ring-inset has-focus:ring-default'
+  const chrome
+    = 'rounded-md bg-elevated/70 shadow-none outline-none ring-0 has-focus:bg-elevated has-focus:ring-1 has-focus:ring-inset has-focus:ring-default has-focus-visible:outline-none'
 
   const segment = options?.isDateTime
     ? [

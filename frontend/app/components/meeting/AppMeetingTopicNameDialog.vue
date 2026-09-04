@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { MeetingTopic } from '~/types/docetra/entities'
+import type { DocumentFieldSchema } from '~/types/docetra/common'
 
 const open = defineModel<boolean>('open', { default: false })
 
@@ -15,8 +16,10 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 
-const title = ref('')
-const description = ref('')
+const form = reactive({
+  title: '',
+  description: '',
+})
 const touched = ref(false)
 
 const isEdit = computed(() => Boolean(props.topic?.id))
@@ -25,22 +28,33 @@ const dialogTitle = computed(() =>
     ? t('docetra.meetingBoard.editTopicTitle')
     : t('docetra.meetingBoard.createTopicTitle'),
 )
-const trimmedTitle = computed(() => title.value.trim())
-const trimmedDescription = computed(() => description.value.trim())
+const trimmedTitle = computed(() => form.title.trim())
+const trimmedDescription = computed(() => form.description.trim())
 const invalid = computed(() => touched.value && !trimmedTitle.value)
 const canSubmit = computed(() => Boolean(trimmedTitle.value) && !props.loading)
 
+const titleField: DocumentFieldSchema = {
+  key: 'title',
+  labelKey: 'docetra.meetingBoard.topicName',
+  type: 'text',
+  required: true,
+  placeholderKey: 'docetra.meetingBoard.topicNamePlaceholder',
+}
+
+const descriptionField: DocumentFieldSchema = {
+  key: 'description',
+  labelKey: 'docetra.meetingBoard.topicDescription',
+  type: 'textarea',
+  placeholderKey: 'docetra.meetingBoard.topicDescriptionPlaceholder',
+  rows: 3,
+}
+
 watch(open, (isOpen) => {
   if (!isOpen) return
-  title.value = props.topic?.title || ''
-  description.value = props.topic?.description || ''
+  form.title = props.topic?.title || ''
+  form.description = props.topic?.description || ''
   touched.value = false
 })
-
-function onCancel() {
-  if (props.loading) return
-  open.value = false
-}
 
 function onSubmit() {
   touched.value = true
@@ -53,73 +67,39 @@ function onSubmit() {
 </script>
 
 <template>
-  <UModal
+  <CommonAppDialogShell
     v-model:open="open"
-    :dismissible="!loading"
-    :ui="{ content: 'sm:max-w-md' }"
+    :title="dialogTitle"
+    :loading="loading"
+    :can-submit="canSubmit"
+    :confirm-label="isEdit ? $t('docetra.common.save') : $t('docetra.common.create')"
+    @confirm="onSubmit"
   >
-    <template #content>
-      <UCard>
-        <template #header>
-          <h3 class="text-base font-semibold text-highlighted">
-            {{ dialogTitle }}
-          </h3>
-        </template>
+    <form class="space-y-3" @submit.prevent="onSubmit">
+      <UFormField
+        :label="$t('docetra.meetingBoard.topicName')"
+        name="topicName"
+        required
+        :error="invalid ? $t('docetra.meetingBoard.topicNameRequired') : undefined"
+      >
+        <CommonAppFormControl
+          :field="titleField"
+          v-model="form.title"
+          :disabled="loading"
+          @blur="touched = true"
+        />
+      </UFormField>
 
-        <form class="space-y-3" @submit.prevent="onSubmit">
-          <UFormField
-            :label="$t('docetra.meetingBoard.topicName')"
-            name="topicName"
-            required
-            :error="invalid ? $t('docetra.meetingBoard.topicNameRequired') : undefined"
-          >
-            <UInput
-              v-model="title"
-              variant="soft"
-              autofocus
-              :disabled="loading"
-              :placeholder="$t('docetra.meetingBoard.topicNamePlaceholder')"
-              class="w-full"
-              @blur="touched = true"
-            />
-          </UFormField>
-
-          <UFormField
-            :label="$t('docetra.meetingBoard.topicDescription')"
-            name="topicDescription"
-          >
-            <UTextarea
-              v-model="description"
-              variant="soft"
-              :disabled="loading"
-              :rows="3"
-              :placeholder="$t('docetra.meetingBoard.topicDescriptionPlaceholder')"
-              class="w-full"
-            />
-          </UFormField>
-        </form>
-
-        <template #footer>
-          <div class="flex justify-end gap-2">
-            <UButton
-              color="neutral"
-              variant="ghost"
-              :disabled="loading"
-              @click="onCancel"
-            >
-              {{ $t('docetra.common.cancel') }}
-            </UButton>
-            <UButton
-              color="primary"
-              :loading="loading"
-              :disabled="!canSubmit"
-              @click="onSubmit"
-            >
-              {{ isEdit ? $t('docetra.common.save') : $t('docetra.common.create') }}
-            </UButton>
-          </div>
-        </template>
-      </UCard>
-    </template>
-  </UModal>
+      <UFormField
+        :label="$t('docetra.meetingBoard.topicDescription')"
+        name="topicDescription"
+      >
+        <CommonAppFormControl
+          :field="descriptionField"
+          v-model="form.description"
+          :disabled="loading"
+        />
+      </UFormField>
+    </form>
+  </CommonAppDialogShell>
 </template>

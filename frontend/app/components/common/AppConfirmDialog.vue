@@ -31,72 +31,25 @@ const resolvedTitle = computed(() => {
   if (props.titleKey && te(props.titleKey)) return t(props.titleKey)
   return t('docetra.common.confirmTitle')
 })
-
-const resolvedDescription = computed(() => {
-  if (props.description) return props.description
-  if (props.descriptionKey && te(props.descriptionKey)) {
-    return t(props.descriptionKey, props.descriptionParams || {})
-  }
-  return ''
-})
-
-const resolvedConfirm = computed(() => {
-  if (props.confirmLabel) return props.confirmLabel
-  if (props.confirmLabelKey && te(props.confirmLabelKey)) return t(props.confirmLabelKey)
-  return t('docetra.common.confirm')
-})
-
-const resolvedCancel = computed(() => {
-  if (props.cancelLabel) return props.cancelLabel
-  if (props.cancelLabelKey && te(props.cancelLabelKey)) return t(props.cancelLabelKey)
-  return t('docetra.common.cancel')
-})
-
-function onCancel() {
-  open.value = false
-  emit('cancel')
-}
-
-function onConfirm() {
-  emit('confirm')
-}
 </script>
 
 <template>
-  <UModal v-model:open="open" :ui="props.ui">
-    <template #content>
-      <UCard>
-        <template #header>
-          <h3 class="text-base font-semibold text-highlighted">
-            {{ resolvedTitle }}
-          </h3>
-        </template>
-
-        <p v-if="resolvedDescription" class="text-sm text-muted">
-          {{ resolvedDescription }}
-        </p>
-        <slot />
-
-        <template #footer>
-          <div class="flex justify-end gap-2">
-            <UButton
-              color="neutral"
-              variant="ghost"
-              :disabled="loading"
-              @click="onCancel"
-            >
-              {{ resolvedCancel }}
-            </UButton>
-            <UButton
-              :color="confirmColor"
-              :loading="loading"
-              @click="onConfirm"
-            >
-              {{ resolvedConfirm }}
-            </UButton>
-          </div>
-        </template>
-      </UCard>
-    </template>
-  </UModal>
+  <CommonAppDialogShell
+    v-model:open="open"
+    :title="resolvedTitle"
+    :description="description"
+    :description-key="descriptionKey"
+    :description-params="descriptionParams"
+    :confirm-label="confirmLabel"
+    :confirm-label-key="confirmLabelKey"
+    :cancel-label="cancelLabel"
+    :cancel-label-key="cancelLabelKey"
+    :confirm-color="confirmColor"
+    :loading="loading"
+    :ui="ui"
+    @confirm="emit('confirm')"
+    @cancel="emit('cancel')"
+  >
+    <slot />
+  </CommonAppDialogShell>
 </template>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { getFilterSelectUi } from '~/utils/filter/select-ui'
+import { getSoftSelectUi } from '~/utils/filter/select-ui'
 
 const year = defineModel<string>('year', { default: 'this' })
 const period = defineModel<string>('period', { default: 'monthly' })
@@ -11,8 +11,7 @@ const emit = defineEmits<{
 
 const { t, locale } = useI18n()
 
-const yearUi = computed(() => getFilterSelectUi(Boolean(year.value)))
-const periodUi = computed(() => getFilterSelectUi(Boolean(period.value)))
+const selectUi = computed(() => getSoftSelectUi())
 
 const currentYear = new Date().getFullYear()
 
@@ -55,8 +54,9 @@ const moreItems = computed(() => [[
       size="sm"
       class="w-30"
       color="neutral"
+      variant="soft"
       :aria-label="$t('docetra.dashboard.chartFilters.pickYear')"
-      :ui="yearUi"
+      :ui="selectUi"
     />
 
     <USelect
@@ -66,8 +66,9 @@ const moreItems = computed(() => [[
       size="sm"
       class="w-34"
       color="neutral"
+      variant="soft"
       :aria-label="$t('docetra.dashboard.chartFilters.pickPeriod')"
-      :ui="periodUi"
+      :ui="selectUi"
     />
 
     <UDropdownMenu :items="moreItems" :content="{ align: 'end' }">

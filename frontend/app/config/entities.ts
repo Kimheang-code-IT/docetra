@@ -234,7 +234,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
       { key: 'meetingDate', labelKey: 'docetra.fields.meetingDate', type: 'daterange' },
     ],
     tabs: masterDataTabs([
-      { key: 'topicId', labelKey: 'docetra.fields.topicId', type: 'text', helpKey: 'docetra.fields.topicIdHelp' },
+      { key: 'topicId', labelKey: 'docetra.fields.topic', type: 'select', placeholderKey: 'docetra.fields.selectTopic', optionsEndpoint: `${ApiEndpoints.MEETING_TOPICS}/options?valueField=id`, helpKey: 'docetra.fields.topicIdHelp' },
       { key: 'letterNumber', labelKey: 'docetra.fields.letterNumber', type: 'text', required: true },
       { key: 'title', labelKey: 'docetra.fields.letterSubject', type: 'text', required: true },
       { key: 'letterDate', labelKey: 'docetra.fields.letterDate', type: 'date', required: true },

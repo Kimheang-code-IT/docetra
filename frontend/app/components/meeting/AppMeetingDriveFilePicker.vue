@@ -50,11 +50,12 @@ function pick(file: DriveFileCatalogItem) {
 </script>
 
 <template>
-  <UModal
+  <CommonAppDialogShell
     v-model:open="open"
+    variant="modal"
     :title="$t('docetra.meetingNotes.pickDriveFile')"
+    hide-footer
   >
-    <template #body>
       <div class="space-y-3">
         <CommonAppLiveSearch
           v-model="search"
@@ -88,6 +89,5 @@ function pick(file: DriveFileCatalogItem) {
           {{ $t('docetra.meetingNotes.drivePickHint') }}
         </p>
       </div>
-    </template>
-  </UModal>
+  </CommonAppDialogShell>
 </template>

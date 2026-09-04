@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { useMediaQuery } from '@vueuse/core'
 import type { EntityConfig } from '~/config/entities'
 import { getAdapterForConfig } from '~/config/entities'
 import { useConfirm } from '~/composables/common/useConfirm'
@@ -26,8 +25,6 @@ const { confirm } = useConfirm()
 const auth = useAuthStore()
 const adapter = getAdapterForConfig(props.config)
 const cardEntityKey = computed(() => props.config.key as CardDisplayEntityKey)
-const mobileStagesOpen = ref(false)
-const isSmallScreen = useMediaQuery('(max-width: 1023px)')
 const viewMode = useBoardViewMode(`record-stage-view-${props.config.key}`, 'cards')
 const {
   draggingId,
@@ -38,11 +35,6 @@ const {
   onDragLeave,
   consumeDrop,
 } = useBoardDragDrop()
-
-/** Mirrors BoardShell's desktop icon-rail state for pill/item rendering. */
-const railCollapsedProxy = computed(() =>
-  isSmallScreen.value ? false : leftCollapsed.value,
-)
 
 const canCreate = computed(() => props.config.canCreate !== false
   && !props.config.readOnly
@@ -62,16 +54,17 @@ const {
   dateEnd,
   leftCollapsed,
   selectedStage,
-  selectedStageMeta,
   filteredItems,
+  total,
+  page,
+  limit,
   stageCounts,
   allCount,
   pending,
-  loadingMore,
-  hasMore,
   error,
   refresh,
-  loadMore,
+  setPage,
+  setLimit,
   selectStage,
   openCreate,
   openRow,
@@ -106,11 +99,6 @@ const tableRowActions = computed<RowActionItem[]>(() => [
     ? [{ key: 'delete', labelKey: 'docetra.rowActions.delete', icon: 'i-lucide-trash-2', color: 'error' } satisfies RowActionItem]
     : []),
 ])
-
-function selectStageFromPanel(code: string | null) {
-  selectStage(code)
-  if (isSmallScreen.value) mobileStagesOpen.value = false
-}
 
 function stageName(stage: { label?: string, labelKey: string, code: string }) {
   return stage.label || (te(stage.labelKey) ? t(stage.labelKey) : stage.code)
@@ -217,136 +205,127 @@ function onRowAction(payload: { key: string, row: Record<string, unknown> }) {
 </script>
 
 <template>
-  <WorkspaceAppWorkspacePage
+  <WorkspaceAppWorkspaceBoardPage
+    v-model:collapsed="leftCollapsed"
+    v-model:rail-search="stageSearch"
+    v-model:header-search="recordSearch"
+    v-model:date-start="dateStart"
+    v-model:date-end="dateEnd"
+    v-model:view-mode="viewMode"
     :title-key="config.titleKey"
     :description-key="config.descriptionKey"
     :icon="config.icon"
     :can-create="canCreate"
-    :refreshing="pending"
+    rail-title-key="docetra.recordStageBoard.stagesTitle"
+    rail-icon="i-lucide-layers"
+    expand-label-key="docetra.recordStageBoard.expandStages"
+    collapse-label-key="docetra.recordStageBoard.collapseStages"
+    rail-search-placeholder-key="docetra.recordStageBoard.searchStages"
+    header-search-placeholder-key="docetra.recordStageBoard.searchRecords"
+    :pending="pending"
+    :show-pending-overlay="pending && !filteredItems.length"
+    :error="error"
     @create="openCreate"
     @refresh="refresh"
+    @retry="refresh"
   >
-    <WorkspaceAppBoardShell
-      v-model:collapsed="leftCollapsed"
-      v-model:mobile-open="mobileStagesOpen"
-      v-model:rail-search="stageSearch"
-      v-model:header-search="recordSearch"
-      v-model:date-start="dateStart"
-      v-model:date-end="dateEnd"
-      v-model:view-mode="viewMode"
-      rail-title-key="docetra.recordStageBoard.stagesTitle"
-      rail-icon="i-lucide-layers"
-      expand-label-key="docetra.recordStageBoard.expandStages"
-      collapse-label-key="docetra.recordStageBoard.collapseStages"
-      rail-search-placeholder-key="docetra.recordStageBoard.searchStages"
-      header-search-placeholder-key="docetra.recordStageBoard.searchRecords"
-      :header-title="selectedStageMeta
-        ? stageLabel(selectedStageMeta.code)
-        : $t('docetra.recordStageBoard.allRecords')"
+    <template #alerts>
+      <UAlert
+        v-if="stageConfigurationError"
+        class="m-3 mb-0"
+        color="warning"
+        :title="$t('docetra.recordStageBoard.usingFallbackStages')"
+        :description="stageConfigurationError"
+        :actions="[{ label: $t('docetra.actions.retry'), onClick: reloadStageConfiguration }]"
+      />
+    </template>
+
+    <template #rail-pills="{ railCollapsed, onRailSelect }">
+      <WorkspaceAppBoardRailPill
+        :label="$t('docetra.recordStageBoard.allRecords')"
+        :count="allCount"
+        icon="i-lucide-layout-grid"
+        :selected="selectedStage == null"
+        :collapsed="railCollapsed"
+        @select="onRailSelect(() => selectStage(null))"
+      />
+    </template>
+
+    <template #rail-items="{ railCollapsed, onRailSelect }">
+      <WorkspaceAppBoardRailItem
+        v-for="stage in filteredStages"
+        :key="stage.id"
+        :title="stageName(stage)"
+        :count="stageCounts[stage.code] || 0"
+        icon="i-lucide-layers"
+        :selected="selectedStage === stage.code"
+        :collapsed="railCollapsed"
+        :drop-active="dropTargetId === stage.code"
+        :can-drop="canTransition"
+        drop-data-attr="record-stage-drop"
+        :drop-value="stage.code"
+        @select="onRailSelect(() => selectStage(stage.code))"
+        @drag-over="onDragOver(stage.code)"
+        @drag-leave="onDragLeave(stage.code)"
+        @drop="onDropRecord(stage.code)"
+      >
+        <template #subtitle>
+          <p class="mt-1 truncate text-xs app-card-text">
+            {{ $t('docetra.recordStageBoard.stageHint') }}
+          </p>
+        </template>
+      </WorkspaceAppBoardRailItem>
+
+      <p
+        v-if="!filteredStages.length && !pending && !railCollapsed"
+        class="py-8 text-center text-xs text-muted"
+      >
+        {{ $t('docetra.states.empty') }}
+      </p>
+    </template>
+
+    <WorkspaceAppBoardContent
+      :view-mode="viewMode"
       :pending="pending"
-      :show-pending-overlay="pending && !filteredItems.length"
-      :error="error || undefined"
+      :empty="!filteredItems.length"
+      empty-icon="i-lucide-file-x"
+      empty-label-key="docetra.recordStageBoard.emptyRecords"
+      :columns="tableColumns"
+      :rows="filteredItems"
+      :total="total"
+      :page="page"
+      :limit="limit"
+      :cell-value="cellValue"
+      :row-actions="tableRowActions"
+      :selectable="false"
+      :can-delete="canDelete"
+      :show-meta="true"
+      :stage-colors="stageColorMap"
+      :table-error="error"
+      @update:page="setPage"
+      @update:limit="setLimit"
+      @row-click="openRow"
+      @row-action="onRowAction"
       @retry="refresh"
     >
-      <template #alerts>
-        <UAlert
-          v-if="stageConfigurationError"
-          class="m-3 mb-0"
-          color="warning"
-          :title="$t('docetra.recordStageBoard.usingFallbackStages')"
-          :description="stageConfigurationError"
-          :actions="[{ label: $t('docetra.actions.retry'), onClick: reloadStageConfiguration }]"
-        />
-      </template>
-
-      <template #rail-pills>
-        <WorkspaceAppBoardRailPill
-          :label="$t('docetra.recordStageBoard.allRecords')"
-          :count="allCount"
-          icon="i-lucide-layout-grid"
-          :selected="selectedStage == null"
-          :collapsed="railCollapsedProxy"
-          @select="selectStageFromPanel(null)"
-        />
-      </template>
-
-      <template #rail-items>
-        <WorkspaceAppBoardRailItem
-          v-for="stage in filteredStages"
-          :key="stage.id"
-          :title="stageName(stage)"
-          :count="stageCounts[stage.code] || 0"
-          icon="i-lucide-layers"
-          :selected="selectedStage === stage.code"
-          :collapsed="railCollapsedProxy"
-          :drop-active="dropTargetId === stage.code"
-          :can-drop="canTransition"
-          drop-data-attr="record-stage-drop"
-          :drop-value="stage.code"
-          @select="selectStageFromPanel(stage.code)"
-          @drag-over="onDragOver(stage.code)"
-          @drag-leave="onDragLeave(stage.code)"
-          @drop="onDropRecord(stage.code)"
-        >
-          <template #subtitle>
-            <p class="mt-1 truncate text-xs app-card-text">
-              {{ $t('docetra.recordStageBoard.stageHint') }}
-            </p>
-          </template>
-        </WorkspaceAppBoardRailItem>
-
-        <p
-          v-if="!filteredStages.length && !pending && !railCollapsedProxy"
-          class="py-8 text-center text-xs text-muted"
-        >
-          {{ $t('docetra.states.empty') }}
-        </p>
-      </template>
-
-      <WorkspaceAppBoardContent
-        :view-mode="viewMode"
-        :pending="pending"
-        :empty="!filteredItems.length"
-        empty-icon="i-lucide-file-x"
-        empty-label-key="docetra.recordStageBoard.emptyRecords"
-        :has-more="hasMore"
-        :loading-more="loadingMore"
-        :columns="tableColumns"
-        :rows="filteredItems"
-        :total="filteredItems.length"
-        :page="1"
-        :limit="Math.max(filteredItems.length, 1)"
-        :cell-value="cellValue"
-        :row-actions="tableRowActions"
-        :selectable="false"
+      <RecordAppRecordBoardCard
+        v-for="row in filteredItems"
+        :key="String(row.id)"
+        :row="row"
+        :title="labelOf(row)"
+        :stages="stages"
+        :dragging="draggingId === row.id"
+        :entity-key="cardEntityKey"
+        :can-move="canTransition"
+        :can-view-logs="canViewLogs"
         :can-delete="canDelete"
-        :show-meta="true"
-        :stage-colors="stageColorMap"
-        :table-error="error"
-        @load-more="loadMore"
-        @row-click="openRow"
-        @row-action="onRowAction"
-        @retry="refresh"
-      >
-        <RecordAppRecordBoardCard
-          v-for="row in filteredItems"
-          :key="String(row.id)"
-          :row="row"
-          :title="labelOf(row)"
-          :stages="stages"
-          :dragging="draggingId === row.id"
-          :entity-key="cardEntityKey"
-          :can-move="canTransition"
-          :can-view-logs="canViewLogs"
-          :can-delete="canDelete"
-          @open="openRow(row)"
-          @drag-start="onDragStart"
-          @drag-end="onDragEnd"
-          @move-stage="(stage) => onMoveStage(String(row.id), stage)"
-          @logs="onLogs(row)"
-          @delete="onDelete(row)"
-        />
-      </WorkspaceAppBoardContent>
-    </WorkspaceAppBoardShell>
-  </WorkspaceAppWorkspacePage>
+        @open="openRow(row)"
+        @drag-start="onDragStart"
+        @drag-end="onDragEnd"
+        @move-stage="(stage) => onMoveStage(String(row.id), stage)"
+        @logs="onLogs(row)"
+        @delete="onDelete(row)"
+      />
+    </WorkspaceAppBoardContent>
+  </WorkspaceAppWorkspaceBoardPage>
 </template>

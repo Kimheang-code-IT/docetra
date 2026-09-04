@@ -203,17 +203,17 @@ async function save() {
 </script>
 
 <template>
-  <UModal
+  <CommonAppDialogShell
     :open="open"
-    fullscreen
+    variant="modal"
+    size="fullscreen"
     :dismissible="!dirty"
-    :ui="{
-      content: 'bg-default flex flex-col h-dvh max-h-dvh overflow-hidden',
-      header: 'shrink-0 border-b border-default px-4 py-3',
-      body: 'flex-1 min-h-0 overflow-hidden p-0',
-      footer: 'shrink-0 border-t border-default px-4 py-3',
-    }"
+    :loading="saving"
+    :can-submit="!pending && dirty"
+    :confirm-label="$t('actions.save')"
     @update:open="onClose"
+    @confirm="save"
+    @cancel="onClose(false)"
   >
     <template #header>
       <div class="flex w-full min-w-0 items-center gap-3">
@@ -251,8 +251,8 @@ async function save() {
       </div>
     </template>
 
-    <template #body>
-      <div v-if="pending" class="flex h-full items-center justify-center">
+
+    <div v-if="pending" class="flex h-full items-center justify-center">
         <UIcon name="i-lucide-loader-circle" class="size-6 animate-spin text-primary" />
       </div>
 
@@ -344,26 +344,7 @@ async function save() {
           </ul>
         </section>
       </div>
-    </template>
-
-    <template #footer>
-      <div class="flex w-full items-center justify-end gap-2">
-        <UButton
-          color="neutral"
-          variant="ghost"
-          :label="$t('actions.cancel')"
-          @click="onClose(false)"
-        />
-        <UButton
-          color="primary"
-          :label="$t('actions.save')"
-          :loading="saving"
-          :disabled="pending || !dirty"
-          @click="save"
-        />
-      </div>
-    </template>
-  </UModal>
+  </CommonAppDialogShell>
 
   <MeetingAppMeetingDriveFilePicker
     v-model:open="drivePickerOpen"

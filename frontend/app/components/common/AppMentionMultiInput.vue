@@ -81,21 +81,21 @@ function moveActive(offset: number) {
 <template>
   <div ref="root" class="relative">
     <div
-      class="flex min-h-9 w-full flex-wrap items-center gap-1.5 rounded-md border border-default bg-default px-2 py-1.5 shadow-xs transition focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20"
+      class="flex min-h-9 w-full flex-wrap items-center gap-1.5 rounded-md bg-elevated/70 px-2 py-1.5 ring-0 transition focus-within:bg-elevated focus-within:ring-1 focus-within:ring-inset focus-within:ring-default"
       :class="disabled ? 'cursor-not-allowed opacity-60' : ''"
       @click="!disabled && (open = true)"
     >
       <span
         v-for="value in model"
         :key="value"
-        class="inline-flex max-w-full items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary ring-1 ring-primary/20"
+        class="inline-flex max-w-full items-center gap-1 rounded-md bg-elevated px-2 py-0.5 text-xs font-medium text-highlighted ring-1 ring-inset ring-accented"
       >
         <UIcon name="i-lucide-at-sign" class="size-3 shrink-0" />
         <span class="max-w-48 truncate">{{ labelFor(value) }}</span>
         <button
           v-if="!disabled"
           type="button"
-          class="grid size-3.5 shrink-0 place-items-center rounded-full hover:bg-primary/15"
+          class="grid size-3.5 shrink-0 place-items-center rounded-full hover:bg-elevated"
           :aria-label="$t('actions.remove')"
           @click.stop="remove(value)"
         >
@@ -107,7 +107,7 @@ function moveActive(offset: number) {
         v-model="query"
         type="text"
         class="min-w-28 flex-1 border-0 bg-transparent px-0.5 py-0.5 text-sm text-highlighted outline-none placeholder:text-dimmed disabled:cursor-not-allowed"
-        :placeholder="model.length ? $t('docetra.fields.mentionSearchMore') : placeholder"
+        :placeholder="model.length ? $t('docetra.fields.mentionSearchMore') : (placeholder || $t('docetra.fields.mentionSearchMore'))"
         :disabled="disabled"
         autocomplete="off"
         @focus="open = true"

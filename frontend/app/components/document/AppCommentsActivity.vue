@@ -56,7 +56,6 @@ const timelineItems = computed<ActivityTimelineItem[]>(() => {
     value: `comment-${comment.id}`,
     at: new Date(comment.createdAt).getTime(),
     comment,
-    icon: 'i-lucide-message-square',
     title: `${personLabel(comment.author.name)} ${t('docetra.comments.commented')}`,
     date: relativeTime(comment.createdAt),
     slot: 'comment' as const,
@@ -72,7 +71,6 @@ const timelineItems = computed<ActivityTimelineItem[]>(() => {
         at: new Date(event.occurredAt).getTime(),
         event,
         highlight: eventHighlight(event),
-        icon: attachment ? 'i-lucide-paperclip' : 'i-lucide-circle',
         title: eventPrefix(event),
         date: relativeTime(event.occurredAt),
         slot: 'line' as const,
@@ -254,15 +252,14 @@ function commentActions(comment: EntityComment) {
         color="neutral"
         size="xs"
         class="w-full"
-        :default-value="timelineItems[timelineItems.length - 1]?.value"
         :ui="{
-          item: 'pb-1 last:pb-0',
-          container: 'items-center',
-          indicator: 'z-10 size-6 shrink-0 bg-default text-muted ring ring-default',
-          separator: 'w-px min-h-4 flex-1 bg-gray-200 dark:bg-gray-700',
-          wrapper: 'ms-1 pb-5',
+          item: 'pb-0 gap-2.5',
+          container: 'w-2 items-center',
+          indicator: 'relative z-10 mt-0 size-2 shrink-0 bg-transparent p-0 ring-0',
+          separator: 'w-px min-h-3 flex-1 rounded-none bg-muted group-data-[state=completed]:bg-muted group-data-[state=active]:bg-muted',
+          wrapper: 'ms-1 min-w-0 pb-5 last:pb-0',
           date: 'hidden',
-          title: 'text-sm font-normal text-toned',
+          title: 'text-sm font-normal leading-5 text-toned',
           description: 'hidden',
         }"
       >
@@ -363,17 +360,9 @@ function commentActions(comment: EntityComment) {
           </p>
         </template>
 
-        <!-- Tiny bullet for plain events -->
-        <template #indicator="{ item }">
-          <span
-            v-if="asFeedItem(item).kind === 'event'"
-            class="size-2 rounded-full bg-gray-700 dark:bg-gray-300"
-          />
-          <UIcon
-            v-else
-            :name="asFeedItem(item).icon || 'i-lucide-circle'"
-            class="size-3.5"
-          />
+        <!-- ERPNext-style timeline point: solid dot on a thin grey line -->
+        <template #indicator>
+          <span class="size-1.5 rounded-full bg-highlighted" />
         </template>
       </UTimeline>
 

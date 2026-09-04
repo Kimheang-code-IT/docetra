@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { DashboardCalendarEvent } from '~/types/docetra/entities'
 import { useAppLocalization } from '~/composables/settings/useAppLocalization'
+import { getSoftSelectUi } from '~/utils/filter/select-ui'
 
 const props = withDefaults(
   defineProps<{
@@ -107,10 +108,7 @@ const selectedLabel = computed(() => {
   })
 })
 
-const selectUi = {
-  base: 'rounded-lg bg-elevated ring-0 font-medium text-highlighted',
-  trailingIcon: 'text-muted',
-}
+const selectUi = computed(() => getSoftSelectUi())
 
 const navBtnClass = 'rounded-lg bg-elevated'
 
@@ -301,6 +299,8 @@ function isSameMonth(d: Date) {
           value-key="value"
           size="sm"
           class="w-36"
+          color="neutral"
+          variant="soft"
           :aria-label="$t('docetra.dashboard.calendar.pickMonth')"
           :ui="selectUi"
         />
@@ -311,6 +311,8 @@ function isSameMonth(d: Date) {
           value-key="value"
           size="sm"
           class="w-28"
+          color="neutral"
+          variant="soft"
           :aria-label="$t('docetra.dashboard.calendar.pickYear')"
           :ui="selectUi"
         />

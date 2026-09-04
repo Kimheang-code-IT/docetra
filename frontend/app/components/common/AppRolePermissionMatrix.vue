@@ -7,6 +7,7 @@ import {
   setPermissionAction,
 } from '~/utils/role/permissions'
 import { usePermissionCatalogRows } from '~/composables/config/usePermissionCatalog'
+import { FORM_CONTROL_COMPACT } from '~/utils/form-field-ui'
 
 const rows = defineModel<AppRolePermissionRow[]>({ default: () => [] })
 
@@ -216,7 +217,10 @@ function updateLevel(documentType: string, value: string | number) {
                 type="number"
                 :min="0"
                 :max="9"
-                size="sm"
+                :color="FORM_CONTROL_COMPACT.color"
+                :variant="FORM_CONTROL_COMPACT.variant"
+                :size="FORM_CONTROL_COMPACT.size"
+                :placeholder="t('docetra.fields.placeholderNumber')"
                 :disabled="disabled || row.actions.length === 0"
                 @update:model-value="updateLevel(row.documentType, $event)"
               />

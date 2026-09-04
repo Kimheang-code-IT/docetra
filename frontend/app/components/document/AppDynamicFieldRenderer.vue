@@ -18,7 +18,8 @@ import type {
 import type { ConnectionStatus, NotificationRule, TelegramDestination, CardDisplayEntityKey } from '~/types/docetra/settings'
 import { TELEGRAM_TEMPLATE_VARIABLES } from '~/types/docetra/settings'
 import { createClientId } from '~/utils/client-id'
-import { resolveFieldHelp } from '~/utils/field-help'
+import { resolveFieldHelp, stripOptionalHelpPrefix } from '~/utils/field-help'
+import { FORM_CONTROL, FORM_CONTROL_COMPACT } from '~/utils/form-field-ui'
 import { loadReferenceOptions } from '~/composables/common/useReferenceOptions'
 import { ApiEndpoints } from '~/utils/constants/api-endpoints'
 
@@ -45,71 +46,14 @@ const destinationTypeItems = [
   { label: 'Organization', value: 'organization' },
 ]
 
-const stringValue = computed({
-  get: () => String(props.modelValue ?? ''),
-  set: (v: string) => emit('update:modelValue', v),
-})
-
-const selectValue = computed({
-  get: () => {
-    if (props.modelValue == null || props.modelValue === '') return undefined
-    return String(props.modelValue)
-  },
-  set: (v: string | undefined) => emit('update:modelValue', v ?? ''),
-})
-
-const numberValue = computed({
-  get: () => (typeof props.modelValue === 'number' ? props.modelValue : Number(props.modelValue || 0)),
-  set: (v: number | null) => emit('update:modelValue', v ?? 0),
-})
-
 const boolValue = computed({
   get: () => Boolean(props.modelValue),
   set: (v: boolean | 'indeterminate') => emit('update:modelValue', v === true),
 })
 
-const multiValue = computed({
-  get: () => (Array.isArray(props.modelValue)
-    ? props.modelValue.map(String).filter(Boolean)
-    : (props.modelValue ? [String(props.modelValue)] : [])),
-  set: (v: string | string[]) => emit('update:modelValue', v),
-})
-
 const permissionRows = computed({
   get: () => (Array.isArray(props.modelValue) ? props.modelValue as any[] : []),
   set: (v: any[]) => emit('update:modelValue', v),
-})
-
-const csvValue = computed({
-  get: () => Array.isArray(props.modelValue)
-    ? (props.modelValue as unknown[]).map(String).join(', ')
-    : String(props.modelValue ?? ''),
-  set: (v: string) => {
-    emit(
-      'update:modelValue',
-      String(v || '')
-        .split(',')
-        .map(s => s.trim())
-        .filter(Boolean),
-    )
-  },
-})
-
-const imageValue = computed({
-  get: () => (props.modelValue == null || props.modelValue === ''
-    ? undefined
-    : String(props.modelValue)),
-  set: (v: string | undefined) => emit('update:modelValue', v),
-})
-
-const colorValue = computed({
-  get: () => String(props.modelValue || '#2563eb'),
-  set: (v: string) => emit('update:modelValue', v),
-})
-
-const secretValue = computed({
-  get: () => String(props.modelValue ?? ''),
-  set: (v: string) => emit('update:modelValue', v),
 })
 
 const destinationsValue = computed({
@@ -162,14 +106,6 @@ watch(resolvedOptionsEndpoint, async (endpoint) => {
   }
 }, { immediate: true })
 
-const searchRemoteOptions = useDebounceFn(async (search: string) => {
-  const endpoint = resolvedOptionsEndpoint.value
-  if (!endpoint) return
-  optionsPending.value = true
-  try { remoteOptions.value = await loadReferenceOptions(endpoint, search) }
-  finally { optionsPending.value = false }
-}, 250)
-
 const selectItems = computed(() => {
   return [...(props.field.options || []), ...remoteOptions.value]
     .filter(o => o.value !== '')
@@ -186,8 +122,13 @@ const labelText = computed(() => {
 })
 
 const helpText = computed(() => {
-  if (props.field.help) return props.field.help
-  return resolveFieldHelp(props.field, labelText.value, t, te)
+  if (props.field.help) {
+    const text = props.field.help
+    return fieldRequired.value ? text : stripOptionalHelpPrefix(text)
+  }
+  return resolveFieldHelp(props.field, labelText.value, t, te, {
+    required: fieldRequired.value,
+  })
 })
 
 const hintText = computed(() => {
@@ -195,23 +136,11 @@ const hintText = computed(() => {
   return helpText.value
 })
 
-const placeholderText = computed(() => {
-  if (props.field.placeholder) return props.field.placeholder
-  if (props.field.placeholderKey && te(props.field.placeholderKey)) {
-    return t(props.field.placeholderKey)
-  }
-  return labelText.value
-})
-
 const isBoolean = computed(() => props.field.type === 'boolean')
 const isPermissionMatrix = computed(() => props.field.type === 'permission-matrix')
-const isSecret = computed(() => props.field.type === 'secret')
 const fieldRequired = computed(() =>
   Boolean(props.field.required || (props.isCreate && props.field.requiredOnCreate)),
 )
-const isColor = computed(() => props.field.type === 'color')
-const isImage = computed(() => props.field.type === 'image')
-const isIcon = computed(() => props.field.type === 'icon')
 const isTelegramDestinations = computed(() => props.field.type === 'telegram-destinations')
 const isNotificationRules = computed(() => props.field.type === 'notification-rules')
 const isConnectionStatus = computed(() => props.field.type === 'connection-status')
@@ -256,11 +185,6 @@ const cardFieldsValue = computed({
       cardFooterAlign: v.cardFooterAlign || {},
     })
   },
-})
-
-const iconValue = computed({
-  get: () => String(props.modelValue ?? ''),
-  set: (v: string) => emit('update:modelValue', v),
 })
 
 const assignedAttributes = computed({
@@ -485,39 +409,6 @@ function removeDestination(id: string) {
     :description="helpText || undefined"
   />
 
-  <CommonAppSecretInput
-    v-else-if="isSecret"
-    v-model="secretValue"
-    :label="labelText"
-    :help="helpText"
-    :required="fieldRequired"
-    :disabled="disabled || field.readOnly"
-  />
-
-  <CommonAppColorPicker
-    v-else-if="isColor"
-    v-model="colorValue"
-    :label="labelText"
-    :help="helpText"
-    :disabled="disabled || field.readOnly"
-  />
-
-  <CommonAppImageUploadField
-    v-else-if="isImage"
-    v-model="imageValue"
-    :label="labelText"
-    :help="helpText"
-    :disabled="disabled || field.readOnly"
-  />
-
-  <CommonAppIconPicker
-    v-else-if="isIcon"
-    v-model="iconValue"
-    :label="labelText"
-    :help="helpText"
-    :disabled="disabled || field.readOnly"
-  />
-
   <ConfigurationAppNumberingPreview
     v-else-if="isNumberingPreview"
     class="md:col-span-2"
@@ -562,6 +453,10 @@ function removeDestination(id: string) {
           :items="selectItems"
           value-key="value"
           class="w-full"
+          :placeholder="t('docetra.fields.placeholderSelect', { label: t('docetra.config.assignAttribute') })"
+          :color="FORM_CONTROL.color"
+          :variant="FORM_CONTROL.variant"
+          :size="FORM_CONTROL.size"
           :disabled="disabled || field.readOnly"
           :loading="optionsPending"
           @update:search-term="searchAttributes?.($event)"
@@ -659,8 +554,10 @@ function removeDestination(id: string) {
           </div>
           <UInput
             :model-value="item.section || ''"
-            size="sm"
-            :placeholder="t('docetra.config.section')"
+            :color="FORM_CONTROL_COMPACT.color"
+            :variant="FORM_CONTROL_COMPACT.variant"
+            :size="FORM_CONTROL_COMPACT.size"
+            :placeholder="t('docetra.fields.placeholderEnter', { label: t('docetra.config.section') })"
             :disabled="disabled || field.readOnly"
             @update:model-value="updateAssigned(item.attributeId, { section: String($event) })"
           />
@@ -670,8 +567,11 @@ function removeDestination(id: string) {
               :items="assignmentStageItems"
               value-key="value"
               label-key="label"
-              size="sm"
+              :color="FORM_CONTROL_COMPACT.color"
+              :variant="FORM_CONTROL_COMPACT.variant"
+              :size="FORM_CONTROL_COMPACT.size"
               class="w-full"
+              :placeholder="t('docetra.fields.placeholderSelect', { label: t('docetra.config.assignedStage') })"
               :disabled="disabled || field.readOnly"
               @update:model-value="updateAssigned(item.attributeId, { stageCode: $event === '__all_stages__' ? undefined : String($event || '') || undefined })"
             />
@@ -709,20 +609,30 @@ function removeDestination(id: string) {
     >
       <UInput
         v-model="dest.name"
-        :placeholder="t('docetra.fields.name')"
+        :placeholder="t('docetra.fields.placeholderEnter', { label: t('docetra.fields.name') })"
         :disabled="disabled || field.readOnly"
+        :color="FORM_CONTROL.color"
+        :variant="FORM_CONTROL.variant"
+        :size="FORM_CONTROL.size"
       />
       <UInput
         v-model="dest.chatId"
-        placeholder="Chat ID"
+        :placeholder="t('docetra.fields.placeholderEnter', { label: t('docetra.settings.chatId') })"
         :disabled="disabled || field.readOnly"
+        :color="FORM_CONTROL.color"
+        :variant="FORM_CONTROL.variant"
+        :size="FORM_CONTROL.size"
       />
       <USelect
         v-model="dest.type"
         :items="destinationTypeItems"
         value-key="value"
         label-key="label"
+        :placeholder="t('docetra.fields.placeholderSelect', { label: t('docetra.settings.destinationType') })"
         :disabled="disabled || field.readOnly"
+        :color="FORM_CONTROL.color"
+        :variant="FORM_CONTROL.variant"
+        :size="FORM_CONTROL.size"
       />
       <div class="flex items-center justify-between gap-2">
         <USwitch v-model="dest.enabled" :disabled="disabled || field.readOnly" />
@@ -818,86 +728,15 @@ function removeDestination(id: string) {
     v-else
     :label="labelText"
     :required="fieldRequired"
-    :help="field.type === 'textarea' && textareaHelp ? textareaHelp : helpText"
+    :help="(field.type === 'textarea' && textareaHelp) ? textareaHelp : (helpText || undefined)"
   >
     <div class="flex items-start gap-1.5">
       <div class="min-w-0 flex-1">
-        <UTextarea
-          v-if="field.type === 'textarea'"
-          v-model="stringValue"
+        <CommonAppFormControl
+          :field="field"
+          :model-value="modelValue"
           :disabled="disabled || field.readOnly"
-          :placeholder="placeholderText"
-          :rows="textareaRows"
-          :maxrows="TEXTAREA_MAX_ROWS"
-          autoresize
-          class="w-full"
-          :class="field.key === 'telegram.messageTemplate' ? 'font-mono text-sm' : ''"
-        />
-        <UInputNumber
-          v-else-if="field.type === 'number'"
-          v-model="numberValue"
-          :disabled="disabled || field.readOnly"
-          class="w-full"
-        />
-        <CommonAppInputDate
-          v-else-if="field.type === 'date'"
-          v-model="stringValue"
-          :disabled="disabled || field.readOnly"
-          :required="fieldRequired"
-          class="w-full"
-        />
-        <CommonAppInputDate
-          v-else-if="field.type === 'datetime'"
-          v-model="stringValue"
-          granularity="minute"
-          :disabled="disabled || field.readOnly"
-          :required="fieldRequired"
-          class="w-full"
-        />
-        <UInputMenu
-          v-else-if="field.type === 'select' && field.optionsEndpoint"
-          v-model="selectValue"
-          :items="selectItems"
-          value-key="value"
-          :placeholder="placeholderText"
-          :disabled="disabled || field.readOnly"
-          :loading="optionsPending"
-          class="w-full"
-          @update:search-term="searchRemoteOptions"
-        />
-        <USelect
-          v-else-if="field.type === 'select'"
-          v-model="selectValue"
-          :items="selectItems"
-          value-key="value"
-          :placeholder="placeholderText"
-          :disabled="disabled || field.readOnly"
-          :loading="optionsPending"
-          class="w-full"
-        />
-        <CommonAppMentionMultiInput
-          v-else-if="field.type === 'multiselect'"
-          v-model="multiValue"
-          :items="selectItems"
-          :placeholder="placeholderText"
-          :disabled="disabled || field.readOnly"
-          :loading="optionsPending"
-          @search="searchRemoteOptions"
-        />
-        <UInput
-          v-else-if="field.type === 'csv-list'"
-          v-model="csvValue"
-          :placeholder="placeholderText"
-          :disabled="disabled || field.readOnly"
-          class="w-full"
-        />
-        <UInput
-          v-else
-          v-model="stringValue"
-          :type="field.type === 'url' ? 'url' : 'text'"
-          :placeholder="placeholderText"
-          :disabled="disabled || field.readOnly"
-          class="w-full"
+          @update:model-value="emit('update:modelValue', $event)"
         />
       </div>
 

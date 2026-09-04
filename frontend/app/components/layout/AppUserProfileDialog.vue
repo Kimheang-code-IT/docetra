@@ -172,17 +172,18 @@ async function onPasswordSubmit(event: FormSubmitEvent<PasswordSchema>) {
 </script>
 
 <template>
-  <UModal
+  <CommonAppDialogShell
     v-model:open="open"
+    variant="modal"
     scrollable
+    hide-footer
+    size="md"
     :title="t('docetra.userProfile.title')"
     :description="t('docetra.userProfile.description')"
     :ui="{
       overlay: 'place-items-start justify-items-center pt-[5vh] sm:pt-[5vh]',
-      content: 'w-[calc(100%-2rem)] max-w-lg sm:max-w-lg',
     }"
   >
-    <template #body>
       <div class="space-y-5">
         <div class="flex flex-col items-center gap-4 pb-1 text-center">
           <div class="relative inline-flex">
@@ -254,11 +255,11 @@ async function onPasswordSubmit(event: FormSubmitEvent<PasswordSchema>) {
               name="currentPassword"
               required
             >
-              <UInput
+              <CommonAppSecretInput
                 v-model="passwordState.currentPassword"
-                type="password"
+                embedded
                 autocomplete="current-password"
-                class="w-full"
+                :placeholder="t('docetra.fields.placeholderEnter', { label: t('docetra.userProfile.currentPassword') })"
               />
             </UFormField>
 
@@ -267,11 +268,11 @@ async function onPasswordSubmit(event: FormSubmitEvent<PasswordSchema>) {
               name="password"
               required
             >
-              <UInput
+              <CommonAppSecretInput
                 v-model="passwordState.password"
-                type="password"
+                embedded
                 autocomplete="new-password"
-                class="w-full"
+                :placeholder="t('docetra.fields.placeholderEnter', { label: t('pages.forgetPassword.newPassword') })"
               />
             </UFormField>
 
@@ -280,11 +281,11 @@ async function onPasswordSubmit(event: FormSubmitEvent<PasswordSchema>) {
               name="passwordConfirmation"
               required
             >
-              <UInput
+              <CommonAppSecretInput
                 v-model="passwordState.passwordConfirmation"
-                type="password"
+                embedded
                 autocomplete="new-password"
-                class="w-full"
+                :placeholder="t('docetra.fields.placeholderEnter', { label: t('pages.forgetPassword.confirmPassword') })"
               />
             </UFormField>
 
@@ -300,18 +301,18 @@ async function onPasswordSubmit(event: FormSubmitEvent<PasswordSchema>) {
           </UForm>
         </div>
       </div>
-    </template>
-  </UModal>
+  </CommonAppDialogShell>
 
-  <UModal
+  <CommonAppDialogShell
     v-model:open="photoPreviewOpen"
+    variant="modal"
+    size="lg"
+    hide-footer
     :title="profile.name"
     :ui="{
       overlay: 'place-items-center justify-items-center',
-      content: 'w-[calc(100%-2rem)] max-w-lg sm:max-w-2xl',
     }"
   >
-    <template #body>
       <div class="relative overflow-hidden rounded-xl border border-default bg-elevated/30">
         <img
           :src="profile.avatar.src"
@@ -334,6 +335,5 @@ async function onPasswordSubmit(event: FormSubmitEvent<PasswordSchema>) {
           />
         </button>
       </div>
-    </template>
-  </UModal>
+  </CommonAppDialogShell>
 </template>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ExportFieldOption, ExportRequest, ExportScope } from '~/types/docetra/export'
+import { FORM_CONTROL } from '~/utils/form-field-ui'
 
 const open = defineModel<boolean>('open', { default: false })
 
@@ -69,23 +70,32 @@ function submit() {
 </script>
 
 <template>
-  <UModal
+  <CommonAppDialogShell
     v-model:open="open"
+    variant="modal"
+    size="lg"
     :title="$t('docetra.exportDialog.title')"
     :description="$t('docetra.exportDialog.description')"
-    :ui="{ content: 'w-[calc(100%-2rem)] max-w-2xl sm:max-w-2xl' }"
+    :loading="loading"
+    :can-submit="canSubmit"
+    confirm-icon="i-lucide-download"
+    :confirm-label="$t('actions.export')"
+    @confirm="submit"
   >
-    <template #body>
       <div class="space-y-5">
         <UFormField
           :label="$t('docetra.exportDialog.dateRange')"
           :error="invalidRange ? $t('docetra.exportDialog.invalidRange') : undefined"
         >
-          <CommonAppDateRangeFilter
-            v-model:start="startDate"
-            v-model:end="endDate"
+          <CommonAppFilterControl
+            :filter="{ key: 'dateRange', labelKey: 'docetra.exportDialog.dateRange', type: 'daterange' }"
+            :start="startDate"
+            :end="endDate"
+            size="md"
             inline
             class="w-full"
+            @update:start="startDate = $event"
+            @update:end="endDate = $event"
           />
         </UFormField>
 
@@ -95,6 +105,10 @@ function submit() {
             :items="scopeItems"
             value-key="value"
             class="w-full"
+            :placeholder="$t('docetra.fields.placeholderSelect', { label: $t('docetra.exportDialog.scope') })"
+            :color="FORM_CONTROL.color"
+            :variant="FORM_CONTROL.variant"
+            :size="FORM_CONTROL.size"
           />
         </UFormField>
 
@@ -117,17 +131,5 @@ function submit() {
           </p>
         </fieldset>
       </div>
-    </template>
-
-    <template #footer>
-      <div class="flex w-full justify-end gap-2">
-        <UButton color="neutral" variant="ghost" :disabled="loading" @click="open = false">
-          {{ $t('actions.cancel') }}
-        </UButton>
-        <UButton icon="i-lucide-download" :loading="loading" :disabled="!canSubmit" @click="submit">
-          {{ $t('actions.export') }}
-        </UButton>
-      </div>
-    </template>
-  </UModal>
+  </CommonAppDialogShell>
 </template>

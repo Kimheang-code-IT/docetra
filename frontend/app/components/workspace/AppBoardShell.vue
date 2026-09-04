@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useMediaQuery } from '@vueuse/core'
 import type { BoardViewMode } from '~/composables/common/useBoardViewMode'
+import type { FilterDef } from '~/types/docetra/common'
 
 /**
  * Shared two-pane board chrome: collapsible rail (drawer on mobile) +
@@ -13,8 +14,8 @@ const props = withDefaults(defineProps<{
   railIcon: string
   collapsed: boolean
   mobileOpen: boolean
-  /** Right-panel heading (selected stage/topic label or "All …"). */
-  headerTitle: string
+  /** Right-panel heading (selected stage/topic label). Omit to hide. */
+  headerTitle?: string
   /** Collapse/expand aria-label keys for the right panel toggles. */
   expandLabelKey: string
   collapseLabelKey: string
@@ -56,18 +57,27 @@ const showViewToggle = computed(() => props.viewMode !== undefined)
 
 const { t } = useI18n()
 
+/** Hide labels below sm (≤ 639 px) so the toggle stays icon-only on small screens. */
+const isVerySmall = useMediaQuery('(max-width: 639px)')
+
 const viewItems = computed(() => [
   {
-    label: t('docetra.views.cards'),
+    label: isVerySmall.value ? '' : t('docetra.views.cards'),
     value: 'cards',
     icon: 'i-lucide-layout-grid',
   },
   {
-    label: t('docetra.views.table'),
+    label: isVerySmall.value ? '' : t('docetra.views.table'),
     value: 'table',
     icon: 'i-lucide-table',
   },
 ])
+
+const dateFilter: FilterDef = {
+  key: 'dateRange',
+  labelKey: 'docetra.fields.meetingDate',
+  type: 'daterange',
+}
 
 function closeMobile() {
   emit('update:mobileOpen', false)
@@ -190,7 +200,10 @@ function onViewModeChange(value: string | number) {
               :aria-expanded="!collapsed"
               @click="emit('update:collapsed', !collapsed)"
             />
-            <h2 class="hidden min-w-0 max-w-40 truncate text-sm font-semibold text-highlighted sm:block">
+            <h2
+              v-if="headerTitle"
+              class="hidden min-w-0 max-w-40 truncate text-sm font-semibold text-highlighted sm:block"
+            >
               {{ headerTitle }}
             </h2>
           </div>
@@ -216,8 +229,9 @@ function onViewModeChange(value: string | number) {
             @update:model-value="onViewModeChange"
           />
 
-          <CommonAppDateRangeFilter
+          <CommonAppFilterControl
             v-if="dateStart !== undefined"
+            :filter="dateFilter"
             :start="dateStart"
             :end="dateEnd ?? ''"
             class="ms-auto shrink-0"

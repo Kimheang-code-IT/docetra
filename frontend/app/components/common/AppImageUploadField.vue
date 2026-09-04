@@ -9,10 +9,12 @@ const props = withDefaults(defineProps<{
   accept?: string
   maxSizeMb?: number
   disabled?: boolean
+  embedded?: boolean
 }>(), {
   accept: SAFE_RASTER_IMAGE_ACCEPT,
   maxSizeMb: 2,
   disabled: false,
+  embedded: false,
 })
 
 const { t, te } = useI18n()
@@ -76,7 +78,7 @@ function onDrop(event: DragEvent) {
 </script>
 
 <template>
-  <UFormField :label="labelText" :hint="helpText">
+  <UFormField :label="embedded ? undefined : labelText" :hint="embedded ? undefined : helpText">
     <div
       class="relative flex min-h-28 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-default bg-elevated/40 p-4 transition"
       :class="[
@@ -91,7 +93,7 @@ function onDrop(event: DragEvent) {
       <template v-if="model">
         <img v-if="previewSource" :src="previewSource" alt="" class="max-h-24 max-w-full object-contain" referrerpolicy="no-referrer">
         <div class="flex gap-2">
-          <UButton size="xs" color="neutral" variant="soft" @click.stop="openPicker">
+          <UButton size="xs" color="neutral" variant="outline" @click.stop="openPicker">
             {{ t('docetra.common.replace') }}
           </UButton>
           <UButton size="xs" color="error" variant="ghost" @click.stop="clear">

@@ -1,6 +1,7 @@
 import {
   CalendarDate,
   CalendarDateTime,
+  Time,
   parseDate,
   parseDateTime,
 } from '@internationalized/date'
@@ -86,5 +87,36 @@ export function mergeDateWithTime(
     return new CalendarDateTime(date.year, date.month, date.day, current.hour, current.minute)
   }
   return new CalendarDateTime(date.year, date.month, date.day, fallbackHour, fallbackMinute)
+}
+
+export function parseTimeValue(value?: string | null): Time | undefined {
+  const parsed = parsePickerValue(value, true)
+  if (parsed && 'hour' in parsed) {
+    const dt = parsed as CalendarDateTime
+    return new Time(dt.hour, dt.minute, 0)
+  }
+  return undefined
+}
+
+export function mergeCalendarDateAndTime(
+  date: CalendarDate | undefined | null,
+  time?: Time | null,
+): string {
+  if (!date) return ''
+  const hour = time?.hour ?? 0
+  const minute = time?.minute ?? 0
+  return serializePickerValue(new CalendarDateTime(date.year, date.month, date.day, hour, minute))
+}
+
+/** ERPNext-style form fields: fill, no idle border, grey ring when focused. */
+export function getFormDateUi(fullWidth = true) {
+  return {
+    base: [
+      fullWidth ? 'w-full min-w-0' : '',
+      'shadow-none outline-none ring-0 has-focus:ring-1 has-focus:ring-inset has-focus:ring-default has-focus-visible:outline-none',
+    ].filter(Boolean).join(' '),
+    trailing: 'pe-0.5',
+    trailingIcon: 'text-muted',
+  }
 }
 

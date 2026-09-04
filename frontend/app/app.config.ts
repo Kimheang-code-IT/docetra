@@ -22,9 +22,9 @@ export default defineAppConfig({
     },
 
     /**
-     * Global form control look (matches Docetra document forms):
-     * soft elevated fill, no hard ring, rounded-md.
-     * Applies to Input / Select / Textarea / InputDate / InputNumber / Checkbox / FormField.
+     * ERPNext-style form controls:
+     * soft elevated fill with no border when idle;
+     * grey inset ring only when focused / open.
      */
     formField: {
       slots: {
@@ -39,9 +39,16 @@ export default defineAppConfig({
     input: {
       variants: {
         variant: {
-          soft: 'text-highlighted bg-elevated/70 hover:bg-elevated focus:bg-elevated disabled:bg-elevated/50',
+          soft: 'text-highlighted bg-elevated/70 hover:bg-elevated focus:bg-elevated ring-0 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-default focus-visible:outline-none disabled:bg-elevated/50',
         },
       },
+      compoundVariants: [
+        {
+          color: 'neutral',
+          variant: ['soft', 'ghost'],
+          class: 'focus-visible:outline-none',
+        },
+      ],
       defaultVariants: {
         size: 'md',
         color: 'neutral',
@@ -52,9 +59,16 @@ export default defineAppConfig({
     textarea: {
       variants: {
         variant: {
-          soft: 'text-highlighted bg-elevated/70 hover:bg-elevated focus:bg-elevated disabled:bg-elevated/50',
+          soft: 'text-highlighted bg-elevated/70 hover:bg-elevated focus:bg-elevated ring-0 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-default focus-visible:outline-none disabled:bg-elevated/50',
         },
       },
+      compoundVariants: [
+        {
+          color: 'neutral',
+          variant: ['soft', 'ghost'],
+          class: 'focus-visible:outline-none',
+        },
+      ],
       defaultVariants: {
         size: 'md',
         color: 'neutral',
@@ -65,9 +79,16 @@ export default defineAppConfig({
     select: {
       variants: {
         variant: {
-          soft: 'text-highlighted bg-elevated/70 hover:bg-elevated focus:bg-elevated disabled:bg-elevated/50',
+          soft: 'text-highlighted bg-elevated/70 hover:bg-elevated focus:bg-elevated data-[state=open]:bg-elevated ring-0 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-default data-[state=open]:ring-1 data-[state=open]:ring-inset data-[state=open]:ring-default focus-visible:outline-none disabled:bg-elevated/50',
         },
       },
+      compoundVariants: [
+        {
+          color: 'neutral',
+          variant: ['soft', 'ghost'],
+          class: 'focus-visible:outline-none',
+        },
+      ],
       defaultVariants: {
         size: 'md',
         color: 'neutral',
@@ -78,9 +99,16 @@ export default defineAppConfig({
     selectMenu: {
       variants: {
         variant: {
-          soft: 'text-highlighted bg-elevated/70 hover:bg-elevated focus:bg-elevated disabled:bg-elevated/50',
+          soft: 'text-highlighted bg-elevated/70 hover:bg-elevated focus:bg-elevated data-[state=open]:bg-elevated ring-0 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-default data-[state=open]:ring-1 data-[state=open]:ring-inset data-[state=open]:ring-default focus-visible:outline-none disabled:bg-elevated/50',
         },
       },
+      compoundVariants: [
+        {
+          color: 'neutral',
+          variant: ['soft', 'ghost'],
+          class: 'focus-visible:outline-none',
+        },
+      ],
       defaultVariants: {
         size: 'md',
         color: 'neutral',
@@ -91,9 +119,16 @@ export default defineAppConfig({
     inputMenu: {
       variants: {
         variant: {
-          soft: 'text-highlighted bg-elevated/70 hover:bg-elevated focus:bg-elevated disabled:bg-elevated/50',
+          soft: 'text-highlighted bg-elevated/70 hover:bg-elevated focus:bg-elevated data-[state=open]:bg-elevated ring-0 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-default data-[state=open]:ring-1 data-[state=open]:ring-inset data-[state=open]:ring-default focus-visible:outline-none disabled:bg-elevated/50',
         },
       },
+      compoundVariants: [
+        {
+          color: 'neutral',
+          variant: ['soft', 'ghost'],
+          class: 'focus-visible:outline-none',
+        },
+      ],
       defaultVariants: {
         size: 'md',
         color: 'neutral',
@@ -104,9 +139,16 @@ export default defineAppConfig({
     inputNumber: {
       variants: {
         variant: {
-          soft: 'text-highlighted bg-elevated/70 hover:bg-elevated focus:bg-elevated disabled:bg-elevated/50',
+          soft: 'text-highlighted bg-elevated/70 hover:bg-elevated focus:bg-elevated ring-0 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-default focus-visible:outline-none disabled:bg-elevated/50',
         },
       },
+      compoundVariants: [
+        {
+          color: 'neutral',
+          variant: ['soft', 'ghost'],
+          class: 'focus-visible:outline-none',
+        },
+      ],
       defaultVariants: {
         size: 'md',
         color: 'neutral',
@@ -117,9 +159,16 @@ export default defineAppConfig({
     inputDate: {
       variants: {
         variant: {
-          soft: 'text-highlighted bg-elevated/70 hover:bg-elevated has-focus:bg-elevated disabled:bg-elevated/50',
+          soft: 'text-highlighted bg-elevated/70 hover:bg-elevated has-focus:bg-elevated ring-0 shadow-none outline-none has-focus:ring-1 has-focus:ring-inset has-focus:ring-default has-focus-visible:outline-none disabled:bg-elevated/50',
         },
       },
+      compoundVariants: [
+        {
+          color: 'neutral',
+          variant: ['soft', 'ghost'],
+          class: 'outline-none shadow-none ring-0 has-focus-visible:outline-none',
+        },
+      ],
       defaultVariants: {
         size: 'md',
         color: 'neutral',
@@ -130,9 +179,16 @@ export default defineAppConfig({
     inputTime: {
       variants: {
         variant: {
-          soft: 'text-highlighted bg-elevated/70 hover:bg-elevated has-focus:bg-elevated disabled:bg-elevated/50',
+          soft: 'text-highlighted bg-elevated/70 hover:bg-elevated has-focus:bg-elevated ring-0 shadow-none outline-none has-focus:ring-1 has-focus:ring-inset has-focus:ring-default has-focus-visible:outline-none disabled:bg-elevated/50',
         },
       },
+      compoundVariants: [
+        {
+          color: 'neutral',
+          variant: ['soft', 'ghost'],
+          class: 'outline-none shadow-none ring-0 has-focus-visible:outline-none',
+        },
+      ],
       defaultVariants: {
         size: 'md',
         color: 'neutral',
@@ -143,7 +199,7 @@ export default defineAppConfig({
     pinInput: {
       variants: {
         variant: {
-          soft: 'text-highlighted bg-elevated/70 hover:bg-elevated focus:bg-elevated disabled:bg-elevated/50',
+          soft: 'text-highlighted bg-elevated/70 hover:bg-elevated focus:bg-elevated ring-0 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-default focus-visible:outline-none disabled:bg-elevated/50',
         },
       },
       defaultVariants: {

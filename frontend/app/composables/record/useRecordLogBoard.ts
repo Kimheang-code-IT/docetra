@@ -16,6 +16,8 @@ interface RecordLogTab {
   /** Literal configured Record Type name. */
   label?: string
   descriptionKey?: string
+  /** Literal description (from record type config). */
+  description?: string
   icon: string
   /** Filter applied when this tab is active. Empty = all logs. */
   filter?: Partial<Pick<RecordLog, 'action' | 'entityType' | 'category' | 'severity'>>
@@ -147,6 +149,7 @@ export function useRecordLogBoard() {
       id: type.code,
       labelKey: `docetra.entityTypes.${type.code}`,
       label: type.name,
+      description: type.description || undefined,
       icon: type.icon || 'i-lucide-file-text',
       filter: { entityType: type.code },
       columns: recordLogColumns,

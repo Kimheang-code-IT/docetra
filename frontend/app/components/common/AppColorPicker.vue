@@ -1,13 +1,18 @@
 <script setup lang="ts">
+import { FORM_CONTROL } from '~/utils/form-field-ui'
+
 const model = defineModel<string>({ default: '#2563eb' })
 
 const props = withDefaults(defineProps<{
   label?: string
   labelKey?: string
+  placeholder?: string
   help?: string
   disabled?: boolean
+  embedded?: boolean
 }>(), {
   disabled: false,
+  embedded: false,
 })
 
 const { t, te } = useI18n()
@@ -33,7 +38,7 @@ const PRESETS = [
 </script>
 
 <template>
-  <UFormField :label="labelText" :help="props.help || undefined">
+  <UFormField :label="embedded ? undefined : labelText" :help="embedded ? undefined : (props.help || undefined)">
     <div class="flex flex-wrap items-center gap-2">
       <input
         v-model="model"
@@ -45,9 +50,11 @@ const PRESETS = [
       <UInput
         v-model="model"
         class="w-32"
-        size="sm"
+        :color="FORM_CONTROL.color"
+        :variant="FORM_CONTROL.variant"
+        :size="FORM_CONTROL.size"
         :disabled="props.disabled"
-        placeholder="#2563eb"
+        :placeholder="props.placeholder || '#2563eb'"
       />
       <UButton
         v-for="swatch in PRESETS"

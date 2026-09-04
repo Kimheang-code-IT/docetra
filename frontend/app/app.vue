@@ -112,7 +112,6 @@ useSeoMeta({
     <NuxtLayout>
       <NuxtPage :page-key="pageKey" />
     </NuxtLayout>
-    <CommonAppAccessAlertHost />
     <CommonAppConfirmHost />
   </UApp>
 </template>

@@ -1,55 +1,50 @@
-type AccessAlertKind = 'permission' | 'session-expired'
-
-type AccessAlertState = {
+type ToastItem = {
+  id: string
   open: boolean
-  kind: AccessAlertKind
-  permission: string
-  requestedPath: string
-  description: string
+  title?: string
+  description?: string
+  color?: string
 }
 
-/** App-wide access/session alert state shared by route guards and API requests. */
+function pushToast(title: string, description: string, color: ToastItem['color'] = 'error') {
+  const toasts = useState<ToastItem[]>('toasts', () => [])
+  const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+  toasts.value = [...toasts.value, { id, open: true, title, description, color }].slice(-5)
+}
+
+/**
+ * Permission / session feedback without a blocking modal.
+ * 401 still clears the session in `useApi`; this only toasts.
+ */
 export function useAccessAlert() {
-  const state = useState<AccessAlertState>('app-access-alert', () => ({
-    open: false,
-    kind: 'permission',
-    permission: '',
-    requestedPath: '',
-    description: '',
-  }))
+  const nuxtApp = useNuxtApp()
+
+  function t(key: string, params?: Record<string, unknown>) {
+    const i18n = nuxtApp.$i18n as { t: (k: string, p?: Record<string, unknown>) => string } | undefined
+    return i18n?.t?.(key, params) ?? key
+  }
 
   function showPermissionDenied(options: {
     permission?: string
     requestedPath?: string
     description?: string
   } = {}) {
-    state.value = {
-      open: true,
-      kind: 'permission',
-      permission: options.permission || '',
-      requestedPath: options.requestedPath || '',
-      description: options.description || '',
-    }
+    pushToast(
+      t('docetra.states.accessDeniedTitle'),
+      options.description || t('docetra.states.accessDeniedDescription'),
+    )
   }
 
   function showSessionExpired(description = '') {
-    state.value = {
-      open: true,
-      kind: 'session-expired',
-      permission: '',
-      requestedPath: '',
-      description,
-    }
-  }
-
-  function close() {
-    state.value.open = false
+    pushToast(
+      t('docetra.states.sessionExpiredTitle'),
+      description || t('docetra.states.sessionExpiredDescription'),
+      'warning',
+    )
   }
 
   return {
-    state,
     showPermissionDenied,
     showSessionExpired,
-    close,
   }
 }

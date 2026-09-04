@@ -95,9 +95,8 @@ export function useRecordStageBoard(
 
   const items = ref<Record<string, unknown>[]>([])
   const total = ref(0)
-  const currentPage = ref(1)
-  const pageSize = 24
-  const loadingMore = ref(false)
+  const page = ref(1)
+  const limit = ref(20)
   const stageCounts = ref<Record<string, number>>({})
   const pending = ref(false)
   const error = ref<string | null>(null)
@@ -127,7 +126,8 @@ export function useRecordStageBoard(
     return response.data
   }
 
-  async function refresh() {
+  async function refresh(options: { resetPage?: boolean } = {}) {
+    if (options.resetPage) page.value = 1
     const token = ++requestToken
     pending.value = true
     error.value = null
@@ -139,8 +139,8 @@ export function useRecordStageBoard(
           stage: selectedStage.value || undefined,
           startDate: dateStart.value || undefined,
           endDate: dateEnd.value || undefined,
-          page: 1,
-          limit: pageSize,
+          page: page.value,
+          limit: limit.value,
           sort: '-updatedAt',
         }),
         refreshCounts(),
@@ -148,7 +148,6 @@ export function useRecordStageBoard(
       if (token !== requestToken) return
       items.value = (listRes.data || []) as Record<string, unknown>[]
       total.value = listRes.meta?.total || 0
-      currentPage.value = 1
       stageCounts.value = counts.groups || {}
       if (!selectedStage.value) total.value = counts.total || total.value
     }
@@ -161,6 +160,18 @@ export function useRecordStageBoard(
     }
   }
 
+  function setPage(next: number) {
+    if (page.value === next) return
+    page.value = next
+    void refresh()
+  }
+
+  function setLimit(next: number) {
+    if (limit.value === next) return
+    limit.value = next
+    void refresh({ resetPage: true })
+  }
+
   const debouncedRecordSearch = useDebounceFn((value: string) => {
     router.replace({
       query: {
@@ -169,7 +180,7 @@ export function useRecordStageBoard(
         page: undefined,
       },
     })
-    refresh()
+    void refresh({ resetPage: true })
   }, 300)
 
   watch(recordSearch, (value) => {
@@ -185,11 +196,11 @@ export function useRecordStageBoard(
         page: undefined,
       },
     })
-    refresh()
+    void refresh({ resetPage: true })
   })
 
   watch(selectedStage, () => {
-    refresh()
+    void refresh({ resetPage: true })
   })
 
   function selectStage(code: string | null) {
@@ -256,37 +267,6 @@ export function useRecordStageBoard(
     return te(key) ? t(key) : text
   }
 
-  const hasMore = computed(() => items.value.length < total.value)
-
-  async function loadMore() {
-    if (!hasMore.value || loadingMore.value) return
-    const token = requestToken
-    const nextPage = currentPage.value + 1
-    loadingMore.value = true
-    try {
-      const response = await adapter.list({
-        q: recordSearch.value || undefined,
-        stage: selectedStage.value || undefined,
-        startDate: dateStart.value || undefined,
-        endDate: dateEnd.value || undefined,
-        page: nextPage,
-        limit: pageSize,
-        sort: '-updatedAt',
-      })
-      if (token !== requestToken) return
-      const seen = new Set(items.value.map(item => String(item.id)))
-      items.value = [
-        ...items.value,
-        ...((response.data || []) as Record<string, unknown>[]).filter(item => !seen.has(String(item.id))),
-      ]
-      currentPage.value = nextPage
-      total.value = response.meta?.total || total.value
-    }
-    finally {
-      if (token === requestToken) loadingMore.value = false
-    }
-  }
-
   async function reloadStageConfiguration() {
     stageConfigurationLoaded = false
     await refresh()
@@ -308,14 +288,15 @@ export function useRecordStageBoard(
     items,
     filteredItems,
     total,
+    page,
+    limit,
     stageCounts,
     allCount,
     pending,
-    loadingMore,
-    hasMore,
     error,
     refresh,
-    loadMore,
+    setPage,
+    setLimit,
     reloadStageConfiguration,
     selectStage,
     toggleLeftPanel,

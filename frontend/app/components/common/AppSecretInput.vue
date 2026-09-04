@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { FORM_CONTROL } from '~/utils/form-field-ui'
+
 const props = withDefaults(defineProps<{
   modelValue?: string
   label?: string
@@ -9,11 +11,14 @@ const props = withDefaults(defineProps<{
   required?: boolean
   disabled?: boolean
   autocomplete?: string
+  /** Skip UFormField when the parent already provides label/help. */
+  embedded?: boolean
 }>(), {
   modelValue: '',
   autocomplete: 'new-password',
   required: false,
   disabled: false,
+  embedded: false,
 })
 
 const emit = defineEmits<{
@@ -39,17 +44,30 @@ const value = computed({
   get: () => props.modelValue ?? '',
   set: (v: string) => emit('update:modelValue', v),
 })
+
+const placeholderText = computed(() => {
+  if (props.placeholder?.trim()) return props.placeholder.trim()
+  if (labelText.value) return t('docetra.fields.placeholderEnter', { label: labelText.value })
+  return t('docetra.fields.placeholderEnter', { label: t('docetra.fields.value') })
+})
 </script>
 
 <template>
-  <UFormField :label="labelText" :required="required" :hint="helpText || undefined">
+  <UFormField
+    :label="embedded ? undefined : labelText"
+    :required="embedded ? undefined : required"
+    :hint="embedded ? undefined : (helpText || undefined)"
+  >
     <UInput
       v-model="value"
       :type="revealed ? 'text' : 'password'"
-      :placeholder="placeholder"
+      :placeholder="placeholderText"
       :disabled="disabled"
       :autocomplete="autocomplete"
       class="w-full"
+      :color="FORM_CONTROL.color"
+      :variant="FORM_CONTROL.variant"
+      :size="FORM_CONTROL.size"
       :ui="{ trailing: 'pe-1' }"
     >
       <template #trailing>

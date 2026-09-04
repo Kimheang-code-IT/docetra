@@ -109,8 +109,8 @@ function openPickerDialog() {
     <UButton
       v-if="iconOnly"
       icon="i-lucide-calendar"
-      :color="hasActiveFilter ? 'primary' : 'neutral'"
-      :variant="hasActiveFilter ? 'soft' : 'outline'"
+      color="neutral"
+      :variant="hasActiveFilter ? 'soft' : 'ghost'"
       size="sm"
       square
       class="shrink-0"
@@ -137,7 +137,7 @@ function openPickerDialog() {
         :disabled="disabled"
         :size="size"
         color="neutral"
-        variant="outline"
+        variant="soft"
         :class="inline ? 'w-full min-w-0' : 'w-auto max-w-full'"
         :ui="dateUi"
         :aria-label="pickerTitle"
