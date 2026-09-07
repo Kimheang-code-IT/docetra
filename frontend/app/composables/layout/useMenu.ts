@@ -59,6 +59,14 @@ export function useMenu() {
     onSelect: close,
   })
 
+  const childLink = (label: string, to: string): NavigationMenuItem => ({
+    label,
+    to,
+    exact: true,
+    class: 'text-sm gap-2 pl-6 opacity-80',
+    onSelect: close,
+  })
+
   const group = (
     label: string,
     icon: string,
@@ -145,14 +153,16 @@ export function useMenu() {
   // Order matches product nav: Dashboard → … → Configuration → Setting
   const links = computed<NavigationMenuItem[][]>(() => {
     const meetingChildren = meetingTypes.value.length
-      ? meetingTypes.value.map(type => pageLink(type.name, type.routeBase))
+      ? meetingTypes.value.map(type =>
+          type.code === 'meeting_history' ? childLink(type.name, type.routeBase) : pageLink(type.name, type.routeBase),
+        )
       : fallbackMeetingLinks()
 
     const documentChildren = [
       ...(documentTypes.value.length
         ? documentTypes.value.map(type => pageLink(type.name, type.routeBase))
         : fallbackDocumentLinks().slice(0, -1)),
-      pageLink(t('docetra.pages.recordLog'), '/records/logs'),
+      childLink(t('docetra.pages.recordLog'), '/records/logs'),
     ]
 
     return [[
@@ -169,22 +179,22 @@ export function useMenu() {
       group(t('docetra.navigation.organization'), 'i-lucide-building-2', [
         pageLink(t('docetra.pages.department'), '/organizations/departments'),
         pageLink(t('docetra.pages.company'), '/organizations/companies'),
-        pageLink(t('docetra.pages.purpose'), '/purpose'),
-        pageLink(t('docetra.pages.sector'), '/sector'),
-        pageLink(t('docetra.pages.officer'), '/officers'),
+        childLink(t('docetra.pages.purpose'), '/purpose'),
+        childLink(t('docetra.pages.sector'), '/sector'),
+        childLink(t('docetra.pages.officer'), '/officers'),
       ], { defaultOpen: true }),
       group(t('docetra.navigation.portal'), 'i-lucide-square-arrow-out-up-right', [
         pageLink(t('docetra.pages.fileUpload'), '/portal/file-upload'),
         pageLink(t('docetra.pages.googleDriveSync'), '/portal/google-drive-sync'),
-        pageLink(t('docetra.pages.portalLog'), '/portal/portal-logs'),
+        childLink(t('docetra.pages.portalLog'), '/portal/portal-logs'),
       ], { defaultOpen: true }),
       group(t('docetra.navigation.userManagement'), 'i-lucide-users', [
         pageLink(t('docetra.pages.role'), '/user-management/roles'),
-        pageLink(t('docetra.pages.user'), '/user-management/users'),
+        childLink(t('docetra.pages.user'), '/user-management/users'),
       ], { defaultOpen: true }),
       group(t('docetra.navigation.configuration'), 'i-lucide-bolt', [
         pageLink(t('docetra.pages.recordType'), '/configuration/record-types'),
-        pageLink(t('docetra.pages.recordAttribute'), '/configuration/record-attributes'),
+        childLink(t('docetra.pages.recordAttribute'), '/configuration/record-attributes'),
       ], { defaultOpen: true }),
       group(t('docetra.navigation.settings'), 'i-lucide-settings', [
         pageLink(t('docetra.pages.appInfo'), '/settings/app-info'),
