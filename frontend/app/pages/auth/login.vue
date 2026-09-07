@@ -2,7 +2,8 @@
 import type { FormSubmitEvent, AuthFormField } from '@nuxt/ui'
 import { useAuthSession } from '~/utils/auth/session'
 import { createLoginSchema, createSetupSchema } from '~/utils/auth/login-schema'
-import { readRememberMe } from '~/utils/auth/remember-me'
+import { readRememberMe, writeRememberMe } from '~/utils/auth/remember-me'
+import { fetchErrorStatus } from '~/utils/api/error-policy'
 import { useAuthApi } from '~/composables/auth/useAuthApi'
 import { usePageSeo } from '~/composables/usePageSeo'
 import type { AuthUser } from '~/types/auth-user'
@@ -19,6 +20,8 @@ const authSession = useAuthSession()
 const config = useRuntimeConfig()
 const submitting = ref(false)
 const setupMode = ref(false)
+const showPassword = ref(false)
+const rememberMe = ref(readRememberMe().enabled)
 const loginForm = useTemplateRef<{ state?: Record<string, unknown> }>('loginForm')
 
 usePageSeo({
@@ -42,7 +45,7 @@ function buildFields(): AuthFormField[] {
   }
   const passwordField: AuthFormField = {
     name: 'password',
-    type: 'password',
+    type: showPassword.value ? 'text' : 'password',
     size: 'lg',
     label: t('pages.auth.password'),
     placeholder: t('pages.auth.passwordPlaceholder'),
@@ -79,7 +82,7 @@ function buildFields(): AuthFormField[] {
 
 const fields = ref<AuthFormField[]>(buildFields())
 
-watch([locale, setupMode], () => {
+watch([locale, setupMode, showPassword], () => {
   fields.value = buildFields()
 })
 
@@ -118,6 +121,7 @@ onMounted(async () => {
 
 async function completeLogin(token: string | undefined, user: AuthUser) {
   authSession.login(config.public.authMode === 'bearer' ? token : undefined, user)
+  writeRememberMe({ enabled: rememberMe.value, email: user.email || '' })
   await router.push('/')
 }
 
@@ -162,10 +166,21 @@ async function onSubmit(payload: FormSubmitEvent<LoginSchema | SetupSchema>) {
     await completeLogin(token, user)
   }
   catch (error: unknown) {
-    const message = error instanceof Error ? error.message : ''
+    const status = fetchErrorStatus(error)
+    let description = ''
+    if (status === 429) {
+      description = t('pages.auth.rateLimited', { minutes: 15 })
+    }
+    else if (status && status >= 500) {
+      description = t('pages.auth.connectionError')
+    }
+    else {
+      const message = error instanceof Error ? error.message : ''
+      description = message || t(setupMode.value ? 'pages.auth.setupFailedDesc' : 'pages.auth.loginFailedDesc')
+    }
     toast.add({
       title: t(setupMode.value ? 'pages.auth.setupFailed' : 'pages.auth.loginFailed'),
-      description: message || t(setupMode.value ? 'pages.auth.setupFailedDesc' : 'pages.auth.loginFailedDesc'),
+      description,
       color: 'error',
     })
   }
@@ -200,6 +215,23 @@ async function onSubmit(payload: FormSubmitEvent<LoginSchema | SetupSchema>) {
       <template #footer>
         <div class="space-y-3">
           <template v-if="!setupMode">
+            <div class="flex items-center justify-between px-1">
+              <UCheckbox
+                v-model="rememberMe"
+                :label="t('pages.auth.remember')"
+                size="sm"
+                class="text-muted-foreground"
+              />
+              <UButton
+                variant="link"
+                size="sm"
+                color="neutral"
+                class="text-muted-foreground underline"
+                @click="showPassword = !showPassword"
+              >
+                {{ showPassword ? t('pages.auth.hidePassword') : t('pages.auth.showPassword') }}
+              </UButton>
+            </div>
             <div class="text-center">
               <UButton
                 variant="link"

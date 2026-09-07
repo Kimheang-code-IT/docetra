@@ -45,6 +45,13 @@ export default defineNuxtConfig({
     '@nuxt/eslint',
   ],
 
+  colorMode: {
+    classSuffix: '',
+    preference: 'system',
+    fallback: 'light',
+    storageKey: 'nuxt-color-mode',
+  },
+
   app: {
     head: {
       title: 'Docetra',

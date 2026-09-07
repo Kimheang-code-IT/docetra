@@ -135,7 +135,12 @@ const sidebarUi = computed(() => ({
             }"
       />
         <template #fallback>
-          <div class="h-24 w-full animate-pulse rounded-md bg-elevated/50" aria-hidden="true" />
+          <div class="space-y-2 px-2 py-1" aria-hidden="true">
+            <div v-for="i in 7" :key="i" class="flex items-center gap-2 py-1.5">
+              <div class="size-5 shrink-0 rounded animate-pulse bg-elevated/50" />
+              <div class="h-4 w-24 rounded animate-pulse bg-elevated/50" />
+            </div>
+          </div>
         </template>
       </ClientOnly>
     </template>
