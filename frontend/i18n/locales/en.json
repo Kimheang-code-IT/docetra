@@ -751,7 +751,9 @@
       "soon": "Soon",
       "inProgress": "In progress",
       "durationMinutes": "{n} min",
-      "meetingUrlRequired": "Meeting URL is required for online or hybrid meetings"
+      "meetingUrlRequired": "Meeting URL is required for online or hybrid meetings",
+      "moveToHistory": "Move to history",
+      "movedToHistory": "Meeting moved to history"
     },
     "meetingMode": {
       "in_person": "In person",
@@ -1206,7 +1208,6 @@
       "commentUpdateFailed": "Could not update comment",
       "commentDeleted": "Comment deleted",
       "commentDeleteFailed": "Could not delete comment",
-      "favoriteUpdateFailed": "Could not update favorite",
       "unsaved": "Unsaved changes",
       "unsavedConfirm": "You have unsaved changes. Leave this page?",
       "moveFailed": "Stage move failed",
@@ -1236,9 +1237,7 @@
       "assignPlaceholder": "Add user name",
       "tagPlaceholder": "Add tag",
       "sharePlaceholder": "Share with user",
-      "removeTag": "Remove tag {tag}",
-      "addFavorite": "Add to favorites",
-      "removeFavorite": "Remove from favorites"
+      "removeTag": "Remove tag {tag}"
     },
     "comments": {
       "title": "Comments",
@@ -1330,6 +1329,12 @@
       "sourceCreated": "Drive source created",
       "sourceCreateFailed": "Could not create Drive source",
       "folderId": "Drive folder ID",
+      "folderIdHelp": "Paste the Google Drive folder ID from the folder URL.",
+      "folderIdPlaceholder": "Enter folder ID",
+      "namePlaceholder": "Enter source name",
+      "sourcesTitle": "Drive sources",
+      "noSources": "No Drive sources yet. Add a source to start syncing.",
+      "noFiles": "No synced files yet.",
       "nameAndFolderRequired": "Name and folder ID are required",
       "syncNow": "Sync now",
       "syncRunning": "Sync is running…",
@@ -1385,6 +1390,9 @@
       "setupBtn": "Create administrator",
       "loginFailed": "Login failed",
       "loginFailedDesc": "The email or password you entered is incorrect.",
+      "tooManyAttempts": "Too many failed attempts. Try again in {minutes} minutes.",
+      "tooManyAttemptsLater": "Too many failed attempts. Please try again later.",
+      "unableToConnect": "Unable to connect. Please try again later.",
       "setupFailed": "Setup failed",
       "setupFailedDesc": "Could not create the administrator account.",
       "loginSuccess": "Welcome",

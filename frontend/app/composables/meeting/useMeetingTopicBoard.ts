@@ -6,6 +6,7 @@ import {
 } from '~/composables/meeting/useMeetingBoardApi'
 import { withConcurrencyToken } from '~/utils/api/concurrency'
 import { mergeMeetingTiming, sortMeetingsForBoard } from '~/utils/meeting/board'
+import { MEETING_COMPLETED_STAGE, MEETING_TOPICS_PATH, meetingHistoryDetailPath } from '~/utils/meeting/detail-route'
 
 /** Sentinel for the Unassigned row on the topic rail (not a real topic id). */
 export const MEETING_BOARD_UNASSIGNED = '__unassigned__'
@@ -74,6 +75,7 @@ export function useMeetingTopicBoard() {
       topicId: isUnassigned.value ? '__empty__' : (selectedTopicId.value || undefined),
       startDate: meetingDateStart.value || undefined,
       endDate: meetingDateEnd.value || undefined,
+      excludeStage: MEETING_COMPLETED_STAGE,
       page,
       limit: meetingLimit.value,
       sort: isPoolView.value ? 'meetingDate' : 'sortOrder',
@@ -86,6 +88,7 @@ export function useMeetingTopicBoard() {
       q: meetingSearch.value || undefined,
       startDate: meetingDateStart.value || undefined,
       endDate: meetingDateEnd.value || undefined,
+      excludeStage: MEETING_COMPLETED_STAGE,
     })
     countSummary.value = response.data
   }
@@ -338,12 +341,25 @@ export function useMeetingTopicBoard() {
   watch([meetingSearch, meetingDateStart, meetingDateEnd], () => debouncedMeetingFilter())
 
   function openMeeting(id: string) {
-    navigateTo(`/meetings/history/${id}`)
+    navigateTo(meetingHistoryDetailPath(id, MEETING_TOPICS_PATH))
+  }
+
+  async function completeMeeting(id: string) {
+    const meeting = meetings.value.find(item => item.id === id)
+    if (!meeting || !meetingsAdapter.transitionStage) return
+    try {
+      await meetingsAdapter.transitionStage(id, MEETING_COMPLETED_STAGE, { version: meeting.version })
+      await refresh()
+      toast.add({ title: t('docetra.meetingBoard.movedToHistory'), color: 'success' })
+    }
+    catch (e: any) {
+      toast.add({ title: e?.message || t('docetra.common.actionFailed'), color: 'error' })
+    }
   }
 
   function openCreateMeeting() {
     const params = new URLSearchParams()
-    params.set('returnTo', '/meetings/topics')
+    params.set('returnTo', MEETING_TOPICS_PATH)
     const tid = selectedTopicId.value
     if (tid && tid !== MEETING_BOARD_UNASSIGNED) params.set('topicId', tid)
     return navigateTo(`/meetings/history/new?${params.toString()}`)
@@ -386,6 +402,7 @@ export function useMeetingTopicBoard() {
     updateTopicTitle,
     setTopicActive,
     openMeeting,
+    completeMeeting,
     openCreateMeeting,
   }
 }

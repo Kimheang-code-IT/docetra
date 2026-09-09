@@ -53,10 +53,6 @@ export const ApiEndpoints = {
 
   RECORD_TYPES: '/api/v2/configuration/record-types',
   RECORD_ATTRIBUTES: '/api/v2/configuration/record-attributes',
-  CONFIGURATION_ENUMS: '/api/v2/configuration/enums',
-  CONFIGURATION_ENUM_GROUP: (group: string) => `/api/v2/configuration/enums/${encodeURIComponent(group)}`,
-  CONFIGURATION_ENUM_VALUE: (group: string, code: string) =>
-    `/api/v2/configuration/enums/${encodeURIComponent(group)}/${encodeURIComponent(code)}`,
 
   APP_INFO: '/api/v2/settings/app-info',
   APP_INFO_RESET: '/api/v2/settings/app-info/reset',

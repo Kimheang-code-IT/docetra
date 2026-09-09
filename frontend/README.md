@@ -55,9 +55,10 @@ NUXT_PUBLIC_AUTH_MODE=cookie
 
 Empty `NUXT_PUBLIC_API_BASE` means the browser calls same-origin `/api/v2` (Nuxt proxies to FastAPI). Set a full origin only when the API is on a different host.
 
-1. Start the backend: `docker compose --env-file backend.env -f compose.backend.yml up --build -d`
+1. Start the backend: `docker compose -f infrastructure/docker-compose.yml up --build -d`
 2. Start Nuxt: `pnpm dev` (port 3000; `/api/v2` is proxied to `:8000`)
-3. Sign in with `admin@gmail.com` / `123456` (HttpOnly JWT cookies; no token in JSON)
+3. On this computer: `http://localhost:3000`. On a phone/tablet on the same WiFi: `http://<this-pc-lan-ip>:3000` (restart `pnpm dev` after host-bind changes; allow Node.js through Windows Firewall if Windows asks)
+4. Sign in with `admin@gmail.com` / `123456` (HttpOnly JWT cookies; no token in JSON)
 
 Lists use bounded server pagination. Adapters/repositories are the only `$fetch` boundary. Uploads go to `/api/v2/portal/file-uploads` with cookies + CSRF.
 

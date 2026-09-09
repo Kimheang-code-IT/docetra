@@ -5,7 +5,8 @@ import { usePointerDrop } from '~/composables/common/usePointerDrop'
 import type { WorkflowStage } from '~/types/docetra/common'
 import type { CardDisplayEntityKey } from '~/types/docetra/settings'
 import { useCardFields } from '~/composables/settings/useCardFields'
-import { isCardFooterSlot, splitCardSlots } from '~/utils/card-fields'
+import { isCardFooterSlot, splitCardSlots, readableCardText, CARD_LIST_ICON } from '~/utils/card-fields'
+import { displayListText } from '~/utils/display/reference-text'
 import {
   computeMeetingTiming,
   isJoinableMeeting,
@@ -32,6 +33,7 @@ const props = withDefaults(defineProps<{
   showTopic?: boolean
   canAssign?: boolean
   canEditNotes?: boolean
+  canComplete?: boolean
 }>(), {
   row: () => ({}),
   meeting: null,
@@ -44,6 +46,7 @@ const props = withDefaults(defineProps<{
   showTopic: false,
   canAssign: true,
   canEditNotes: true,
+  canComplete: false,
 })
 
 const emit = defineEmits<{
@@ -54,6 +57,7 @@ const emit = defineEmits<{
   logs: []
   delete: []
   openNotes: []
+  complete: []
   assign: [topicId: string | null]
   reorderBefore: [beforeId: string | null]
 }>()
@@ -83,22 +87,20 @@ function day(value: unknown) {
 }
 
 function listText(value: unknown) {
-  return Array.isArray(value)
-    ? value.map((item) => {
-        if (item && typeof item === 'object' && 'name' in item) return String(item.name || '')
-        return String(item || '')
-      }).map(item => item.trim()).filter(Boolean).join(', ')
-    : (value && typeof value === 'object' && 'name' in value)
-        ? String(value.name || '')
-        : String(value || '')
+  return readableCardText(displayListText(value))
 }
 
 // --- shared identity fields -------------------------------------------------
 
 const referenceNumber = computed(() => String(r.value.referenceNumber || ''))
-const recordTypeLabel = computed(() =>
-  String(r.value.recordTypeName || r.value.recordTypeId || ''),
-)
+const recordTypeLabel = computed(() => {
+  const named = readableCardText(r.value.recordTypeName)
+  if (named) return named
+  const code = readableCardText(r.value.recordTypeCode || r.value.recordType)
+  if (!code) return ''
+  const key = `docetra.entityTypes.${String(r.value.recordTypeCode || r.value.recordType)}`
+  return te(key) ? t(key) : code.replaceAll('_', ' ')
+})
 const description = computed(() => {
   const raw = String(r.value.recordContent || r.value.description || '').trim()
   if (!raw) return ''
@@ -166,7 +168,7 @@ function bodySlotText(slot: string) {
   const values: Record<string, unknown> = {
     recordFlowCode: r.value.recordFlowCode,
     recordContent: r.value.recordContent || r.value.description,
-    documentType: r.value.documentType || r.value.recordTypeName || r.value.recordTypeId,
+    documentType: r.value.documentType,
     letterNumber: r.value.referenceNumber,
     letterSubject: r.value.letterSubject,
     involvedOfficers: listText(r.value.involvedOfficers),
@@ -174,7 +176,15 @@ function bodySlotText(slot: string) {
     officeInCharge: listText(r.value.officeInCharge),
     officerInCharge: listText(r.value.officerInCharge),
   }
-  return String(values[slot] || '').trim()
+  const text = readableCardText(values[slot])
+  if (slot === 'documentType') {
+    if (!text) return ''
+    const key = `docetra.entityTypes.${text}`
+    const labeled = te(key) ? t(key) : text.replaceAll('_', ' ')
+    if (labeled === recordTypeLabel.value) return ''
+    return labeled
+  }
+  return text
 }
 
 function footerDate(slot: string) {
@@ -210,18 +220,8 @@ function fieldTone(slot: string) {
   return ''
 }
 
-function fieldIcon(slot: string) {
-  if (slot === 'referenceNumber' || slot === 'letterNumber') return 'i-lucide-hash'
-  if (slot === 'recordType' || slot === 'documentType') return 'i-lucide-shapes'
-  if (slot === 'description' || slot === 'recordContent' || slot === 'letterSubject') return 'i-lucide-align-left'
-  if (slot === 'involvedOfficers' || slot === 'officerInCharge') return 'i-lucide-user-round'
-  if (slot === 'externalUnits') return 'i-lucide-landmark'
-  if (slot === 'officeInCharge' || slot === 'internalUnits') return 'i-lucide-building-2'
-  if (slot === 'topicTitle') return 'i-lucide-messages-square'
-  if (slot === 'participants') return 'i-lucide-users'
-  if (slot === 'meetingMode') return 'i-lucide-video'
-  if (slot === 'durationMinutes') return 'i-lucide-timer'
-  return 'i-lucide-file-text'
+function fieldIcon(_slot: string) {
+  return CARD_LIST_ICON
 }
 
 function footerTone(slot: string) {
@@ -231,10 +231,8 @@ function footerTone(slot: string) {
     if (slot === 'location' || slot === 'durationMinutes') return 'app-card-field-highlight--warning'
     if (slot === 'attendeesCount') return 'app-card-field-highlight--success'
     if (slot === 'meetingMode') return 'app-card-field-highlight--secondary'
-    if (slot === 'createdAt' || slot === 'updatedAt') return 'app-card-field-highlight--neutral'
-    return 'app-card-field-highlight--info'
   }
-  return 'app-card-field-highlight--success'
+  return 'app-card-field-highlight--brand'
 }
 
 const startDate = computed(() =>
@@ -294,7 +292,7 @@ const orderedSlots = computed(() => {
     if (slot === 'waiting') return waiting.value
     if (slot === 'tags') return tags.value.length > 0
     if (bodySlotText(slot)) return true
-    return show(slot)
+    return false
   })
 })
 
@@ -339,6 +337,10 @@ const menuItems = computed(() => {
         label: t('docetra.meetingBoard.openNotes'),
         icon: 'i-lucide-notebook-pen',
         onSelect: () => emit('openNotes'),
+      }] : []), ...(props.canComplete ? [{
+        label: t('docetra.meetingBoard.moveToHistory'),
+        icon: 'i-lucide-history',
+        onSelect: () => emit('complete'),
       }] : [])],
       ...(props.canAssign ? [[
         {
@@ -495,7 +497,7 @@ function onDrop(event: DragEvent) {
         </div>
         <div
           v-if="showTopicTitleRow"
-          class="app-card-field-highlight mt-1 flex min-w-0 items-center gap-1.5 text-xs app-card-text"
+          class="app-card-field-highlight mt-1 flex min-w-0 items-center gap-1.5 text-sm app-card-text"
           :class="fieldTone('topicTitle')"
         >
           <UIcon :name="fieldIcon('topicTitle')" class="size-3 shrink-0" />
@@ -515,11 +517,11 @@ function onDrop(event: DragEvent) {
       </UDropdownMenu>
     </div>
 
-    <div class="min-h-0 flex-1">
+    <div class="app-card-body">
       <template v-for="slot in bodySlots" :key="slot">
       <div
         v-if="slot === 'referenceNumber' || slot === 'recordType' || slot === 'description'"
-        class="app-card-field-highlight mt-1.5 truncate text-xs app-card-text"
+        class="app-card-field-highlight mt-1.5 truncate text-sm app-card-text"
         :class="fieldTone(slot)"
       >
         <span class="flex min-w-0 items-center gap-1.5">
@@ -533,7 +535,7 @@ function onDrop(event: DragEvent) {
       </div>
       <div
         v-else-if="slot === 'letterNumber'"
-        class="app-card-field-highlight mt-1.5 flex min-w-0 items-center gap-1.5 text-xs app-card-text"
+        class="app-card-field-highlight mt-1.5 flex min-w-0 items-center gap-1.5 text-sm app-card-text"
         :class="fieldTone(slot)"
       >
         <UIcon :name="fieldIcon(slot)" class="size-3 shrink-0" />
@@ -541,33 +543,33 @@ function onDrop(event: DragEvent) {
       </div>
       <div
         v-else-if="slot === 'party' && partyLabel"
-        class="app-card-field-highlight mt-1.5 flex items-center gap-1.5 truncate text-xs app-card-text"
+        class="app-card-field-highlight mt-1.5 flex items-center gap-1.5 truncate text-sm app-card-text"
         :class="fieldTone(slot)"
       >
-        <UIcon :name="partyLabel.icon" class="size-3 shrink-0" />
+        <UIcon :name="CARD_LIST_ICON" class="size-3 shrink-0" />
         <span class="truncate">{{ partyLabel.text }}</span>
       </div>
       <div
         v-else-if="slot === 'owner'"
-        class="app-card-field-highlight mt-1.5 flex items-center gap-1.5 truncate text-xs app-card-text"
+        class="app-card-field-highlight mt-1.5 flex items-center gap-1.5 truncate text-sm app-card-text"
         :class="fieldTone(slot)"
       >
-        <UIcon name="i-lucide-user" class="size-3 shrink-0" />
+        <UIcon :name="CARD_LIST_ICON" class="size-3 shrink-0" />
         <span class="truncate">{{ owner }}</span>
       </div>
       <div
         v-else-if="slot === 'assignee'"
-        class="app-card-field-highlight mt-1.5 flex items-center gap-1.5 truncate text-xs app-card-text"
+        class="app-card-field-highlight mt-1.5 flex items-center gap-1.5 truncate text-sm app-card-text"
         :class="fieldTone(slot)"
       >
-        <UIcon name="i-lucide-user-check" class="size-3 shrink-0" />
+        <UIcon :name="CARD_LIST_ICON" class="size-3 shrink-0" />
         <span class="truncate">{{ assignee }}</span>
       </div>
       <div
         v-else-if="slot === 'waiting'"
-        class="app-card-field-highlight app-card-field-highlight--warning mt-1.5 text-xs"
+        class="app-card-field-highlight app-card-field-highlight--warning mt-1.5 text-sm"
       >
-        <UIcon name="i-lucide-clock-3" class="size-3 shrink-0" />
+        <UIcon :name="CARD_LIST_ICON" class="size-3 shrink-0" />
         <span class="truncate">{{ $t('docetra.fields.waiting') }}</span>
       </div>
       <div
@@ -577,15 +579,15 @@ function onDrop(event: DragEvent) {
         <span
           v-for="tag in tags.slice(0, 2)"
           :key="tag"
-          class="app-card-field-highlight app-card-field-highlight--secondary text-xs"
+          class="app-card-field-highlight app-card-field-highlight--secondary text-sm"
         >
-          <UIcon name="i-lucide-tag" class="size-3 shrink-0" />
+          <UIcon :name="CARD_LIST_ICON" class="size-3 shrink-0" />
           <span class="truncate">{{ tag }}</span>
         </span>
       </div>
       <div
-        v-else-if="slot === 'participants' || slot === 'internalUnits' || slot === 'externalUnits'"
-        class="app-card-field-highlight mt-1.5 flex min-w-0 items-center gap-1.5 truncate text-xs app-card-text"
+        v-else-if="m && (slot === 'participants' || slot === 'internalUnits' || slot === 'externalUnits')"
+        class="app-card-field-highlight mt-1.5 flex min-w-0 items-center gap-1.5 truncate text-sm app-card-text"
         :class="fieldTone(slot)"
       >
         <UIcon :name="fieldIcon(slot)" class="size-3 shrink-0" />
@@ -599,7 +601,7 @@ function onDrop(event: DragEvent) {
       </div>
       <div
         v-else-if="slot === 'meetingMode'"
-        class="app-card-field-highlight mt-1.5 flex items-center gap-1.5 text-xs app-card-text"
+        class="app-card-field-highlight mt-1.5 flex items-center gap-1.5 text-sm app-card-text"
         :class="fieldTone(slot)"
       >
         <UIcon :name="fieldIcon(slot)" class="size-3 shrink-0" />
@@ -607,7 +609,7 @@ function onDrop(event: DragEvent) {
       </div>
       <div
         v-else-if="slot === 'durationMinutes' && m?.durationMinutes != null"
-        class="app-card-field-highlight mt-1.5 flex items-center gap-1.5 text-xs app-card-text"
+        class="app-card-field-highlight mt-1.5 flex items-center gap-1.5 text-sm app-card-text"
         :class="fieldTone(slot)"
       >
         <UIcon :name="fieldIcon(slot)" class="size-3 shrink-0" />
@@ -615,7 +617,7 @@ function onDrop(event: DragEvent) {
       </div>
       <div
         v-else-if="['involvedOfficers', 'externalUnits', 'officeInCharge', 'officerInCharge'].includes(slot) && bodySlotText(slot)"
-        class="app-card-field-highlight mt-1.5 flex min-w-0 items-center gap-1.5 text-xs app-card-text"
+        class="app-card-field-highlight mt-1.5 flex min-w-0 items-center gap-1.5 text-sm app-card-text"
         :class="fieldTone(slot)"
       >
         <UIcon :name="fieldIcon(slot)" class="size-3 shrink-0" />
@@ -623,7 +625,7 @@ function onDrop(event: DragEvent) {
       </div>
       <div
         v-else-if="bodySlotText(slot)"
-        class="app-card-field-highlight mt-1.5 flex min-w-0 items-center gap-1.5 text-xs app-card-text"
+        class="app-card-field-highlight mt-1.5 flex min-w-0 items-center gap-1.5 text-sm app-card-text"
         :class="fieldTone(slot)"
       >
         <UIcon
@@ -649,7 +651,7 @@ function onDrop(event: DragEvent) {
 
     <div
       v-if="footerSlots.length"
-      class="mt-auto flex items-center justify-between gap-2 border-t border-default pt-2 text-xs app-card-text"
+      class="app-card-footer app-card-text"
     >
       <div v-for="column in footerColumns" :key="column.id" :class="column.columnClass">
         <template v-for="slot in column.slots" :key="`${column.id}-${slot}`">

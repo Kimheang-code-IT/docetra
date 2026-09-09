@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { EntityConfig } from '~/config/entities'
+import { getAdapterForConfig } from '~/config/entities'
 import { useDocumentPage } from '~/composables/workspace/useDocumentPage'
 import { ApiEndpoints } from '~/utils/constants/api-endpoints'
 import { useRecordTypeDrivenTabs } from '~/composables/record/useRecordTypeDrivenTabs'
@@ -8,6 +9,13 @@ import { usePageSeo } from '~/composables/usePageSeo'
 import { getByPath } from '~/utils/object-path'
 import type { ExportRequest } from '~/types/docetra/export'
 import { useExportJobRunner } from '~/composables/common/useExportJobRunner'
+import { resolveCreateReturnTo } from '~/utils/workspace-list-stale'
+import {
+  MEETING_COMPLETED_STAGE,
+  isCompletedMeeting,
+  meetingDetailOpenedFromTopics,
+  meetingHistoryDetailPath,
+} from '~/utils/meeting/detail-route'
 
 const props = defineProps<{
   config: EntityConfig
@@ -37,8 +45,6 @@ const {
   nextRecordId,
   loadingRecordNavigation,
   recordNavigationDirection,
-  isFavorite,
-  togglingFavorite,
   fieldValue,
   setFieldValue,
   load,
@@ -49,7 +55,6 @@ const {
   loadMoreFeed,
   navigatePreviousRecord,
   navigateNextRecord,
-  toggleFavorite,
 } = useDocumentPage(props.config)
 
 // Existing records upload+attach in one call; create mode uploads to the file
@@ -103,17 +108,27 @@ const codeOrRef = computed(() =>
   String(model.value.code || model.value.referenceNumber || model.value.id || ''),
 )
 
+const route = useRoute()
+const openedFromTopics = computed(() =>
+  props.config.key === 'meetingHistory'
+  && meetingDetailOpenedFromTopics(resolveCreateReturnTo(route.query.returnTo, '')),
+)
+
 watch(
-  [title, isCreate, dirty, () => props.config],
+  [title, isCreate, dirty, () => props.config, openedFromTopics],
   () => {
+    const listTo = openedFromTopics.value ? '/meetings/topics' : props.config.routeBase
+    const listLabel = openedFromTopics.value
+      ? t('docetra.pages.meetingTopic')
+      : t(props.config.titleKey)
     setBreadcrumbs([
       {
         label: t(props.config.groupKey),
-        to: props.config.routeBase,
+        to: listTo,
       },
       {
-        label: t(props.config.titleKey),
-        to: props.config.routeBase,
+        label: listLabel,
+        to: listTo,
       },
       {
         label: title.value,
@@ -142,14 +157,45 @@ const canDuplicateDocument = computed(() => auth.canAccessPage(permissionForActi
   'create',
 )))
 
-const moreItems = computed(() => canDuplicateDocument.value ? [[
-  {
-    label: t('docetra.document.duplicate'),
-    icon: 'i-lucide-copy',
-    disabled: isCreate.value,
-    onSelect: () => toast.add({ title: t('docetra.document.comingSoon'), color: 'neutral' }),
-  },
-]] : [])
+const moreItems = computed(() => {
+  const items: Array<Array<Record<string, unknown>>> = []
+  if (canDuplicateDocument.value) {
+    items.push([{
+      label: t('docetra.document.duplicate'),
+      icon: 'i-lucide-copy',
+      disabled: isCreate.value,
+      onSelect: () => toast.add({ title: t('docetra.document.comingSoon'), color: 'neutral' }),
+    }])
+  }
+  if (
+    openedFromTopics.value
+    && canEditDocument.value
+    && !isCreate.value
+    && !isCompletedMeeting(model.value.stage)
+  ) {
+    items.push([{
+      label: t('docetra.meetingBoard.moveToHistory'),
+      icon: 'i-lucide-history',
+      onSelect: () => void moveMeetingToHistory(),
+    }])
+  }
+  return items
+})
+
+async function moveMeetingToHistory() {
+  const adapter = getAdapterForConfig(props.config)
+  if (!adapter.transitionStage || !id.value) return
+  try {
+    await adapter.transitionStage(id.value, MEETING_COMPLETED_STAGE, {
+      version: typeof model.value.version === 'number' ? model.value.version : undefined,
+    })
+    toast.add({ title: t('docetra.meetingBoard.movedToHistory'), color: 'success' })
+    await navigateTo(meetingHistoryDetailPath(id.value))
+  }
+  catch (e: any) {
+    toast.add({ title: e?.message || t('docetra.common.actionFailed'), color: 'error' })
+  }
+}
 
 const currentUser = computed(() => ({
   id: String(auth.user?.id || auth.user?.email || 'current'),
@@ -216,7 +262,7 @@ async function refreshDocument() {
     :can-navigate-next="Boolean(nextRecordId)"
     :loading-list-navigation="loadingRecordNavigation"
     :list-navigation-direction="recordNavigationDirection"
-    :list-to="config.routeBase"
+    :list-to="openedFromTopics ? '/meetings/topics' : config.routeBase"
     :is-create="isCreate"
     :can-comment="canCommentDocument"
     :can-export="canExportDocument"
@@ -240,8 +286,6 @@ async function refreshDocument() {
     :meta-tags="(model.tags as string[]) || []"
     :meta-created-at="model.createdAt ? String(model.createdAt) : undefined"
     :meta-updated-at="model.updatedAt ? String(model.updatedAt) : undefined"
-    :meta-favorite="isFavorite"
-    :toggling-favorite="togglingFavorite"
     :more-items="moreItems"
     :exporting="exporting"
     @update:comment-body="commentBody = $event"
@@ -254,7 +298,6 @@ async function refreshDocument() {
     @load-more-feed="loadMoreFeed"
     @navigate-previous="navigatePreviousRecord"
     @navigate-next="navigateNextRecord"
-    @toggle-favorite="toggleFavorite"
     @export="exportDocument"
   />
 </template>

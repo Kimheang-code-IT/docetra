@@ -12,7 +12,7 @@ export interface ExportRequest {
   fieldCodes: string[]
 }
 
-export type ExportJobStatus = 'queued' | 'processing' | 'completed' | 'failed'
+export type ExportJobStatus = 'queued' | 'processing' | 'completed' | 'failed' | 'cancelled'
 
 export interface ExportJob {
   id: string

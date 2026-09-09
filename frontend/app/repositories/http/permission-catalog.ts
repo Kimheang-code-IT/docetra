@@ -7,7 +7,7 @@ export function createHttpPermissionCatalogRepository(): PermissionCatalogReposi
   return {
     list: () => api.get<ApiResponse<import('~/composables/config/usePermissionCatalog').PermissionCatalogRow[]>>(ApiEndpoints.PERMISSION_CATALOG, {
       requestKey: 'permission-catalog',
-      cancelPrevious: true,
+      cancelPrevious: false,
       suppressErrorToast: true,
       suppressAccessAlert: true,
     }),

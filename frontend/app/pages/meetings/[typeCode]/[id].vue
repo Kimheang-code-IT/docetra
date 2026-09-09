@@ -1,35 +1,16 @@
 <script setup lang="ts">
-import { buildEntityConfigForType } from '~/config/entities'
-import { useRecordSurfaces } from '~/composables/record/useRecordSurfaces'
-
-const route = useRoute()
-const { load, resolveByParam } = useRecordSurfaces()
-
-await load()
-const param = String(route.params.typeCode || '')
-const surface = computed(() => resolveByParam('meeting', param))
-
-if (!surface.value) {
-  throw createError({ statusCode: 404, statusMessage: 'Meeting type not found' })
-}
-
-const config = computed(() => buildEntityConfigForType({
-  typeCode: surface.value!.code,
-  name: surface.value!.name,
-  routeBase: surface.value!.routeBase,
-  uiSurface: 'meeting',
-  icon: surface.value!.icon,
-  isCreatable: surface.value!.isCreatable,
-  supportsStages: surface.value!.supportsStages,
-}))
+import { useRecordSurfacePage } from '~/composables/record/useRecordSurfacePage'
 
 definePageMeta({
   titleKey: 'docetra.navigation.meeting',
+  key: route => route.path,
 })
+
+const { surface, config, pageKey } = await useRecordSurfacePage('meeting')
 
 useHead({ title: () => surface.value?.name || 'Meeting' })
 </script>
 
 <template>
-  <DocumentEntityDocumentView :config="config" />
+  <DocumentEntityDocumentView :key="pageKey" :config="config" />
 </template>

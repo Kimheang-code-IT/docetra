@@ -4,8 +4,8 @@
   "type": "module",
   "scripts": {
     "build": "nuxt build",
-    "dev": "nuxt dev",
-    "dev:clean": "nuxt cleanup && nuxt prepare && nuxt dev",
+    "dev": "nuxt dev --host 0.0.0.0 --port 3000",
+    "dev:clean": "nuxt cleanup && nuxt prepare && nuxt dev --host 0.0.0.0 --port 3000",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "prepare:nuxt": "nuxt prepare",

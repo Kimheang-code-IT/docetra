@@ -78,10 +78,6 @@ export interface EntityRecordNeighbors {
   nextId: string | null
 }
 
-export interface EntityFavoriteState {
-  isFavorite: boolean
-}
-
 export interface ActivityEvent {
   id: string
   entityType: string

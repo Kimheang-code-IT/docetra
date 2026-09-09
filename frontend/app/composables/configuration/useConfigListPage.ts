@@ -148,7 +148,10 @@ export function useConfigListPage(options: {
 
   function openCreate() {
     if (!canCreate.value) return
-    void router.push(`${options.routeBase}/new`)
+    void router.push({
+      path: `${options.routeBase}/new`,
+      query: { returnTo: options.routeBase },
+    })
   }
 
   function openRow(row: Record<string, unknown>) {

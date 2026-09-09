@@ -49,7 +49,7 @@ export async function refreshSession() {
 export async function getCurrentSession() {
   return useApi().get<ApiResponse<AuthUser>>(ApiEndpoints.AUTH_ME, {
     requestKey: 'auth-session',
-    cancelPrevious: true,
+    cancelPrevious: false,
     suppressErrorToast: true,
     suppressAccessAlert: true,
   })

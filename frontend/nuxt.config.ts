@@ -63,9 +63,11 @@ export default defineNuxtConfig({
   },
 
   devtools: {
-    // Vite DevTools' bundled @vitejs/devtools-kit logs noisy `[nostics]:
-    // import.meta.hot.send()` warnings until a devtools client attaches.
-    // Disabled in dev only; production bundles never include it.
+    // The `[nostics]: import.meta.hot.send()` dev warning is emitted by the
+    // `nostics` package (Nuxt's diagnostics dev-reporter) whenever an NUXT_E1xxx
+    // diagnostic fires outside Vite HMR — it is not app code. The Phase 0
+    // composable-context fixes remove its only trigger; keep DevTools off in
+    // dev to avoid its unrelated dev-only overhead.
     enabled: false
   },
 
@@ -195,6 +197,13 @@ export default defineNuxtConfig({
 
   compatibilityDate: '2024-07-11',
 
+  // CLI `nuxt dev --host 0.0.0.0` is required: Nuxt 4 otherwise binds ::1 only,
+  // so LAN IPs return ERR_CONNECTION_REFUSED even when localhost works.
+  devServer: {
+    host: '0.0.0.0',
+    port: Number(nodeEnv.NUXT_DEV_PORT || 3000),
+  },
+
   vite: {
     build: {
       chunkSizeWarningLimit: 1000,
@@ -229,14 +238,19 @@ export default defineNuxtConfig({
       // Silence noisy Uppy package sourcemap warnings in dev
       devSourcemap: false,
     },
-    server: useSameOriginProxy
-      ? {
-          proxy: {
-            '/api/v2': { target: apiProxyTarget, changeOrigin: true },
-            '/health': { target: apiProxyTarget, changeOrigin: true },
-            '/ready': { target: apiProxyTarget, changeOrigin: true },
-          },
-        }
-      : undefined,
+    server: {
+      // Host/port belong to top-level `devServer` — Vite's ServerOptions here
+      // intentionally omits them in Nuxt 4.
+      allowedHosts: true,
+      ...(useSameOriginProxy
+        ? {
+            proxy: {
+              '/api/v2': { target: apiProxyTarget, changeOrigin: true },
+              '/health': { target: apiProxyTarget, changeOrigin: true },
+              '/ready': { target: apiProxyTarget, changeOrigin: true },
+            },
+          }
+        : {}),
+    },
   }
 })

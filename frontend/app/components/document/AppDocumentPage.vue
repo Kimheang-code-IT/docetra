@@ -56,8 +56,6 @@ const props = withDefaults(defineProps<{
   metaTags?: string[]
   metaCreatedAt?: string
   metaUpdatedAt?: string
-  metaFavorite?: boolean
-  togglingFavorite?: boolean
   moreItems?: DropdownMenuItem[][]
   exporting?: boolean
   canExport?: boolean
@@ -105,7 +103,6 @@ const emit = defineEmits<{
   loadMoreFeed: []
   navigatePrevious: []
   navigateNext: []
-  toggleFavorite: []
   export: [request: ExportRequest]
   attached: [version: number | undefined]
 }>()
@@ -381,14 +378,10 @@ async function onSaveClick() {
             :created-at="metaCreatedAt"
             :updated-at="metaUpdatedAt"
             :read-only="readOnly"
-            :is-favorite="metaFavorite"
-            :toggling-favorite="togglingFavorite"
-            :favorite-enabled="!isCreate"
             @update:tags="setFieldValue('tags', $event)"
             @update:attachments="localAttachments = $event"
             @attached="(v: number | undefined) => emit('attached', v)"
             @update:assignees="setFieldValue('assignee', $event[0] || null)"
-            @toggle-favorite="emit('toggleFavorite')"
           />
         </aside>
       </div>

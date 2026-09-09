@@ -23,14 +23,16 @@ export interface PermissionCatalogRow {
 const rowsState = ref<PermissionCatalogRow[] | null>(null)
 let inflight: Promise<void> | null = null
 
-async function loadCatalog(): Promise<void> {
+type PermissionCatalogRepository = ReturnType<typeof usePermissionCatalogRepository>
+
+async function loadCatalog(repository: PermissionCatalogRepository, force = false): Promise<void> {
   if (!import.meta.client) return
-  if (rowsState.value) return
+  if (rowsState.value && !force) return
   if (inflight) return inflight
 
   inflight = (async () => {
     try {
-      const response = await usePermissionCatalogRepository().list()
+      const response = await repository.list()
       const data = response.data as unknown
       const rows = Array.isArray(data)
         ? (data as PermissionCatalogRow[]).filter(row => row && typeof row.documentType === 'string')
@@ -68,19 +70,21 @@ function prefixFor(row: PermissionCatalogRow): string {
 
 /** Structured rows (server catalog when loaded, else the static fallback). */
 export function usePermissionCatalogRows() {
+  const repository = usePermissionCatalogRepository()
+  const load = (force = false) => loadCatalog(repository, force)
   if (import.meta.client && !rowsState.value && !inflight) {
-    void loadCatalog()
+    void load()
   }
   const rows = computed<PermissionCatalogRow[]>(() => rowsState.value || staticPermissionCatalogRows())
   return {
     rows,
     fromServer: computed(() => rowsState.value != null),
-    refresh: loadCatalog,
+    refresh: () => load(true),
   }
 }
 
 export function usePermissionCatalog() {
-  const { rows } = usePermissionCatalogRows()
+  const { rows, refresh } = usePermissionCatalogRows()
 
   /** Flattened `prefix.action` keys for display gating. */
   const permissions = computed<string[]>(() => {
@@ -96,6 +100,6 @@ export function usePermissionCatalog() {
   return {
     permissions,
     ready: computed(() => rowsState.value != null),
-    refresh: loadCatalog,
+    refresh,
   }
 }

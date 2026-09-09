@@ -3,9 +3,11 @@ import { ref } from 'vue'
 import type { TableQueryParams } from '~/types/api'
 import { compactQuery } from '~/utils/api/query'
 import { useAccessAlert } from '~/composables/common/useAccessAlert'
+import { appendAppToast, useAppToastState } from '~/composables/common/toast-state'
 import { shouldClearSessionOn401, shouldToastConnectionError } from '~/utils/api/error-policy'
 import { csrfRequestHeaders } from '~/utils/security/csrf'
 import { sameOriginApiUrl } from '~/utils/security/url'
+import { requestCacheKey } from '~/utils/api/request-cache'
 
 type ApiRequestOptions = {
     method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'
@@ -32,27 +34,10 @@ type ApiFetchError = Error & {
     response?: { status?: number }
 }
 
-type ToastItem = {
-    id: string
-    open: boolean
-    title?: string
-    description?: string
-    color?: string
-}
-
-// Shared across every useApi() consumer so a later request can cancel an older
-// request even when composables created separate useApi instances.
-const requestControllers = new Map<string, AbortController>()
-
-/**
- * Push a toast without `useToast()` — Nuxt UI's useToast() calls Vue `inject()`,
- * which throws outside `<script setup>` (e.g. API calls from submit handlers).
- */
-function pushErrorToast(title: string, description: string) {
-    const toasts = useState<ToastItem[]>('toasts', () => [])
-    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
-    toasts.value = [...toasts.value, { id, open: true, title, description, color: 'error' }].slice(-5)
-}
+// Shared across useApi() consumers within one Nuxt app, while remaining isolated
+// between SSR requests/users.
+const requestControllersByApp = new WeakMap<object, Map<string, AbortController>>()
+const inflightGetRequestsByApp = new WeakMap<object, Map<string, Promise<unknown>>>()
 
 /**
  * Standard API Fetching Composable
@@ -62,12 +47,20 @@ function pushErrorToast(title: string, description: string) {
  */
 export function useApi() {
     const nuxtApp = useNuxtApp()
+    const requestControllers = requestControllersByApp.get(nuxtApp) || new Map<string, AbortController>()
+    const inflightGetRequests = inflightGetRequestsByApp.get(nuxtApp) || new Map<string, Promise<unknown>>()
+    requestControllersByApp.set(nuxtApp, requestControllers)
+    inflightGetRequestsByApp.set(nuxtApp, inflightGetRequests)
     const router = useRouter()
     const { showPermissionDenied, showSessionExpired } = useAccessAlert()
     const config = useRuntimeConfig()
     const activeRequests = ref(0)
     const pending = computed(() => activeRequests.value > 0)
     const error = ref<string | null>(null)
+    // Captured while the Nuxt instance is current. Delayed callbacks below
+    // (ofetch onResponseError hooks, catch handlers) reuse this ref — calling
+    // useState() again from a delayed hook throws NUXT_E1001.
+    const toasts = useAppToastState()
 
     const publicBase = String(config.public.apiBase || '')
     const baseURL = publicBase || (import.meta.server
@@ -84,7 +77,12 @@ export function useApi() {
     }
 
     function getRequestKey(url: string, options: ApiRequestOptions): string {
-        return options.requestKey || `${options.method || 'GET'}:${url}`
+        return requestCacheKey(
+            options.method || 'GET',
+            url,
+            options.query ? compactQuery(options.query) : undefined,
+            options.requestKey,
+        )
     }
 
     function cancelRequest(key: string) {
@@ -95,13 +93,19 @@ export function useApi() {
         }
     }
 
-    const fetch = async <T>(url: string, options: ApiRequestOptions = {}) => {
+    const fetch = <T>(url: string, options: ApiRequestOptions = {}): Promise<T> => {
         if (!sameOriginApiUrl(url, String(baseURL))) {
-            throw new Error('API requests must use the configured API origin')
+            return Promise.reject(new Error('API requests must use the configured API origin'))
         }
-        const authStore = useAuthStore()
+        const method = options.method || 'GET'
         const requestKey = getRequestKey(url, options)
-        const shouldCancelPrevious = options.cancelPrevious !== false
+        const shouldCancelPrevious = options.cancelPrevious === true
+        const shouldCoalesce = method === 'GET' && !shouldCancelPrevious
+
+        if (shouldCoalesce) {
+            const existing = inflightGetRequests.get(requestKey)
+            if (existing) return existing as Promise<T>
+        }
 
         if (shouldCancelPrevious) {
             cancelRequest(requestKey)
@@ -109,13 +113,14 @@ export function useApi() {
 
         const controller = new AbortController()
         requestControllers.set(requestKey, controller)
-        let handledAccessError = false
-        let httpErrorToasted = false
+        const request = (async () => {
+          const authStore = useAuthStore()
+          let handledAccessError = false
+          let httpErrorToasted = false
 
-        try {
+          try {
             activeRequests.value += 1
             error.value = null
-            const method = options.method || 'GET'
             const cookieAuth = config.public.authMode !== 'bearer'
             const ssrCookie = import.meta.server ? useRequestHeaders(['cookie']) : {}
             return await $fetch<T>(url, {
@@ -139,13 +144,29 @@ export function useApi() {
                     ...options.headers,
                 },
                 onResponseError({ response }) {
+                    // ofetch hooks run after the Nuxt request context is gone
+                    // (always on the server, sometimes on the client). Restore
+                    // the captured instance for UI/navigation side effects;
+                    // useState()/navigateTo() there would throw NUXT_E1001.
+                    const withContext = (fn: () => void) => {
+                        try {
+                            nuxtApp.runWithContext(fn)
+                        }
+                        catch {
+                            // A torn-down app cannot show UI; the caller's
+                            // error handling still applies.
+                        }
+                    }
+
                     if (response.status === 401) {
                         handledAccessError = true
                         // Do not wipe a fresh login when public/pre-auth calls return 401.
                         if (shouldClearSessionOn401({ suppressAccessAlert: options.suppressAccessAlert })) {
-                            authStore.clearSession()
-                            showSessionExpired()
-                            void navigateTo('/auth/login')
+                            withContext(() => {
+                                authStore.clearSession()
+                                showSessionExpired()
+                                void navigateTo('/auth/login')
+                            })
                         }
                         return
                     }
@@ -153,9 +174,11 @@ export function useApi() {
                     if (response.status === 403) {
                         handledAccessError = true
                         if (!options.suppressAccessAlert) {
-                            showPermissionDenied({
-                                requestedPath: currentPath(),
-                                description: response._data?.message,
+                            withContext(() => {
+                                showPermissionDenied({
+                                    requestedPath: currentPath(),
+                                    description: response._data?.message,
+                                })
                             })
                         }
                         return
@@ -163,15 +186,16 @@ export function useApi() {
 
                     if (!options.suppressErrorToast) {
                         httpErrorToasted = true
-                        pushErrorToast(
-                            t('api.errorTitle', { status: response.status }),
-                            response._data?.message || t('api.somethingWentWrong'),
-                        )
+                        appendAppToast(toasts, {
+                            title: t('api.errorTitle', { status: response.status }),
+                            description: response._data?.message || t('api.somethingWentWrong'),
+                            color: 'error',
+                        })
                     }
                 }
             })
-        }
-        catch (err: unknown) {
+          }
+          catch (err: unknown) {
             const fetchError = err as ApiFetchError
             if (fetchError.name === 'AbortError') {
                 return Promise.reject(err)
@@ -187,20 +211,29 @@ export function useApi() {
                 status,
                 suppressErrorToast: options.suppressErrorToast,
             })) {
-                pushErrorToast(
-                    t('api.connectionErrorTitle'),
-                    t('api.connectionErrorDescription'),
-                )
+                appendAppToast(toasts, {
+                    title: t('api.connectionErrorTitle'),
+                    description: t('api.connectionErrorDescription'),
+                    color: 'error',
+                })
             }
 
             throw err
-        }
-        finally {
+          }
+          finally {
             if (requestControllers.get(requestKey) === controller) {
                 requestControllers.delete(requestKey)
             }
             activeRequests.value = Math.max(0, activeRequests.value - 1)
-        }
+          }
+        })()
+
+        if (shouldCoalesce) inflightGetRequests.set(requestKey, request)
+        return request.finally(() => {
+            if (inflightGetRequests.get(requestKey) === request) {
+                inflightGetRequests.delete(requestKey)
+            }
+        })
     }
 
     return {

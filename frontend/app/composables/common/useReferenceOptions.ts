@@ -27,7 +27,9 @@ function endpointParams(endpoint: string) {
   return new URLSearchParams(query)
 }
 
-export async function loadReferenceOptions(endpoint: string, search = '') {
+type ApiClient = ReturnType<typeof useApi>
+
+async function loadReferenceOptions(api: ApiClient, endpoint: string, search = '') {
   const cacheKey = `${endpoint}::${search}`
   // Deduplicate concurrent/identical option loads (forms often share companies).
   if (!search) {
@@ -36,7 +38,7 @@ export async function loadReferenceOptions(endpoint: string, search = '') {
     if (cached && Date.now() - cached.at < OPTIONS_CACHE_TTL_MS) return cached.data
   }
 
-  const inflight = loadReferenceOptionsUncached(endpoint, search)
+  const inflight = loadReferenceOptionsUncached(api, endpoint, search)
   if (!search) {
     optionsCache.set(cacheKey, { at: 0, data: [], inflight })
   }
@@ -54,12 +56,12 @@ export async function loadReferenceOptions(endpoint: string, search = '') {
   }
 }
 
-async function loadReferenceOptionsUncached(endpoint: string, search = ''): Promise<FieldOption[]> {
+async function loadReferenceOptionsUncached(api: ApiClient, endpoint: string, search = ''): Promise<FieldOption[]> {
   const path = endpointPath(endpoint)
   const params = endpointParams(endpoint)
   const valueField = optionsValueField(endpoint)
 
-  const response = await useApi().get<ApiResponse<FieldOption[]> | FieldOption[]>(path, {
+  const response = await api.get<ApiResponse<FieldOption[]> | FieldOption[]>(path, {
     query: {
       q: search || undefined,
       limit: 50,
@@ -77,5 +79,10 @@ async function loadReferenceOptionsUncached(endpoint: string, search = ''): Prom
 }
 
 export function useReferenceOptions() {
-  return { loadReferenceOptions }
+  // Capture Nuxt-dependent API state during setup. Field watchers and debounced
+  // searches run later, when calling useApi() directly would raise NUXT_E1001.
+  const api = useApi()
+  return {
+    loadReferenceOptions: (endpoint: string, search = '') => loadReferenceOptions(api, endpoint, search),
+  }
 }

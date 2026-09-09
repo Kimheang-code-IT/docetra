@@ -20,29 +20,20 @@ export function consumeListStale(...keys: string[]): boolean {
   return hit
 }
 
-/** Board/list create flows: skip post-create detail remount. */
-export function returnsToListAfterCreate(entityKey: string): boolean {
-  return [
-    'meetingTopics',
-    'meetingHistory',
-    'incomingDocuments',
-    'outgoingDocuments',
-    'documents',
-    'masterListRequests',
-    'users',
-    'roles',
-    'officers',
-    'departments',
-    'companies',
-    'purposes',
-    'sectors',
-  ].includes(entityKey)
+/**
+ * After create, always return to the collection list/board.
+ * Kept for callers/tests; prefer `shouldReturnToListAfterCreate`.
+ */
+export function returnsToListAfterCreate(_entityKey: string): boolean {
+  return true
 }
 
-/** True when create should go back to the list instead of the new record. */
-export function shouldReturnToListAfterCreate(entityKey: string, returnTo: unknown): boolean {
-  const path = resolveCreateReturnTo(returnTo, '')
-  return Boolean(path) || returnsToListAfterCreate(entityKey)
+/**
+ * Create submit navigates to the main list (or an explicit safe `?returnTo=`).
+ * Never stay on `/new` or jump to the new detail page by default.
+ */
+export function shouldReturnToListAfterCreate(_entityKey: string, _returnTo: unknown): boolean {
+  return true
 }
 
 /** Safe in-app return path from `?returnTo=`. */

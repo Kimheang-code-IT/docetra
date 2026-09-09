@@ -13,9 +13,6 @@ const props = defineProps<{
   createdAt?: string
   updatedAt?: string
   readOnly?: boolean
-  isFavorite?: boolean
-  togglingFavorite?: boolean
-  favoriteEnabled?: boolean
   /** Record upload endpoint (multipart): stores real bytes and links the file.
    *  When absent (create mode) files upload to the portal file store and are
    *  linked when the record is saved. */
@@ -30,10 +27,10 @@ const emit = defineEmits<{
   'update:assignees': [PersonSummary[]]
   'update:shares': [PersonSummary[]]
   attached: [version: number | undefined]
-  toggleFavorite: []
 }>()
 
 const { t } = useI18n()
+const api = useApi()
 
 const initial = computed(() => {
   const text = (props.title || '').trim()
@@ -213,7 +210,7 @@ async function onFilesSelected(event: Event) {
       // portal file store (real File row) and the record links on save.
       const target = props.uploadEndpoint || ApiEndpoints.FILE_UPLOADS
       const version = props.uploadEndpoint ? props.uploadVersion?.() : undefined
-      const response = await useApi().post<Record<string, unknown>>(
+      const response = await api.post<Record<string, unknown>>(
         version != null ? `${target}${target.includes('?') ? '&' : '?'}version=${version}` : target,
         form,
       )
@@ -262,7 +259,7 @@ async function downloadAttachment(file: AttachmentMeta) {
   if (downloadingId.value) return
   downloadingId.value = file.id
   try {
-    const blob = await useApi().get<Blob>(
+    const blob = await api.get<Blob>(
       file.url || ApiEndpoints.FILES(file.id),
       { responseType: 'blob', requestKey: `download:${file.id}` },
     )

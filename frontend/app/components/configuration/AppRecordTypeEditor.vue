@@ -320,10 +320,10 @@ async function save() {
   saving.value = true
   try {
     if (isCreate.value) {
-      const created = await recordTypes.create(toInput())
+      await recordTypes.create(toInput())
       toast.add({ title: t('docetra.common.saved'), color: 'success' })
       dirty.value = false
-      void router.replace(`/configuration/record-types/${created.id}`)
+      void router.replace('/configuration/record-types')
     }
     else {
       await recordTypes.update(props.recordTypeId!, toInput())

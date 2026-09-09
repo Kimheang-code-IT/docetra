@@ -36,7 +36,7 @@ export function createHttpRecordTypeRepository(): RecordTypeRepository {
       lookup.id
         ? `${resource(lookup.id)}/schema`
         : `${ApiEndpoints.RECORD_TYPES}/by-code/${encodeURIComponent(lookup.code || '')}/schema`,
-      { requestKey: `record-type-schema:${lookup.id || lookup.code}`, cancelPrevious: true },
+      { requestKey: `record-type-schema:${lookup.id || lookup.code}`, cancelPrevious: false },
     )),
     create: async input => unwrapApiData(await api.post<RecordType | ApiResponse<RecordType>>(ApiEndpoints.RECORD_TYPES, input)),
     update: async (id, input) => unwrapApiData(await api.patch<RecordType | ApiResponse<RecordType>>(resource(id), input)),

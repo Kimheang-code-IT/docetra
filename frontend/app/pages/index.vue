@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { fetchDashboardSummary } from '~/composables/reporting/useDashboardSummary'
+import { useDashboardSummary } from '~/composables/reporting/useDashboardSummary'
 import { usePageSeo } from '~/composables/usePageSeo'
 import type { DashboardSummary } from '~/types/docetra/entities'
 
@@ -11,6 +11,7 @@ definePageMeta({
 const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
+const { fetchDashboardSummary } = useDashboardSummary()
 
 usePageSeo({
   title: () => t('docetra.pages.dashboard'),
@@ -114,7 +115,7 @@ const filteredTrendSeries = computed(() => {
     .map(([label, count]) => ({ label, count }))
 })
 
-async function load() {
+async function load(force = false) {
   // Route hydration can notify the query watcher twice during the login ->
   // dashboard transition. Reuse the active load instead of issuing an
   // identical permission-filtered dashboard request.
@@ -122,7 +123,7 @@ async function load() {
   pending.value = true
   error.value = null
   try {
-    const res = await fetchDashboardSummary() as { data: DashboardSummary }
+    const res = await fetchDashboardSummary<DashboardSummary>(force)
     summary.value = res.data
   }
   catch (e: any) {
@@ -131,6 +132,10 @@ async function load() {
   finally {
     pending.value = false
   }
+}
+
+function refresh() {
+  void load(true)
 }
 
 // Load on mount and when the route genuinely changes. chartPeriod/chartYear
@@ -183,11 +188,11 @@ const summaryCards = computed(() => (summary.value?.kpis || []).slice(0, SUMMARY
     <LayoutAppHeaderPageActions
       :can-create="false"
       :refreshing="pending"
-      @refresh="load"
+      @refresh="refresh"
     />
 
     <div class="relative flex w-full min-w-0 flex-1 flex-col gap-3 px-1.5 pt-1.5 pb-0">
-      <UAlert v-if="error" color="error" :title="error" :actions="[{ label: $t('docetra.actions.retry'), onClick: load }]" />
+      <UAlert v-if="error" color="error" :title="error" :actions="[{ label: $t('docetra.actions.retry'), onClick: refresh }]" />
 
       <template v-if="summary">
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
@@ -199,7 +204,7 @@ const summaryCards = computed(() => (summary.value?.kpis || []).slice(0, SUMMARY
             :trend="kpi.trend"
             :to="kpi.href"
             :loading="pending"
-            @refresh="load"
+            @refresh="refresh"
           />
         </div>
 
@@ -210,7 +215,7 @@ const summaryCards = computed(() => (summary.value?.kpis || []).slice(0, SUMMARY
               <CommonAppChartPeriodToolbar
                 v-model:year="chartYear"
                 v-model:period="chartPeriod"
-                @refresh="load"
+                @refresh="refresh"
                 @download="downloadStageChart"
               />
             </div>
@@ -224,7 +229,7 @@ const summaryCards = computed(() => (summary.value?.kpis || []).slice(0, SUMMARY
               <CommonAppChartPeriodToolbar
                 v-model:year="chartYear"
                 v-model:period="chartPeriod"
-                @refresh="load"
+                @refresh="refresh"
                 @download="downloadTrendChart"
               />
             </div>

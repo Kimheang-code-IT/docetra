@@ -2,22 +2,27 @@
 import type { DocumentFieldSchema, FieldOption } from '~/types/docetra/common'
 import { FORM_CONTROL, FORM_NUMBER_BUTTONS } from '~/utils/form-field-ui'
 import { resolveFieldPlaceholder } from '~/utils/field-help'
-import { loadReferenceOptions } from '~/composables/common/useReferenceOptions'
+import { useReferenceOptions } from '~/composables/common/useReferenceOptions'
 import { ApiEndpoints } from '~/utils/constants/api-endpoints'
+import { ensureSelectItemsHaveLabel, fieldOptionsToSelectItems } from '~/utils/select-display'
 
 const props = defineProps<{
   field: DocumentFieldSchema
   modelValue: unknown
   disabled?: boolean
+  /** Human label for the current FK value (e.g. roleName for roleId). */
+  selectedLabel?: string | null
 }>()
 
 const emit = defineEmits<{
   'update:modelValue': [unknown]
+  'update:selectedLabel': [string]
   blur: []
 }>()
 
 const { t, te } = useI18n()
 const route = useRoute()
+const { loadReferenceOptions } = useReferenceOptions()
 
 const stringValue = computed({
   get: () => String(props.modelValue ?? ''),
@@ -29,7 +34,12 @@ const selectValue = computed({
     if (props.modelValue == null || props.modelValue === '') return undefined
     return String(props.modelValue)
   },
-  set: (v: string | undefined) => emit('update:modelValue', v ?? ''),
+  set: (v: string | undefined) => {
+    const next = v ?? ''
+    emit('update:modelValue', next)
+    const match = selectItems.value.find(item => String(item.value) === next)
+    if (match?.label) emit('update:selectedLabel', match.label)
+  },
 })
 
 const numberValue = computed({
@@ -91,7 +101,15 @@ watch(resolvedOptionsEndpoint, async (endpoint) => {
   if (!endpoint) return
   optionsPending.value = true
   try {
-    remoteOptions.value = await loadReferenceOptions(endpoint)
+    const endpoints = endpoint.split('|').map(part => part.trim()).filter(Boolean)
+    const batches = await Promise.all(endpoints.map(item => loadReferenceOptions(item)))
+    const seen = new Set<string>()
+    remoteOptions.value = batches.flat().filter((option) => {
+      const key = String(option.value)
+      if (!key || seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
   }
   catch {
     remoteOptions.value = []
@@ -105,18 +123,25 @@ const searchRemoteOptions = useDebounceFn(async (search: string) => {
   const endpoint = resolvedOptionsEndpoint.value
   if (!endpoint) return
   optionsPending.value = true
-  try { remoteOptions.value = await loadReferenceOptions(endpoint, search) }
+  try {
+    const endpoints = endpoint.split('|').map(part => part.trim()).filter(Boolean)
+    const batches = await Promise.all(endpoints.map(item => loadReferenceOptions(item, search)))
+    const seen = new Set<string>()
+    remoteOptions.value = batches.flat().filter((option) => {
+      const key = String(option.value)
+      if (!key || seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+  }
   finally { optionsPending.value = false }
 }, 250)
 
-const selectItems = computed(() => {
-  return [...(props.field.options || []), ...remoteOptions.value]
-    .filter(o => o.value !== '')
-    .map(o => ({
-      label: o.labelKey ? t(o.labelKey) : o.label,
-      value: o.value,
-    }))
-})
+const selectItems = computed(() => ensureSelectItemsHaveLabel(
+  fieldOptionsToSelectItems([...(props.field.options || []), ...remoteOptions.value], t),
+  props.modelValue,
+  props.selectedLabel,
+))
 
 const labelText = computed(() => {
   if (props.field.label) return props.field.label
@@ -204,11 +229,12 @@ const fieldRequired = computed(() => Boolean(props.field.required))
     :size="FORM_CONTROL.size"
     class="w-full"
   />
-  <UInputMenu
+  <USelectMenu
     v-else-if="isRemoteSelect"
     v-model="selectValue"
     :items="selectItems"
     value-key="value"
+    label-key="label"
     :placeholder="placeholderText"
     :disabled="disabled || field.readOnly"
     :loading="optionsPending"
@@ -223,6 +249,7 @@ const fieldRequired = computed(() => Boolean(props.field.required))
     v-model="selectValue"
     :items="selectItems"
     value-key="value"
+    label-key="label"
     :placeholder="placeholderText"
     :disabled="disabled || field.readOnly"
     :loading="optionsPending"

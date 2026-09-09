@@ -46,6 +46,7 @@ export function useArchiveWorkspace(sourceKeys: EntityApiKey[] = ARCHIVE_SOURCE_
   const auth = useAuthStore()
   const toast = useToast()
   const { confirm } = useConfirm()
+  const adapters = new Map(sourceKeys.map(key => [key, getEntityAdapter<Record<string, unknown> & { id: string }>(key)]))
 
   const sources = computed(() => sourceKeys
     .map(key => getEntityConfig(key))
@@ -124,7 +125,7 @@ export function useArchiveWorkspace(sourceKeys: EntityApiKey[] = ARCHIVE_SOURCE_
 
   async function loadSource(sourceKey: EntityApiKey) {
     const config = getEntityConfig(sourceKey)
-    const adapter = getEntityAdapter<Record<string, unknown> & { id: string }>(sourceKey)
+    const adapter = adapters.get(sourceKey)!
     const limit = TABLE_PAGE_SIZES.at(-1) || 100
     // One request per source: the backend accepts a comma-separated lifecycle
     // status list (previously two requests per source = 12 list calls).
@@ -174,7 +175,7 @@ export function useArchiveWorkspace(sourceKeys: EntityApiKey[] = ARCHIVE_SOURCE_
     })
     if (!accepted) return
     try {
-      const adapter = getEntityAdapter(row.sourceKey)
+      const adapter = adapters.get(row.sourceKey)!
       if (adapter.restore) await adapter.restore(row.recordId, { version: concurrencyVersion(row) })
       else await adapter.update(row.recordId, withConcurrencyToken({ status: 'active' }, row))
       allRows.value = allRows.value.filter(item => item.id !== row.id)
@@ -198,7 +199,7 @@ export function useArchiveWorkspace(sourceKeys: EntityApiKey[] = ARCHIVE_SOURCE_
     if (!accepted) return
     try {
       await Promise.all(permittedRows.map(async (row) => {
-        const adapter = getEntityAdapter(row.sourceKey)
+        const adapter = adapters.get(row.sourceKey)!
         if (!adapter.purge) throw new Error(t('docetra.archive.deleteUnsupported'))
         await adapter.purge(row.recordId, { version: concurrencyVersion(row) })
       }))

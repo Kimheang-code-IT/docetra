@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { DocumentTabSchema } from '~/types/docetra/common'
+import { companionNameKey } from '~/utils/select-display'
 
 const props = withDefaults(defineProps<{
   tabs: DocumentTabSchema[]
@@ -46,6 +47,23 @@ function isFullWidthField(field: DocumentTabSchema['sections'][0]['fields'][0]) 
     || field.type === 'visibility-builder'
     || field.type === 'card-fields-editor'
 }
+
+function selectedLabelFor(fieldKey: string): string | null {
+  const nameKey = companionNameKey(fieldKey)
+  if (!nameKey) return null
+  const value = props.fieldValue(nameKey)
+  if (value == null || value === '') return null
+  return String(value)
+}
+
+function onFieldUpdate(fieldKey: string, value: unknown) {
+  props.setFieldValue(fieldKey, value)
+}
+
+function onSelectedLabel(fieldKey: string, label: string) {
+  const nameKey = companionNameKey(fieldKey)
+  if (nameKey) props.setFieldValue(nameKey, label)
+}
 </script>
 
 <template>
@@ -78,9 +96,11 @@ function isFullWidthField(field: DocumentTabSchema['sections'][0]['fields'][0]) 
                 <DocumentAppDynamicFieldRenderer
                   :field="field"
                   :model-value="fieldValue(field.key)"
+                  :selected-label="selectedLabelFor(field.key)"
                   :disabled="readOnly"
                   :is-create="isCreate"
-                  @update:model-value="(v) => setFieldValue(field.key, v)"
+                  @update:model-value="(v) => onFieldUpdate(field.key, v)"
+                  @update:selected-label="(label) => onSelectedLabel(field.key, label)"
                 />
               </div>
             </div>

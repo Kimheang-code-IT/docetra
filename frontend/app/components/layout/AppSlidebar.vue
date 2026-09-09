@@ -88,10 +88,10 @@ const sidebarUi = computed(() => ({
     </template>
 
     <template #default="{ collapsed: isCollapsed }">
-      <ClientOnly>
-      <UNavigationMenu
-        :collapsed="isCollapsed"
-        :items="links[0]"
+      <div>
+          <UNavigationMenu
+            :collapsed="isCollapsed"
+            :items="links[0]"
         orientation="vertical"
         tooltip
         popover
@@ -113,11 +113,11 @@ const sidebarUi = computed(() => ({
               childLinkIcon: 'size-5 app-sidebar-text group-data-[active]:text-primary',
               label: 'app-sidebar-text font-semibold',
             }"
-      />
-      <UNavigationMenu
-        v-if="links[1]?.length"
-        :collapsed="isCollapsed"
-        :items="links[1]"
+          />
+          <UNavigationMenu
+            v-if="links[1]?.length"
+            :collapsed="isCollapsed"
+            :items="links[1]"
         orientation="vertical"
         tooltip
         :ui="isCollapsed
@@ -133,11 +133,8 @@ const sidebarUi = computed(() => ({
               linkLeadingIcon: 'size-5 app-sidebar-text',
               linkLabel: 'app-sidebar-text',
             }"
-      />
-        <template #fallback>
-          <div class="h-24 w-full animate-pulse rounded-md bg-elevated/50" aria-hidden="true" />
-        </template>
-      </ClientOnly>
+          />
+      </div>
     </template>
 
     <template #footer="{ collapsed: isCollapsed }">

@@ -3,7 +3,6 @@ import type {
   ApiResponse,
   AttachmentMeta,
   EntityComment,
-  EntityFavoriteState,
   EntityRecordNeighbors,
   GroupCountSummary,
   ListQuery,
@@ -32,8 +31,6 @@ export interface EntityAdapter<T> {
   updateComment?: (id: string, commentId: string, body: string) => Promise<ApiResponse<EntityComment>>
   deleteComment?: (id: string, commentId: string) => Promise<ApiResponse<{ id: string }>>
   getNeighbors?: (id: string, query?: Pick<ListQuery, 'sort'>) => Promise<ApiResponse<EntityRecordNeighbors>>
-  getFavorite?: (id: string, userId?: string) => Promise<ApiResponse<EntityFavoriteState>>
-  setFavorite?: (id: string, isFavorite: boolean, userId?: string) => Promise<ApiResponse<EntityFavoriteState>>
   listActivity?: (id: string, query?: ListQuery) => Promise<ApiResponse<ActivityEvent[]>>
   listAttachments?: (id: string, query?: ListQuery) => Promise<ApiResponse<AttachmentMeta[]>>
   replaceAttachments?: (id: string, files: AttachmentMeta[], extra?: ConcurrencyToken) => Promise<ApiResponse<AttachmentMeta[]>>

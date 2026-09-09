@@ -2,7 +2,8 @@
 import type { FormSubmitEvent, AuthFormField } from '@nuxt/ui'
 import { useAuthSession } from '~/utils/auth/session'
 import { createLoginSchema, createSetupSchema } from '~/utils/auth/login-schema'
-import { readRememberMe } from '~/utils/auth/remember-me'
+import { readRememberMe, writeRememberMe } from '~/utils/auth/remember-me'
+import { classifyLoginError, retryAfterMinutes } from '~/utils/auth/login-errors'
 import { useAuthApi } from '~/composables/auth/useAuthApi'
 import { usePageSeo } from '~/composables/usePageSeo'
 import type { AuthUser } from '~/types/auth-user'
@@ -28,6 +29,9 @@ usePageSeo({
 })
 
 const remembered = readRememberMe()
+// Page-level ref: UAuthForm's internal checkbox state proved unreliable for a
+// pre-seeded default, so the remember-me control binds directly to this ref.
+const rememberMe = ref(remembered.enabled)
 
 function buildFields(): AuthFormField[] {
   const emailField: AuthFormField = {
@@ -50,7 +54,15 @@ function buildFields(): AuthFormField[] {
     autocomplete: setupMode.value ? 'new-password' : 'current-password',
     defaultValue: '',
   }
-  if (!setupMode.value) return [emailField, passwordField]
+  if (!setupMode.value) {
+    return [emailField, passwordField, {
+      name: 'rememberMe',
+      type: 'checkbox',
+      size: 'lg',
+      label: t('pages.auth.remember'),
+      defaultValue: remembered.enabled,
+    }]
+  }
   return [
     {
       name: 'name',
@@ -159,13 +171,37 @@ async function onSubmit(payload: FormSubmitEvent<LoginSchema | SetupSchema>) {
       return
     }
 
+    if (!setupMode.value) {
+      // Opt in/out of email persistence explicitly on each successful login.
+      writeRememberMe({ enabled: rememberMe.value, email })
+    }
+
     await completeLogin(token, user)
   }
   catch (error: unknown) {
-    const message = error instanceof Error ? error.message : ''
+    // Human sentences, never raw HTTP statuses: 401 → wrong credentials,
+    // 429 → cooldown (Retry-After aware), connection loss → try later.
+    const failure = classifyLoginError(error)
+    let description: string
+    if (failure.kind === 'invalid-credentials') {
+      description = t('pages.auth.loginFailedDesc')
+    }
+    else if (failure.kind === 'rate-limited') {
+      const minutes = retryAfterMinutes(failure.retryAfterSeconds)
+      description = minutes
+        ? t('pages.auth.tooManyAttempts', { minutes })
+        : t('pages.auth.tooManyAttemptsLater')
+    }
+    else if (failure.kind === 'unreachable') {
+      description = t('pages.auth.unableToConnect')
+    }
+    else {
+      description = failure.backendMessage
+        || t(setupMode.value ? 'pages.auth.setupFailedDesc' : 'pages.auth.loginFailedDesc')
+    }
     toast.add({
       title: t(setupMode.value ? 'pages.auth.setupFailed' : 'pages.auth.loginFailed'),
-      description: message || t(setupMode.value ? 'pages.auth.setupFailedDesc' : 'pages.auth.loginFailedDesc'),
+      description,
       color: 'error',
     })
   }
@@ -195,6 +231,21 @@ async function onSubmit(payload: FormSubmitEvent<LoginSchema | SetupSchema>) {
     >
       <template #leading>
         <img src="/assets/images/logo.png" alt="Logo" class="mx-auto h-20 w-auto rounded-full shadow">
+      </template>
+
+      <!-- Native checkbox on purpose: reka-ui's CheckboxRoot (inside UCheckbox)
+           renders one render behind its modelValue when the value is only
+           known client-side (localStorage), so a pre-checked remember-me
+           never displays. A native input + v-model is deterministic. -->
+      <template #rememberMe-field>
+        <label class="flex cursor-pointer items-center gap-2.5 py-1 text-sm text-muted">
+          <input
+            v-model="rememberMe"
+            type="checkbox"
+            class="size-4 cursor-pointer accent-(--ui-primary)"
+          >
+          <span>{{ t('pages.auth.remember') }}</span>
+        </label>
       </template>
 
       <template #footer>

@@ -6,41 +6,42 @@ import type { AiSearchAnswer, SearchHit, SearchMode, SearchQueryOptions } from '
 import { ApiEndpoints } from '~/utils/constants/api-endpoints'
 import { useMenu } from '~/composables/layout/useMenu'
 
-async function searchKeyword(query: string, options: SearchQueryOptions = {}) {
-  const limit = options.limit ?? 12
-  const response = await useApi().get<{ data: SearchHit[] }>(ApiEndpoints.SEARCH, {
-    query: { q: query, mode: 'keyword', limit },
-    requestKey: 'search-keyword',
-    cancelPrevious: true,
-  })
-  return response.data || []
-}
-
-async function searchSemantic(query: string, options: SearchQueryOptions = {}) {
-  const limit = options.limit ?? 12
-  const response = await useApi().get<{ data: SearchHit[] }>(ApiEndpoints.SEARCH, {
-    query: { q: query, mode: 'semantic', limit },
-    requestKey: 'search-semantic',
-    cancelPrevious: true,
-  })
-  return response.data || []
-}
-
-async function askAi(query: string, hits: SearchHit[]): Promise<AiSearchAnswer> {
-  const response = await useApi().post<{ data: AiSearchAnswer }>(ApiEndpoints.SEARCH_ASK, {
-    q: query,
-    hitIds: hits.map(h => h.id),
-  }, {
-    requestKey: 'search-ask',
-    cancelPrevious: true,
-  })
-  return response.data
-}
-
 export function useGlobalSearch() {
   const { t } = useI18n()
   const router = useRouter()
   const { links, close: closeSidebar } = useMenu()
+  const api = useApi()
+
+  async function searchKeyword(query: string, options: SearchQueryOptions = {}) {
+    const limit = options.limit ?? 12
+    const response = await api.get<{ data: SearchHit[] }>(ApiEndpoints.SEARCH, {
+      query: { q: query, mode: 'keyword', limit },
+      requestKey: 'search-keyword',
+      cancelPrevious: true,
+    })
+    return response.data || []
+  }
+
+  async function searchSemantic(query: string, options: SearchQueryOptions = {}) {
+    const limit = options.limit ?? 12
+    const response = await api.get<{ data: SearchHit[] }>(ApiEndpoints.SEARCH, {
+      query: { q: query, mode: 'semantic', limit },
+      requestKey: 'search-semantic',
+      cancelPrevious: true,
+    })
+    return response.data || []
+  }
+
+  async function askAi(query: string, hits: SearchHit[]): Promise<AiSearchAnswer> {
+    const response = await api.post<{ data: AiSearchAnswer }>(ApiEndpoints.SEARCH_ASK, {
+      q: query,
+      hitIds: hits.map(h => h.id),
+    }, {
+      requestKey: 'search-ask',
+      cancelPrevious: true,
+    })
+    return response.data
+  }
 
   const open = ref(false)
   const searchTerm = ref('')

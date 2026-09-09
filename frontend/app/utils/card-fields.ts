@@ -348,3 +348,25 @@ export function cardEntityKeyForRecordType(code: string | null | undefined):
     default: return 'documents'
   }
 }
+
+const OPAQUE_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/** True for UUID-shaped values that should not appear as card scan text. */
+export function isOpaqueId(value: string): boolean {
+  return OPAQUE_ID_RE.test(value.trim())
+}
+
+/** Human-readable card text. Drops empty values and opaque IDs. */
+export function readableCardText(value: unknown): string {
+  if (value == null) return ''
+  if (Array.isArray(value)) {
+    return value.map(readableCardText).filter(Boolean).join(', ')
+  }
+  if (typeof value === 'object' && 'name' in value) {
+    return readableCardText((value as { name?: unknown }).name)
+  }
+  const parts = String(value).split(',').map(part => part.trim()).filter(Boolean)
+  return parts.filter(part => !isOpaqueId(part)).join(', ')
+}
+
+export const CARD_LIST_ICON = 'i-lucide-minus'

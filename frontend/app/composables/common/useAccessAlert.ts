@@ -1,16 +1,4 @@
-type ToastItem = {
-  id: string
-  open: boolean
-  title?: string
-  description?: string
-  color?: string
-}
-
-function pushToast(title: string, description: string, color: ToastItem['color'] = 'error') {
-  const toasts = useState<ToastItem[]>('toasts', () => [])
-  const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
-  toasts.value = [...toasts.value, { id, open: true, title, description, color }].slice(-5)
-}
+import { appendAppToast, useAppToastState, type ToastItem } from '~/composables/common/toast-state'
 
 /**
  * Permission / session feedback without a blocking modal.
@@ -18,6 +6,14 @@ function pushToast(title: string, description: string, color: ToastItem['color']
  */
 export function useAccessAlert() {
   const nuxtApp = useNuxtApp()
+  // Captured while the Nuxt instance is current. Delayed callbacks (ofetch
+  // response hooks) must reuse this ref — a fresh useState() call from a
+  // delayed hook throws NUXT_E1001.
+  const toasts = useAppToastState()
+
+  function pushToast(title: string, description: string, color: ToastItem['color'] = 'error') {
+    appendAppToast(toasts, { title, description, color })
+  }
 
   function t(key: string, params?: Record<string, unknown>) {
     const i18n = nuxtApp.$i18n as { t: (k: string, p?: Record<string, unknown>) => string } | undefined

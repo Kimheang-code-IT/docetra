@@ -646,7 +646,9 @@
       "soon": "ជិតដល់",
       "inProgress": "កំពុងប្រជុំ",
       "durationMinutes": "{n} នាទី",
-      "meetingUrlRequired": "ត្រូវការតំណ URL សម្រាប់កិច្ចប្រជុំតាមអនឡាញ ឬរួម"
+      "meetingUrlRequired": "ត្រូវការតំណ URL សម្រាប់កិច្ចប្រជុំតាមអនឡាញ ឬរួម",
+      "moveToHistory": "ផ្ទេរទៅប្រវត្តិ",
+      "movedToHistory": "បានផ្ទេរកិច្ចប្រជុំទៅប្រវត្តិ"
     },
     "meetingMode": {
       "in_person": "ផ្ទាល់",
@@ -1088,7 +1090,6 @@
       "commentUpdateFailed": "មិនអាចកែប្រែមតិបានទេ",
       "commentDeleted": "បានលុបមតិ",
       "commentDeleteFailed": "មិនអាចលុបមតិបានទេ",
-      "favoriteUpdateFailed": "មិនអាចកែប្រែចំណូលចិត្តបានទេ",
       "unsaved": "មានការផ្លាស់ប្តូរមិនបានរក្សាទុក",
       "unsavedConfirm": "អ្នកមានការផ្លាស់ប្តូរមិនបានរក្សាទុក។ ចាកចេញ?",
       "moveFailed": "ផ្លាស់ដំណាក់កាលបរាជ័យ",
@@ -1118,9 +1119,7 @@
       "assignPlaceholder": "បញ្ចូលឈ្មោះអ្នកប្រើ",
       "tagPlaceholder": "បញ្ចូលស្លាក",
       "sharePlaceholder": "ចែករំលែកជាមួយអ្នកប្រើ",
-      "removeTag": "លុបស្លាក {tag}",
-      "addFavorite": "បន្ថែមទៅចំណូលចិត្ត",
-      "removeFavorite": "ដកចេញពីចំណូលចិត្ត"
+      "removeTag": "លុបស្លាក {tag}"
     },
     "comments": {
       "title": "មតិយោបល់",
@@ -1212,6 +1211,12 @@
       "sourceCreated": "បានបង្កើតប្រភព Drive",
       "sourceCreateFailed": "មិនអាចបង្កើតប្រភព Drive បានទេ",
       "folderId": "អត្តសញ្ញាណថត Drive",
+      "folderIdHelp": "បិទភ្ជាប់អត្តសញ្ញាណថត Google Drive ពី URL ថត។",
+      "folderIdPlaceholder": "បញ្ចូលអត្តសញ្ញាណថត",
+      "namePlaceholder": "បញ្ចូលឈ្មោះប្រភព",
+      "sourcesTitle": "ប្រភព Drive",
+      "noSources": "មិនទាន់មានប្រភព Drive ទេ។ បន្ថែមប្រភពដើម្បីចាប់ផ្តើមសមកាលកម្ម។",
+      "noFiles": "មិនទាន់មានឯកសារសមកាលកម្មទេ។",
       "nameAndFolderRequired": "ត្រូវការឈ្មោះ និងអត្តសញ្ញាណថត",
       "syncNow": "ធ្វើសមកាលកម្មឥឡូវនេះ",
       "syncRunning": "កំពុងធ្វើសមកាលកម្ម…",
@@ -1282,6 +1287,9 @@
       "setupBtn": "បង្កើតអ្នកគ្រប់គ្រង",
       "loginFailed": "ចូលគណនីមិនបាន",
       "loginFailedDesc": "អ៊ីមែល ឬពាក្យសម្ងាត់មិនត្រឹមត្រូវ។",
+      "tooManyAttempts": "ព្យាយាមចូលមិនជោគជ័យច្រើនដងពេក។ សូមសាកល្បងម្តងទៀតក្នុង {minutes} នាទី។",
+      "tooManyAttemptsLater": "ព្យាយាមចូលមិនជោគជ័យច្រើនដងពេក។ សូមសាកល្បងម្តងទៀតពេលក្រោយ។",
+      "unableToConnect": "មិនអាចភ្ជាប់មកកាន់ប្រព័ន្ធបានទេ។ សូមព្យាយាមម្តងទៀតពេលក្រោយ។",
       "setupFailed": "បង្កើតអ្នកគ្រប់គ្រងមិនបាន",
       "setupFailedDesc": "មិនអាចបង្កើតគណនីអ្នកគ្រប់គ្រងបានទេ។",
       "loginSuccess": "សូមស្វាគមន៍",

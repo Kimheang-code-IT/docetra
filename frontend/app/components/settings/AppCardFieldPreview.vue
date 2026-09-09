@@ -105,7 +105,7 @@ function previewText(slot: string): string {
         </div>
         <p
           v-if="bodySlots.includes('topicTitle')"
-          class="mt-1 truncate text-xs app-card-text"
+          class="mt-1 truncate text-sm app-card-text"
         >
           {{ previewText('topicTitle') }}
         </p>
@@ -120,43 +120,35 @@ function previewText(slot: string): string {
       />
     </div>
 
-    <div class="min-h-0 flex-1">
+    <div class="app-card-body">
       <template v-for="slot in bodySlots" :key="slot">
       <p
         v-if="slot === 'referenceNumber' || slot === 'recordType' || slot === 'description' || slot === 'letterNumber'"
-        class="mt-1.5 truncate text-xs app-card-text"
+        class="mt-1.5 flex min-w-0 items-center gap-1.5 truncate text-sm app-card-text"
       >
-        {{ previewText(slot) }}
+        <UIcon name="i-lucide-minus" class="size-3 shrink-0" />
+        <span class="truncate">{{ previewText(slot) }}</span>
       </p>
       <div
         v-else-if="slot === 'waiting' || slot === 'tags'"
-        class="app-card-field-highlight mt-1.5 text-xs"
+        class="app-card-field-highlight mt-1.5 text-sm"
         :class="slot === 'waiting' ? 'app-card-field-highlight--warning' : 'app-card-field-highlight--secondary'"
       >
-        <UIcon
-          :name="slot === 'waiting' ? 'i-lucide-clock-3' : 'i-lucide-tag'"
-          class="size-3 shrink-0"
-        />
+        <UIcon name="i-lucide-minus" class="size-3 shrink-0" />
         <span class="truncate">{{ previewText(slot) }}</span>
       </div>
       <div
         v-else-if="slot === 'party' || slot === 'owner' || slot === 'assignee' || slot === 'participants' || slot === 'internalUnits' || slot === 'externalUnits'"
-        class="mt-1.5 flex items-center gap-1.5 truncate text-xs app-card-text"
+        class="mt-1.5 flex items-center gap-1.5 truncate text-sm app-card-text"
       >
-        <UIcon
-          :name="slot === 'party' || slot === 'internalUnits' ? 'i-lucide-building-2'
-            : slot === 'externalUnits' ? 'i-lucide-landmark'
-              : slot === 'participants' ? 'i-lucide-users'
-            : slot === 'assignee' ? 'i-lucide-user-check'
-              : 'i-lucide-user'"
-          class="size-3 shrink-0"
-        />
+        <UIcon name="i-lucide-minus" class="size-3 shrink-0" />
         <span class="truncate">{{ previewText(slot) }}</span>
       </div>
       <div
         v-else
-        class="mt-1.5 flex min-w-0 items-center gap-1.5 truncate text-xs app-card-text"
+        class="mt-1.5 flex min-w-0 items-center gap-1.5 truncate text-sm app-card-text"
       >
+        <UIcon name="i-lucide-minus" class="size-3 shrink-0" />
         <span class="shrink-0 font-medium text-toned">{{ $t(`docetra.cardSlots.${slot}`) }}:</span>
         <span class="truncate">{{ previewText(slot) }}</span>
       </div>
@@ -165,14 +157,14 @@ function previewText(slot: string): string {
 
     <div
       v-if="footerSlots.length"
-      class="mt-auto flex items-center justify-between gap-2 border-t border-default pt-2 text-xs app-card-text"
+      class="app-card-footer app-card-text"
     >
       <div class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
         <span
           v-for="slot in footerLeft"
           :key="`L-${slot}`"
           class="app-card-field-highlight--compact inline-flex min-w-0 items-center gap-1 truncate"
-          :class="slot === 'location' ? 'app-card-field-highlight--warning' : 'app-card-field-highlight--info'"
+          :class="slot === 'location' ? 'app-card-field-highlight--warning' : slot === 'attachmentCount' ? 'app-card-field-highlight--secondary' : slot === 'commentCount' ? 'app-card-field-highlight--info' : 'app-card-field-highlight--brand'"
         >
           <UIcon
             :name="slot === 'location' ? 'i-lucide-map-pin'
@@ -190,7 +182,7 @@ function previewText(slot: string): string {
           v-for="slot in footerRight"
           :key="`R-${slot}`"
           class="app-card-field-highlight--compact inline-flex items-center gap-1"
-          :class="slot === 'location' ? 'app-card-field-highlight--warning' : slot === 'attachmentCount' ? 'app-card-field-highlight--secondary' : 'app-card-field-highlight--info'"
+          :class="slot === 'location' ? 'app-card-field-highlight--warning' : slot === 'attachmentCount' ? 'app-card-field-highlight--secondary' : slot === 'commentCount' ? 'app-card-field-highlight--info' : 'app-card-field-highlight--brand'"
         >
           <UIcon
             :name="slot === 'location' ? 'i-lucide-map-pin'

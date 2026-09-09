@@ -37,7 +37,8 @@ export function useMenu() {
     }
   }
 
-  if (import.meta.client && !hydrated.value) {
+  onMounted(() => {
+    if (hydrated.value) return
     hydrated.value = true
     const saved = localStorage.getItem(SIDEBAR_COLLAPSED_KEY)
     if (saved === '1' || saved === '0') {
@@ -47,9 +48,9 @@ export function useMenu() {
     else {
       applyAutoCollapse(isNarrow.value)
     }
-    watch(isNarrow, (narrow) => applyAutoCollapse(narrow))
+    watch(isNarrow, narrow => applyAutoCollapse(narrow))
     void loadSurfaces()
-  }
+  })
 
   const pageLink = (label: string, to: string): NavigationMenuItem => ({
     label,
@@ -63,7 +64,7 @@ export function useMenu() {
     label: string,
     icon: string,
     children: NavigationMenuItem[],
-    options?: { defaultOpen?: boolean },
+    options?: { defaultOpen?: boolean, keepWhenEmpty?: boolean },
   ): NavigationMenuItem => ({
     label,
     icon,
@@ -71,6 +72,7 @@ export function useMenu() {
     defaultOpen: options?.defaultOpen ?? false,
     class: 'mt-1 text-sm gap-2',
     children,
+    ...(options?.keepWhenEmpty ? { keepWhenEmpty: true } : {}),
   })
 
   const routePermissions: Record<string, string> = {
@@ -122,7 +124,7 @@ export function useMenu() {
   }
 
   function permittedItem(item: NavigationMenuItem): NavigationMenuItem | null {
-    const candidate = item as NavigationMenuItem & { to?: string; children?: NavigationMenuItem[] }
+    const candidate = item as NavigationMenuItem & { to?: string; children?: NavigationMenuItem[], keepWhenEmpty?: boolean }
     if (candidate.to) {
       const permission = permissionForRoute(candidate.to)
       if (permission && !auth.canAccessPage(permission)) return null
@@ -131,7 +133,7 @@ export function useMenu() {
       const children = candidate.children
         .map(child => permittedItem(child))
         .filter((child): child is NavigationMenuItem => Boolean(child))
-      return children.length ? { ...candidate, children } : null
+      return children.length || candidate.keepWhenEmpty ? { ...candidate, children } : null
     }
     return candidate
   }
@@ -164,8 +166,8 @@ export function useMenu() {
         class: 'text-sm gap-2',
         onSelect: close,
       },
-      group(t('docetra.navigation.meeting'), 'i-lucide-video', meetingChildren, { defaultOpen: true }),
-      group(t('docetra.navigation.record'), 'i-lucide-folder', documentChildren, { defaultOpen: true }),
+      group(t('docetra.navigation.meeting'), 'i-lucide-video', meetingChildren, { defaultOpen: true, keepWhenEmpty: true }),
+      group(t('docetra.navigation.record'), 'i-lucide-folder', documentChildren, { defaultOpen: true, keepWhenEmpty: true }),
       group(t('docetra.navigation.organization'), 'i-lucide-building-2', [
         pageLink(t('docetra.pages.department'), '/organizations/departments'),
         pageLink(t('docetra.pages.company'), '/organizations/companies'),

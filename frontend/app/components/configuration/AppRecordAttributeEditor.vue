@@ -210,7 +210,7 @@ async function save() {
         }
         return
       }
-      void router.replace(`/configuration/record-attributes/${created.id}`)
+      void router.replace('/configuration/record-attributes')
     }
     else {
       await attributes.update(props.attributeId!, toInput())

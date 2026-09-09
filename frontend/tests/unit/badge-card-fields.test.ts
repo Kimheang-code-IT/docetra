@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { normalizeBadgeColor } from '../../app/utils/badge'
 import {
   cardEntityKeyForRecordType,
+  readableCardText,
   resolveFooterAlign,
   resolveTypeAwareCardFields,
   resolveTypeAwareFooterAlign,
@@ -46,7 +47,8 @@ describe('resolveTypeAwareCardFields', () => {
   })
 
   function resolveVisibleDefaultsForTopic() {
-    return ['tags']
+    // card-fields.ts default for topic cards: description + optional tags.
+    return ['description', 'tags']
   }
 })
 
@@ -76,5 +78,14 @@ describe('cardEntityKeyForRecordType', () => {
     expect(cardEntityKeyForRecordType('master_list_request')).toBe('masterListRequests')
     expect(cardEntityKeyForRecordType('annual_report')).toBe('documents')
     expect(cardEntityKeyForRecordType(null)).toBe('documents')
+  })
+})
+
+describe('readableCardText', () => {
+  it('hides UUID-shaped values and keeps human labels', () => {
+    expect(readableCardText('17f2dbc1-5e61-4db9-8219-9bb239e1008c')).toBe('')
+    expect(readableCardText('Incoming document')).toBe('Incoming document')
+    expect(readableCardText({ name: 'Cabinet Office' })).toBe('Cabinet Office')
+    expect(readableCardText({ name: '17f2dbc1-5e61-4db9-8219-9bb239e1008c' })).toBe('')
   })
 })

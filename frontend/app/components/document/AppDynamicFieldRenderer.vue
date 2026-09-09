@@ -20,7 +20,7 @@ import { TELEGRAM_TEMPLATE_VARIABLES } from '~/types/docetra/settings'
 import { createClientId } from '~/utils/client-id'
 import { resolveFieldHelp, stripOptionalHelpPrefix } from '~/utils/field-help'
 import { FORM_CONTROL, FORM_CONTROL_COMPACT } from '~/utils/form-field-ui'
-import { loadReferenceOptions } from '~/composables/common/useReferenceOptions'
+import { useReferenceOptions } from '~/composables/common/useReferenceOptions'
 import { ApiEndpoints } from '~/utils/constants/api-endpoints'
 
 const props = defineProps<{
@@ -28,14 +28,18 @@ const props = defineProps<{
   modelValue: unknown
   disabled?: boolean
   isCreate?: boolean
+  /** Human label for FK selects (roleName, organizationName, …). */
+  selectedLabel?: string | null
 }>()
 
 const emit = defineEmits<{
   'update:modelValue': [unknown]
+  'update:selectedLabel': [string]
 }>()
 
 const { t, te } = useI18n()
 const route = useRoute()
+const { loadReferenceOptions } = useReferenceOptions()
 
 const hintOpen = ref(false)
 
@@ -735,8 +739,10 @@ function removeDestination(id: string) {
         <CommonAppFormControl
           :field="field"
           :model-value="modelValue"
+          :selected-label="selectedLabel"
           :disabled="disabled || field.readOnly"
           @update:model-value="emit('update:modelValue', $event)"
+          @update:selected-label="emit('update:selectedLabel', $event)"
         />
       </div>
 

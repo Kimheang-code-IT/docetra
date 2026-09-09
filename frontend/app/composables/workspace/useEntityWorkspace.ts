@@ -5,6 +5,7 @@ import { getAdapterForConfig } from '~/config/entities'
 import { useExportJobRunner } from '~/composables/common/useExportJobRunner'
 import { useAppLocalization } from '~/composables/settings/useAppLocalization'
 import { useAppRuntimeConfig } from '~/composables/settings/useAppRuntimeConfig'
+import { displayListText } from '~/utils/display/reference-text'
 import {
   parsePageLimit,
   serializePageLimit,
@@ -154,6 +155,7 @@ export function useEntityWorkspace(config: EntityConfig) {
     limit: limit.value,
     sort: sort.value,
     view: view.value,
+    ...(config.defaultQuery || {}),
     ...filters.value,
   }))
 
@@ -272,6 +274,14 @@ export function useEntityWorkspace(config: EntityConfig) {
       return value ? t('docetra.status.active') : t('docetra.status.disabled')
     }
     if (value == null || value === '') return '—'
+
+    // Reference/mention fields persist objects ({id, label, type}) — render
+    // their labels instead of "[object Object]".
+    if (Array.isArray(value) || typeof value === 'object') {
+      const text = displayListText(value)
+      if (text) return text
+      return '—'
+    }
 
     const text = String(value)
 

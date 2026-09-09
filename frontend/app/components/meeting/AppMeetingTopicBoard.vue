@@ -7,6 +7,7 @@ import { useBoardDragDrop } from '~/composables/common/useBoardDragDrop'
 import { useBoardViewMode } from '~/composables/common/useBoardViewMode'
 import { consumeListStale } from '~/utils/workspace-list-stale'
 import { permissionForAction } from '~/utils/role/access'
+import { displayListText } from '~/utils/display/reference-text'
 import { useConfirm } from '~/composables/common/useConfirm'
 import { getEntityConfig } from '~/config/entities'
 import { getByPath } from '~/utils/object-path'
@@ -51,6 +52,7 @@ const {
   updateTopicTitle,
   setTopicActive,
   openMeeting,
+  completeMeeting,
   openCreateMeeting,
 } = useMeetingTopicBoard()
 
@@ -123,6 +125,9 @@ const createButtons = computed(() => {
 const tableRowActions = computed<RowActionItem[]>(() => [
   { key: 'detail', labelKey: 'docetra.rowActions.detail', icon: 'i-lucide-eye' },
   ...(canEditMeeting.value
+    ? [{ key: 'complete', labelKey: 'docetra.meetingBoard.moveToHistory', icon: 'i-lucide-history' } satisfies RowActionItem]
+    : []),
+  ...(canEditMeeting.value
     ? [{ key: 'notes', labelKey: 'docetra.meetingBoard.openNotes', icon: 'i-lucide-sticky-note' } satisfies RowActionItem]
     : []),
   ...(canDeleteMeeting.value
@@ -180,7 +185,10 @@ function topicCardSlots(topic: MeetingTopic) {
 function cellValue(row: Record<string, unknown>, key: string) {
   const value = getByPath(row, key)
   if (value == null || value === '') return '—'
-  if (Array.isArray(value)) return value.map(String).filter(Boolean).join(', ') || '—'
+  // Reference/mention fields persist objects ({id, label}) — render labels.
+  if (Array.isArray(value) || (typeof value === 'object' && value !== null)) {
+    return displayListText(value) || '—'
+  }
   const text = String(value)
   if (key === 'status' || key === 'stage') {
     const statusKey = `docetra.status.${text}`
@@ -330,6 +338,10 @@ function onRowAction(payload: { key: string, row: Record<string, unknown> }) {
     openMeeting(id)
     return
   }
+  if (payload.key === 'complete') {
+    void completeMeeting(id)
+    return
+  }
   if (payload.key === 'notes') {
     openMeetingNotes(id)
     return
@@ -419,7 +431,7 @@ function onRowAction(payload: { key: string, row: Record<string, unknown> }) {
         @drop="onTopicDrop(topic.id)"
       >
         <template v-if="topic.description" #subtitle>
-          <p class="mt-1 line-clamp-2 text-xs app-card-text">
+          <p class="mt-1 line-clamp-2 text-sm app-card-text">
             {{ topic.description }}
           </p>
         </template>
@@ -441,14 +453,14 @@ function onRowAction(payload: { key: string, row: Record<string, unknown> }) {
             v-if="topicCardSlots(topic).showTags"
             class="mt-2 flex flex-wrap gap-x-2 gap-y-1"
           >
-            <span class="app-card-field-highlight app-card-field-highlight--secondary text-xs">
-              <UIcon name="i-lucide-tag" class="size-3 shrink-0" />
+            <span class="app-card-field-highlight app-card-field-highlight--secondary text-sm">
+              <UIcon name="i-lucide-minus" class="size-3 shrink-0" />
               <span class="truncate">{{ topicCardSlots(topic).tag }}</span>
             </span>
           </div>
           <div
             v-if="topicCardSlots(topic).showRecordTime"
-            class="app-card-field-highlight app-card-field-highlight--info mt-2 flex items-center gap-1 text-xs app-card-text"
+            class="app-card-field-highlight app-card-field-highlight--brand mt-2 flex items-center gap-1 text-sm"
           >
             <UIcon name="i-lucide-calendar" class="size-3 shrink-0" />
             <span class="truncate">{{ topicCardSlots(topic).recordTime }}</span>
@@ -509,9 +521,11 @@ function onRowAction(payload: { key: string, row: Record<string, unknown> }) {
         :show-topic="isPoolView"
         :can-assign="canAssignMeeting"
         :can-edit-notes="canEditMeeting"
+        :can-complete="canEditMeeting"
         :can-delete="canDeleteMeeting"
         @open="openMeeting(meeting.id)"
         @open-notes="openMeetingNotes(meeting.id)"
+        @complete="completeMeeting(meeting.id)"
         @drag-start="onMeetingDragStart"
         @drag-end="onDragEnd"
         @assign="(topicId) => canAssignMeeting && assignMeetingToTopic(meeting.id, topicId)"

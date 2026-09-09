@@ -7,7 +7,7 @@ import type {
 } from '~/types/docetra/common'
 import type { EntityApiKey } from '~/composables/api/useEntityApis'
 import type { EntityAdapter } from '~/types/docetra/adapter'
-import { createRecordApi, entityApis } from '~/composables/api/useEntityApis'
+import { createEntityApiForKey, createRecordApi } from '~/composables/api/useEntityApis'
 import {
   ENTITY_TYPE_OPTIONS,
   LOG_ACTION_OPTIONS,
@@ -43,6 +43,8 @@ export interface EntityConfig {
   }
   /** Uses unified Record Type metadata and dynamic record-detail fields. */
   recordBacked?: boolean
+  /** Query params always sent on list unless the route already sets the same key. */
+  defaultQuery?: Record<string, string>
   /** Stable Record Type code used to resolve runtime workflow configuration. */
   recordTypeCode?: string
   stages?: WorkflowStage[]
@@ -112,7 +114,7 @@ function orgSelectDocumentTabs(options: { dateKey: 'receivedDate' | 'sentDate' |
       placeholder: 'Choose option ...',
     },
     { key: 'referenceNumber', labelKey: 'docetra.fields.letterNumber', type: 'text', required: true },
-    { key: 'letterSubject', labelKey: 'docetra.fields.letterSubject', type: 'text', required: true, colSpan: 2 },
+    { key: 'letterSubject', labelKey: 'docetra.fields.letterSubject', type: 'text', required: true },
     { key: options.dateKey, labelKey: 'docetra.fields.date', type: 'date', required: true },
     { key: 'directorGeneralDate', labelKey: 'docetra.fields.directorGeneralDate', type: 'date' },
     { key: 'directorDate', labelKey: 'docetra.fields.directorDate', type: 'date' },
@@ -122,6 +124,7 @@ function orgSelectDocumentTabs(options: { dateKey: 'receivedDate' | 'sentDate' |
       type: 'multiselect',
       optionsEndpoint: `${ApiEndpoints.DEPARTMENTS}/options?valueField=id`,
       placeholder: 'Type @ or a department name ...',
+      colSpan: 2,
     },
     {
       key: 'involvedOfficers',
@@ -216,6 +219,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
     canComment: true,
     recordBacked: true,
     recordTypeCode: 'meeting_history',
+    defaultQuery: { stage: 'completed' },
     stages: workflowStages,
     titleField: 'title',
     columns: [
@@ -262,6 +266,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
         type: 'multiselect',
         optionsEndpoint: `${ApiEndpoints.DEPARTMENTS}/options?valueField=id`,
         placeholder: 'Type @ or a department name ...',
+        colSpan: 2,
       },
       {
         key: 'externalUnits',
@@ -269,6 +274,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
         type: 'multiselect',
         optionsEndpoint: `${ApiEndpoints.COMPANIES}/options?valueField=id`,
         placeholder: 'Type @ or a company name ...',
+        colSpan: 2,
       },
       { key: 'tags', labelKey: 'docetra.fields.recordTag', type: 'csv-list', colSpan: 2 },
     ]),
@@ -689,7 +695,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
         labelKey: 'docetra.fields.organization',
         type: 'select',
         placeholder: 'Choose option ...',
-        optionsEndpoint: `${ApiEndpoints.DEPARTMENTS}/options`,
+        optionsEndpoint: `${ApiEndpoints.DEPARTMENTS}/options|${ApiEndpoints.COMPANIES}/options`,
       },
       {
         key: 'roleId',
@@ -718,10 +724,11 @@ export const entityConfigs: Record<string, EntityConfig> = {
     titleField: 'name',
     columns: [
       { key: 'name', labelKey: 'docetra.fields.roleName', sortable: true, priority: 'high' },
+      { key: 'status', labelKey: 'docetra.fields.status', cell: 'badge', priority: 'high' },
       { key: 'userCount', labelKey: 'docetra.fields.users', sortable: true, priority: 'high' },
       { key: 'permissionCount', labelKey: 'docetra.fields.permissions', priority: 'high' },
     ],
-    filters: [statusFilter, updatedAtDateFilter],
+    filters: [updatedAtDateFilter],
     tabs: [
       {
         id: 'details',
@@ -731,7 +738,6 @@ export const entityConfigs: Record<string, EntityConfig> = {
             id: 'identity',
             titleKey: 'docetra.sections.main',
             fields: [
-              { key: 'code', labelKey: 'docetra.fields.code', type: 'text', required: true },
               { key: 'name', labelKey: 'docetra.fields.roleName', type: 'text', required: true },
               { key: 'status', labelKey: 'docetra.fields.status', type: 'select', options: statusFilter.options },
               { key: 'description', labelKey: 'docetra.fields.description', type: 'textarea', colSpan: 2 },
@@ -770,12 +776,13 @@ export const entityConfigs: Record<string, EntityConfig> = {
     titleField: 'name',
     columns: [
       { key: 'name', labelKey: 'docetra.fields.name', sortable: true },
+      { key: 'status', labelKey: 'docetra.fields.status', cell: 'badge', priority: 'high' },
       { key: 'email', labelKey: 'docetra.fields.email', sortable: true },
       { key: 'roleName', labelKey: 'docetra.fields.role' },
       { key: 'officerName', labelKey: 'docetra.fields.officer' },
       { key: 'lastLoginAt', labelKey: 'docetra.fields.lastLogin' },
     ],
-    filters: [statusFilter, updatedAtDateFilter],
+    filters: [updatedAtDateFilter],
     tabs: masterDataTabs([
       { key: 'name', labelKey: 'docetra.fields.name', type: 'text', required: true },
       { key: 'email', labelKey: 'docetra.fields.email', type: 'text', required: true },
@@ -822,12 +829,13 @@ export const entityConfigs: Record<string, EntityConfig> = {
     columns: [
       { key: 'code', labelKey: 'docetra.fields.code', sortable: true },
       { key: 'name', labelKey: 'docetra.fields.name', sortable: true },
+      { key: 'status', labelKey: 'docetra.fields.status', cell: 'badge', priority: 'high' },
       { key: 'workflowEnabled', labelKey: 'docetra.fields.workflow' },
       { key: 'stageCount', labelKey: 'docetra.fields.stages' },
       { key: 'attributeCount', labelKey: 'docetra.fields.attributes' },
       { key: 'usageCount', labelKey: 'docetra.fields.usage' },
     ],
-    filters: [statusFilter, updatedAtDateFilter],
+    filters: [updatedAtDateFilter],
     tabs: masterDataTabs([
       { key: 'code', labelKey: 'docetra.fields.code', type: 'text', required: true },
       { key: 'name', labelKey: 'docetra.fields.name', type: 'text', required: true },
@@ -853,11 +861,12 @@ export const entityConfigs: Record<string, EntityConfig> = {
     columns: [
       { key: 'code', labelKey: 'docetra.fields.code', sortable: true },
       { key: 'name', labelKey: 'docetra.fields.name', sortable: true },
+      { key: 'status', labelKey: 'docetra.fields.status', cell: 'badge', priority: 'high' },
       { key: 'fieldType', labelKey: 'docetra.fields.fieldType' },
       { key: 'required', labelKey: 'docetra.fields.required' },
       { key: 'usageCount', labelKey: 'docetra.fields.usage' },
     ],
-    filters: [statusFilter, updatedAtDateFilter],
+    filters: [updatedAtDateFilter],
     tabs: masterDataTabs([
       { key: 'code', labelKey: 'docetra.fields.code', type: 'text', required: true },
       { key: 'name', labelKey: 'docetra.fields.name', type: 'text', required: true },
@@ -901,6 +910,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
     titleField: 'fileName',
     columns: [
       { key: 'fileName', labelKey: 'docetra.fields.fileName', sortable: true, priority: 'high' },
+      { key: 'status', labelKey: 'docetra.fields.status', cell: 'badge', priority: 'high' },
       { key: 'mimeType', labelKey: 'docetra.fields.mimeType' },
       { key: 'sizeBytes', labelKey: 'docetra.fields.size' },
       { key: 'uploader.name', labelKey: 'docetra.fields.uploader' },
@@ -908,7 +918,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
       { key: 'linkedRecordTitle', labelKey: 'docetra.fields.linkedRecord' },
       { key: 'createdAt', labelKey: 'docetra.fields.uploadedAt', sortable: true },
     ],
-    filters: [statusFilter, createdAtDateFilter],
+    filters: [createdAtDateFilter],
     tabs: masterDataTabs([
       { key: 'fileName', labelKey: 'docetra.fields.fileName', type: 'text', readOnly: true },
       { key: 'mimeType', labelKey: 'docetra.fields.mimeType', type: 'text', readOnly: true },
@@ -934,11 +944,13 @@ export const entityConfigs: Record<string, EntityConfig> = {
     titleField: 'name',
     columns: [
       { key: 'name', labelKey: 'docetra.fields.name', sortable: true },
+      { key: 'status', labelKey: 'docetra.fields.status', cell: 'badge', priority: 'high' },
       { key: 'folderName', labelKey: 'docetra.fields.folder' },
+      { key: 'status', labelKey: 'docetra.fields.status' },
       { key: 'filesSynced', labelKey: 'docetra.fields.filesSynced' },
       { key: 'lastSyncAt', labelKey: 'docetra.fields.lastSync' },
     ],
-    filters: [statusFilter, updatedAtDateFilter],
+    filters: [updatedAtDateFilter],
     tabs: masterDataTabs([
       { key: 'name', labelKey: 'docetra.fields.name', type: 'text', required: true },
       { key: 'folderName', labelKey: 'docetra.fields.folder', type: 'text' },
@@ -1034,7 +1046,7 @@ export function getEntityConfig(key: string): EntityConfig {
 }
 
 export function getEntityAdapter<T = any>(key: EntityApiKey): EntityAdapter<T> {
-  return entityApis[key] as unknown as EntityAdapter<T>
+  return createEntityApiForKey(key) as unknown as EntityAdapter<T>
 }
 
 const TYPE_CODE_TO_ENTITY_KEY: Record<string, string> = {

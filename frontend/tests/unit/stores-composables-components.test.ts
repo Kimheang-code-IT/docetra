@@ -20,6 +20,7 @@ import {
 import { defaultUserAvatarUrl, resolveUserAvatar } from '../../app/utils/auth/user-avatar'
 import { serializePageLimit, paginationItemsPerPage } from '../../app/utils/pagination'
 import { compactQuery } from '../../app/utils/api/query'
+import { requestCacheKey } from '../../app/utils/api/request-cache'
 import { csrfRequestHeaders } from '../../app/utils/security/csrf'
 import {
   extensionsToUppyTypes,
@@ -37,6 +38,13 @@ import {
   stageOptionsFromType,
 } from '../../app/utils/record-type-fields'
 import { computeMeetingTiming, getImminentMinutesBefore, isJoinableMeeting, mergeMeetingTiming, sortMeetingsForBoard } from '../../app/utils/meeting/board'
+import {
+  MEETING_TOPICS_PATH,
+  hydrateMeetingHistoryModel,
+  isCompletedMeeting,
+  meetingDetailOpenedFromTopics,
+  meetingHistoryDetailPath,
+} from '../../app/utils/meeting/detail-route'
 import {
   consumeListStale,
   markListStale,
@@ -174,6 +182,49 @@ describe('record surface routing composable helper', () => {
     expect(resolveRecordSurfaceByParam(types, 'incoming-documents')?.id).toBe('1')
     expect(resolveRecordSurfaceByParam(types, '')).toBeNull()
   })
+
+  it('keeps meeting topic and history as distinct live route params', () => {
+    const types = [
+      {
+        id: 'topic',
+        code: 'meeting_topic',
+        name: 'Topics',
+        uiSurface: 'meeting',
+        slug: 'topics',
+        apiBase: '/api/v2/records/meeting_topic',
+        routeBase: '/meetings/topics',
+      },
+      {
+        id: 'history',
+        code: 'meeting_history',
+        name: 'History',
+        uiSurface: 'meeting',
+        slug: 'history',
+        apiBase: '/api/v2/records/meeting_history',
+        routeBase: '/meetings/history',
+      },
+    ]
+    expect(resolveRecordSurfaceByParam(types, 'topics')?.id).toBe('topic')
+    expect(resolveRecordSurfaceByParam(types, 'history')?.id).toBe('history')
+    expect(resolveRecordSurfaceByParam(types, 'topics')?.id).not.toBe(
+      resolveRecordSurfaceByParam(types, 'history')?.id,
+    )
+  })
+})
+
+describe('organization type route helpers', () => {
+  it('maps live orgType params to entity keys and canonical paths', async () => {
+    const {
+      organizationCanonicalPath,
+      organizationEntityKeyFromParam,
+    } = await import('../../app/utils/organization/org-type-route')
+    expect(organizationEntityKeyFromParam('departments')).toBe('departments')
+    expect(organizationEntityKeyFromParam('company')).toBe('companies')
+    expect(organizationEntityKeyFromParam('unknown')).toBeNull()
+    expect(organizationCanonicalPath('department')).toBe('/organizations/departments')
+    expect(organizationCanonicalPath('company', 'abc')).toBe('/organizations/companies/abc')
+    expect(organizationCanonicalPath('departments')).toBeNull()
+  })
 })
 
 describe('entity API concurrency', () => {
@@ -223,8 +274,6 @@ describe('entity API concurrency', () => {
     await api.updateComment?.('doc-1', 'c1', 'bye')
     await api.deleteComment?.('doc-1', 'c1')
     await api.getNeighbors?.('doc-1')
-    await api.getFavorite?.('doc-1')
-    await api.setFavorite?.('doc-1', true)
     await api.listActivity?.('doc-1')
     await api.listAttachments?.('doc-1')
     await api.replaceAttachments('doc-1', [], { version: 5 })
@@ -331,6 +380,26 @@ describe('major component helpers', () => {
     ], { topicScoped: true })
     expect(sorted[0]?.imminent).toBe(true)
   })
+
+  it('opens meeting card detail from the topic board, not as a history-list entry', () => {
+    expect(meetingHistoryDetailPath('abc-1', MEETING_TOPICS_PATH)).toBe(
+      '/meetings/history/abc-1?returnTo=%2Fmeetings%2Ftopics',
+    )
+    expect(meetingDetailOpenedFromTopics('/meetings/topics')).toBe(true)
+    expect(meetingDetailOpenedFromTopics('/meetings/history')).toBe(false)
+    expect(isCompletedMeeting('completed')).toBe(true)
+    expect(isCompletedMeeting('intake')).toBe(false)
+    const hydrated = hydrateMeetingHistoryModel({
+      title: 'Meeting 11bd304b',
+      recordTime: '2026-08-28T10:54:00Z',
+      parentId: 'topic-1',
+      letterNumber: 'LTR-9',
+    })
+    expect(hydrated.meetingDate).toBe('2026-08-28T10:54:00Z')
+    expect(hydrated.topicId).toBe('topic-1')
+    expect(hydrated.letterNumber).toBe('LTR-9')
+    expect((hydrated.details as Record<string, unknown>).topicId).toBe('topic-1')
+  })
 })
 
 describe('workspace and filter composable helpers', () => {
@@ -340,11 +409,13 @@ describe('workspace and filter composable helpers', () => {
     expect(consumeListStale('documents')).toBe(false)
     expect(returnsToListAfterCreate('documents')).toBe(true)
     expect(returnsToListAfterCreate('users')).toBe(true)
+    expect(returnsToListAfterCreate('recordTypes')).toBe(true)
     expect(shouldReturnToListAfterCreate('users', '/user-management/users')).toBe(true)
     expect(shouldReturnToListAfterCreate('recordTypes', '/configuration/record-types')).toBe(true)
-    expect(shouldReturnToListAfterCreate('recordTypes', 'https://evil.example')).toBe(false)
+    expect(shouldReturnToListAfterCreate('recordTypes', 'https://evil.example')).toBe(true)
     expect(resolveCreateReturnTo('/records/documents', '/')).toBe('/records/documents')
     expect(resolveCreateReturnTo('https://evil.example', '/fallback')).toBe('/fallback')
+    expect(resolveCreateReturnTo(undefined, '/officers')).toBe('/officers')
   })
 
   it('detects active filter values and compact query params', () => {
@@ -358,6 +429,14 @@ describe('workspace and filter composable helpers', () => {
     expect(serializePageLimit(20)).toBeUndefined()
     expect(serializePageLimit(50)).toBe('50')
     expect(paginationItemsPerPage(0)).toBe(1)
+  })
+
+  it('builds one stable identity for equivalent shared GETs', () => {
+    expect(requestCacheKey('GET', '/api/v2/options', { status: 'active', limit: 50 }))
+      .toBe(requestCacheKey('GET', '/api/v2/options', { limit: 50, status: 'active' }))
+    expect(requestCacheKey('GET', '/api/v2/options', { q: 'a' }))
+      .not.toBe(requestCacheKey('GET', '/api/v2/options', { q: 'b' }))
+    expect(requestCacheKey('GET', '/ignored', { q: 'a' }, 'record-surfaces')).toBe('record-surfaces')
   })
 })
 

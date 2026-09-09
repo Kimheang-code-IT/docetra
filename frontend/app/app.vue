@@ -16,9 +16,11 @@ const currentLocale = computed(() => uiLocales[locale.value] || en)
 const lang = computed(() => currentLocale.value.code || locale.value)
 const dir = computed(() => currentLocale.value.dir || 'ltr')
 const route = useRoute()
-/** Remount on path change so list / create / detail do not reuse a stale page.
+/** Remount on path change so `/meetings|records/{type}` reuse does not keep a stale page.
  *  Use `path` (not `fullPath`) so filter/sort/page query updates do not destroy the view. */
-const pageKey = computed(() => route.path)
+function routePathPageKey(r: { path: string }) {
+  return r.path
+}
 
 const siteName = computed(() => t('docetra.brand.name'))
 const appDescription = computed(() => t('app.description'))
@@ -110,7 +112,7 @@ useSeoMeta({
       :height="3"
     />
     <NuxtLayout>
-      <NuxtPage :page-key="pageKey" />
+      <NuxtPage :page-key="routePathPageKey" />
     </NuxtLayout>
     <CommonAppConfirmHost />
   </UApp>

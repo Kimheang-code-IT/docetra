@@ -5,14 +5,14 @@ import type { ActivityEvent, AttachmentMeta, DocumentTabSchema, EntityComment } 
 import type { AppRolePermissionRow } from '~/types/docetra/entities'
 import { normalizePermissionRows, permissionRowsToFlatKeys } from '~/utils/role/permissions'
 import { getByPath, setByPath } from '~/utils/object-path'
-import { loadReferenceOptions } from '~/composables/common/useReferenceOptions'
+import { useReferenceOptions } from '~/composables/common/useReferenceOptions'
 import { ApiEndpoints } from '~/utils/constants/api-endpoints'
 import {
   markListStale,
   resolveCreateReturnTo,
-  shouldReturnToListAfterCreate,
 } from '~/utils/workspace-list-stale'
 import { concurrencyVersion, withConcurrencyToken } from '~/utils/api/concurrency'
+import { hydrateMeetingHistoryModel } from '~/utils/meeting/detail-route'
 
 export function useDocumentPage(config: EntityConfig, idParam?: string) {
   const route = useRoute()
@@ -21,6 +21,8 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
   const toast = useToast()
   const { confirm } = useConfirm()
   const adapter = getAdapterForConfig(config)
+  const meetingTopicsAdapter = getEntityAdapter('meetingTopics')
+  const { loadReferenceOptions } = useReferenceOptions()
 
   const id = computed(() => idParam || String(route.params.id || ''))
   const isCreate = computed(() => !id.value || id.value === 'new' || route.path.endsWith('/new'))
@@ -49,10 +51,7 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
   const nextRecordId = ref<string | null>(null)
   const loadingRecordNavigation = ref(false)
   const recordNavigationDirection = ref<'previous' | 'next' | null>(null)
-  const isFavorite = ref(false)
-  const togglingFavorite = ref(false)
   let neighborRequestToken = 0
-  let favoriteRequestToken = 0
   let loadRequestToken = 0
   let approvedRecordNavigation = false
   let skipLeaveGuard = false
@@ -104,26 +103,6 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
     }
   }
 
-  async function loadFavorite() {
-    const token = ++favoriteRequestToken
-    const currentId = id.value
-    isFavorite.value = false
-    togglingFavorite.value = false
-    if (isCreate.value || !currentId || !adapter.getFavorite) return
-
-    try {
-      const response = await adapter.getFavorite(
-        currentId,
-        String(auth.user?.id || auth.user?.email || 'current'),
-      )
-      if (token !== favoriteRequestToken || currentId !== id.value) return
-      isFavorite.value = response.data.isFavorite
-    }
-    catch {
-      isFavorite.value = false
-    }
-  }
-
   async function loadRelatedFeeds(requestedId: string, token: number) {
     const related = await Promise.allSettled([
       adapter.listComments?.(requestedId, { page: 1, limit: 20 }),
@@ -140,32 +119,6 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
     commentsTotal.value = c?.meta?.total || comments.value.length
     activityTotal.value = a?.meta?.total || activity.value.length
     feedPage.value = 1
-  }
-
-  async function toggleFavorite() {
-    if (isCreate.value || !adapter.setFavorite || togglingFavorite.value) return
-    const currentId = id.value
-    const previous = isFavorite.value
-    isFavorite.value = !previous
-    togglingFavorite.value = true
-    try {
-      const response = await adapter.setFavorite(
-        currentId,
-        isFavorite.value,
-        String(auth.user?.id || auth.user?.email || 'current'),
-      )
-      if (currentId !== id.value) return
-      isFavorite.value = response.data.isFavorite
-    }
-    catch (e: any) {
-      if (currentId === id.value) {
-        isFavorite.value = previous
-        toast.add({ title: e?.message || t('docetra.document.favoriteUpdateFailed'), color: 'error' })
-      }
-    }
-    finally {
-      if (currentId === id.value) togglingFavorite.value = false
-    }
   }
 
   async function load() {
@@ -241,7 +194,6 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
         activity.value = []
         attachments.value = []
         void loadRecordNeighbors()
-        void loadFavorite()
         return
       }
       comments.value = []
@@ -251,16 +203,18 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
       activityTotal.value = 0
       feedPage.value = 1
       // Record GET is the only call that should block the form overlay.
-      // Comments, activity, files, neighbors, and favorite can arrive after first paint.
+      // Comments, activity, files, and neighbors can arrive after first paint.
       void loadRelatedFeeds(requestedId, token)
       void loadRecordNeighbors()
-      void loadFavorite()
       const res = await adapter.get(requestedId)
       if (token !== loadRequestToken || requestedId !== id.value) return
-      model.value = {
+      const loaded = {
         details: {},
         ...(res.data as Record<string, unknown>),
       }
+      model.value = config.key === 'meetingHistory'
+        ? hydrateMeetingHistoryModel(loaded)
+        : loaded
       if (!model.value.details || typeof model.value.details !== 'object') {
         model.value.details = {}
       }
@@ -421,7 +375,7 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
       const payload = withConcurrencyToken(prepareModelForSave(), model.value.version)
       if (config.key === 'meetingHistory' && payload.topicId && !payload.topicTitle) {
         try {
-          const topicRes = await getEntityAdapter('meetingTopics').get(String(payload.topicId))
+          const topicRes = await meetingTopicsAdapter.get(String(payload.topicId))
           const title = (topicRes.data as { title?: string } | undefined)?.title
           if (title) payload.topicTitle = title
         }
@@ -459,11 +413,18 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
       }
       if (config.key === 'officers') {
         const [organizationOptions, roleOptions] = await Promise.all([
-          loadReferenceOptions(`${ApiEndpoints.DEPARTMENTS}/options`),
+          Promise.all([
+            loadReferenceOptions(`${ApiEndpoints.DEPARTMENTS}/options`),
+            loadReferenceOptions(`${ApiEndpoints.COMPANIES}/options`),
+          ]).then(batches => batches.flat()),
           loadReferenceOptions(`${ApiEndpoints.ROLES}/options`),
         ])
-        payload.organizationName = organizationOptions.find(option => option.value === String(payload.organizationId || ''))?.label || ''
-        payload.roleName = roleOptions.find(option => option.value === String(payload.roleId || ''))?.label || ''
+        payload.organizationName = organizationOptions.find(option => option.value === String(payload.organizationId || ''))?.label
+          || payload.organizationName
+          || ''
+        payload.roleName = roleOptions.find(option => option.value === String(payload.roleId || ''))?.label
+          || payload.roleName
+          || ''
         payload.departmentId = payload.organizationId
         payload.departmentName = payload.organizationName
         if (typeof payload.authenticationEnabled !== 'boolean') {
@@ -482,23 +443,19 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
         delete payload.permissionRows
       }
       if (isCreate.value) {
-        const res = await adapter.create(payload as any)
-        const created = res.data as { id: string }
+        await adapter.create(payload as any)
         dirty.value = false
         trackingChanges.value = false
         toast.add({ title: t('docetra.document.created'), color: 'success' })
-        const returnPath = resolveCreateReturnTo(route.query.returnTo, '')
+        // Always leave the create form: prefer ?returnTo=, else the collection main page.
+        const returnPath = resolveCreateReturnTo(route.query.returnTo, config.routeBase)
         skipLeaveGuard = true
         try {
-          if (shouldReturnToListAfterCreate(config.key, route.query.returnTo)) {
-            markListStale(config.key)
-            if (config.key === 'meetingHistory' || config.key === 'meetingTopics') {
-              markListStale('meetingTopics', 'meetingHistory')
-            }
-            await router.replace(returnPath || config.routeBase)
-            return
+          markListStale(config.key)
+          if (config.key === 'meetingHistory' || config.key === 'meetingTopics') {
+            markListStale('meetingTopics', 'meetingHistory')
           }
-          await router.replace(`${config.routeBase}/${created.id}`)
+          await router.replace(returnPath)
           return
         }
         finally {
@@ -706,8 +663,6 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
     nextRecordId,
     loadingRecordNavigation,
     recordNavigationDirection,
-    isFavorite,
-    togglingFavorite,
     fieldValue,
     setFieldValue,
     load,
@@ -718,7 +673,6 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
     loadMoreFeed,
     navigatePreviousRecord: () => navigateRecord('previous'),
     navigateNextRecord: () => navigateRecord('next'),
-    toggleFavorite,
     confirmLeave,
   }
 }

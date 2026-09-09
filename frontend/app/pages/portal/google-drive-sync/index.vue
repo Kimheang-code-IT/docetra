@@ -1,7 +1,7 @@
 <script setup lang="ts">
-// Dedicated Drive sync workflow — create source, start sync, poll job status,
-// refresh synced files. Linking a Drive file to a meeting lives in the
-// meeting notes dialog picker.
+import { getEntityConfig } from '~/config/entities'
+
+const config = getEntityConfig('googleDriveSync')
 
 definePageMeta({
   titleKey: 'docetra.pages.googleDriveSync',
@@ -10,5 +10,5 @@ definePageMeta({
 </script>
 
 <template>
-  <PortalAppGoogleDriveSync />
+  <WorkspaceEntityWorkspaceView :config="config" />
 </template>
