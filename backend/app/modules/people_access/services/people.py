@@ -1,7 +1,7 @@
 """People/access helpers: menu seed, role permissions, officer linkage."""
 
 import uuid
-from collections.abc import Sequence
+from collections.abc import Awaitable, Callable, Sequence
 
 from sqlalchemy import delete, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -273,21 +273,68 @@ def role_to_payload(role: Role, permissions: list[str], creator_scoped: set[str]
     }
 
 
-def officer_to_payload(officer: Officer) -> dict:
+def officer_to_payload(
+    officer: Officer,
+    *,
+    organization_name: str | None = None,
+    role_name: str | None = None,
+) -> dict:
+    """Serialize an officer. Prefer resolved display names for FK selects (never show UUIDs in UI)."""
     return {
         "id": str(officer.id),
         "name": officer.nam,
         "email": officer.email,
         "organizationId": str(officer.organization_id) if officer.organization_id else None,
+        "organizationName": organization_name,
         "departmentId": str(officer.organization_id) if officer.organization_id else None,
+        "departmentName": organization_name,
         "roleId": str(officer.role_id) if officer.role_id else None,
+        "roleName": role_name,
         "authId": str(officer.auth_id) if officer.auth_id else None,
         "profileUrl": officer.profile_url,
         "status": "active" if officer.is_active else "inactive",
+        "isActive": bool(officer.is_active),
         "createdAt": officer.created_at.isoformat() if officer.created_at else None,
         "updatedAt": officer.updated_at.isoformat() if officer.updated_at else None,
         "version": 1,
     }
+
+
+# Composition-root hook: organization display-name resolution is injected at
+# startup (app.main) instead of importing the organization module here, so the
+# approved module DAG (people_access → admin_config only) stays intact.
+OrganizationNamesResolver = Callable[..., Awaitable[dict]]
+_organization_names_resolver: OrganizationNamesResolver | None = None
+
+
+def register_organization_names_resolver(resolver: OrganizationNamesResolver) -> None:
+    global _organization_names_resolver
+    _organization_names_resolver = resolver
+
+
+async def _organization_names(db: AsyncSession, ids: set[uuid.UUID]) -> dict[uuid.UUID, str]:
+    if _organization_names_resolver is None or not ids:
+        return {}
+    return dict(await _organization_names_resolver(db, list(ids)))
+
+
+async def hydrate_officer_payloads(db: AsyncSession, officers: Sequence[Officer]) -> list[dict]:
+    """Batch-resolve organization and role display names for officer list/detail responses."""
+    org_ids = {row.organization_id for row in officers if row.organization_id}
+    org_names = await _organization_names(db, org_ids)
+    role_ids = {row.role_id for row in officers if row.role_id}
+    role_names: dict[uuid.UUID, str] = {}
+    if role_ids:
+        for role in (await db.scalars(select(Role).where(Role.id.in_(role_ids)))).all():
+            role_names[role.id] = role.nam or str(role.id)
+    return [
+        officer_to_payload(
+            row,
+            organization_name=org_names.get(row.organization_id) if row.organization_id else None,
+            role_name=role_names.get(row.role_id) if row.role_id else None,
+        )
+        for row in officers
+    ]
 
 
 def user_to_payload(user: User, *, officer_name: str | None = None) -> dict:

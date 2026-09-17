@@ -41,16 +41,24 @@ class Settings(BaseSettings):
     google_drive_folder_id: str = ""
     max_upload_size_mb: int = 25
     allowed_upload_extensions: Annotated[list[str], NoDecode] = ["pdf","doc","docx","xls","xlsx","png","jpg","jpeg","gif","webp","txt","csv"]
-    admin_email: str = "admin@gmail.com"
-    admin_password: str = "123456"
-    admin_name: str = "System Administrator"
-    seed_bootstrap_admin: bool = False
     s3_endpoint: str = "http://minio:9000"
     s3_access_key: str = "docetra"
     s3_secret_key: str = "docetra_minio_local_only"
     s3_bucket: str = "docetra"
     s3_use_ssl: bool = False
+    # Small-team defaults (~20 users): one worker process, low prefetch.
+    # Scale concurrency/prefetch only when queue lag is measured.
+    worker_concurrency: int = 2
+    worker_prefetch: int = 2
+    worker_outbox_poll_seconds: float = 2.0
+    scheduler_engine: str = "apscheduler"
     scheduler_timezone: str = "UTC"
+    scheduler_misfire_grace_seconds: int = 300
+    scheduler_coalesce: bool = True
+    scheduler_max_instances_per_job: int = 1
+    scheduler_reconcile_interval_minutes: int = 15
+    scheduler_meeting_reminder_interval_minutes: int = 1
+    scheduler_export_cleanup_interval_hours: int = 1
     meeting_reminder_offsets_minutes: Annotated[list[int], NoDecode] = [1440, 60, 15]
     meeting_recurrence_horizon_days: int = 90
     login_rate_limit: int = 10
@@ -59,6 +67,10 @@ class Settings(BaseSettings):
     account_lock_minutes: int = 15
     forgot_password_rate_limit: int = 5
     forgot_password_rate_window_seconds: int = 900
+    # Cookie sessions are the default transport; JWTs must not appear in JSON
+    # bodies. Only bearer-mode deployments (NUXT_PUBLIC_AUTH_MODE=bearer) need
+    # this, and they must opt in explicitly.
+    expose_auth_tokens: bool = False
     minimum_password_length: int = 8
     job_max_retries: int = 5
 
@@ -95,8 +107,6 @@ class Settings(BaseSettings):
             problems.append("SETTINGS_ENCRYPTION_KEY must be unique and at least 32 characters")
         if not self.session_cookie_secure:
             problems.append("SESSION_COOKIE_SECURE must be true")
-        if self.admin_password in weak or len(self.admin_password) < 12 or "replace" in self.admin_password.lower():
-            problems.append("ADMIN_PASSWORD must be unique and at least 12 characters")
         if any(origin == "*" or origin.startswith("http://") for origin in self.cors_allowed_origins):
             problems.append("CORS_ALLOWED_ORIGINS must contain only explicit HTTPS origins")
         if "*" in self.trusted_hosts:

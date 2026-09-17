@@ -80,21 +80,20 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Prepare backend.env
+      - name: Prepare infrastructure env
         run: |
-          cp backend.env.example backend.env
+          cp infrastructure/.env.example infrastructure/.env
           # Ensure local secrets exist for Compose.
-          grep -q '^SESSION_SECRET=' backend.env || echo 'SESSION_SECRET=ci_session_secret_change_me_32chars' >> backend.env
-          grep -q '^PASSWORD_RESET_SECRET=' backend.env || echo 'PASSWORD_RESET_SECRET=ci_reset_secret_change_me_32chars' >> backend.env
-          grep -q '^JWT_SECRET=' backend.env || echo 'JWT_SECRET=ci_jwt_secret_change_me_32_chars_xx' >> backend.env
-          echo 'SEED_BOOTSTRAP_ADMIN=true' >> backend.env
+          grep -q '^SESSION_SECRET=' infrastructure/.env || echo 'SESSION_SECRET=ci_session_secret_change_me_32chars' >> infrastructure/.env
+          grep -q '^PASSWORD_RESET_SECRET=' infrastructure/.env || echo 'PASSWORD_RESET_SECRET=ci_reset_secret_change_me_32chars' >> infrastructure/.env
+          grep -q '^JWT_SECRET=' infrastructure/.env || echo 'JWT_SECRET=ci_jwt_secret_change_me_32_chars_xx' >> infrastructure/.env
 
       - name: Start Docker stack
         env:
           DOCETRA_BACKEND_IMAGE: docetra-backend:ci
         run: |
-          docker compose --env-file backend.env -f compose.backend.yml build api
-          docker compose --env-file backend.env -f compose.backend.yml up -d
+          docker compose --env-file infrastructure/.env -f infrastructure/docker-compose.yml build api
+          docker compose --env-file infrastructure/.env -f infrastructure/docker-compose.yml up -d
           for i in $(seq 1 60); do
             if curl -sf http://127.0.0.1:8000/ready >/dev/null; then
               echo "API ready"
@@ -102,15 +101,15 @@ jobs:
             fi
             sleep 2
           done
-          docker compose --env-file backend.env -f compose.backend.yml logs api --tail 100
+          docker compose --env-file infrastructure/.env -f infrastructure/docker-compose.yml logs api --tail 100
           exit 1
 
       - name: Integration tests
         working-directory: backend
         env:
           DOCETRA_API_BASE: http://127.0.0.1:8000
-          ADMIN_EMAIL: admin@gmail.com
-          ADMIN_PASSWORD: "123456"
+          ADMIN_EMAIL: admin@docetra.test
+          ADMIN_PASSWORD: "Docetra-Admin-2025"
         run: |
           python -m pip install --upgrade pip
           pip install ".[test]"
@@ -120,7 +119,7 @@ jobs:
         if: always()
         env:
           DOCETRA_BACKEND_IMAGE: docetra-backend:ci
-        run: docker compose --env-file backend.env -f compose.backend.yml down -v
+        run: docker compose --env-file infrastructure/.env -f infrastructure/docker-compose.yml down -v
 
   e2e:
     name: Playwright smoke
@@ -129,20 +128,19 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
-      - name: Prepare backend.env
+      - name: Prepare infrastructure env
         run: |
-          cp backend.env.example backend.env
-          grep -q '^SESSION_SECRET=' backend.env || echo 'SESSION_SECRET=ci_session_secret_change_me_32chars' >> backend.env
-          grep -q '^PASSWORD_RESET_SECRET=' backend.env || echo 'PASSWORD_RESET_SECRET=ci_reset_secret_change_me_32chars' >> backend.env
-          grep -q '^JWT_SECRET=' backend.env || echo 'JWT_SECRET=ci_jwt_secret_change_me_32_chars_xx' >> backend.env
-          echo 'SEED_BOOTSTRAP_ADMIN=true' >> backend.env
+          cp infrastructure/.env.example infrastructure/.env
+          grep -q '^SESSION_SECRET=' infrastructure/.env || echo 'SESSION_SECRET=ci_session_secret_change_me_32chars' >> infrastructure/.env
+          grep -q '^PASSWORD_RESET_SECRET=' infrastructure/.env || echo 'PASSWORD_RESET_SECRET=ci_reset_secret_change_me_32chars' >> infrastructure/.env
+          grep -q '^JWT_SECRET=' infrastructure/.env || echo 'JWT_SECRET=ci_jwt_secret_change_me_32_chars_xx' >> infrastructure/.env
 
       - name: Start Docker API
         env:
           DOCETRA_BACKEND_IMAGE: docetra-backend:ci
         run: |
-          docker compose --env-file backend.env -f compose.backend.yml build api
-          docker compose --env-file backend.env -f compose.backend.yml up -d
+          docker compose --env-file infrastructure/.env -f infrastructure/docker-compose.yml build api
+          docker compose --env-file infrastructure/.env -f infrastructure/docker-compose.yml up -d
           for i in $(seq 1 60); do
             if curl -sf http://127.0.0.1:8000/ready >/dev/null; then
               echo "API ready"
@@ -180,7 +178,7 @@ jobs:
         if: always()
         env:
           DOCETRA_BACKEND_IMAGE: docetra-backend:ci
-        run: docker compose --env-file backend.env -f compose.backend.yml down -v
+        run: docker compose --env-file infrastructure/.env -f infrastructure/docker-compose.yml down -v
 
   promote:
     name: Merge tested dev into main

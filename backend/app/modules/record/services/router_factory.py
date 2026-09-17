@@ -14,7 +14,6 @@ from app.core.http_schemas import (
     BulkDeleteBody,
     CommentBody,
     DataEnvelope,
-    FavoriteBody,
     MutationBody,
     StageBody,
 )
@@ -48,7 +47,16 @@ def router_for(path: str, resource: str, *, service=None) -> APIRouter:
         value_field = request.query_params.get("valueField") or "id"
         items = []
         for payload in listed["data"]:
-            label = str(payload.get("name") or payload.get("title") or payload.get("code") or payload.get("id"))
+            label = str(
+                payload.get("name")
+                or payload.get("title")
+                or payload.get("label")
+                or payload.get("code")
+                or ""
+            ).strip()
+            if not label or label == str(payload.get("id")):
+                # Never expose a bare UUID as the human label.
+                label = str(payload.get("code") or payload.get("email") or "Untitled")
             if q and q not in label.lower():
                 continue
             items.append({
@@ -161,24 +169,6 @@ def router_for(path: str, resource: str, *, service=None) -> APIRouter:
     async def neighbors(entity_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
         await service.get_item(db, entity_id, user)
         return {"data": await collaboration.get_neighbors(db, resource, entity_id)}
-
-    @router.get("/{entity_id}/favorite", response_model=DataEnvelope)
-    async def get_favorite(entity_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
-        await service.get_item(db, entity_id, user)
-        return {"data": {"isFavorite": await collaboration.get_favorite(db, user.id, entity_id)}}
-
-    @router.put("/{entity_id}/favorite", response_model=DataEnvelope)
-    async def set_favorite(
-        entity_id: str,
-        body: FavoriteBody,
-        db: AsyncSession = Depends(get_db),
-        user: User = Depends(current_user),
-    ):
-        await service.get_item(db, entity_id, user)
-        desired = bool(body.isFavorite)
-        await collaboration.set_favorite(db, user.id, entity_id, desired)
-        await db.flush()
-        return {"data": {"isFavorite": desired}}
 
     @router.get("/{entity_id}/comments", response_model=DataEnvelope)
     async def comments(entity_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):

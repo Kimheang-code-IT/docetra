@@ -11,7 +11,7 @@ from app.modules.organization.domain.map import (
     permission_prefix_for_org_type,
 )
 from app.modules.organization.services.collection import OrganizationCollectionService
-from app.modules.organization.services.reporting import read_for_reporting, search_for_reporting
+from app.modules.organization.services.reporting import names_by_ids, read_for_reporting, search_for_reporting
 
 __all__ = [
     "ORG_RESOURCES",
@@ -21,6 +21,7 @@ __all__ = [
     "OrganizationCollectionService",
     "authorize_org_type",
     "is_valid_org_type",
+    "names_by_ids",
     "permission_prefix_for_org_type",
     "read_for_reporting",
     "search_for_reporting",

@@ -6,8 +6,8 @@ import httpx
 
 def main() -> int:
     base = os.getenv("SMOKE_BASE_URL", "http://api:8000").rstrip("/")
-    email = os.getenv("SMOKE_ADMIN_EMAIL") or os.getenv("ADMIN_EMAIL")
-    password = os.getenv("SMOKE_ADMIN_PASSWORD") or os.getenv("ADMIN_PASSWORD")
+    email = os.getenv("SMOKE_ADMIN_EMAIL")
+    password = os.getenv("SMOKE_ADMIN_PASSWORD")
     host_header = os.getenv("SMOKE_HOST_HEADER", "localhost")
     if not email or not password:
         print("SMOKE_ADMIN_EMAIL and SMOKE_ADMIN_PASSWORD are required", file=sys.stderr)

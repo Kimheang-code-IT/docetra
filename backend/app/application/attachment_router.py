@@ -21,6 +21,7 @@ from typing import Any as User
 
 from app.api.v2.deps import current_user, get_db
 from app.core.authorization import require_permission
+from app.core.concurrency import header_match
 from app.core.http_schemas import DataEnvelope
 from app.modules.record.service import CollectionService, permission_prefix_for_type_code
 from app.modules.storage_integration.service import StorageFileCollectionService
@@ -45,7 +46,7 @@ async def upload_record_attachment(
         raise HTTPException(502, "Uploaded file is not available in object storage")
 
     # 2) Attach the returned public file reference to the record.
-    expected = request.query_params.get("version")
+    expected = header_match(request.headers) or request.query_params.get("version")
     result = await CollectionService(type_code=type_code).attach_file(
         db, user, entity_id, file_payload, expected,
     )
@@ -69,7 +70,7 @@ async def detach_record_attachment(
 ):
     require_permission(user, f"{permission_prefix_for_type_code(type_code)}.edit")
 
-    expected = request.query_params.get("version")
+    expected = header_match(request.headers) or request.query_params.get("version")
     result = await CollectionService(type_code=type_code).detach_file(
         db, user, entity_id, file_id, expected,
     )

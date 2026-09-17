@@ -44,7 +44,10 @@ class IdentityApplicationService:
             total = (await db.scalar(count_stmt.where(*filters)) if filters else await db.scalar(count_stmt)) or 0
             stmt = stmt.order_by(order_clause(params, Officer)).offset((page - 1) * limit).limit(limit)
             rows = (await db.scalars(stmt)).all()
-            return {"data": [people.officer_to_payload(row) for row in rows], "meta": {"page": page, "limit": limit, "total": total or 0, "totalPages": max(1, math.ceil((total or 0) / limit))}}
+            return {
+                "data": await people.hydrate_officer_payloads(db, rows),
+                "meta": {"page": page, "limit": limit, "total": total or 0, "totalPages": max(1, math.ceil((total or 0) / limit))},
+            }
 
         if kind == "role":
             filters = []
@@ -89,7 +92,8 @@ class IdentityApplicationService:
             row = await db.get(Officer, uid)
             if not row:
                 raise HTTPException(404, "Not found")
-            return people.officer_to_payload(row)
+            hydrated = await people.hydrate_officer_payloads(db, [row])
+            return hydrated[0]
         if kind == "role":
             row = await db.get(Role, uid)
             if not row:
@@ -119,7 +123,7 @@ class IdentityApplicationService:
             db.add(row)
             await db.flush()
             await db.refresh(row)
-            return people.officer_to_payload(row)
+            return (await people.hydrate_officer_payloads(db, [row]))[0]
 
         if kind == "role":
             data = await normalize_identity_payload(db, "roles", payload, actor=user)
@@ -225,11 +229,17 @@ class IdentityApplicationService:
         if "organizationId" in body or "departmentId" in body:
             raw = body.get("organizationId") or body.get("departmentId")
             row.organization_id = uuid.UUID(str(raw)) if raw else None
-        if "status" in body:
-            row.is_active = 0 if body["status"] == "inactive" else 1
+        if "roleId" in body:
+            raw_role = body.get("roleId")
+            row.role_id = uuid.UUID(str(raw_role)) if raw_role else None
+        if "status" in body or "isActive" in body:
+            if "isActive" in body:
+                row.is_active = 1 if body.get("isActive") else 0
+            else:
+                row.is_active = 0 if body["status"] == "inactive" else 1
         row.updated_by = officer_id
         await db.flush()
-        return people.officer_to_payload(row)
+        return (await people.hydrate_officer_payloads(db, [row]))[0]
 
     async def soft_delete(self, db: AsyncSession, entity_id: str, expected) -> dict:
         uid = uuid.UUID(entity_id)

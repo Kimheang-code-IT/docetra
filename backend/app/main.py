@@ -24,20 +24,22 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
-from sqlalchemy import select
-
 from app import __version__
 from app.api.v2.router import router as api_router
 from app.core.config import settings
 from app.core.errors import DomainError
 from app.core.logging import bind_request_context, configure_logging, reset_request_context
 from app.core.metrics import observe, prometheus_response
-from app.core.permissions import ALL_PERMISSIONS
 from app.core.readiness import readiness_payload
-from app.core.security import hash_password
 from app.db import SessionLocal
 from app.modules.people_access import dependencies as _people_access_dependencies  # noqa: F401 - registers identity resolver
-from app.modules.people_access.model import User
+from app.modules.organization.service import names_by_ids
+from app.modules.people_access.services import people as _people_service
+
+# Composition-root wiring: officer organization-name resolution comes from the
+# organization public facade via injection (keeps people_access → organization
+# out of the module dependency graph).
+_people_service.register_organization_names_resolver(names_by_ids)
 from app.jobs.consumers import handle_message
 from app.jobs.consumers.exports import complete_exports
 from app.jobs.consumers.outbox import publish_outbox
@@ -46,7 +48,7 @@ from app.jobs.scheduler.cleanup import cleanup_expired_exports
 from app.jobs.scheduler.meeting_reminders import due_meeting_reminders
 from app.jobs.scheduler.reconcile import reconcile
 from app.jobs.topology import DEAD_LETTER_EXCHANGE, EVENT_EXCHANGE
-from app.modules.people_access.service import ensure_admin_entity, ensure_officer_for_user, ensure_superadmin_role, seed_menus
+from app.modules.people_access.service import ensure_superadmin_role, seed_menus
 from app.modules.record.service import TYPE_UI_DEFAULTS, ensure_record_type, type_access
 from app.modules.storage_integration.service import probe_storage
 
@@ -80,41 +82,18 @@ async def seed_record_type_ui() -> None:
 
 
 async def seed_system() -> None:
+    """Seed system configuration only. Users are never auto-created.
+
+    The first administrator is inserted through ``POST /api/v2/auth/register``
+    (registration closes once any user exists); later accounts are created
+    through the users API.
+    """
     async with SessionLocal() as db:
         try:
             await seed_menus(db)
-            role = await ensure_superadmin_role(db)
+            await ensure_superadmin_role(db)
         except Exception:
             log.exception("Typed role/menu seed skipped; relational migration may be pending")
-            role = None
-
-        if not settings.seed_bootstrap_admin:
-            await db.commit()
-            return
-
-        user = await db.scalar(select(User).where(User.email == settings.admin_email.lower()))
-        if not user:
-            user = User(
-                email=settings.admin_email.lower(),
-                name=settings.admin_name,
-                password_hash=hash_password(settings.admin_password),
-                role="SuperAdmin",
-                permissions=ALL_PERMISSIONS,
-                role_id=role.id if role else None,
-            )
-            db.add(user)
-            await db.flush()
-        else:
-            if not user.permissions:
-                user.permissions = ALL_PERMISSIONS
-            if role and not user.role_id:
-                user.role_id = role.id
-            user.role = "SuperAdmin"
-        await ensure_admin_entity(db, user)
-        try:
-            await ensure_officer_for_user(db, user, role.id if role else user.role_id)
-        except Exception:
-            log.exception("Officer seed skipped; relational tables may be missing")
         await db.commit()
 
 
@@ -255,17 +234,28 @@ async def _consume(channel) -> None:
 
 
 async def run_worker() -> None:
+    """Consume RabbitMQ jobs outside the API process.
+
+    For ~20-user deployments keep a single worker container with low
+    ``WORKER_PREFETCH``. HTTP handlers must only publish; never run Drive
+    sync, exports, scans, or notification delivery inline.
+    """
+    prefetch = max(1, int(settings.worker_prefetch))
+    # Prefer explicit concurrency when set; never exceed prefetch.
+    qos = max(1, min(prefetch, int(settings.worker_concurrency) or prefetch))
+    poll_seconds = max(0.5, float(settings.worker_outbox_poll_seconds))
+    log.info("Worker starting (prefetch=%s qos=%s poll=%ss)", prefetch, qos, poll_seconds)
     while True:
         try:
             connection = await aio_pika.connect_robust(settings.rabbitmq_url)
             async with connection:
                 channel = await connection.channel(publisher_confirms=True)
-                await channel.set_qos(prefetch_count=8)
+                await channel.set_qos(prefetch_count=qos)
                 await _consume(channel)
                 while True:
                     await publish_outbox(channel)
                     await complete_exports()
-                    await asyncio.sleep(2)
+                    await asyncio.sleep(poll_seconds)
         except asyncio.CancelledError:
             raise
         except Exception:
@@ -274,10 +264,57 @@ async def run_worker() -> None:
 
 
 async def run_scheduler() -> None:
-    scheduler = AsyncIOScheduler(timezone=settings.scheduler_timezone)
-    scheduler.add_job(reconcile, "interval", minutes=15, id="reconcile", coalesce=True, max_instances=1)
-    scheduler.add_job(due_meeting_reminders, "interval", minutes=1, id="meeting-reminders", coalesce=True, max_instances=1)
-    scheduler.add_job(cleanup_expired_exports, "interval", hours=1, id="export-cleanup", coalesce=True, max_instances=1)
+    """APScheduler ticks only; due work is published to RabbitMQ for workers.
+
+    Never start the scheduler inside the API process. Meeting reminders and
+    reconcile/cleanup publish durable messages — they do not perform side effects.
+    """
+    if (settings.scheduler_engine or "apscheduler").lower() != "apscheduler":
+        raise RuntimeError(f"Unsupported SCHEDULER_ENGINE={settings.scheduler_engine!r}; use apscheduler")
+
+    coalesce = bool(settings.scheduler_coalesce)
+    max_instances = max(1, int(settings.scheduler_max_instances_per_job))
+    misfire = max(0, int(settings.scheduler_misfire_grace_seconds))
+    job_defaults = {
+        "coalesce": coalesce,
+        "max_instances": max_instances,
+        "misfire_grace_time": misfire,
+    }
+    scheduler = AsyncIOScheduler(timezone=settings.scheduler_timezone, job_defaults=job_defaults)
+    scheduler.add_job(
+        reconcile,
+        "interval",
+        minutes=max(1, int(settings.scheduler_reconcile_interval_minutes)),
+        id="reconcile",
+        coalesce=coalesce,
+        max_instances=max_instances,
+        misfire_grace_time=misfire,
+    )
+    scheduler.add_job(
+        due_meeting_reminders,
+        "interval",
+        minutes=max(1, int(settings.scheduler_meeting_reminder_interval_minutes)),
+        id="meeting-reminders",
+        coalesce=coalesce,
+        max_instances=max_instances,
+        misfire_grace_time=misfire,
+    )
+    scheduler.add_job(
+        cleanup_expired_exports,
+        "interval",
+        hours=max(1, int(settings.scheduler_export_cleanup_interval_hours)),
+        id="export-cleanup",
+        coalesce=coalesce,
+        max_instances=max_instances,
+        misfire_grace_time=misfire,
+    )
+    log.info(
+        "Scheduler starting (tz=%s reconcile=%sm reminders=%sm cleanup=%sh)",
+        settings.scheduler_timezone,
+        settings.scheduler_reconcile_interval_minutes,
+        settings.scheduler_meeting_reminder_interval_minutes,
+        settings.scheduler_export_cleanup_interval_hours,
+    )
     scheduler.start()
     await publish_tick()
     try:

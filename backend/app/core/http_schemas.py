@@ -29,12 +29,6 @@ class StageBody(MutationBody):
     stage: Any = None
 
 
-class FavoriteBody(BaseModel):
-    model_config = ConfigDict(extra="allow")
-
-    isFavorite: bool = False
-
-
 class BulkDeleteBody(BaseModel):
     ids: list[str] = Field(default_factory=list)
     versions: dict[str, int] = Field(default_factory=dict)

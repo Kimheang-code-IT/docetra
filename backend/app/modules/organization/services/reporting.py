@@ -51,6 +51,15 @@ async def read_for_reporting(
     return [serializer(row) for row in rows]
 
 
+async def names_by_ids(db: AsyncSession, ids: list[uuid.UUID]) -> dict[uuid.UUID, str]:
+    """Public lookup: organization display names for foreign-module hydration."""
+    unique = {uid for uid in ids if uid}
+    if not unique:
+        return {}
+    rows = (await db.scalars(select(Organization).where(Organization.id.in_(unique)))).all()
+    return {row.id: (row.nam or str(row.id)) for row in rows}
+
+
 async def search_for_reporting(db, pattern: str, limit: int) -> list[dict]:
     rows = (await db.scalars(
         select(Organization)

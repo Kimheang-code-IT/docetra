@@ -177,13 +177,6 @@ class Activity(UUIDPrimaryKeyMixin, Base):
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
-class Favorite(Base):
-    __tablename__ = "favorites"
-
-    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
-    entity_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
-
-
 # --- Meeting schedules owned by Record (moved from legacy app/models/scheduler.py) ---
 
 

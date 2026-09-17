@@ -45,7 +45,7 @@ python -m pytest tests/integration/modules tests/integration/test_modules_togeth
 Start the stack from repo root:
 
 ```powershell
-docker compose --env-file backend.env -f compose.backend.yml up --build -d
+docker compose -f infrastructure/docker-compose.yml up --build -d
 ```
 
 ## Markers

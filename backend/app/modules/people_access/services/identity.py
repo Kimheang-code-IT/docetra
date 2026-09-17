@@ -69,8 +69,12 @@ async def normalize_identity_payload(
             raise DomainError("VALIDATION_ERROR", str(exc), 422) from exc
         data["code"] = str(data.get("code") or "").strip().upper()
         data["name"] = str(data.get("name") or "").strip()
-        if not data["code"] or not data["name"]:
-            raise DomainError("VALIDATION_ERROR", "Role code and name are required", 422)
+        if not data["code"]:
+            # Code is a UI-only duplicate-check token derived from the name —
+            # the role form no longer collects it.
+            data["code"] = data["name"].upper().replace(" ", "_")
+        if not data["name"]:
+            raise DomainError("VALIDATION_ERROR", "Role name is required", 422)
         if actor is not None and not is_unrestricted(actor):
             if is_unrestricted_role_name(data["name"]) or parse_role_level(data.get("lvl")) == 0:
                 raise DomainError("FORBIDDEN", "You cannot create or modify a privileged role", 403)
@@ -126,12 +130,3 @@ async def normalize_identity_payload(
             if officer.auth_id is not None and officer.auth_id != excluded:
                 raise DomainError("CONFLICT", "Officer is already linked to another user", 409)
     return data
-
-
-async def ensure_admin_entity(db: AsyncSession, user: User) -> None:
-    """Keep the bootstrap admin on the relational User row. Entity user bags are no longer written."""
-    user.active = True
-    if user.status in {None, "", "deleted"}:
-        user.status = "active"
-    if not user.role:
-        user.role = "SuperAdmin"

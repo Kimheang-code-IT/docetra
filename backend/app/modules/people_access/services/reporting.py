@@ -32,7 +32,7 @@ async def read_for_reporting(db, resource, ids, start, end) -> list[dict] | None
         stmt = stmt.where(model.id.in_(ids or [uuid.uuid4()]))
     rows = (await db.scalars(stmt.limit(10000))).all()
     if resource == "officers":
-        return [people.officer_to_payload(row) for row in rows]
+        return await people.hydrate_officer_payloads(db, rows)
     if resource == "users":
         return [people.user_to_payload(row) for row in rows]
     return [

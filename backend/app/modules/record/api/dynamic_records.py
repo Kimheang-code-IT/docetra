@@ -15,7 +15,6 @@ from app.core.http_schemas import (
     BulkDeleteBody,
     CommentBody,
     DataEnvelope,
-    FavoriteBody,
     MutationBody,
     StageBody,
 )
@@ -153,7 +152,9 @@ async def options(type_code: str, request: Request, db: AsyncSession = Depends(g
     value_field = request.query_params.get("valueField") or "id"
     items = []
     for payload in listed["data"]:
-        label = str(payload.get("name") or payload.get("title") or payload.get("code") or payload.get("id"))
+        label = str(payload.get("name") or payload.get("title") or payload.get("code") or "").strip()
+        if not label or label == str(payload.get("id")):
+            label = str(payload.get("code") or "Untitled")
         if q and q not in label.lower():
             continue
         items.append({
@@ -296,21 +297,6 @@ async def stage(
 async def neighbors(type_code: str, entity_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
     await _service(type_code).get_item(db, entity_id, user)
     return {"data": await collaboration.get_neighbors(db, _collab_resource(type_code), entity_id)}
-
-
-@type_router.get("/{entity_id}/favorite", response_model=DataEnvelope)
-async def get_favorite(type_code: str, entity_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
-    await _service(type_code).get_item(db, entity_id, user)
-    return {"data": {"isFavorite": await collaboration.get_favorite(db, user.id, entity_id)}}
-
-
-@type_router.put("/{entity_id}/favorite", response_model=DataEnvelope)
-async def set_favorite(type_code: str, entity_id: str, body: FavoriteBody, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
-    await _service(type_code).get_item(db, entity_id, user)
-    desired = bool(body.isFavorite)
-    await collaboration.set_favorite(db, user.id, entity_id, desired)
-    await db.commit()
-    return {"data": {"isFavorite": desired}}
 
 
 @type_router.get("/{entity_id}/comments", response_model=DataEnvelope)

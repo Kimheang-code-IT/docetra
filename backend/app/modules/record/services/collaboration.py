@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.datetime import iso_utc, utcnow
 from app.core.privileged import is_unrestricted
 from app.modules.people_access.dependencies import person
-from app.modules.record.model import Activity, Comment, Favorite
+from app.modules.record.model import Activity, Comment
 from app.modules.record.model import Entity, Record
 from app.modules.people_access.service import public_users_by_ids
 from app.modules.record.domain.map import RECORD_RESOURCES
@@ -45,21 +45,6 @@ async def get_neighbors(db: AsyncSession, resource: str, entity_id: str) -> dict
         raise HTTPException(404, "Not found")
     index = ids.index(uid)
     return {"previousId": str(ids[index - 1]) if index else None, "nextId": str(ids[index + 1]) if index + 1 < len(ids) else None}
-
-
-async def get_favorite(db: AsyncSession, user_id: uuid.UUID, entity_id: str) -> bool:
-    row = await db.scalar(select(Favorite).where(Favorite.user_id == user_id, Favorite.entity_id == uuid.UUID(entity_id)))
-    return bool(row)
-
-
-async def set_favorite(db: AsyncSession, user_id: uuid.UUID, entity_id: str, desired: bool) -> bool:
-    uid = uuid.UUID(entity_id)
-    existing = await db.scalar(select(Favorite).where(Favorite.user_id == user_id, Favorite.entity_id == uid))
-    if desired and not existing:
-        db.add(Favorite(user_id=user_id, entity_id=uid))
-    if not desired and existing:
-        await db.delete(existing)
-    return desired
 
 
 async def list_comments(db: AsyncSession, resource: str, entity_id: str, user: object) -> tuple[list[dict], int]:

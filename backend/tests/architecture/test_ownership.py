@@ -17,7 +17,7 @@ SCAN_ROOTS = (BACKEND_ROOT / "app", BACKEND_ROOT / "tests", BACKEND_ROOT / "alem
 MAPPED_CLASS_NAMES = frozenset(
     {
         "Activity", "AppSetting", "AuditLog", "Comment", "Entity",
-        "Favorite", "File", "MeetingSchedule", "Menu", "NotificationAuditLog",
+        "File", "MeetingSchedule", "Menu", "NotificationAuditLog",
         "Officer", "OfficerIdentifier", "Organization", "OrganizationPurpose",
         "OrganizationSector", "Outbox", "Permission", "Record",
         "RecordAttachment", "RecordAttribute", "RecordDetail",

@@ -39,6 +39,13 @@ from app.modules.people_access.services.people import count_users, provision_fir
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
+def _optional_tokens(access: str, refresh: str) -> dict:
+    """JWTs live in HttpOnly cookies; JSON exposure is a bearer-mode-only opt-in."""
+    if not settings.expose_auth_tokens:
+        return {}
+    return {"token": access, "refreshToken": refresh}
+
+
 class Login(BaseModel):
     email: str
     password: str
@@ -79,7 +86,7 @@ async def register(body: Register, request: Request, response: Response, db: Asy
     await db.commit()
     policy = await _security_policy(db)
     _jti, access, refresh = await issue_session(response, user, access_minutes=policy["sessionTimeoutMinutes"])
-    return {"data": {"user": public_user(user), "token": access, "refreshToken": refresh}}
+    return {"data": {"user": {**public_user(user), **_optional_tokens(access, refresh)}}}
 
 
 @router.post("/login", response_model=DataEnvelope)
@@ -102,7 +109,7 @@ async def login(body: Login, request: Request, response: Response, db: AsyncSess
     await db.commit()
     policy = await _security_policy(db)
     _jti, access, refresh = await issue_session(response, user, access_minutes=policy["sessionTimeoutMinutes"])
-    return {"data": {"user": public_user(user), "token": access, "refreshToken": refresh}}
+    return {"data": {"user": {**public_user(user), **_optional_tokens(access, refresh)}}}
 
 
 @router.get("/me", response_model=DataEnvelope)
@@ -119,7 +126,7 @@ async def refresh(request: Request, response: Response, db: AsyncSession = Depen
         db,
         access_minutes=policy["sessionTimeoutMinutes"],
     )
-    return {"data": {**public_user(user), "token": access, "refreshToken": new_refresh}}
+    return {"data": {**public_user(user), **_optional_tokens(access, new_refresh)}}
 
 
 @router.post("/logout", response_model=DataEnvelope)

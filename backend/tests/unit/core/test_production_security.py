@@ -30,7 +30,6 @@ def test_production_configuration_accepts_hardened_values():
         password_reset_secret="r" * 48,
         settings_encryption_key="e" * 48,
         session_cookie_secure=True,
-        admin_password="a-unique-admin-password",
         cors_allowed_origins=["https://docetra.example.com"],
         trusted_hosts=["api.docetra.example.com"],
         smtp_host="smtp.example.com",
@@ -39,6 +38,21 @@ def test_production_configuration_accepts_hardened_values():
         s3_secret_key="unique-object-storage-password",
     )
     config.validate_production()
+
+
+def test_small_team_worker_scheduler_defaults():
+    """~20-user deploys keep a single worker/scheduler with low QoS defaults."""
+    config = Settings()
+    assert config.worker_concurrency == 2
+    assert config.worker_prefetch == 2
+    assert config.worker_outbox_poll_seconds == 2.0
+    assert config.scheduler_engine == "apscheduler"
+    assert config.scheduler_timezone == "UTC"
+    assert config.scheduler_coalesce is True
+    assert config.scheduler_max_instances_per_job == 1
+    assert config.scheduler_reconcile_interval_minutes == 15
+    assert config.scheduler_meeting_reminder_interval_minutes == 1
+    assert config.scheduler_export_cleanup_interval_hours == 1
 
 
 def test_upload_content_detection_rejects_executable_disguised_as_pdf():

@@ -13,8 +13,10 @@ import httpx
 import pytest
 
 API_BASE = os.getenv("DOCETRA_API_BASE", "http://127.0.0.1:8000").rstrip("/")
-ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "admin@gmail.com")
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "123456")
+# First-administrator credentials. No user is seeded by the backend: the
+# account is created through POST /api/v2/auth/register when needed.
+ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "admin@docetra.test")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "Docetra-Admin-2025")
 CSRF_HEADER = "X-CSRF-Token"
 CSRF_COOKIE = "XSRF-TOKEN"
 
@@ -96,7 +98,7 @@ def mutate(
 
 
 def login_admin(client: httpx.Client, *, attempts: int = 8) -> httpx.Response:
-    """Login with backoff — Docker LOGIN_RATE_LIMIT is low for rapid fixture logins."""
+    """Login as the first administrator, registering via the public API if absent."""
     last: httpx.Response | None = None
     for attempt in range(attempts):
         last = client.post(
@@ -109,9 +111,19 @@ def login_admin(client: httpx.Client, *, attempts: int = 8) -> httpx.Response:
             time.sleep(min(2 ** attempt, 20))
             continue
         break
-    assert last is not None
-    assert last.status_code == 200, last.text
-    return last
+    # No pre-seeded users exist: insert the first administrator through the
+    # backend registration contract (closes once any user exists).
+    register = client.post(
+        "/api/v2/auth/register",
+        json={
+            "name": "System Administrator",
+            "email": ADMIN_EMAIL,
+            "password": ADMIN_PASSWORD,
+            "passwordConfirmation": ADMIN_PASSWORD,
+        },
+    )
+    assert register.status_code == 200, register.text
+    return register
 
 
 def login_user(client: httpx.Client, email: str, password: str, *, attempts: int = 8) -> httpx.Response:

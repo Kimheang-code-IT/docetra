@@ -6,7 +6,8 @@ import math
 import uuid
 from typing import Any
 
-from sqlalchemy import func, or_, select
+from fastapi import HTTPException
+from sqlalchemy import and_, delete, exists, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.record.services.creator_scope import creator_only
@@ -14,11 +15,42 @@ from app.core.datetime import parse_instant, utcnow, iso_utc
 from app.core.privileged import is_unrestricted
 from app.platform.audit.model import AuditLog
 from typing import Any as User
-from app.modules.record.model import Record, RecordType
+from app.modules.record.model import Record, RecordDetail, RecordType
 from app.modules.record.domain.map import LIFECYCLE_TO_STATUS, merge_type_ui_payload
 import app.modules.record.services.organization_links as record_org_links
 import app.modules.record.services.serializer as record_ser
 import app.modules.record.services.type_access as type_access
+
+
+def _topic_id_filter(topic_id: str | None):
+    """Meetings store topic as parent_record and/or a topicId detail."""
+    raw = str(topic_id or "").strip()
+    if not raw:
+        return None
+
+    detail_has_topic = exists().where(
+        RecordDetail.record_id == Record.id,
+        RecordDetail.record_attribute_code.in_(("topicId", "topic_id")),
+        or_(
+            RecordDetail.value_id.isnot(None),
+            and_(RecordDetail.value_string.isnot(None), RecordDetail.value_string != ""),
+        ),
+    )
+    if raw == "__empty__":
+        return and_(Record.parent_record.is_(None), ~detail_has_topic)
+
+    try:
+        uid = uuid.UUID(raw)
+    except ValueError:
+        return Record.id.is_(None)
+
+    uid_str = str(uid)
+    detail_matches = exists().where(
+        RecordDetail.record_id == Record.id,
+        RecordDetail.record_attribute_code.in_(("topicId", "topic_id")),
+        or_(RecordDetail.value_id == uid, RecordDetail.value_string == uid_str),
+    )
+    return or_(Record.parent_record == uid, detail_matches)
 
 
 class RecordApplicationService:
@@ -64,7 +96,15 @@ class RecordApplicationService:
         if not status or status in {"all", "all-status"}:
             filters.append(Record.lifecycle.notin_(("archived", "deleted")))
         else:
-            filters.append(Record.lifecycle.in_([p for p in status.split(",") if p]))
+            lifecycles = [p for p in status.split(",") if p]
+            # Deleted records belong to the SuperAdmin recovery flow: regular
+            # users never list them (Archive shows deleted rows only to
+            # unrestricted accounts, which can restore them).
+            if "deleted" in lifecycles and not unrestricted:
+                lifecycles = [p for p in lifecycles if p != "deleted"]
+                if not lifecycles:
+                    return {"data": [], "meta": {"page": page, "limit": limit, "total": 0, "totalPages": 1}}
+            filters.append(Record.lifecycle.in_(lifecycles))
         if await creator_only(db, user, self.host.resource):
             filters.append(Record.created_by == officer_id)
         stage = params.get("stage")
@@ -82,6 +122,14 @@ class RecordApplicationService:
             filters.append(Record.record_time >= start)
         if end:
             filters.append(Record.record_time <= end)
+        exclude_stage = params.get("excludeStage")
+        if exclude_stage:
+            excluded = [part for part in str(exclude_stage).split(",") if part]
+            if excluded:
+                filters.append(or_(Record.stage.is_(None), Record.stage.notin_(excluded)))
+        topic_filter = _topic_id_filter(params.get("topicId"))
+        if topic_filter is not None:
+            filters.append(topic_filter)
         total = await db.scalar(select(func.count()).select_from(Record).where(*filters)) or 0
         sort = params.get("sort") or "-updatedAt"
         desc = sort.startswith("-")
@@ -215,6 +263,28 @@ class RecordApplicationService:
         await db.flush()
         return {"attachments": updated.get("attachments") or remaining, "version": updated.get("version")}
 
+    async def _clear_topic_children(self, db: AsyncSession, topic_id: uuid.UUID) -> None:
+        """Detach meetings from a deleted/purged meeting topic.
+
+        Meetings store the topic as ``parent_record`` and/or a ``topicId``
+        record detail; both references are cleared so children surface in the
+        Unassigned pool instead of pointing at a dead topic.
+        """
+        children = (await db.scalars(select(Record.id).where(Record.parent_record == topic_id))).all()
+        if not children:
+            return
+        await db.execute(
+            Record.__table__.update()
+            .where(Record.parent_record == topic_id)
+            .values(parent_record=None, version=Record.version + 1, updated_at=utcnow())
+        )
+        await db.execute(
+            delete(RecordDetail).where(
+                RecordDetail.record_id.in_(children),
+                RecordDetail.record_attribute_code.in_(("topicId", "topic_id")),
+            )
+        )
+
     async def soft_delete(self, db: AsyncSession, user: User, entity_id: str, expected) -> dict:
         row = await self.host.get_record_row_or_404(db, entity_id, user)
         self.host._assert_version(row.version, expected)
@@ -222,12 +292,16 @@ class RecordApplicationService:
         row.status = 0
         row.deleted_at = utcnow()
         row.version += 1
+        if self.host.resolve_type_code() == "meeting_topic":
+            await self._clear_topic_children(db, row.id)
         await db.flush()
         return {"id": entity_id}
 
     async def purge(self, db: AsyncSession, user: User, entity_id: str, expected) -> dict:
         row = await self.host.get_record_row_or_404(db, entity_id, user)
         self.host._assert_version(row.version, expected)
+        if self.host.resolve_type_code() == "meeting_topic":
+            await self._clear_topic_children(db, row.id)
         await db.delete(row)
         await db.flush()
         return {"id": entity_id}

@@ -15,11 +15,14 @@ from app.main import app
 #   DELETE /records/{type_code}/{entity_id}/attachments/{file_id} (detach without deleting the File)
 #   POST /configuration/record-{types,attributes}/{id}/duplicate, PATCH .../status  (Phase 5 UI actions)
 # Shrank from 386 when the vocabulary feature was removed by product decision (migration 0011).
-ROUTE_MANIFEST_SHA256 = "cb99e1fccfcf041a6a365d725466e6e8d58321ad0afc72d6fd4da1941fd11fcb"
+# Shrank from 381 when the favorites feature was removed by product decision (migration 0012):
+#   GET/PUT /{base}/{id}/favorite across record, organization, and configuration routers.
+ROUTE_MANIFEST_SHA256 = "d750550a843c1e67202d07029ebf7b07a3f9d7d51f471f87e11ccfdca845163d"
 # Updated for the approved 0010_integration_contract_fields migration:
 # permission.scope (enum vocabulary columns later removed by 0011).
 # 0011_drop_enum_vocabulary removed the `enum` table (30 → 29).
-METADATA_MANIFEST_SHA256 = "cec3e2df3e5951256831416c9ae717089ff997aeb5dcb249128039fd807eddeb"
+# 0012_drop_favorites removed the `favorites` table (29 → 28).
+METADATA_MANIFEST_SHA256 = "c69c77be11c5eb045b32896a84ab1f92ed8a6bcfe2eb1c3ef4ddac092e9f6dc9"
 
 
 def _digest(value: object) -> str:
@@ -75,10 +78,10 @@ def _metadata_manifest() -> list[dict[str, object]]:
 
 
 def test_route_manifest_is_unchanged() -> None:
-    assert len(_route_manifest()) == 381
+    assert len(_route_manifest()) == 355
     assert _digest(_route_manifest()) == ROUTE_MANIFEST_SHA256
 
 
 def test_sqlalchemy_metadata_is_unchanged() -> None:
-    assert len(_metadata_manifest()) == 29
+    assert len(_metadata_manifest()) == 28
     assert _digest(_metadata_manifest()) == METADATA_MANIFEST_SHA256

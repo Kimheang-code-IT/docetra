@@ -58,6 +58,8 @@ def record_to_payload(row: Record, details: dict[str, Any] | None = None) -> dic
         result["stage"] = row.stage
     if row.record_time:
         result["recordTime"] = iso_utc(row.record_time)
+        if row.record_type_code == "meeting_history":
+            result.setdefault("meetingDate", result["recordTime"])
     if row.record_type_id:
         result["recordTypeId"] = str(row.record_type_id)
     if row.record_type_code:
@@ -72,6 +74,8 @@ def record_to_payload(row: Record, details: dict[str, Any] | None = None) -> dic
     if row.parent_record:
         result["parentRecord"] = str(row.parent_record)
         result["parentId"] = str(row.parent_record)
+        if row.record_type_code == "meeting_history":
+            result.setdefault("topicId", str(row.parent_record))
     if row.archived_at:
         result["archivedAt"] = iso_utc(row.archived_at)
     if row.deleted_at:
@@ -100,9 +104,35 @@ async def details_by_record_ids(db: AsyncSession, record_ids: Sequence[uuid.UUID
     return grouped
 
 
+def record_type_display_name(type_row: RecordType | None, type_code: str | None = None) -> str:
+    if type_row is not None:
+        named = (type_row.nam or "").strip()
+        if named:
+            return named
+        code = (type_row.code or "").strip()
+        return code.replace("_", " ").title() if code else ""
+    code = (type_code or "").strip()
+    return code.replace("_", " ").title() if code else ""
+
+
 async def serialize_records(db: AsyncSession, rows: Sequence[Record]) -> list[dict[str, Any]]:
     grouped = await details_by_record_ids(db, [row.id for row in rows])
-    return [record_to_payload(row, grouped.get(row.id, {})) for row in rows]
+    type_ids = [row.record_type_id for row in rows if row.record_type_id]
+    type_map: dict[uuid.UUID, RecordType] = {}
+    if type_ids:
+        type_rows = (await db.scalars(select(RecordType).where(RecordType.id.in_(type_ids)))).all()
+        type_map = {item.id: item for item in type_rows}
+    payloads: list[dict[str, Any]] = []
+    for row in rows:
+        payload = record_to_payload(row, grouped.get(row.id, {}))
+        name = record_type_display_name(
+            type_map.get(row.record_type_id) if row.record_type_id else None,
+            row.record_type_code,
+        )
+        if name:
+            payload["recordTypeName"] = name
+        payloads.append(payload)
+    return payloads
 
 
 async def serialize_record(db: AsyncSession, row: Record) -> dict[str, Any]:
@@ -276,13 +306,13 @@ def apply_core_fields(row: Record, payload: dict, lifecycle: str | None = None) 
         row.record_tag = ",".join(str(t) for t in tags)
     elif isinstance(tags, str):
         row.record_tag = tags
-    parent = payload.get("parentRecord") or payload.get("parentId")
+    parent = payload.get("parentRecord") or payload.get("parentId") or payload.get("topicId")
     if parent:
         try:
             row.parent_record = uuid.UUID(str(parent))
         except ValueError:
             pass
-    elif "parentId" in payload or "parentRecord" in payload:
+    elif "parentId" in payload or "parentRecord" in payload or "topicId" in payload:
         row.parent_record = None
     row.record_time = extract_record_time(payload) or row.record_time or utcnow()
     if lifecycle:

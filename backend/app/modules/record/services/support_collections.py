@@ -62,6 +62,10 @@ class SupportApplicationService:
                 doc_codes = [code for code, meta in TYPE_UI_DEFAULTS.items() if meta.get("uiSurface") == "document"]
                 doc_resources = [TYPE_CODE_TO_RESOURCE[c] for c in doc_codes if c in TYPE_CODE_TO_RESOURCE]
                 allowed = set(doc_codes) | set(doc_resources) | {r.replace("-", "_") for r in doc_resources}
+                # Record mutations audit with the generic table_name "record";
+                # excluding it would hide every create/update from the log view.
+                allowed.add("record")
+                allowed.add("records")
                 filters.append(
                     or_(
                         AuditLog.table_name.is_(None),

@@ -145,9 +145,6 @@ def test_dynamic_document_subroutes(auth_client):
     schema = auth_client.get("/api/v2/records/document/schema")
     assert_envelope(schema)
 
-    fav = mutate(auth_client, "PUT", f"{base}/favorite", json={"isFavorite": True})
-    assert fav.status_code < 400, fav.text
-
     archived = mutate(auth_client, "POST", f"{base}/archive", json={})
     assert archived.status_code < 400, archived.text
 
