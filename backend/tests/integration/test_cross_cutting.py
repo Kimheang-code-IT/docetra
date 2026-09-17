@@ -66,17 +66,19 @@ def test_files_unknown_returns_404(auth_client):
 
 
 def test_cors_preflight_from_frontend_origin(api_client):
+    # Matches CORS_ALLOWED_ORIGINS in infrastructure/.env.example (the nginx edge origin).
+    origin = "http://localhost:8080"
     response = api_client.options(
         "/api/v2/auth/me",
         headers={
-            "Origin": "http://localhost:3000",
+            "Origin": origin,
             "Access-Control-Request-Method": "GET",
         },
     )
     # Starlette may return 200/204 for OPTIONS.
     assert response.status_code in {200, 204}
     allow_origin = response.headers.get("access-control-allow-origin")
-    assert allow_origin == "http://localhost:3000"
+    assert allow_origin == origin
     assert response.headers.get("access-control-allow-credentials") == "true"
 
 

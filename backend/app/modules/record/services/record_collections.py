@@ -179,7 +179,20 @@ class RecordApplicationService:
 
             await upsert_meeting_jobs(db, row, payload)
         await record_org_links.sync_record_organizations(db, row.id, payload, officer_id)
-        db.add(AuditLog(created_by=officer_id, action_code="created", table_name="record", row_id=row.id, message=f"{user.name} created this record", source_log="record"))
+        db.add(AuditLog(
+            created_by=officer_id,
+            action_code="created",
+            table_name="record",
+            row_id=row.id,
+            message=f"{user.name} created this record",
+            detail_data={
+                "entityTitle": row.title or str(row.id),
+                "entityType": "record",
+                "occurredAt": iso_utc(utcnow()),
+                "correlationId": str(row.id),
+            },
+            source_log="record",
+        ))
         await db.flush()
         await db.refresh(row)
         return await record_ser.serialize_record(db, row)
@@ -236,6 +249,12 @@ class RecordApplicationService:
             table_name="record",
             row_id=row.id,
             message=f"{user.name} attached {entry['name']} to this record",
+            detail_data={
+                "entityTitle": row.title or str(row.id),
+                "entityType": "record",
+                "occurredAt": iso_utc(utcnow()),
+                "correlationId": str(row.id),
+            },
             source_log="record",
         ))
         await db.flush()
@@ -258,6 +277,12 @@ class RecordApplicationService:
             table_name="record",
             row_id=row.id,
             message=f"{user.name} removed an attachment from this record",
+            detail_data={
+                "entityTitle": row.title or str(row.id),
+                "entityType": "record",
+                "occurredAt": iso_utc(utcnow()),
+                "correlationId": str(row.id),
+            },
             source_log="record",
         ))
         await db.flush()
