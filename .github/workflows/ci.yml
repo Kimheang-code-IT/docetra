@@ -95,7 +95,8 @@ jobs:
           DOCETRA_BACKEND_IMAGE: docetra-backend:ci
         run: |
           docker compose --env-file infrastructure/.env -f infrastructure/docker-compose.yml build api
-          docker compose --env-file infrastructure/.env -f infrastructure/docker-compose.yml up -d
+          # Only the services integration tests need (avoids building/pulling the SPA edge).
+          docker compose --env-file infrastructure/.env -f infrastructure/docker-compose.yml up -d postgres redis rabbitmq minio api
           for i in $(seq 1 60); do
             if curl -sf http://127.0.0.1:8000/ready >/dev/null; then
               echo "API ready"
@@ -179,7 +180,8 @@ jobs:
           DOCETRA_BACKEND_IMAGE: docetra-backend:ci
         run: |
           docker compose --env-file infrastructure/.env -f infrastructure/docker-compose.yml build api
-          docker compose --env-file infrastructure/.env -f infrastructure/docker-compose.yml up -d
+          # Playwright serves the Nuxt build itself, so only the API stack is needed.
+          docker compose --env-file infrastructure/.env -f infrastructure/docker-compose.yml up -d postgres redis rabbitmq minio api
           for i in $(seq 1 60); do
             if curl -sf http://127.0.0.1:8000/ready >/dev/null; then
               echo "API ready"
@@ -305,6 +307,9 @@ jobs:
           echo "Deploying $SHA"
           git fetch --prune origin
           git checkout --force "$SHA"
+          # Compose resolves `env_file` relative to infrastructure/, so the env
+          # file passed via --env-file must be the same one containers load.
+          export BACKEND_ENV_FILE="$(basename "$ENV_FILE")"
           docker compose --env-file "$ENV_FILE" -f infrastructure/docker-compose.yml build
           docker compose --env-file "$ENV_FILE" -f infrastructure/docker-compose.yml up -d --remove-orphans
           docker image prune -f

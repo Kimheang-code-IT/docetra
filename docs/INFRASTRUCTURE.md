@@ -28,7 +28,7 @@ Services (compose):
 | postgres | pinned digest | volume `postgres_data`; loopback port for DB tools |
 | redis | pinned digest | AOF + snapshot; ops DB 0, cache DB 1 |
 | rabbitmq | 3.13-management | vhost `docetra`; mgmt UI loopback |
-| minio | pinned digest | S3 API + console; volume `minio_data` |
+| minio | `quay.io/minio/minio` (`MINIO_IMAGE` override) | S3 API + console; volume `minio_data` |
 | postgres-backup / minio-backup | `--profile operations` | one-shot pg_dump / mc mirror into `backend_backups` volume |
 
 Networks: `edge` (published) + `private` (internal-only: backups). The worker is on **both** `edge` and `private` because it needs outbound internet for SMTP/Telegram/Google Drive. Env comes from a single `.env` next to the compose file (`BACKEND_ENV_FILE` override; production: `--env-file .env.production`).

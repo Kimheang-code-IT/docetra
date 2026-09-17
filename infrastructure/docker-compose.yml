@@ -206,7 +206,7 @@ services:
       - private
 
   minio:
-    image: ${MINIO_IMAGE:-minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e}
+    image: ${MINIO_IMAGE:-quay.io/minio/minio:latest}
     restart: unless-stopped
     command: server /data --console-address :9001
     environment:
@@ -246,7 +246,7 @@ services:
       - private
 
   minio-backup:
-    image: ${MINIO_MC_IMAGE:-minio/mc@sha256:a7fe349ef4bd8521fb8497f55c6042871b2ae640607cf99d9bede5e9bdf11727}
+    image: ${MINIO_MC_IMAGE:-quay.io/minio/mc:latest}
     profiles: ["operations"]
     restart: "no"
     environment:

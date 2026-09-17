@@ -2,7 +2,10 @@
 
 Removes the ``enum`` table added to by 0001/0010 (vocabulary columns + seeds).
 The ``permission.scope`` column added by 0010 is intentionally kept.
-Downgrade recreates the legacy table shape only; seeded data is not restored.
+Downgrade recreates the table in its **0010 shape** (vocabulary columns,
+``(enum_type, code)`` uniqueness and the ``enum_type`` index) so that the
+``0010`` downgrade that follows can drop them cleanly; seeded data is not
+restored.
 """
 
 from alembic import op
@@ -29,5 +32,13 @@ def downgrade() -> None:
         sa.Column("code", sa.Text(), nullable=False),
         sa.Column("value", sa.Text(), nullable=False, server_default=""),
         sa.Column("description", sa.Text(), nullable=True),
-        sa.UniqueConstraint("code", name="uq_enum_code"),
+        # 0010 vocabulary columns (must exist for the 0010 downgrade to remove).
+        sa.Column("enum_type", sa.String(80), nullable=False, server_default=""),
+        sa.Column("label_km", sa.Text(), nullable=True),
+        sa.Column("color_code", sa.String(40), nullable=True),
+        sa.Column("ordering", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.true()),
+        sa.Column("version", sa.Integer(), nullable=False, server_default="1"),
+        sa.UniqueConstraint("enum_type", "code", name="uq_enum_type_code"),
     )
+    op.create_index("ix_enum_enum_type", "enum", ["enum_type"])
