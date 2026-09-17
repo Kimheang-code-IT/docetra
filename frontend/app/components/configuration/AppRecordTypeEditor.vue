@@ -4,8 +4,8 @@ import type {
   RecordType,
   RecordAttribute,
   RecordTypeAttribute,
+  RecordTypePayload,
 } from '~/types/docetra/configuration'
-import type { RecordTypePayload } from '~/types/docetra/configuration'
 import {
   defaultRecordTypeFeatures,
   defaultRecordTypeNumbering,

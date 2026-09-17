@@ -17,7 +17,9 @@ from app.main import app
 # Shrank from 386 when the vocabulary feature was removed by product decision (migration 0011).
 # Shrank from 381 when the favorites feature was removed by product decision (migration 0012):
 #   GET/PUT /{base}/{id}/favorite across record, organization, and configuration routers.
-ROUTE_MANIFEST_SHA256 = "d750550a843c1e67202d07029ebf7b07a3f9d7d51f471f87e11ccfdca845163d"
+# Grew from 355 with the approved Telegram notification additions:
+#   POST /settings/app-config/telegram/discover-chats (detect chat IDs via getUpdates).
+ROUTE_MANIFEST_SHA256 = "7f4940862095f80dd929f42bbbcce0e872fd2f26eca3895deff407a318e45200"
 # Updated for the approved 0010_integration_contract_fields migration:
 # permission.scope (enum vocabulary columns later removed by 0011).
 # 0011_drop_enum_vocabulary removed the `enum` table (30 → 29).
@@ -78,7 +80,7 @@ def _metadata_manifest() -> list[dict[str, object]]:
 
 
 def test_route_manifest_is_unchanged() -> None:
-    assert len(_route_manifest()) == 355
+    assert len(_route_manifest()) == 356
     assert _digest(_route_manifest()) == ROUTE_MANIFEST_SHA256
 
 

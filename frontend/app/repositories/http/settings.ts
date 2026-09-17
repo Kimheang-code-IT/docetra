@@ -1,6 +1,6 @@
 import type { AppConfigRepository, AppInfoRepository } from '~/repositories/contracts/settings'
 import type { ApiResponse } from '~/types/docetra/common'
-import type { AppConfig, AppInfo, ConnectionStatus } from '~/types/docetra/settings'
+import type { AppConfig, AppInfo, ConnectionStatus, TelegramChat, TelegramTestResult } from '~/types/docetra/settings'
 import { ApiEndpoints } from '~/utils/constants/api-endpoints'
 import { unwrapApiData } from './response'
 
@@ -31,10 +31,19 @@ export function createHttpAppConfigRepository(): AppConfigRepository {
     update: async input => unwrapApiData(await api.patch<AppConfig | ApiResponse<AppConfig>>(ApiEndpoints.APP_CONFIG, input)),
     testEmailConnection: () => postResult(ApiEndpoints.APP_CONFIG_TEST_EMAIL),
     sendTestEmail: to => postResult(ApiEndpoints.APP_CONFIG_SEND_TEST_EMAIL, { to }),
-    testTelegramConnection: () => postResult(ApiEndpoints.APP_CONFIG_TEST_TELEGRAM),
-    sendTestTelegramMessage: destinationId => postResult(
-      ApiEndpoints.APP_CONFIG_SEND_TEST_TELEGRAM,
-      destinationId ? { destinationId } : {},
-    ),
+    testTelegramConnection: async () =>
+      unwrapApiData(await api.post<TelegramTestResult | ApiResponse<TelegramTestResult>>(ApiEndpoints.APP_CONFIG_TEST_TELEGRAM, {})),
+    sendTestTelegramMessage: async input =>
+      unwrapApiData(await api.post<TelegramTestResult | ApiResponse<TelegramTestResult>>(ApiEndpoints.APP_CONFIG_SEND_TEST_TELEGRAM, {
+        destinationId: input.destinationId,
+        chatId: input.chatId,
+      })),
+    discoverTelegramChats: async () => {
+      const result = unwrapApiData(await api.post<{ chats?: TelegramChat[] } | ApiResponse<{ chats?: TelegramChat[] }>>(
+        ApiEndpoints.APP_CONFIG_DISCOVER_TELEGRAM_CHATS,
+        {},
+      ))
+      return result.chats || []
+    },
   }
 }

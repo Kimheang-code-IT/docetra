@@ -10,9 +10,9 @@
 | Backend | FastAPI (Python 3.12), async SQLAlchemy 2, Alembic |
 | Database | PostgreSQL (business + authorization truth) |
 | Cache/session | Redis (ops DB 0, short cache DB 1) |
-| Jobs/queue | RabbitMQ (worker + scheduler as separate processes) |
+| Jobs/queue | RabbitMQ (worker as a separate process; APScheduler runs in-API by default via `SCHEDULER_IN_API`) |
 | Object storage | MinIO (S3 API) |
-| Edge | Nginx (example config provided) |
+| Edge | Nginx (Compose edge: serves the static SPA + proxies `/api`) |
 
 ## Architecture
 

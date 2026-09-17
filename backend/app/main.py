@@ -1,10 +1,14 @@
-"""Docetra process entry — API, worker, and scheduler in one module.
+"""Docetra process entry — API, worker, scheduler, and Telegram bot.
 
-Run modes (still three Compose processes; one codebase entry):
+Run modes (one codebase entry):
 
 - API: ``uvicorn app.main:app --host 0.0.0.0 --port 8000``
 - Worker: ``python -m app.main worker``
 - Scheduler: ``python -m app.main scheduler``
+- Telegram: ``python -m app.main telegram`` (long-polling bot, dedicated process)
+
+Small single-box deployments may set ``SCHEDULER_IN_API=true`` to run the
+APScheduler jobs inside the API process and skip the scheduler container.
 """
 
 from __future__ import annotations
@@ -115,7 +119,21 @@ def create_app() -> FastAPI:
             await seed_record_type_ui()
         except Exception:
             log.exception("Record type UI seed skipped; relational tables may be missing")
-        yield
+        # Optional in-process scheduler for small single-process deployments.
+        scheduler: AsyncIOScheduler | None = None
+        if settings.scheduler_in_api:
+            log.warning("SCHEDULER_IN_API=true: running APScheduler inside the API process")
+            scheduler = build_scheduler()
+            scheduler.start()
+            try:
+                await publish_tick()
+            except Exception:
+                log.exception("Scheduler bootstrap tick failed; retrying on next interval")
+        try:
+            yield
+        finally:
+            if scheduler is not None:
+                scheduler.shutdown(wait=False)
 
     application = FastAPI(
         title="Docetra API",
@@ -263,11 +281,21 @@ async def run_worker() -> None:
             await asyncio.sleep(5)
 
 
-async def run_scheduler() -> None:
-    """APScheduler ticks only; due work is published to RabbitMQ for workers.
+async def run_telegram_service() -> None:
+    """Dedicated Telegram bot process (long polling). Kept out of the worker so
+    bot traffic never competes with job consumption."""
+    from app.jobs.telegram_bot import run_telegram_bot
 
-    Never start the scheduler inside the API process. Meeting reminders and
-    reconcile/cleanup publish durable messages — they do not perform side effects.
+    log.info("Telegram service starting (polling=%s)", settings.telegram_bot_polling)
+    await run_telegram_bot()
+
+
+def build_scheduler() -> AsyncIOScheduler:
+    """Construct the APScheduler instance with reconcile/reminder/cleanup jobs.
+
+    Jobs only publish durable messages for workers — they never perform side
+    effects inline. Reused by the standalone scheduler process and, when
+    ``SCHEDULER_IN_API=true``, by the API process for small deployments.
     """
     if (settings.scheduler_engine or "apscheduler").lower() != "apscheduler":
         raise RuntimeError(f"Unsupported SCHEDULER_ENGINE={settings.scheduler_engine!r}; use apscheduler")
@@ -309,12 +337,23 @@ async def run_scheduler() -> None:
         misfire_grace_time=misfire,
     )
     log.info(
-        "Scheduler starting (tz=%s reconcile=%sm reminders=%sm cleanup=%sh)",
+        "Scheduler configured (tz=%s reconcile=%sm reminders=%sm cleanup=%sh)",
         settings.scheduler_timezone,
         settings.scheduler_reconcile_interval_minutes,
         settings.scheduler_meeting_reminder_interval_minutes,
         settings.scheduler_export_cleanup_interval_hours,
     )
+    return scheduler
+
+
+async def run_scheduler() -> None:
+    """Standalone scheduler process: APScheduler ticks only.
+
+    Due work is published to RabbitMQ for workers. Prefer this process in
+    multi-worker or multi-instance deployments; use ``SCHEDULER_IN_API=true``
+    only for small single-process deployments (it runs inside the API process).
+    """
+    scheduler = build_scheduler()
     scheduler.start()
     await publish_tick()
     try:
@@ -326,11 +365,11 @@ async def run_scheduler() -> None:
 
 
 def main(argv: list[str] | None = None) -> None:
-    parser = argparse.ArgumentParser(prog="app.main", description="Docetra API / worker / scheduler")
+    parser = argparse.ArgumentParser(prog="app.main", description="Docetra API / worker / scheduler / telegram")
     parser.add_argument(
         "mode",
         nargs="?",
-        choices=("api", "worker", "scheduler"),
+        choices=("api", "worker", "scheduler", "telegram"),
         default="api",
         help="Process role (default: api — use uvicorn for HTTP in production)",
     )
@@ -340,6 +379,9 @@ def main(argv: list[str] | None = None) -> None:
         return
     if args.mode == "scheduler":
         asyncio.run(run_scheduler())
+        return
+    if args.mode == "telegram":
+        asyncio.run(run_telegram_service())
         return
     # api mode without uvicorn is uncommon; print guidance
     print("API mode: run with uvicorn, e.g. uvicorn app.main:app --host 0.0.0.0 --port 8000", file=sys.stderr)

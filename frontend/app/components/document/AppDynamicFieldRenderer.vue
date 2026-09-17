@@ -17,7 +17,6 @@ import type {
 } from '~/types/docetra/configuration'
 import type { ConnectionStatus, NotificationRule, TelegramDestination, CardDisplayEntityKey } from '~/types/docetra/settings'
 import { TELEGRAM_TEMPLATE_VARIABLES } from '~/types/docetra/settings'
-import { createClientId } from '~/utils/client-id'
 import { resolveFieldHelp, stripOptionalHelpPrefix } from '~/utils/field-help'
 import { FORM_CONTROL, FORM_CONTROL_COMPACT } from '~/utils/form-field-ui'
 import { useReferenceOptions } from '~/composables/common/useReferenceOptions'
@@ -40,15 +39,11 @@ const emit = defineEmits<{
 const { t, te } = useI18n()
 const route = useRoute()
 const { loadReferenceOptions } = useReferenceOptions()
+const auth = useAuthStore()
 
 const hintOpen = ref(false)
 
-const destinationTypeItems = [
-  { label: 'Chat', value: 'chat' },
-  { label: 'Channel', value: 'channel' },
-  { label: 'Group', value: 'group' },
-  { label: 'Organization', value: 'organization' },
-]
+const canConfigureTelegram = computed(() => auth.canAccessPage('settings.app_config.configure'))
 
 const boolValue = computed({
   get: () => Boolean(props.modelValue),
@@ -371,23 +366,6 @@ function closeHint() {
 watch(() => props.field.key, () => {
   hintOpen.value = false
 })
-
-function addDestination() {
-  const next: TelegramDestination = {
-    id: createClientId('td'),
-    name: 'New destination',
-    type: 'chat',
-    chatId: '',
-    enabledEvents: ['record_created'],
-    status: 'not_tested',
-    enabled: true,
-  }
-  destinationsValue.value = [...destinationsValue.value, next]
-}
-
-function removeDestination(id: string) {
-  destinationsValue.value = destinationsValue.value.filter(d => d.id !== id)
-}
 </script>
 
 <template>
@@ -588,69 +566,12 @@ function removeDestination(id: string) {
     </CommonAppSortableList>
   </div>
 
-  <div
+  <SettingsAppTelegramDestinations
     v-else-if="isTelegramDestinations"
-    class="space-y-3 md:col-span-2"
-  >
-    <div class="flex items-center justify-between">
-      <h4 class="text-sm font-semibold">
-        {{ t('docetra.settings.destinations') }}
-      </h4>
-      <UButton
-        size="sm"
-        icon="i-lucide-plus"
-        :disabled="disabled || field.readOnly"
-        @click="addDestination"
-      >
-        {{ t('docetra.settings.addDestination') }}
-      </UButton>
-    </div>
-
-    <div
-      v-for="dest in destinationsValue"
-      :key="dest.id"
-      class="grid gap-2 rounded-lg border border-default p-3 md:grid-cols-4"
-    >
-      <UInput
-        v-model="dest.name"
-        :placeholder="t('docetra.fields.placeholderEnter', { label: t('docetra.fields.name') })"
-        :disabled="disabled || field.readOnly"
-        :color="FORM_CONTROL.color"
-        :variant="FORM_CONTROL.variant"
-        :size="FORM_CONTROL.size"
-      />
-      <UInput
-        v-model="dest.chatId"
-        :placeholder="t('docetra.fields.placeholderEnter', { label: t('docetra.settings.chatId') })"
-        :disabled="disabled || field.readOnly"
-        :color="FORM_CONTROL.color"
-        :variant="FORM_CONTROL.variant"
-        :size="FORM_CONTROL.size"
-      />
-      <USelect
-        v-model="dest.type"
-        :items="destinationTypeItems"
-        value-key="value"
-        label-key="label"
-        :placeholder="t('docetra.fields.placeholderSelect', { label: t('docetra.settings.destinationType') })"
-        :disabled="disabled || field.readOnly"
-        :color="FORM_CONTROL.color"
-        :variant="FORM_CONTROL.variant"
-        :size="FORM_CONTROL.size"
-      />
-      <div class="flex items-center justify-between gap-2">
-        <USwitch v-model="dest.enabled" :disabled="disabled || field.readOnly" />
-        <UButton
-          icon="i-lucide-trash-2"
-          color="error"
-          variant="ghost"
-          size="xs"
-          :disabled="disabled || field.readOnly"
-          @click="removeDestination(dest.id)"
-        />
-      </div>
-    </div>
-  </div>
+    v-model="destinationsValue"
+    :disabled="disabled || field.readOnly"
+    :can-configure="canConfigureTelegram"
+  />
 
   <div
     v-else-if="isNotificationRules"

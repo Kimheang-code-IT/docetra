@@ -95,3 +95,44 @@ async def update_app_config(db: AsyncSession, body: dict) -> dict:
 
     await invalidate_app_config_cache()
     return await get_setting(db, "app-config", DEFAULT_APP_CONFIG)
+
+
+async def record_telegram_status(
+    db: AsyncSession,
+    *,
+    status: str,
+    message: str,
+    bot_username: str | None = None,
+    verified_chat_ids: list[str] | None = None,
+) -> dict:
+    """Persist a Telegram connection/test result on the live app-config row.
+
+    When a test message succeeds, matching destinations are marked verified so
+    meeting reminders can be delivered to them.
+    """
+    row = await db.get(AppSetting, "app-config") or AppSetting(key="app-config", value=protect_mapping(DEFAULT_APP_CONFIG))
+    current = reveal_mapping(row.value or DEFAULT_APP_CONFIG)
+    telegram = dict(current.get("telegram") or {})
+    tested_at = iso_utc(datetime.now(timezone.utc))
+    telegram["connectionStatus"] = status
+    telegram["lastTestedAt"] = tested_at
+    telegram["lastTestMessage"] = message
+    if bot_username is not None:
+        telegram["botUsername"] = bot_username
+    if verified_chat_ids:
+        verified = {str(chat_id) for chat_id in verified_chat_ids}
+        telegram["destinations"] = [
+            {**dest, "verified": True, "status": "connected", "lastTestedAt": tested_at}
+            if str(dest.get("chatId")) in verified
+            else dest
+            for dest in (telegram.get("destinations") or [])
+        ]
+    current["telegram"] = telegram
+    row.value = protect_mapping(current)
+    row.updated_at = datetime.now(timezone.utc)
+    db.add(row)
+    await db.flush()
+    from app.modules.admin_config.services.runtime import invalidate_app_config_cache
+
+    await invalidate_app_config_cache()
+    return await get_setting(db, "app-config", DEFAULT_APP_CONFIG)

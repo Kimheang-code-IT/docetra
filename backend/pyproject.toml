@@ -61,4 +61,5 @@ addopts = "-m 'not integration'"
 markers = [
   "integration: live checks against a running Docker API",
   "security: authz, CSRF, secrets, upload hardening",
+  "migration: alembic upgrade/downgrade cycle against a scratch Postgres",
 ]

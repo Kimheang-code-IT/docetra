@@ -61,6 +61,7 @@ export const ApiEndpoints = {
   APP_CONFIG_SEND_TEST_EMAIL: '/api/v2/settings/app-config/email/send-test',
   APP_CONFIG_TEST_TELEGRAM: '/api/v2/settings/app-config/telegram/test-connection',
   APP_CONFIG_SEND_TEST_TELEGRAM: '/api/v2/settings/app-config/telegram/send-test',
+  APP_CONFIG_DISCOVER_TELEGRAM_CHATS: '/api/v2/settings/app-config/telegram/discover-chats',
   STORAGE_PROVIDERS: '/api/v2/settings/storage',
   STORAGE_PROVIDER: (id: string) => `/api/v2/settings/storage/${id}`,
   STORAGE_PROVIDER_TEST: (id: string) => `/api/v2/settings/storage/${id}/test-connection`,

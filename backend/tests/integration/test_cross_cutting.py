@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import uuid
+
 import pytest
 
 from tests.integration.conftest import assert_envelope, mutate
@@ -41,6 +43,21 @@ def test_export_job_create_and_get(auth_client):
     status = auth_client.get(f"/api/v2/exports/{job_id}")
     status_body = assert_envelope(status)
     assert status_body["data"]["id"] == job_id
+
+
+def test_audit_trail_records_mutation(auth_client):
+    title = f"Audit trail {uuid.uuid4().hex[:8]}"
+    created = mutate(auth_client, "POST", "/api/v2/records/document", json={"title": title})
+    entity_id = assert_envelope(created)["data"]["id"]
+
+    logs = auth_client.get("/api/v2/records/logs", params={"page": 1, "limit": 50})
+    body = assert_envelope(logs, require_meta=True)
+    entries = [entry for entry in body["data"] if (entry.get("detail") or {}).get("correlationId") == entity_id]
+    assert entries, body
+    entry = entries[0]
+    assert entry["action"] in {"create", "created"}
+    assert entry["sourceLog"] in {"record", "api", "unknown"}
+    assert entry["target"]
 
 
 def test_files_unknown_returns_404(auth_client):

@@ -92,6 +92,25 @@ export interface TelegramDestination {
   enabledEvents: NotificationEvent[]
   status: ConnectionStatus
   enabled: boolean
+  /** True after a test message was delivered to this chat. */
+  verified?: boolean
+  lastTestedAt?: string
+  lastTestMessage?: string
+}
+
+export interface TelegramChat {
+  chatId: string
+  title: string
+  type: string
+  username?: string
+}
+
+export type TelegramTestResult = {
+  status: ConnectionStatus
+  message: string
+  testedAt?: string
+  sent?: string[]
+  errors?: string[]
 }
 
 export interface TelegramConfig {

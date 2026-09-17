@@ -20,6 +20,7 @@ export default defineConfig({
         'app/utils/api/concurrency.ts',
         'app/utils/api/error-policy.ts',
         'app/utils/api/query.ts',
+        'app/utils/audit/audit-dto.ts',
         'app/utils/security/csrf.ts',
         'app/utils/security/files.ts',
         'app/utils/security/url.ts',

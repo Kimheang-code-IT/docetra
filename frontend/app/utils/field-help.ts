@@ -9,7 +9,7 @@ type TranslateExists = (key: string) => boolean
 export function stripOptionalHelpPrefix(text: string): string {
   return text
     .replace(/^Optional\.\s*/i, '')
-    .replace(/^ស្រេចចិត្ត\s*[\.។]?\s*/u, '')
+    .replace(/^ស្រេចចិត្ត\s*[.។]?\s*/u, '')
     .trim()
 }
 

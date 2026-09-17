@@ -4,6 +4,8 @@ import type {
   ConnectionStatus,
   CreateStorageProviderInput,
   StorageProvider,
+  TelegramChat,
+  TelegramTestResult,
   UpdateStorageProviderInput,
 } from '~/types/docetra/settings'
 
@@ -18,8 +20,9 @@ export interface AppConfigRepository {
   update: (input: Partial<AppConfig>) => Promise<AppConfig>
   testEmailConnection: () => Promise<{ status: ConnectionStatus, message: string }>
   sendTestEmail: (to: string) => Promise<{ status: ConnectionStatus, message: string }>
-  testTelegramConnection: () => Promise<{ status: ConnectionStatus, message: string }>
-  sendTestTelegramMessage: (destinationId?: string) => Promise<{ status: ConnectionStatus, message: string }>
+  testTelegramConnection: () => Promise<TelegramTestResult>
+  sendTestTelegramMessage: (input: { destinationId?: string, chatId?: string }) => Promise<TelegramTestResult>
+  discoverTelegramChats: () => Promise<TelegramChat[]>
 }
 
 export interface StorageRepository {

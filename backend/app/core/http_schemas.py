@@ -47,6 +47,13 @@ class AppSettingsBody(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
+class TelegramTestBody(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    destinationId: str | None = None
+    chatId: str | None = None
+
+
 class DriveSourceBody(BaseModel):
     model_config = ConfigDict(extra="allow")
 

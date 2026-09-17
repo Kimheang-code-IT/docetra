@@ -4,11 +4,12 @@ Everything that runs Docetra outside application code: the Docker stack, environ
 
 ```text
 infrastructure/
-├── docker-compose.yml          # api + worker + scheduler + postgres + redis + rabbitmq + minio
+├── docker-compose.yml          # nginx (static SPA + API edge) + api (+APScheduler) + worker + postgres + redis + rabbitmq + minio
 ├── .env                        # REAL local values (gitignored — never commit)
 ├── .env.example                # template with CHANGE_ME placeholders + production checklist
 ├── nginx/
-│   └── docetra.conf.example    # reverse proxy template (HTTPS, /api → :8000, / → :3000)
+│   ├── docker.conf             # containerized edge (static SPA + /api proxy) used by Compose
+│   └── docetra.conf.example    # host reverse proxy template (HTTPS, /api → :8000, / → :8080)
 └── scripts/                    # up / down / logs / backup (PowerShell + bash)
 ```
 
@@ -38,15 +39,16 @@ Rotate immediately if a real `.env` is ever shared or committed.
 
 | Service | Purpose | Loopback port |
 | --- | --- | --- |
-| api | FastAPI HTTP (`/api/v2`) | 8000 |
+| nginx | Sole edge + static SPA host: serves the Nuxt SPA, proxies `/api/` → FastAPI | `HTTP_PORT` (8080) |
+| api | FastAPI HTTP (`/api/v2`) + APScheduler (`SCHEDULER_IN_API=true`) | 8000 |
 | worker | RabbitMQ consumers: Drive sync, exports, notifications | — |
-| scheduler | APScheduler: meeting reminders, reconciliation, cleanup | — |
+| telegram | Dedicated Telegram bot (long polling): menus, reminders, reset codes | — |
 | postgres | Business + authorization truth | 5432 |
 | redis | Session/operational state (DB 0) + cache tiers (DB 1/2) | 6379 |
 | rabbitmq | Job queue between api → worker | 15672 (UI) |
 | minio | S3-compatible object storage for attachments/exports | 9000 / 9001 (UI) |
 
-Worker and scheduler always stay separate processes — never fold jobs into the API. Local ports can be changed per machine in `.env` (e.g. `BACKEND_PORT=8001`).
+The frontend is a **static SPA served by nginx** (no Node runtime container). For this small stack APScheduler runs inside the API (`SCHEDULER_IN_API=true`); set it to `false` and run `python -m app.main scheduler` separately when scaling to multiple API workers/instances. The worker stays a separate process, and the Telegram bot runs in its own `telegram` container so chat traffic never competes with job consumption. Local ports can be changed per machine in `.env` (e.g. `BACKEND_PORT=8001`). Browse the app at `http://localhost:${HTTP_PORT}` (default 8080); the browser talks to nginx and `/api/v2` is proxied to FastAPI on the same origin.
 
 ## Operations scripts
 
@@ -61,13 +63,12 @@ Worker and scheduler always stay separate processes — never fold jobs into the
 
 ## Production deployment (single box)
 
-1. Install Docker + nginx; clone the repo.
-2. `cp infrastructure/.env.example infrastructure/.env.production` and fill in every value (checklist at the bottom of the template — the backend refuses to boot in production until it passes validation).
+1. Install Docker (nginx is part of the stack); clone the repo.
+2. `cp infrastructure/.env.example infrastructure/.env.production` and fill in every value (checklist at the bottom of the template — the backend refuses to boot in production until it passes validation). Set `HTTP_PORT` and `NUXT_PUBLIC_SITE_URL` to your public origin.
 3. `cd infrastructure && docker compose --env-file .env.production up -d --build`
-4. Run the Nuxt frontend on the host (`127.0.0.1:3000`, node-server preset + systemd/pm2).
-5. Copy `nginx/docetra.conf.example` to `/etc/nginx/sites-available/docetra.conf`, set the real domain, run `certbot --nginx`, reload nginx.
-6. Schedule `scripts/backup.sh` daily via cron (Task Scheduler on Windows).
+4. The app is served by the `nginx` container on `HTTP_PORT`. For TLS on a real domain, run the host reverse proxy from `nginx/docetra.conf.example` (certbot) in front and point it at `127.0.0.1:${HTTP_PORT}`, or add certs to `nginx/docker.conf`.
+5. Schedule `scripts/backup.sh` daily via cron (Task Scheduler on Windows).
 
 ## CI
 
-GitHub Actions (`.github/workflows/ci.yml`) uses this same compose file with CI-generated secrets and waits on `http://127.0.0.1:8000/ready` before integration/E2E tests.
+GitHub Actions (`.github/workflows/ci.yml`) uses this same compose file with CI-generated secrets and waits on `http://127.0.0.1:8000/ready` before integration/E2E tests. After the full suite passes on a `dev`/`main` push, the `deploy` job SSHes to the production box and runs this compose file with `infrastructure/.env.production` — see `docs/DEPLOYMENT.md` for the required secrets.

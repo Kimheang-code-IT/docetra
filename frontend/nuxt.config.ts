@@ -5,6 +5,9 @@ const nodeEnv = (globalThis as { process?: { env?: Record<string, string | undef
 const apiProxyTarget = (nodeEnv.NUXT_API_PROXY_TARGET || 'http://127.0.0.1:8000').replace(/\/$/, '')
 const publicApiBase = nodeEnv.NUXT_PUBLIC_API_BASE ?? ''
 const useSameOriginProxy = !publicApiBase
+// Static SPA build (nginx-only deploy): no Nitro server, nginx proxies /api.
+// Default false so dev, CI, and SSR deploys keep server rendering.
+const staticSpaMode = nodeEnv.NUXT_STATIC_SPA === 'true'
 
 function productionConnectSrc() {
   const origins = ["'self'"]
@@ -35,6 +38,8 @@ const productionCsp = [
 ].join('; ')
 
 export default defineNuxtConfig({
+  ssr: !staticSpaMode,
+
   modules: [
     '@nuxt/ui',
     '@nuxt/image',
@@ -164,7 +169,7 @@ export default defineNuxtConfig({
   },
 
   routeRules: {
-    ...(useSameOriginProxy
+    ...(useSameOriginProxy && !staticSpaMode
       ? {
           '/api/v2/**': { proxy: `${apiProxyTarget}/api/v2/**` },
           '/health': { proxy: `${apiProxyTarget}/health` },
@@ -192,7 +197,8 @@ export default defineNuxtConfig({
 
   nitro: {
     // Vercel for production; Node preview (CI/e2e) needs routeRules proxy to FastAPI.
-    preset: nodeEnv.NITRO_PRESET || 'vercel',
+    // Static SPA mode emits pure files for nginx.
+    preset: staticSpaMode ? 'static' : (nodeEnv.NITRO_PRESET || 'vercel'),
   },
 
   compatibilityDate: '2024-07-11',

@@ -6,7 +6,35 @@ FastAPI async application in `backend/app/`. All business endpoints are prefixed
 
 - **API**: `uvicorn app.main:app` — HTTP only, never runs jobs.
 - **Worker**: `python -m app.main worker` — RabbitMQ consumers (exports, outbox).
-- **Scheduler**: `python -m app.main scheduler` — APScheduler: `cleanup_expired_exports`, `due_meeting_reminders`, `reconcile`.
+- **Scheduler**: `python -m app.main scheduler` — APScheduler: `cleanup_expired_exports`, `due_meeting_reminders`, `reconcile`. Small single-box deploys can set `SCHEDULER_IN_API=true` to run it inside the API.
+
+## Telegram notifications
+
+Meeting reminders flow: `meeting_schedules` → `due_meeting_reminders` publishes `meeting.reminder.due` → worker `handle_meeting_message` → `app/integrations/telegram` `sendMessage` to every enabled destination with a `chatId`.
+
+- Token resolution: Settings → App Config → Telegram `botToken` (encrypted at rest) overrides the `TELEGRAM_MEETING_BOT_TOKEN` env fallback. `telegram.enabled` gates delivery.
+- Config API (`settings.app_config.configure`): `POST /api/v2/settings/app-config/telegram/test-connection` (getMe + persist status), `POST .../telegram/send-test` (sends a real message to `chatId`/`destinationId` or all enabled destinations, marks them verified), `POST .../telegram/discover-chats` (getUpdates — returns chats that messaged the bot).
+- **Telegram limitation**: a bot cannot start a chat. The user must open the bot in Telegram and press **Start** before messages deliver; `discover-chats` then returns that chat ID.
+
+### Interactive bot (long polling)
+
+A **dedicated process/container** long-polls the Bot API (`python -m app.main telegram`, gated by `TELEGRAM_BOT_POLLING`) and answers a button menu:
+
+- **Main menu**: 📅 Meetings · 📄 Documents · 🏢 Departments · 👤 Officers.
+- **Stepped flow on the reply keyboard** (buttons above the input):
+  - Meetings → period (Today / Week / Month / All) or **📅 Custom range** → result
+  - Documents → document type → period / custom range → result
+  - Departments / Officers → result directly
+- **Custom range**: send two dates, e.g. `01/09/2026 17/09/2026` (DD/MM/YYYY or YYYY-MM-DD); the end day is inclusive.
+- The interactive menu is **private-chat only** — each user gets their own result messages. Groups are broadcast-only.
+- Step changes post a short label message (sent quietly) that carries the next keyboard; the final result carries the main keyboard back.
+- Every result ends with a `🕒 <time> UTC` footer.
+- Only chats that are configured destinations or listed in `TELEGRAM_MEETING_ALLOWED_CHAT_IDS` are answered.
+- Seen chats are cached in Redis (`telegram:known-chats`); per-chat flow state is in `telegram:bot:state:<chat>`.
+- **Meeting alerts** are pushed by the worker to every enabled destination, including groups (all members see them).
+- **Password-reset codes** are delivered by the worker to **private destinations only** — never groups/channels.
+
+Run the bot only in the single `telegram` container/process.
 
 ## Layering rules (enforced by architecture tests)
 

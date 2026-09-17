@@ -1,6 +1,6 @@
 # Docetra backend
 
-FastAPI API, RabbitMQ worker, and APScheduler process. Matches the Nuxt adapters in `frontend/app/utils/constants/api-endpoints.ts`.
+FastAPI API, RabbitMQ worker, and APScheduler jobs (separate process by default, or in-API when `SCHEDULER_IN_API=true`). Matches the Nuxt adapters in `frontend/app/utils/constants/api-endpoints.ts`.
 
 ## Processes
 
@@ -8,7 +8,8 @@ FastAPI API, RabbitMQ worker, and APScheduler process. Matches the Nuxt adapters
 | --- | --- |
 | `alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000` | HTTP API |
 | `python -m app.main worker` | Outbox publisher, export completion, queue consumers |
-| `python -m app.main scheduler` | UTC meeting reminder / reconcile ticks |
+| `python -m app.main scheduler` | UTC meeting reminder / reconcile ticks (or set `SCHEDULER_IN_API=true` on the API for small deploys) |
+| `python -m app.main telegram` | Dedicated Telegram bot long-polling process (menus, range filters) |
 
 ### Small team (~20 users) — keep all three
 

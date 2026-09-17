@@ -19,18 +19,21 @@ docker compose --env-file .env.production -f docker-compose.yml up -d --build
 
 - API container runs `alembic upgrade head` on start (schema at head `0012`).
 - Health: `GET /health` (liveness), `GET /ready` (readiness: DB/Redis/broker).
-- Worker + scheduler start separately and attach to the private network only.
+- The worker starts separately on the private network only. APScheduler runs inside the API by default (`SCHEDULER_IN_API=true`); set it to `false` and run `python -m app.main scheduler` separately when using multiple API workers/instances.
 
 ## Frontend deploy
 
+The SPA is built and served by the `nginx` Compose service (no Node runtime container):
+
 ```bash
-cd frontend
-pnpm install
-pnpm build          # static/hosted Nuxt build
-# serve via nginx (infrastructure/nginx/docetra.conf.example) pointing /api → api:8000
+cd infrastructure
+docker compose up -d --build nginx   # builds frontend (NUXT_STATIC_SPA=true) into an nginx image
+# browse http://localhost:8080 — nginx serves the SPA and proxies /api → api:8000
 ```
 
-Runtime config: `NUXT_PUBLIC_API_BASE` (or equivalent `runtimeConfig.public`) must point at the API origin; `authMode` defaults to cookie sessions.
+For a bare build outside Docker: `cd frontend && NUXT_STATIC_SPA=true pnpm generate`, then serve `frontend/.output/public` with nginx (history fallback to `200.html`).
+
+Runtime config: same-origin `/api/v2` is the default (nginx proxies it). Set `NUXT_PUBLIC_SITE_URL` (build arg) for canonical/OG URLs; cookie sessions are the default `authMode`.
 
 ## First-run bootstrap
 
@@ -53,6 +56,67 @@ Runtime config: `NUXT_PUBLIC_API_BASE` (or equivalent `runtimeConfig.public`) mu
 2. `docker compose ... up -d` — migrations run automatically on API start (additive-only policy).
 3. Verify `GET /ready`, login smoke test, dashboard load.
 
+## Continuous deployment (GitHub Actions)
+
+`.github/workflows/ci.yml` deploys automatically after the **full test suite passes** (unit, contract, integration, migrations, Playwright e2e).
+
+- **Triggers**: push to `dev` or `main`, or manual **Run workflow** (`workflow_dispatch`). Pull requests never deploy.
+- **Deploys the exact tested commit** (`github.sha`) over SSH — `git fetch` + `git checkout --force <sha>`, then `docker compose build` / `up -d --remove-orphans`, image prune, and a readiness gate on `GET /ready`.
+- If `DEPLOY_SSH_KEY` is unset the deploy step is skipped with a warning, so CI stays green until you configure CD.
+
+### Server preparation (149.248.1.175)
+
+1. Install Docker + Compose v2; ensure the deploy user can run Docker (`usermod -aG docker <user>`).
+2. Clone the repo to the deploy path, e.g. `/opt/docetra`.
+3. Create `infrastructure/.env.production` from `.env.example` and fill in every `CHANGE_ME` / production checklist value, including `HTTP_PORT` and `BACKEND_ENV_FILE=.env.production`.
+4. Create a dedicated deploy key and authorize it:
+   ```bash
+   ssh-keygen -t ed25519 -C "docetra-cd" -f docetra_cd
+   # append docetra_cd.pub to the server user's ~/.ssh/authorized_keys
+   ```
+5. Open the firewall for the app port (`HTTP_PORT`, default 8080) and, if a host nginx terminates TLS, 80/443.
+
+### GitHub repository secrets (Settings → Secrets and variables → Actions)
+
+| Secret | Required | Purpose |
+| --- | --- | --- |
+| `DEPLOY_USER` | yes | SSH user on the server |
+| `DEPLOY_SSH_KEY` | yes | Private deploy key (contents of `docetra_cd`) |
+| `DEPLOY_PATH` | yes | Absolute repo path on the server, e.g. `/opt/docetra` |
+| `DEPLOY_HOST` | no | Defaults to `149.248.1.175` |
+| `DEPLOY_PORT` | no | SSH port (default `22`) |
+| `DEPLOY_KNOWN_HOSTS` | no | Pinned host key line (recommended); otherwise `ssh-keyscan` is used |
+| `DEPLOY_ENV_FILE` | no | Defaults to `infrastructure/.env.production` |
+| `DEPLOY_HEALTH_URL` | no | Defaults to `http://127.0.0.1:8080/ready` |
+
+Optional: create a **`production` environment** (Settings → Environments) with required reviewers so deploys wait for approval.
+
+### Quick setup
+
+```bash
+# 1. On your machine: create a deploy key pair
+ssh-keygen -t ed25519 -C "docetra-cd" -f docetra_cd
+
+# 2. Authorize the public key on the server
+ssh-copy-id -i docetra_cd.pub <user>@149.248.1.175
+
+# 3. Prepare the server (Docker + repo + production env)
+ssh <user>@149.248.1.175
+sudo usermod -aG docker "$USER" && newgrp docker
+sudo git clone <repo-url> /opt/docetra && cd /opt/docetra
+cp infrastructure/.env.example infrastructure/.env.production   # then fill in all values
+exit
+
+# 4. Store the GitHub Actions secrets (run in the repo root)
+gh secret set DEPLOY_USER  --body "<user>"
+gh secret set DEPLOY_PATH  --body "/opt/docetra"
+gh secret set DEPLOY_SSH_KEY < docetra_cd
+gh secret set DEPLOY_HOST  --body "149.248.1.175"            # optional (this is the default)
+gh secret set DEPLOY_KNOWN_HOSTS < <(ssh-keyscan -H 149.248.1.175 2>/dev/null)  # optional, recommended
+```
+
+Push to `dev` (or `main`), or run the **CI/CD** workflow manually from the Actions tab. The `deploy` job runs only after every test passes.
+
 ## Security posture
 
 - Loopback-only publication of data services; only api (and nginx) on the edge network.
@@ -63,5 +127,5 @@ Runtime config: `NUXT_PUBLIC_API_BASE` (or equivalent `runtimeConfig.public`) mu
 ## Known deployment considerations
 
 - Single-box RabbitMQ/Redis/MinIO are availability trade-offs acceptable at target scale (documented in compose comments).
-- No frontend container image exists (static build); document or add one if containerized delivery is required — see GAP_ANALYSIS.
+- The frontend image is a static SPA baked into nginx (`frontend/Dockerfile`); there is no SSR/Node server. `SCHEDULER_IN_API=true` means the API is not horizontally scalable without duplicating scheduled jobs.
 - Backup profile is manual/on-schedule, not built-in continuous backup.

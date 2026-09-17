@@ -1,0 +1,26 @@
+# Build context hygiene — never copy host artifacts into the Linux image.
+node_modules
+.pnpm-store
+.nuxt
+.nitro
+.output
+.vercel
+.cache
+.data
+dist
+coverage
+test-results
+.playwright-cli
+e2e
+tests
+.git
+.gitignore
+.vscode
+.idea
+*.log
+*.md
+
+# Real env files are runtime/build args; keep only the template.
+.env
+.env.*
+!.env.example

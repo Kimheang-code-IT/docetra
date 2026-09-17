@@ -1,6 +1,6 @@
-# Docetra backend stack for local + small single-box deploys (~20 users):
-#   api + worker + scheduler + postgres + redis + rabbitmq + minio
-# Keep worker/scheduler as separate processes. Do not run jobs inside the API.
+# Docetra full stack for local + small single-box deploys (~20 users):
+#   nginx (static SPA + API edge) + api (+ APScheduler) + worker + telegram + postgres + redis + rabbitmq + minio
+# Worker and telegram run as separate processes. APScheduler runs in the API via SCHEDULER_IN_API.
 #
 # The .env file next to this compose file is the ONE source of truth for
 # container env AND ${...} interpolation (Compose auto-loads it from this
@@ -23,6 +23,8 @@ services:
       CACHE_SHORT_URL: redis://redis:6379/1
       RABBITMQ_URL: amqp://${RABBITMQ_USER:-docetra}:${RABBITMQ_PASSWORD:-docetra_rabbit_local_only}@rabbitmq:5672/${RABBITMQ_VHOST:-docetra}
       S3_ENDPOINT: http://minio:9000
+      # Small stack: run APScheduler inside the API (no separate scheduler container).
+      SCHEDULER_IN_API: "true"
     ports:
       - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
     depends_on:
@@ -50,6 +52,33 @@ services:
     networks:
       - edge
       - private
+
+  # Single edge entry point: serves the static SPA and proxies /api/ → FastAPI.
+  # Built from frontend/ (static export baked into an nginx image) — no Node
+  # runtime container.
+  nginx:
+    image: ${DOCETRA_FRONTEND_IMAGE:-docetra-frontend:local}
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      args:
+        NUXT_PUBLIC_SITE_URL: ${NUXT_PUBLIC_SITE_URL:-}
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${HTTP_PORT:-8080}:80"
+    volumes:
+      - ./nginx/docker.conf:/etc/nginx/conf.d/default.conf:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - edge
 
   worker:
     image: ${DOCETRA_BACKEND_IMAGE:-docetra-backend:local}
@@ -79,25 +108,28 @@ services:
       - ALL
     security_opt:
       - no-new-privileges:true
+    # edge is required for outbound internet: SMTP, Telegram, Google Drive.
+    # private is internal-only and would block those integrations.
     networks:
+      - edge
       - private
 
-  scheduler:
+  # Dedicated Telegram bot (long polling). Isolated from worker job load so
+  # many users chatting never compete with exports/Drive/notifications.
+  telegram:
     image: ${DOCETRA_BACKEND_IMAGE:-docetra-backend:local}
     restart: unless-stopped
-    command: ["sh", "-c", "${BACKEND_SCHEDULER_COMMAND:-python -m app.main scheduler}"]
+    command: ["sh", "-c", "${BACKEND_TELEGRAM_COMMAND:-python -m app.main telegram}"]
     env_file:
       - ${BACKEND_ENV_FILE:-.env}
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-docetra}:${POSTGRES_PASSWORD:-docetra_local_only}@postgres:5432/${POSTGRES_DB:-docetra}
       REDIS_URL: redis://redis:6379/0
-      RABBITMQ_URL: amqp://${RABBITMQ_USER:-docetra}:${RABBITMQ_PASSWORD:-docetra_rabbit_local_only}@rabbitmq:5672/${RABBITMQ_VHOST:-docetra}
+      CACHE_SHORT_URL: redis://redis:6379/1
     depends_on:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_healthy
-      rabbitmq:
         condition: service_healthy
     read_only: true
     tmpfs:
@@ -106,8 +138,9 @@ services:
       - ALL
     security_opt:
       - no-new-privileges:true
+    # Outbound internet only (Telegram API); DB/Redis are on edge too.
     networks:
-      - private
+      - edge
 
   postgres:
     image: ${POSTGRES_IMAGE:-postgres@sha256:18cfe3ef5e6815560c98237d6216d1e5119702fb0f3894c8785dd58b8bbe5d73}
@@ -146,21 +179,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
-    networks:
-      - edge
-      - private
-
-  # Browser UI for Redis (ops DB 0 + cache DB 1/2). Local development only.
-  redis-ui:
-    image: ${REDIS_UI_IMAGE:-rediscommander/redis-commander@sha256:19cd0c49f418779fa2822a0496c5e6516d0c792effc39ed20089e6268477e40a}
-    restart: unless-stopped
-    environment:
-      REDIS_HOSTS: "ops:redis:6379:0,short:redis:6379:1,long:redis:6379:2"
-    ports:
-      - "127.0.0.1:${REDIS_UI_PORT:-8081}:8081"
-    depends_on:
-      redis:
-        condition: service_healthy
     networks:
       - edge
       - private

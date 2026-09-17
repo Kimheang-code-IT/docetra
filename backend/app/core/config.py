@@ -35,8 +35,11 @@ class Settings(BaseSettings):
     password_reset_url: str = "http://localhost:3000/auth/reset-password"
     telegram_meeting_bot_enabled: bool = False
     telegram_meeting_bot_token: str = ""
+    telegram_meeting_allowed_chat_ids: Annotated[list[str], NoDecode] = []
     telegram_devops_bot_enabled: bool = False
     telegram_devops_bot_token: str = ""
+    # Long-poll the Bot API from the worker to power the interactive menu.
+    telegram_bot_polling: bool = True
     google_drive_access_token: str = ""
     google_drive_folder_id: str = ""
     max_upload_size_mb: int = 25
@@ -52,6 +55,9 @@ class Settings(BaseSettings):
     worker_prefetch: int = 2
     worker_outbox_poll_seconds: float = 2.0
     scheduler_engine: str = "apscheduler"
+    # Small single-box deploys can run APScheduler inside the API process to
+    # save a container. Keep it False when a dedicated scheduler process exists.
+    scheduler_in_api: bool = False
     scheduler_timezone: str = "UTC"
     scheduler_misfire_grace_seconds: int = 300
     scheduler_coalesce: bool = True
@@ -83,6 +89,14 @@ class Settings(BaseSettings):
         if parts and parts[0].lstrip("-").isdigit():
             return [int(item) for item in parts]
         return parts
+
+    @field_validator("telegram_meeting_allowed_chat_ids", mode="before")
+    @classmethod
+    def split_chat_ids(cls, value):
+        """Telegram chat IDs stay strings (large/negative values, exact match)."""
+        if not isinstance(value, str):
+            return value
+        return [item.strip() for item in value.split(",") if item.strip()]
 
     @property
     def async_database_url(self):

@@ -69,4 +69,7 @@ pnpm install
 pnpm dev
 pnpm typecheck
 pnpm build
+NUXT_STATIC_SPA=true pnpm generate   # static SPA for the nginx Docker image (.output/public)
 ```
+
+The Docker stack serves a static SPA through nginx (`frontend/Dockerfile`); `pnpm dev`/`pnpm build` keep SSR for development, CI, and Vercel.
