@@ -1,0 +1,120 @@
+name: CD
+
+on:
+  # Run CD only after the CI workflow succeeds on a deployable branch.
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main, dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  promote:
+    name: Merge tested dev into main
+    if: >-
+      github.event_name == 'workflow_run'
+      && github.event.workflow_run.conclusion == 'success'
+      && github.event.workflow_run.head_branch == 'dev'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+
+      - name: Fast-forward or merge into main
+        env:
+          TESTED_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git checkout -B main origin/main
+          if git merge-base --is-ancestor origin/main "$TESTED_SHA"; then
+            git merge --ff-only "$TESTED_SHA"
+          else
+            git merge --no-ff "$TESTED_SHA" -m "ci: merge tested dev (${TESTED_SHA:0:7}) into main"
+          fi
+          git push origin main
+
+  # Continuous deployment: only after the CI workflow passes.
+  # Configure the secrets listed in docs/DEPLOYMENT.md before enabling.
+  deploy:
+    name: Deploy to production
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      || (github.event_name == 'workflow_run'
+      && github.event.workflow_run.conclusion == 'success'
+      && (github.event.workflow_run.head_branch == 'main' || github.event.workflow_run.head_branch == 'dev'))
+    runs-on: ubuntu-latest
+    environment: production
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    steps:
+      - name: Check deploy secret
+        id: guard
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          if [ -z "${DEPLOY_SSH_KEY:-}" ]; then
+            echo "::warning title=Deploy skipped::DEPLOY_SSH_KEY is not set. Add the deploy secrets from docs/DEPLOYMENT.md to enable CD."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Deploy over SSH
+        if: steps.guard.outputs.ready == 'true'
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST || '167.71.244.107' }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER || 'root' }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT || '22' }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          DEPLOY_HEALTH_URL: ${{ secrets.DEPLOY_HEALTH_URL || 'http://127.0.0.1:8080/ready' }}
+          DEPLOY_ENV_FILE: ${{ secrets.DEPLOY_ENV_FILE || 'infrastructure/.env.production' }}
+          TESTED_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          if [ -n "${DEPLOY_KNOWN_HOSTS:-}" ]; then
+            printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          else
+            ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          fi
+          chmod 600 ~/.ssh/known_hosts
+
+          ssh -i ~/.ssh/deploy_key -p "$DEPLOY_PORT" -o StrictHostKeyChecking=yes \
+            "$DEPLOY_USER@$DEPLOY_HOST" \
+            "APP_DIR='$DEPLOY_PATH' SHA='$TESTED_SHA' ENV_FILE='$DEPLOY_ENV_FILE' HEALTH_URL='$DEPLOY_HEALTH_URL' bash -s" <<'REMOTE'
+          set -euo pipefail
+          cd "$APP_DIR"
+          echo "Deploying $SHA"
+          git fetch --prune origin
+          git checkout --force "$SHA"
+          # Compose resolves `env_file` relative to infrastructure/, so the env
+          # file passed via --env-file must be the same one containers load.
+          export BACKEND_ENV_FILE="$(basename "$ENV_FILE")"
+          docker compose --env-file "$ENV_FILE" -f infrastructure/docker-compose.yml build
+          docker compose --env-file "$ENV_FILE" -f infrastructure/docker-compose.yml up -d --remove-orphans
+          docker image prune -f
+          echo "Waiting for readiness: $HEALTH_URL"
+          for i in $(seq 1 30); do
+            if curl -sf "$HEALTH_URL" >/dev/null; then echo "ready"; exit 0; fi
+            sleep 2
+          done
+          echo "::error::Service did not become ready at $HEALTH_URL"
+          docker compose --env-file "$ENV_FILE" -f infrastructure/docker-compose.yml ps
+          docker compose --env-file "$ENV_FILE" -f infrastructure/docker-compose.yml logs api --tail 100
+          exit 1
+          REMOTE

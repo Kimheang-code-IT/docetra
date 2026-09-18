@@ -58,13 +58,13 @@ Runtime config: same-origin `/api/v2` is the default (nginx proxies it). Set `NU
 
 ## Continuous deployment (GitHub Actions)
 
-`.github/workflows/ci.yml` deploys automatically after the **full test suite passes** (unit, contract, integration, migrations, Playwright e2e).
+`.github/workflows/cd.yml` deploys automatically after the **CI workflow** (`.github/workflows/ci.yml`) passes (unit, contract, integration, migrations).
 
-- **Triggers**: push to `dev` or `main`, or manual **Run workflow** (`workflow_dispatch`). Pull requests never deploy.
-- **Deploys the exact tested commit** (`github.sha`) over SSH — `git fetch` + `git checkout --force <sha>`, then `docker compose build` / `up -d --remove-orphans`, image prune, and a readiness gate on `GET /ready`.
+- **Triggers**: the `CD` workflow runs when `CI` completes successfully on `dev` or `main` (`workflow_run`), or manual **Run workflow** (`workflow_dispatch`). Pull requests never deploy. On `dev`, the tested commit is first merged into `main` by the `promote` job.
+- **Deploys the exact tested commit** (`workflow_run.head_sha`) over SSH — `git fetch` + `git checkout --force <sha>`, then `docker compose build` / `up -d --remove-orphans`, image prune, and a readiness gate on `GET /ready`.
 - If `DEPLOY_SSH_KEY` is unset the deploy step is skipped with a warning, so CI stays green until you configure CD.
 
-### Server preparation (149.248.1.175)
+### Server preparation (167.71.244.107)
 
 1. Install Docker + Compose v2; ensure the deploy user can run Docker (`usermod -aG docker <user>`).
 2. Clone the repo to the deploy path, e.g. `/opt/docetra`.
@@ -80,10 +80,10 @@ Runtime config: same-origin `/api/v2` is the default (nginx proxies it). Set `NU
 
 | Secret | Required | Purpose |
 | --- | --- | --- |
-| `DEPLOY_USER` | yes | SSH user on the server |
+| `DEPLOY_USER` | no | SSH user on the server (defaults to `root`) |
 | `DEPLOY_SSH_KEY` | yes | Private deploy key (contents of `docetra_cd`) |
 | `DEPLOY_PATH` | yes | Absolute repo path on the server, e.g. `/opt/docetra` |
-| `DEPLOY_HOST` | no | Defaults to `149.248.1.175` |
+| `DEPLOY_HOST` | no | Defaults to `167.71.244.107` |
 | `DEPLOY_PORT` | no | SSH port (default `22`) |
 | `DEPLOY_KNOWN_HOSTS` | no | Pinned host key line (recommended); otherwise `ssh-keyscan` is used |
 | `DEPLOY_ENV_FILE` | no | Defaults to `infrastructure/.env.production` |
@@ -98,24 +98,24 @@ Optional: create a **`production` environment** (Settings → Environments) with
 ssh-keygen -t ed25519 -C "docetra-cd" -f docetra_cd
 
 # 2. Authorize the public key on the server
-ssh-copy-id -i docetra_cd.pub <user>@149.248.1.175
+ssh-copy-id -i docetra_cd.pub root@167.71.244.107
 
 # 3. Prepare the server (Docker + repo + production env)
-ssh <user>@149.248.1.175
+ssh root@167.71.244.107
 sudo usermod -aG docker "$USER" && newgrp docker
 sudo git clone <repo-url> /opt/docetra && cd /opt/docetra
 cp infrastructure/.env.example infrastructure/.env.production   # then fill in all values
 exit
 
 # 4. Store the GitHub Actions secrets (run in the repo root)
-gh secret set DEPLOY_USER  --body "<user>"
+gh secret set DEPLOY_USER  --body "root"                     # optional (this is the default)
 gh secret set DEPLOY_PATH  --body "/opt/docetra"
 gh secret set DEPLOY_SSH_KEY < docetra_cd
-gh secret set DEPLOY_HOST  --body "149.248.1.175"            # optional (this is the default)
-gh secret set DEPLOY_KNOWN_HOSTS < <(ssh-keyscan -H 149.248.1.175 2>/dev/null)  # optional, recommended
+gh secret set DEPLOY_HOST  --body "167.71.244.107"           # optional (this is the default)
+gh secret set DEPLOY_KNOWN_HOSTS < <(ssh-keyscan -H 167.71.244.107 2>/dev/null)  # optional, recommended
 ```
 
-Push to `dev` (or `main`), or run the **CI/CD** workflow manually from the Actions tab. The `deploy` job runs only after every test passes.
+Push to `dev` (or `main`), or run the **CD** workflow manually from the Actions tab. The `deploy` job runs only after CI passes.
 
 ## Security posture
 

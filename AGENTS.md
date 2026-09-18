@@ -46,7 +46,7 @@ Full stack (from repo root; Compose auto-loads `infrastructure/.env`):
 docker compose -f infrastructure/docker-compose.yml up --build -d
 ```
 
-CI order (`.github/workflows/ci.yml`): gitleaks → backend lint/unit/contract → frontend lint/typecheck/unit → live integration → Playwright → auto-merge `dev` into `main` → deploy to production on `dev`/`main` push (secrets in `docs/DEPLOYMENT.md`).
+CI (`.github/workflows/ci.yml`): gitleaks → backend lint/unit/contract → frontend lint/typecheck/unit → live integration → migrations. CD (`.github/workflows/cd.yml`, triggered by `workflow_run` after CI succeeds on `dev`/`main`): auto-merge `dev` into `main` → deploy to production (secrets in `docs/DEPLOYMENT.md`).
 
 ## Backend rules
 
