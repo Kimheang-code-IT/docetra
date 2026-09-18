@@ -160,3 +160,33 @@ jobs:
         env:
           MIGRATION_DATABASE_URL: postgresql+psycopg://docetra:docetra@127.0.0.1:55432/docetra
         run: python -m pytest tests/integration/test_migrations.py -m migration -q --tb=short
+
+  # Auto-merge dev into main once every check above passes. Runs in CI (not CD)
+  # because it must execute on dev pushes. CD is separate/manual for now.
+  promote:
+    name: Merge tested dev into main
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    needs: [integration, migrations]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          fetch-depth: 0
+
+      - name: Fast-forward or merge into main
+        env:
+          TESTED_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git checkout -B main origin/main
+          if git merge-base --is-ancestor origin/main "$TESTED_SHA"; then
+            git merge --ff-only "$TESTED_SHA"
+          else
+            git merge --no-ff "$TESTED_SHA" -m "ci: merge tested dev (${TESTED_SHA:0:7}) into main"
+          fi
+          git push origin main

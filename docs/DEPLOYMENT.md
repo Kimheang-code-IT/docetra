@@ -58,10 +58,12 @@ Runtime config: same-origin `/api/v2` is the default (nginx proxies it). Set `NU
 
 ## Continuous deployment (GitHub Actions)
 
-`.github/workflows/cd.yml` deploys automatically after the **CI workflow** (`.github/workflows/ci.yml`) passes (unit, contract, integration, migrations).
+`.github/workflows/ci.yml` runs the tests (unit, contract, integration, migrations) and, on a successful push to `dev`, auto-merges the tested commit into `main` via its `promote` job.
 
-- **Triggers**: the `CD` workflow runs when `CI` completes successfully on `dev` or `main` (`workflow_run`), or manual **Run workflow** (`workflow_dispatch`). Pull requests never deploy. On `dev`, the tested commit is first merged into `main` by the `promote` job.
-- **Deploys the exact tested commit** (`workflow_run.head_sha`) over SSH — `git fetch` + `git checkout --force <sha>`, then `docker compose build` / `up -d --remove-orphans`, image prune, and a readiness gate on `GET /ready`.
+`.github/workflows/cd.yml` deploys to production. It is **manual for now** (no automatic trigger) — re-enable auto-deploy later by adding a `workflow_run` trigger on `CI`.
+
+- **Triggers**: manual **Run workflow** (`workflow_dispatch`) only. Pull requests never deploy.
+- **Deploys the commit** (`github.sha`) selected when the workflow is dispatched over SSH — `git fetch` + `git checkout --force <sha>`, then `docker compose build` / `up -d --remove-orphans`, image prune, and a readiness gate on `GET /ready`.
 - If `DEPLOY_SSH_KEY` is unset the deploy step is skipped with a warning, so CI stays green until you configure CD.
 
 ### Server preparation (167.71.244.107)
