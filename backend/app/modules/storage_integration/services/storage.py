@@ -88,6 +88,75 @@ async def invalidate_storage_client() -> None:
     _bucket = None
 
 
+_S3_KINDS = {"minio", "amazon_s3", "cloudflare_r2", "s3"}
+
+
+async def storage_status(db: AsyncSession) -> dict:
+    """Read-only storage readiness for portal users (never reveals secret material).
+
+    A UI-configured provider wins; otherwise the env MinIO/S3 values count as the
+    ready fallback. Google Drive is ready when a configured source exists or the
+    env access token + folder are set.
+    """
+    rows = await entity_bags.list_entities(db, "storage-providers")
+
+    file_provider = None
+    fallback_file = None
+    drive_provider = None
+    for row in rows:
+        if row["status"] == "deleted":
+            continue
+        payload = row["payload"] or {}
+        if not payload.get("active", True):
+            continue
+        kind = str(payload.get("type") or "minio").lower()
+        if kind == "google_drive":
+            if drive_provider is None and payload.get("folderId"):
+                drive_provider = payload
+            continue
+        if kind in _S3_KINDS:
+            if payload.get("isDefault"):
+                file_provider = payload
+                break
+            if fallback_file is None:
+                fallback_file = payload
+    file_provider = file_provider or fallback_file
+
+    env_file_ready = bool(settings.s3_endpoint and settings.s3_access_key and settings.s3_secret_key and settings.s3_bucket)
+    if file_provider is not None:
+        file_storage = {
+            "ready": True,
+            "source": "provider",
+            "providerType": str(file_provider.get("type") or "minio").lower(),
+            "bucket": file_provider.get("bucket") or settings.s3_bucket,
+            "endpoint": file_provider.get("endpoint") or settings.s3_endpoint,
+        }
+    elif env_file_ready:
+        file_storage = {
+            "ready": True,
+            "source": "environment",
+            "providerType": "minio",
+            "bucket": settings.s3_bucket,
+            "endpoint": settings.s3_endpoint,
+        }
+    else:
+        file_storage = {"ready": False, "source": "none", "providerType": None, "bucket": None, "endpoint": None}
+
+    env_drive_ready = bool(settings.google_drive_access_token and settings.google_drive_folder_id)
+    if drive_provider is not None:
+        drive_source = "provider"
+    elif env_drive_ready:
+        drive_source = "environment"
+    else:
+        drive_source = "none"
+    google_drive = {
+        "ready": drive_provider is not None or env_drive_ready,
+        "source": drive_source,
+        "folderId": (drive_provider or {}).get("folderId") or (settings.google_drive_folder_id or None),
+    }
+    return {"fileStorage": file_storage, "googleDrive": google_drive}
+
+
 async def ensure_bucket(db: AsyncSession | None = None):
     return await objectstore.ensure_bucket(db, resolver=resolve_storage)
 

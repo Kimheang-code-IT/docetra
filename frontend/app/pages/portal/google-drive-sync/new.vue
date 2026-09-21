@@ -10,5 +10,7 @@ definePageMeta({
 </script>
 
 <template>
-  <DocumentEntityDocumentView :config="config" />
+  <PortalAppDriveSyncGate>
+    <DocumentEntityDocumentView :config="config" />
+  </PortalAppDriveSyncGate>
 </template>

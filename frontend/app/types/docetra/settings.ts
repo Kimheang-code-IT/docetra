@@ -269,6 +269,27 @@ export type CreateStorageProviderInput = Omit<
 
 export type UpdateStorageProviderInput = Partial<CreateStorageProviderInput>
 
+export type StorageStatusSource = 'provider' | 'environment' | 'none'
+
+export interface FileStorageStatus {
+  ready: boolean
+  source: StorageStatusSource
+  providerType: string | null
+  bucket: string | null
+  endpoint: string | null
+}
+
+export interface GoogleDriveStatus {
+  ready: boolean
+  source: StorageStatusSource
+  folderId: string | null
+}
+
+export interface StorageStatus {
+  fileStorage: FileStorageStatus
+  googleDrive: GoogleDriveStatus
+}
+
 export const NOTIFICATION_EVENTS: NotificationEvent[] = [
   'record_created',
   'record_assigned',

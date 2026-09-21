@@ -19,7 +19,9 @@ from app.main import app
 #   GET/PUT /{base}/{id}/favorite across record, organization, and configuration routers.
 # Grew from 355 with the approved Telegram notification additions:
 #   POST /settings/app-config/telegram/discover-chats (detect chat IDs via getUpdates).
-ROUTE_MANIFEST_SHA256 = "7f4940862095f80dd929f42bbbcce0e872fd2f26eca3895deff407a318e45200"
+# Grew from 356 with the approved portal storage readiness endpoint:
+#   GET /portal/storage-status (file storage + Google Drive readiness for portal pages).
+ROUTE_MANIFEST_SHA256 = "aedcf1c0e090ca24eaf7f1b80eaa41322064eebe6ab7ef5680c4124c13eb61af"
 # Updated for the approved 0010_integration_contract_fields migration:
 # permission.scope (enum vocabulary columns later removed by 0011).
 # 0011_drop_enum_vocabulary removed the `enum` table (30 → 29).
@@ -80,7 +82,7 @@ def _metadata_manifest() -> list[dict[str, object]]:
 
 
 def test_route_manifest_is_unchanged() -> None:
-    assert len(_route_manifest()) == 356
+    assert len(_route_manifest()) == 357
     assert _digest(_route_manifest()) == ROUTE_MANIFEST_SHA256
 
 

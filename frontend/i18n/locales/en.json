@@ -1138,6 +1138,14 @@
       "expandUpload": "Expand upload folder",
       "uploadFailed": "Upload failed"
     },
+    "storageStatus": {
+      "storingOn": "Storing on {provider}",
+      "fileStorageMissingTitle": "File storage not configured",
+      "fileStorageMissingDesc": "No file storage provider is configured yet. An administrator must set up MinIO/S3 in App Config → Amazon S3 before uploading files.",
+      "openStorageSettings": "Open storage settings",
+      "driveMissingTitle": "Google Drive not configured",
+      "driveMissingDesc": "Google Drive credentials are not configured yet. An administrator must set up Google Drive in App Config → Google Drive before syncing files."
+    },
     "rolePermissions": {
       "documentType": "Document Type",
       "matrixTitle": "Permission matrix",

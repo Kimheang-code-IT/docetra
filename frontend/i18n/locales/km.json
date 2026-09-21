@@ -1138,6 +1138,14 @@
       "expandUpload": "ពង្រីកថតផ្ទុកឡើង",
       "uploadFailed": "ការផ្ទុកឡើងបរាជ័យ"
     },
+    "storageStatus": {
+      "storingOn": "រក្សាទុកនៅលើ {provider}",
+      "fileStorageMissingTitle": "មិនទាន់កំណត់ឧបករណ៍ផ្ទុកឯកសារ",
+      "fileStorageMissingDesc": "មិនទាន់មានឧបករណ៍ផ្ទុកឯកសារត្រូវបានកំណត់ទេ។ អ្នកគ្រប់គ្រងត្រូវកំណត់ MinIO/S3 ក្នុងការកំណត់កម្មវិធី → Amazon S3 មុនពេលផ្ទុកឯកសារឡើង។",
+      "openStorageSettings": "បើកការកំណត់ឧបករណ៍ផ្ទុក",
+      "driveMissingTitle": "មិនទាន់កំណត់ Google Drive",
+      "driveMissingDesc": "ព័ត៌មានសម្ងាត់ Google Drive មិនទាន់ត្រូវបានកំណត់ទេ។ អ្នកគ្រប់គ្រងត្រូវកំណត់ Google Drive ក្នុងការកំណត់កម្មវិធី → Google Drive មុនពេលធ្វើសមកាលកម្មឯកសារ។"
+    },
     "rolePermissions": {
       "documentType": "ប្រភេទឯកសារ",
       "matrixTitle": "តារាងសិទ្ធិ",

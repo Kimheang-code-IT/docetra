@@ -8,11 +8,18 @@ from app.core.http_schemas import DataEnvelope, DriveSourceBody
 from typing import Any as User
 import app.modules.storage_integration.services.drive_sync as drive_sync
 from app.modules.storage_integration.services.file_collection import StorageFileCollectionService
+from app.modules.storage_integration.services.storage import storage_status
 
 router = APIRouter(tags=["portal"])
 router.include_router(router_for("portal/file-uploads", "file-uploads", service=StorageFileCollectionService()))
 router.include_router(router_for("portal/google-drive-sync", "google-drive-sync"))
 router.include_router(router_for("portal/logs", "portal-logs"))
+
+
+@router.get("/portal/storage-status", response_model=DataEnvelope)
+async def portal_storage_status(db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
+    """Storage readiness for portal pages (any authenticated user; no secrets)."""
+    return {"data": await storage_status(db)}
 
 
 @router.get("/portal/drive-files", response_model=DataEnvelope)

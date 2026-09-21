@@ -98,7 +98,6 @@ export function useMenu() {
     '/configuration/record-attributes': 'configuration.record_attributes.view',
     '/settings/app-info': 'settings.app_info.view',
     '/settings/app-config': 'settings.app_config.view',
-    '/settings/storage': 'settings.storage.view',
   }
 
   function permissionForRoute(to: string): string | undefined {
@@ -167,7 +166,7 @@ export function useMenu() {
         onSelect: close,
       },
       group(t('docetra.navigation.meeting'), 'i-lucide-video', meetingChildren, { defaultOpen: true, keepWhenEmpty: true }),
-      group(t('docetra.navigation.record'), 'i-lucide-folder', documentChildren, { defaultOpen: true, keepWhenEmpty: true }),
+      group(t('docetra.navigation.record'), 'i-lucide-files', documentChildren, { defaultOpen: true, keepWhenEmpty: true }),
       group(t('docetra.navigation.organization'), 'i-lucide-building-2', [
         pageLink(t('docetra.pages.department'), '/organizations/departments'),
         pageLink(t('docetra.pages.company'), '/organizations/companies'),
@@ -175,14 +174,10 @@ export function useMenu() {
         pageLink(t('docetra.pages.sector'), '/sector'),
         pageLink(t('docetra.pages.officer'), '/officers'),
       ], { defaultOpen: true }),
-      group(t('docetra.navigation.portal'), 'i-lucide-square-arrow-out-up-right', [
+      group(t('docetra.navigation.portal'), 'i-lucide-package', [
         pageLink(t('docetra.pages.fileUpload'), '/portal/file-upload'),
         pageLink(t('docetra.pages.googleDriveSync'), '/portal/google-drive-sync'),
         pageLink(t('docetra.pages.portalLog'), '/portal/portal-logs'),
-      ], { defaultOpen: true }),
-      group(t('docetra.navigation.userManagement'), 'i-lucide-users', [
-        pageLink(t('docetra.pages.role'), '/user-management/roles'),
-        pageLink(t('docetra.pages.user'), '/user-management/users'),
       ], { defaultOpen: true }),
       group(t('docetra.navigation.configuration'), 'i-lucide-bolt', [
         pageLink(t('docetra.pages.recordType'), '/configuration/record-types'),
@@ -191,7 +186,8 @@ export function useMenu() {
       group(t('docetra.navigation.settings'), 'i-lucide-settings', [
         pageLink(t('docetra.pages.appInfo'), '/settings/app-info'),
         pageLink(t('docetra.pages.appConfig'), '/settings/app-config'),
-        pageLink(t('docetra.pages.storage'), '/settings/storage'),
+        pageLink(t('docetra.pages.role'), '/user-management/roles'),
+        pageLink(t('docetra.pages.user'), '/user-management/users'),
       ], { defaultOpen: true }),
     ]
       .map(item => permittedItem(item))

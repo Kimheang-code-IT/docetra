@@ -6,6 +6,7 @@ import { useConfirm } from '~/composables/common/useConfirm'
 import { useEntityWorkspace } from '~/composables/workspace/useEntityWorkspace'
 import { ApiEndpoints } from '~/utils/constants/api-endpoints'
 import { useAuthStore } from '~/stores/auth'
+import { useStorageStatus } from '~/composables/storage/useStorageStatus'
 import { permissionForAction } from '~/utils/role/access'
 import type { RowActionItem } from '~/types/docetra/row-actions'
 
@@ -44,6 +45,16 @@ const rowActions = computed<RowActionItem[]>(() => [
     ? [{ key: 'delete', labelKey: 'docetra.rowActions.delete', icon: 'i-lucide-trash-2', color: 'error' } satisfies RowActionItem]
     : []),
 ])
+
+const { status: storageStatus, pending: storagePending, load: loadStorageStatus } = useStorageStatus()
+const fileStorageReady = computed(() => storageStatus.value ? storageStatus.value.fileStorage.ready : true)
+const storageChecking = computed(() => storagePending.value && !storageStatus.value)
+const storageLabel = computed(() => {
+  const type = storageStatus.value?.fileStorage.providerType
+  if (!type) return ''
+  return type === 'minio' ? 'MinIO' : type.replaceAll('_', ' ').toUpperCase()
+})
+const canOpenStorageSettings = computed(() => authStore.canAccessPage('settings.app_config.view'))
 
 const leftCollapsed = useState('file-upload-left-collapsed', () => false)
 const mobileUploadExpanded = ref(false)
@@ -182,6 +193,7 @@ function onRowAction(payload: { key: string, row: Record<string, unknown> }) {
 
 onMounted(() => {
   refresh()
+  void loadStorageStatus()
 })
 </script>
 
@@ -254,6 +266,14 @@ onMounted(() => {
           </div>
 
           <div
+            v-if="!uploadPanelCollapsed && fileStorageReady && storageLabel"
+            class="flex items-center gap-1.5 border-b border-default px-4 py-2 text-xs text-muted"
+          >
+            <UIcon name="i-lucide-database" class="size-3.5" />
+            <span class="truncate">{{ $t('docetra.storageStatus.storingOn', { provider: storageLabel }) }}</span>
+          </div>
+
+          <div
             class="relative min-h-0 flex-1 overflow-hidden p-3"
             :class="uploadPanelCollapsed ? 'hidden' : ''"
           >
@@ -263,8 +283,14 @@ onMounted(() => {
             >
               <UIcon name="i-lucide-loader-circle" class="size-5 animate-spin text-primary" />
             </div>
+            <div
+              v-if="canUpload && storageChecking"
+              class="flex h-full items-center justify-center"
+            >
+              <UIcon name="i-lucide-loader-circle" class="size-5 animate-spin text-muted" />
+            </div>
             <LazyCommonAppUppyUploader
-              v-if="canUpload"
+              v-else-if="canUpload && fileStorageReady"
               class="flex h-full min-h-0 flex-col [&_.uppy-host]:min-h-0 [&_.uppy-host]:flex-1"
               entity-id="portal-file-upload"
               :endpoint="ApiEndpoints.FILE_UPLOADS"
@@ -273,6 +299,26 @@ onMounted(() => {
               :disabled="uploading"
               @complete="onUploadComplete"
             />
+            <UAlert
+              v-else-if="canUpload"
+              color="warning"
+              variant="soft"
+              icon="i-lucide-database-zap"
+              :title="$t('docetra.storageStatus.fileStorageMissingTitle')"
+              :description="$t('docetra.storageStatus.fileStorageMissingDesc')"
+            >
+              <template v-if="canOpenStorageSettings" #actions>
+                <UButton
+                  size="sm"
+                  color="warning"
+                  variant="subtle"
+                  icon="i-lucide-settings"
+                  to="/settings/app-config"
+                >
+                  {{ $t('docetra.storageStatus.openStorageSettings') }}
+                </UButton>
+              </template>
+            </UAlert>
             <UAlert
               v-else
               color="neutral"

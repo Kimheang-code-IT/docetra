@@ -1,4 +1,4 @@
-"""People/access helpers: menu seed, role permissions, officer linkage."""
+"""People/access helpers: role permissions, officer linkage."""
 
 import uuid
 from collections.abc import Awaitable, Callable, Sequence
@@ -7,35 +7,9 @@ from sqlalchemy import delete, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import DomainError
-from app.core.permissions import ALL_PERMISSIONS, DOCUMENT_TYPES, PREFIXES
-from app.modules.people_access.model import Menu, Officer, Permission, Role, User
+from app.core.permissions import ALL_PERMISSIONS
+from app.modules.people_access.model import Officer, Permission, Role, User
 from app.modules.people_access.repository import PeopleAccessRepository
-
-
-async def seed_menus(db: AsyncSession) -> None:
-    existing = await db.scalar(select(Menu.id).limit(1))
-    if existing:
-        return
-    ordering = 0
-    for doc_type, prefix, actions in DOCUMENT_TYPES:
-        ordering += 1
-        db.add(Menu(
-            code=prefix,
-            title=f"menu.{doc_type}",
-            icon=doc_type,
-            ordering=ordering,
-            is_menu=1,
-        ))
-        for action in actions:
-            ordering += 1
-            db.add(Menu(
-                parent_code=prefix,
-                code=f"{prefix}.{action}",
-                title=f"action.{doc_type}.{action}",
-                ordering=ordering,
-                is_menu=0,
-            ))
-    await db.flush()
 
 
 async def ensure_superadmin_role(db: AsyncSession) -> Role:
@@ -119,7 +93,6 @@ async def provision_first_administrator(db: AsyncSession, *, name: str, email: s
     if await count_users(db):
         raise DomainError("FORBIDDEN", "Registration is closed", 403)
 
-    await seed_menus(db)
     role = await ensure_superadmin_role(db)
     user = User(
         email=email,

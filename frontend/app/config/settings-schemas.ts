@@ -4,10 +4,8 @@ import {
   CURRENCY_OPTIONS,
   DATE_FORMAT_OPTIONS,
   FIRST_DAY_OF_WEEK_OPTIONS,
-  LANDING_PAGE_OPTIONS,
   LOCALE_OPTIONS,
   NUMBER_FORMAT_OPTIONS,
-  PAGE_SIZE_OPTIONS,
   SYNC_SCHEDULE_OPTIONS,
   TIME_FORMAT_OPTIONS,
   TIMEZONE_OPTIONS,
@@ -41,45 +39,8 @@ export const appInfoTabs: DocumentTabSchema[] = [
   },
 ]
 
-/** App Config — 7 tabs matching the previous UI. */
+/** App Config — tabs for the runtime configuration. */
 export const appConfigTabs: DocumentTabSchema[] = [
-  {
-    id: 'general',
-    labelKey: 'docetra.settings.tabs.general',
-    sections: [
-      {
-        id: 'general',
-        titleKey: 'docetra.settings.tabs.general',
-        fields: [
-          {
-            key: 'general.defaultLandingPage',
-            labelKey: 'docetra.settings.defaultLandingPage',
-            type: 'select',
-            options: LANDING_PAGE_OPTIONS,
-          },
-          {
-            key: 'general.defaultPageSize',
-            labelKey: 'docetra.settings.defaultPageSize',
-            type: 'select',
-            options: PAGE_SIZE_OPTIONS,
-          },
-          {
-            key: 'general.defaultRecordView',
-            labelKey: 'docetra.settings.defaultRecordView',
-            type: 'select',
-            options: [
-              { label: 'Table', value: 'table' },
-              { label: 'Kanban', value: 'kanban' },
-            ],
-          },
-          { key: 'general.maxUploadSizeMb', labelKey: 'docetra.config.maxFileSizeMb', type: 'number' },
-          { key: 'general.enableComments', labelKey: 'docetra.config.feature.comments', type: 'boolean' },
-          { key: 'general.enableSharing', labelKey: 'docetra.config.feature.sharing', type: 'boolean' },
-          { key: 'general.enableExport', labelKey: 'docetra.config.feature.export', type: 'boolean' },
-        ],
-      },
-    ],
-  },
   {
     id: 'localization',
     labelKey: 'docetra.settings.tabs.localization',
@@ -280,30 +241,6 @@ export const appConfigTabs: DocumentTabSchema[] = [
             type: 'csv-list',
             colSpan: 2,
           },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'system',
-    labelKey: 'docetra.settings.tabs.system',
-    sections: [
-      {
-        id: 'system',
-        titleKey: 'docetra.settings.tabs.system',
-        fields: [
-          { key: 'system.maintenanceMode', labelKey: 'docetra.settings.maintenanceMode', type: 'boolean' },
-          { key: 'system.readOnlyMode', labelKey: 'docetra.settings.readOnlyMode', type: 'boolean' },
-          {
-            key: 'system.paginationDefault',
-            labelKey: 'docetra.settings.paginationDefault',
-            type: 'select',
-            options: PAGE_SIZE_OPTIONS,
-          },
-          { key: 'system.configurationVersion', labelKey: 'docetra.settings.configurationVersion', type: 'text', readOnly: true },
-          { key: 'system.environment', labelKey: 'docetra.settings.environment', type: 'text', readOnly: true },
-          { key: 'system.cacheStatus', labelKey: 'docetra.settings.cacheStatus', type: 'text', readOnly: true },
-          { key: 'system.backgroundJobStatus', labelKey: 'docetra.settings.jobStatus', type: 'text', readOnly: true },
         ],
       },
     ],

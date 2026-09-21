@@ -52,8 +52,7 @@ from app.jobs.scheduler.cleanup import cleanup_expired_exports
 from app.jobs.scheduler.meeting_reminders import due_meeting_reminders
 from app.jobs.scheduler.reconcile import reconcile
 from app.jobs.topology import DEAD_LETTER_EXCHANGE, EVENT_EXCHANGE
-from app.modules.people_access.service import ensure_superadmin_role, seed_menus
-from app.modules.record.service import TYPE_UI_DEFAULTS, ensure_record_type, type_access
+from app.modules.people_access.service import ensure_superadmin_role
 from app.modules.storage_integration.service import probe_storage
 
 configure_logging()
@@ -76,17 +75,9 @@ DOCS_CONTENT_SECURITY_POLICY = (
 DOCS_PATHS = frozenset({"/api/v2/docs", "/api/v2/openapi.json"})
 
 
-async def seed_record_type_ui() -> None:
-    """Ensure built-in record types exist with uiSurface payload for menus/API."""
-    async with SessionLocal() as db:
-        for code in TYPE_UI_DEFAULTS:
-            row = await ensure_record_type(db, code, None)
-            await type_access.backfill_shared_grants_if_empty(db, row.id)
-        await db.commit()
-
-
 async def seed_system() -> None:
-    """Seed system configuration only. Users are never auto-created.
+    """Seed the SuperAdmin role only. Record types, menus, and users are never
+    auto-created — administrators build them through the UI.
 
     The first administrator is inserted through ``POST /api/v2/auth/register``
     (registration closes once any user exists); later accounts are created
@@ -94,10 +85,9 @@ async def seed_system() -> None:
     """
     async with SessionLocal() as db:
         try:
-            await seed_menus(db)
             await ensure_superadmin_role(db)
         except Exception:
-            log.exception("Typed role/menu seed skipped; relational migration may be pending")
+            log.exception("SuperAdmin role seed skipped; relational migration may be pending")
         await db.commit()
 
 
@@ -115,10 +105,6 @@ def create_app() -> FastAPI:
             await seed_system()
         except Exception:
             log.exception("System seed skipped; database may still be migrating")
-        try:
-            await seed_record_type_ui()
-        except Exception:
-            log.exception("Record type UI seed skipped; relational tables may be missing")
         # Optional in-process scheduler for small single-process deployments.
         scheduler: AsyncIOScheduler | None = None
         if settings.scheduler_in_api:

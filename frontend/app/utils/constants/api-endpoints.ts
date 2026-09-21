@@ -71,6 +71,7 @@ export const ApiEndpoints = {
   FILE_UPLOADS: '/api/v2/portal/file-uploads',
   GOOGLE_DRIVE_SYNC: '/api/v2/portal/google-drive-sync',
   PORTAL_LOGS: '/api/v2/portal/logs',
+  STORAGE_STATUS: '/api/v2/portal/storage-status',
 
   SYSTEM_LOGS: '/api/v2/system/logs',
 

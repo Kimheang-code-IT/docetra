@@ -10,5 +10,7 @@ definePageMeta({
 </script>
 
 <template>
-  <WorkspaceEntityWorkspaceView :config="config" />
+  <PortalAppDriveSyncGate>
+    <WorkspaceEntityWorkspaceView :config="config" />
+  </PortalAppDriveSyncGate>
 </template>
