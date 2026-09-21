@@ -185,11 +185,31 @@ jobs:
           GHCR_USER: ${{ secrets.GHCR_USER || github.actor }}
         run: |
           set -euo pipefail
+          # Secrets set from files can carry trailing whitespace/newlines; strip
+          # them so the ssh target is valid (`remote username contains invalid characters`).
+          sanitize() { printf '%s' "$1" | tr -d '[:space:]'; }
+          DEPLOY_USER="$(sanitize "${DEPLOY_USER:-root}")"
+          DEPLOY_HOST="$(sanitize "${DEPLOY_HOST}")"
+          DEPLOY_PORT="$(sanitize "${DEPLOY_PORT:-22}")"
+          GHCR_USER="$(sanitize "${GHCR_USER}")"
+          if ! printf '%s' "$DEPLOY_USER" | grep -Eq '^[A-Za-z0-9._-]+$'; then
+            echo "::error::DEPLOY_USER is not a valid SSH username (got '${DEPLOY_USER}'). Re-set it without spaces/newlines."
+            exit 1
+          fi
+          if ! printf '%s' "$DEPLOY_HOST" | grep -Eq '^[A-Za-z0-9.-]+$'; then
+            echo "::error::DEPLOY_HOST is not a valid hostname/IP (got '${DEPLOY_HOST}')."
+            exit 1
+          fi
+          if ! printf '%s' "$DEPLOY_PORT" | grep -Eq '^[0-9]+$'; then
+            echo "::error::DEPLOY_PORT must be numeric (got '${DEPLOY_PORT}')."
+            exit 1
+          fi
+
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
-          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          printf '%s\n' "$DEPLOY_SSH_KEY" | tr -d '\r' > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           if [ -n "${DEPLOY_KNOWN_HOSTS:-}" ]; then
-            printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+            printf '%s\n' "$DEPLOY_KNOWN_HOSTS" | tr -d '\r' > ~/.ssh/known_hosts
           else
             ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
           fi
