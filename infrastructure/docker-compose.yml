@@ -8,12 +8,18 @@
 # and run with: docker compose --env-file .env.production -f docker-compose.yml up -d
 name: ${DOCETRA_COMPOSE_PROJECT:-docetra-backend}
 
+# One backend image built from backend/ and reused by api, worker, and telegram.
+# The anchor keeps the tag + build context in sync so no service is pull-only
+# (a pull-only service fails on a fresh server with "pull access denied").
+x-docetra-backend: &docetra-backend
+  image: ${DOCETRA_BACKEND_IMAGE:-docetra-backend:local}
+  build:
+    context: ../backend
+    dockerfile: Dockerfile
+
 services:
   api:
-    image: ${DOCETRA_BACKEND_IMAGE:-docetra-backend:local}
-    build:
-      context: ../backend
-      dockerfile: Dockerfile
+    <<: *docetra-backend
     restart: unless-stopped
     env_file:
       - ${BACKEND_ENV_FILE:-.env}
@@ -81,7 +87,7 @@ services:
       - edge
 
   worker:
-    image: ${DOCETRA_BACKEND_IMAGE:-docetra-backend:local}
+    <<: *docetra-backend
     restart: unless-stopped
     command: ["sh", "-c", "${BACKEND_WORKER_COMMAND:-python -m app.main worker}"]
     env_file:
@@ -117,7 +123,7 @@ services:
   # Dedicated Telegram bot (long polling). Isolated from worker job load so
   # many users chatting never compete with exports/Drive/notifications.
   telegram:
-    image: ${DOCETRA_BACKEND_IMAGE:-docetra-backend:local}
+    <<: *docetra-backend
     restart: unless-stopped
     command: ["sh", "-c", "${BACKEND_TELEGRAM_COMMAND:-python -m app.main telegram}"]
     env_file:
