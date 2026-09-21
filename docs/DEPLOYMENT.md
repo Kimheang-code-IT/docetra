@@ -99,8 +99,15 @@ Deploy always uses the immutable `sha-<short>` tag for the tested commit.
 | `DEPLOY_KNOWN_HOSTS` | no | Pinned host key line (recommended); otherwise `ssh-keyscan` is used |
 | `DEPLOY_ENV_FILE` | no | Defaults to `infrastructure/.env.production` |
 | `DEPLOY_HEALTH_URL` | no | Defaults to `http://127.0.0.1:8080/ready` |
+| `CR_PAT` | no | PAT with `write:packages` used to push images when `GITHUB_TOKEN` is denied (see below) |
+| `CR_USER` | no | GitHub username for `CR_PAT` (defaults to the workflow actor) |
 | `GHCR_TOKEN` | if private packages | PAT with `read:packages` so the server can pull |
 | `GHCR_USER` | if private packages | GitHub username for `GHCR_TOKEN` |
+
+> **`permission_denied: write_package` on push?** `GITHUB_TOKEN` cannot write a package that already exists in your account but isn't linked to this repo. Fix one of:
+> 1. Package settings → **Manage Actions access** → add the `docetra` repository with **Write** (for `docetra-backend` and `docetra-frontend`), or delete the existing package so the workflow recreates it linked.
+> 2. Repo Settings → Actions → General → **Workflow permissions** → *Read and write permissions*.
+> 3. Or set `CR_PAT` (classic PAT with `write:packages`) as a secret; the build logs in with it instead of `GITHUB_TOKEN`.
 
 Repository **variable** `NUXT_PUBLIC_SITE_URL` (Settings → Variables) sets the SPA build arg (defaults to `https://docetra.minidev.in`). Optional: create a **`production` environment** with required reviewers so deploys wait for approval.
 
