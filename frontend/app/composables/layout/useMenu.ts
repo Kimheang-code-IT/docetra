@@ -137,6 +137,22 @@ export function useMenu() {
     return candidate
   }
 
+  // Built-in record types render through i18n so the sidebar follows the active
+  // locale; custom types keep their configured DB name.
+  const RECORD_TYPE_LABEL_KEYS: Record<string, string> = {
+    meeting_topic: 'docetra.pages.meetingTopic',
+    meeting_history: 'docetra.pages.meetingHistory',
+    incoming_document: 'docetra.pages.incomingDocument',
+    outgoing_document: 'docetra.pages.outgoingDocument',
+    document: 'docetra.pages.document',
+    master_list_request: 'docetra.pages.masterListRequest',
+  }
+
+  function recordTypeLabel(type: { code: string, name: string }): string {
+    const key = RECORD_TYPE_LABEL_KEYS[type.code]
+    return key ? t(key) : type.name
+  }
+
   const fallbackMeetingLinks = () => [] as NavigationMenuItem[]
 
   const fallbackDocumentLinks = () => [
@@ -146,12 +162,12 @@ export function useMenu() {
   // Order matches product nav: Dashboard → … → Configuration → Setting
   const links = computed<NavigationMenuItem[][]>(() => {
     const meetingChildren = meetingTypes.value.length
-      ? meetingTypes.value.map(type => pageLink(type.name, type.routeBase))
+      ? meetingTypes.value.map(type => pageLink(recordTypeLabel(type), type.routeBase))
       : fallbackMeetingLinks()
 
     const documentChildren = [
       ...(documentTypes.value.length
-        ? documentTypes.value.map(type => pageLink(type.name, type.routeBase))
+        ? documentTypes.value.map(type => pageLink(recordTypeLabel(type), type.routeBase))
         : fallbackDocumentLinks().slice(0, -1)),
       pageLink(t('docetra.pages.recordLog'), '/records/logs'),
     ]

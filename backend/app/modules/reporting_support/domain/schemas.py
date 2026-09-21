@@ -23,3 +23,5 @@ class ExportCreateRequest(BaseModel):
     endDate: str | None = None
     selectedIds: list[str] = Field(default_factory=list)
     fieldCodes: list[str] = Field(default_factory=list)
+    """Field code → localized label, used to match Excel template headers."""
+    fieldLabels: dict[str, str] = Field(default_factory=dict)

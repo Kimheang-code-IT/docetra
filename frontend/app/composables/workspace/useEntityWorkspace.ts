@@ -370,7 +370,7 @@ export function useEntityWorkspace(config: EntityConfig) {
       return await exportRunner.run({
         ...request,
         resource: config.key,
-        format: 'csv',
+        format: request.format ?? 'csv',
         query: { ...listQuery.value, page: undefined, limit: undefined },
         selectedIds: request.scope === 'selected' ? selectedIds : undefined,
       })

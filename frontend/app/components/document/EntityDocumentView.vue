@@ -225,7 +225,7 @@ async function exportDocument(request: ExportRequest) {
     await exportRunner.run({
       ...request,
       resource: props.config.key,
-      format: 'csv',
+      format: request.format ?? 'csv',
       query: isCreate.value ? undefined : { id: String(model.value.id || '') },
       selectedIds: isCreate.value ? undefined : [String(model.value.id || '')],
     })

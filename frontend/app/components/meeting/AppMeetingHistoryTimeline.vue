@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { MeetingHistory } from '~/types/docetra/entities'
 import { useAppLocalization } from '~/composables/settings/useAppLocalization'
+import { displayListText } from '~/utils/display/reference-text'
 import {
   TABLE_PAGE_SIZES,
   paginationItemsPerPage,
@@ -55,11 +56,6 @@ function translated(group: string, value?: string) {
   if (!value) return ''
   const key = `docetra.${group}.${value}`
   return te(key) ? t(key) : value.replaceAll('_', ' ')
-}
-
-function listText(value: unknown) {
-  if (Array.isArray(value)) return value.map(String).filter(Boolean).join(', ')
-  return String(value || '')
 }
 
 function participantCount(meeting: MeetingHistory) {
@@ -159,8 +155,8 @@ function openMeeting(meeting: MeetingHistory) {
                     {{ participantCount(meeting) }}
                   </span>
                 </div>
-                <p v-if="listText(meeting.participants)" class="mt-2 line-clamp-1 text-xs app-card-text">
-                  {{ listText(meeting.participants) }}
+                <p v-if="displayListText(meeting.participants)" class="mt-2 line-clamp-1 text-xs app-card-text">
+                  {{ displayListText(meeting.participants) }}
                 </p>
               </div>
               <UIcon name="i-lucide-chevron-right" class="mt-1 size-4 shrink-0 text-muted transition group-hover:translate-x-0.5 group-hover:text-primary" />

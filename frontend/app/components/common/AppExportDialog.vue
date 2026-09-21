@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ExportFieldOption, ExportRequest, ExportScope } from '~/types/docetra/export'
+import type { ExportFieldOption, ExportFormat, ExportRequest, ExportScope } from '~/types/docetra/export'
 import { FORM_CONTROL } from '~/utils/form-field-ui'
 
 const open = defineModel<boolean>('open', { default: false })
@@ -22,7 +22,13 @@ const { t } = useI18n()
 const startDate = ref('')
 const endDate = ref('')
 const scope = ref<ExportScope>('all_matching')
+const format = ref<ExportFormat>('csv')
 const selectedFields = ref<string[]>([])
+
+const formatItems = computed(() => [
+  { label: t('docetra.exportDialog.formatCsv'), value: 'csv' },
+  { label: t('docetra.exportDialog.formatExcel'), value: 'xlsx' },
+])
 
 const scopeItems = computed(() => [
   { label: t('docetra.exportDialog.allMatching'), value: 'all_matching' },
@@ -45,6 +51,7 @@ watch(open, (isOpen) => {
   startDate.value = ''
   endDate.value = ''
   scope.value = 'all_matching'
+  format.value = 'csv'
   selectedFields.value = props.fields.map(field => field.value)
 })
 
@@ -64,7 +71,9 @@ function submit() {
     startDate: startDate.value || undefined,
     endDate: endDate.value || undefined,
     scope: scope.value,
+    format: format.value,
     fieldCodes: [...selectedFields.value],
+    fieldLabels: Object.fromEntries(props.fields.map(field => [field.value, field.label])),
   })
 }
 </script>
@@ -83,21 +92,29 @@ function submit() {
     @confirm="submit"
   >
       <div class="space-y-5">
-        <UFormField
-          :label="$t('docetra.exportDialog.dateRange')"
-          :error="invalidRange ? $t('docetra.exportDialog.invalidRange') : undefined"
-        >
-          <CommonAppFilterControl
-            :filter="{ key: 'dateRange', labelKey: 'docetra.exportDialog.dateRange', type: 'daterange' }"
-            :start="startDate"
-            :end="endDate"
-            size="md"
-            inline
+        <UFormField :label="$t('docetra.exportDialog.format')">
+          <USelect
+            v-model="format"
+            :items="formatItems"
+            value-key="value"
             class="w-full"
-            @update:start="startDate = $event"
-            @update:end="endDate = $event"
+            :color="FORM_CONTROL.color"
+            :variant="FORM_CONTROL.variant"
+            :size="FORM_CONTROL.size"
           />
         </UFormField>
+
+        <div class="grid gap-4 sm:grid-cols-2">
+          <UFormField :label="$t('docetra.exportDialog.startDate')">
+            <CommonAppInputDate v-model="startDate" class="w-full" />
+          </UFormField>
+          <UFormField
+            :label="$t('docetra.exportDialog.endDate')"
+            :error="invalidRange ? $t('docetra.exportDialog.invalidRange') : undefined"
+          >
+            <CommonAppInputDate v-model="endDate" class="w-full" />
+          </UFormField>
+        </div>
 
         <UFormField :label="$t('docetra.exportDialog.scope')">
           <USelect

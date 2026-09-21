@@ -198,7 +198,7 @@ export function useConfigListPage(options: {
       return await exportRunner.run({
         ...request,
         resource: options.exportResource,
-        format: 'csv',
+        format: request.format ?? 'csv',
         query: { q: q.value || undefined, sort: sort.value, ...filters.value },
         selectedIds: request.scope === 'selected' ? ids : undefined,
       })

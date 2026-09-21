@@ -56,42 +56,57 @@ Runtime config: same-origin `/api/v2` is the default (nginx proxies it). Set `NU
 2. `docker compose ... up -d` — migrations run automatically on API start (additive-only policy).
 3. Verify `GET /ready`, login smoke test, dashboard load.
 
-## Continuous deployment (GitHub Actions)
+## Continuous integration & delivery (GitHub Actions)
 
-`.github/workflows/ci.yml` runs the tests (unit, contract, integration, migrations) and, on a successful push to `dev`, auto-merges the tested commit into `main` via its `promote` job.
+- **CI** (`.github/workflows/ci.yml`): gitleaks, backend lint/unit/contract (coverage floor 35%), frontend lint/typecheck/unit, live API integration (Docker), and the Alembic migration cycle.
+- **CD** (`.github/workflows/cd.yml`) runs after `CI` succeeds:
+  1. `promote` — fast-forward/merge the tested `dev` commit into `main`.
+  2. `build` — build the backend (`backend/Dockerfile`) and frontend (`frontend/Dockerfile`) images and push to **GitHub Container Registry**.
+  3. `deploy` — SSH to the server and **pull** the images for the tested commit. The server never builds.
 
-`.github/workflows/cd.yml` deploys to production. It is **manual for now** (no automatic trigger) — re-enable auto-deploy later by adding a `workflow_run` trigger on `CI`.
+> Deployments run for successful `main` **and** `dev` runs, always using the CI-tested `sha-<short>` image. (A `GITHUB_TOKEN` push — the `dev → main` promote — does not trigger workflows, so deploying the tested commit directly keeps production and `main` identical.) Add a `production` environment with required reviewers if you want an approval gate.
 
-- **Triggers**: manual **Run workflow** (`workflow_dispatch`) only. Pull requests never deploy.
-- **Deploys the commit** (`github.sha`) selected when the workflow is dispatched over SSH — `git fetch` + `git checkout --force <sha>`, then `docker compose build` / `up -d --remove-orphans`, image prune, and a readiness gate on `GET /ready`.
-- If `DEPLOY_SSH_KEY` is unset the deploy step is skipped with a warning, so CI stays green until you configure CD.
+Image refs: `ghcr.io/<owner>/docetra-backend:<tag>` and `ghcr.io/<owner>/docetra-frontend:<tag>`, where `<tag>` is `sha-<short>`, the branch name, and `latest` (main only). `<owner>` is lowercase.
 
-### Server preparation (167.71.244.107)
+Deploy always uses the immutable `sha-<short>` tag for the tested commit.
 
-1. Install Docker + Compose v2; ensure the deploy user can run Docker (`usermod -aG docker <user>`).
+### Server preparation (pull-only)
+
+1. Install Docker + Compose v2; ensure the deploy user can run Docker (`usermod -aG docker <user>`), and open `HTTP_PORT` (default 8080) plus 80/443 if host nginx terminates TLS.
 2. Clone the repo to the deploy path, e.g. `/opt/docetra`.
-3. Create `infrastructure/.env.production` from `.env.example` and fill in every `CHANGE_ME` / production checklist value, including `HTTP_PORT` and `BACKEND_ENV_FILE=.env.production`.
-4. Create a dedicated deploy key and authorize it:
+3. Create `infrastructure/.env.production` from `.env.example`, fill every `CHANGE_ME` / production checklist value, and set `BACKEND_ENV_FILE=.env.production`, `HTTP_PORT`, `NUXT_PUBLIC_SITE_URL`, and both image names:
+   ```ini
+   DOCETRA_BACKEND_IMAGE=ghcr.io/<owner>/docetra-backend:latest
+   DOCETRA_FRONTEND_IMAGE=ghcr.io/<owner>/docetra-frontend:latest
+   ```
+   (The deploy overrides these with the per-release `sha-<short>` tag.)
+4. Make the GHCR packages readable by the server: set them **public**, or store a PAT with `read:packages` in the `GHCR_TOKEN` / `GHCR_USER` secrets (CD logs in before pulling).
+5. Create a dedicated deploy key and authorize it:
    ```bash
    ssh-keygen -t ed25519 -C "docetra-cd" -f docetra_cd
    # append docetra_cd.pub to the server user's ~/.ssh/authorized_keys
    ```
-5. Open the firewall for the app port (`HTTP_PORT`, default 8080) and, if a host nginx terminates TLS, 80/443.
 
 ### GitHub repository secrets (Settings → Secrets and variables → Actions)
 
 | Secret | Required | Purpose |
 | --- | --- | --- |
-| `DEPLOY_USER` | no | SSH user on the server (defaults to `root`) |
 | `DEPLOY_SSH_KEY` | yes | Private deploy key (contents of `docetra_cd`) |
 | `DEPLOY_PATH` | yes | Absolute repo path on the server, e.g. `/opt/docetra` |
+| `DEPLOY_USER` | no | SSH user on the server (defaults to `root`) |
 | `DEPLOY_HOST` | no | Defaults to `167.71.244.107` |
 | `DEPLOY_PORT` | no | SSH port (default `22`) |
 | `DEPLOY_KNOWN_HOSTS` | no | Pinned host key line (recommended); otherwise `ssh-keyscan` is used |
 | `DEPLOY_ENV_FILE` | no | Defaults to `infrastructure/.env.production` |
 | `DEPLOY_HEALTH_URL` | no | Defaults to `http://127.0.0.1:8080/ready` |
+| `GHCR_TOKEN` | if private packages | PAT with `read:packages` so the server can pull |
+| `GHCR_USER` | if private packages | GitHub username for `GHCR_TOKEN` |
 
-Optional: create a **`production` environment** (Settings → Environments) with required reviewers so deploys wait for approval.
+Repository **variable** `NUXT_PUBLIC_SITE_URL` (Settings → Variables) sets the SPA build arg (defaults to `https://docetra.minidev.in`). Optional: create a **`production` environment** with required reviewers so deploys wait for approval.
+
+### What the deploy does
+
+On the server: `git fetch` + `git checkout --force <sha>` → `docker compose pull api worker telegram nginx` → `docker compose up -d --no-build --remove-orphans` → `docker image prune -f` → readiness gate on `GET /ready`. It never runs `docker compose build`.
 
 ### Quick setup
 
@@ -106,18 +121,19 @@ ssh-copy-id -i docetra_cd.pub root@167.71.244.107
 ssh root@167.71.244.107
 sudo usermod -aG docker "$USER" && newgrp docker
 sudo git clone <repo-url> /opt/docetra && cd /opt/docetra
-cp infrastructure/.env.example infrastructure/.env.production   # then fill in all values
+cp infrastructure/.env.example infrastructure/.env.production   # then fill in all values + image names
 exit
 
 # 4. Store the GitHub Actions secrets (run in the repo root)
-gh secret set DEPLOY_USER  --body "root"                     # optional (this is the default)
 gh secret set DEPLOY_PATH  --body "/opt/docetra"
 gh secret set DEPLOY_SSH_KEY < docetra_cd
-gh secret set DEPLOY_HOST  --body "167.71.244.107"           # optional (this is the default)
 gh secret set DEPLOY_KNOWN_HOSTS < <(ssh-keyscan -H 167.71.244.107 2>/dev/null)  # optional, recommended
+# If the GHCR packages are private:
+gh secret set GHCR_USER --body "<github-user>"
+gh secret set GHCR_TOKEN < ghcr_read_token.txt
 ```
 
-Push to `dev` (or `main`), or run the **CD** workflow manually from the Actions tab. The `deploy` job runs only after CI passes.
+Push to `dev` (auto-promoted to `main`) or run the **CD** workflow manually from the Actions tab. The `deploy` job runs only after CI passes.
 
 ## Security posture
 

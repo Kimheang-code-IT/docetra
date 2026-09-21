@@ -57,8 +57,8 @@ async def create_export(body: ExportCreateRequest, db: AsyncSession = Depends(ge
     if not prefix:
         raise HTTPException(422, "Unsupported export resource")
     require_permission(user, f"{prefix}.export")
-    if body.format not in {None, "csv"}:
-        raise HTTPException(422, "Only CSV export is supported")
+    if body.format not in {None, "csv", "xlsx"}:
+        raise HTTPException(422, "Unsupported export format; use csv or xlsx")
     await _validate_date_range(body.startDate, body.endDate)
     payload = body.model_dump()
     row = Entity(

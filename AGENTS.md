@@ -46,7 +46,7 @@ Full stack (from repo root; Compose auto-loads `infrastructure/.env`):
 docker compose -f infrastructure/docker-compose.yml up --build -d
 ```
 
-CI (`.github/workflows/ci.yml`): gitleaks → backend lint/unit/contract → frontend lint/typecheck/unit → live integration → migrations → on `dev` push, auto-merge tested `dev` into `main` (`promote` job). CD (`.github/workflows/cd.yml`) is manual `workflow_dispatch` for now; re-enable auto-deploy later (secrets in `docs/DEPLOYMENT.md`).
+CI (`.github/workflows/ci.yml`): gitleaks → backend lint/unit/contract → frontend lint/typecheck/unit → live integration → migrations. CD (`.github/workflows/cd.yml`) runs on CI success: `promote` (merge tested `dev` into `main`), `build` (push backend + frontend images to GHCR: `sha-<short>`, branch, `latest` on main), `deploy` (SSH pull-only — `docker compose pull` + `up -d --no-build`; the server never builds). Secrets/vars in `docs/DEPLOYMENT.md`.
 
 ## Backend rules
 
