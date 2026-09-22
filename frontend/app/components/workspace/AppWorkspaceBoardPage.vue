@@ -26,12 +26,10 @@ const props = withDefaults(defineProps<{
   railSearchPlaceholderKey?: string
   headerSearchPlaceholderKey?: string
   pending?: boolean
-  showPendingOverlay?: boolean
   error?: string | null
 }>(), {
   canCreate: false,
   pending: false,
-  showPendingOverlay: false,
 })
 
 const emit = defineEmits<{
@@ -92,8 +90,6 @@ defineExpose({
       :collapse-label-key="collapseLabelKey"
       :rail-search-placeholder-key="railSearchPlaceholderKey"
       :header-search-placeholder-key="headerSearchPlaceholderKey"
-      :pending="pending"
-      :show-pending-overlay="showPendingOverlay"
       :error="error || undefined"
       @retry="emit('retry')"
     >

@@ -119,42 +119,10 @@ function fieldValue(key: string): unknown {
 
   if (!model.value) return undefined
 
-  if (key === '__emailConnection') {
-    const value: ConnectionStatusFieldValue = {
-      status: model.value.email.connectionStatus,
-      message: model.value.email.lastTestMessage,
-      lastTestedAt: model.value.email.lastTestedAt,
-    }
-    return value
-  }
-
-  if (key === '__telegramConnection') {
-    const value: ConnectionStatusFieldValue = {
-      status: model.value.telegram.connectionStatus,
-      message: model.value.telegram.lastTestMessage,
-      lastTestedAt: model.value.telegram.lastTestedAt,
-      details: model.value.telegram.botUsername
-        ? [{ label: t('docetra.settings.botUsername'), value: model.value.telegram.botUsername }]
-        : [],
-    }
-    return value
-  }
-
-  // Select options use string values; coerce number fields for USelect match.
-  if (key === 'localization.firstDayOfWeek') {
-    const raw = getByPath(model.value, key)
-    return raw == null || raw === '' ? undefined : String(raw)
-  }
-
-  if (key === 'notifications.meetingReminderOffsetsMinutes') {
-    const raw = getByPath(model.value, key)
-    return Array.isArray(raw) ? raw.map(String) : raw
-  }
-
   return getByPath(model.value, key)
 }
 
-async function setFieldValue(key: string, value: unknown) {
+function setFieldValue(key: string, value: unknown) {
   if (onStorageTab.value) {
     if (!draft.value) return
     if (key === '__storageConnection') return
@@ -163,29 +131,6 @@ async function setFieldValue(key: string, value: unknown) {
   }
 
   if (!model.value) return
-
-  if (key === '__emailConnection' || key === '__telegramConnection') return
-
-  if (key === 'localization.firstDayOfWeek') {
-    const n = Number(value)
-    setByPath(model.value as any, key, Number.isFinite(n) ? n : 1)
-    return
-  }
-
-  if (key === 'notifications.meetingReminderOffsetsMinutes') {
-    const list = Array.isArray(value) ? value : String(value || '').split(',')
-    const offsets = list
-      .map(item => Number(String(item).trim()))
-      .filter(n => Number.isFinite(n) && n > 0)
-    setByPath(model.value as any, key, offsets.length ? offsets : [1440, 60, 15])
-    return
-  }
-
-  if (key === 'notifications.meetingRecurrenceHorizonDays') {
-    const n = Number(value)
-    setByPath(model.value as any, key, Number.isFinite(n) && n > 0 ? n : 90)
-    return
-  }
 
   setByPath(model.value as any, key, value)
 }

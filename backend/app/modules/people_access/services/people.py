@@ -130,13 +130,22 @@ async def ensure_officer_for_user(db: AsyncSession, user: User, role_id: uuid.UU
         db.add(officer)
         await db.flush()
     else:
-        officer.nam = user.name
-        officer.email = user.email
-        officer.auth_id = user.id
-        if role_id or user.role_id:
-            officer.role_id = role_id or user.role_id
-        officer.is_active = 1 if user.active else 0
-    user.officer_id = officer.id
+        # Only assign when the value actually changes: a no-op scalar set still
+        # marks the row dirty and emits an UPDATE, turning read paths into writes.
+        if officer.nam != user.name:
+            officer.nam = user.name
+        if officer.email != user.email:
+            officer.email = user.email
+        if officer.auth_id != user.id:
+            officer.auth_id = user.id
+        target_role_id = role_id or user.role_id
+        if target_role_id and officer.role_id != target_role_id:
+            officer.role_id = target_role_id
+        is_active = 1 if user.active else 0
+        if officer.is_active != is_active:
+            officer.is_active = is_active
+    if user.officer_id != officer.id:
+        user.officer_id = officer.id
     return officer
 
 

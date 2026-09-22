@@ -1,8 +1,8 @@
 import type { RecordAttributeRepository, RecordTypeRepository } from '~/repositories/contracts/configuration'
-import type { AppConfigRepository, AppInfoRepository, StorageRepository } from '~/repositories/contracts/settings'
+import type { AppConfigRepository, StorageRepository } from '~/repositories/contracts/settings'
 import type { PermissionCatalogRepositoryContract } from '~/repositories/contracts/permission-catalog'
 import { createHttpRecordAttributeRepository, createHttpRecordTypeRepository } from '~/repositories/http/configuration'
-import { createHttpAppConfigRepository, createHttpAppInfoRepository } from '~/repositories/http/settings'
+import { createHttpAppConfigRepository } from '~/repositories/http/settings'
 import { createHttpStorageRepository } from '~/repositories/http/settings-storage'
 import { createHttpPermissionCatalogRepository } from '~/repositories/http/permission-catalog'
 
@@ -15,7 +15,6 @@ export function useConfigurationRepositories() {
 
 export function useSettingsRepositories() {
   return {
-    appInfo: createHttpAppInfoRepository() as AppInfoRepository,
     appConfig: createHttpAppConfigRepository() as AppConfigRepository,
     storage: createHttpStorageRepository() as StorageRepository,
   }

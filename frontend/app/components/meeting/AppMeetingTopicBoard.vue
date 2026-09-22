@@ -5,7 +5,6 @@ import {
 } from '~/composables/meeting/useMeetingTopicBoard'
 import { useBoardDragDrop } from '~/composables/common/useBoardDragDrop'
 import { useBoardViewMode } from '~/composables/common/useBoardViewMode'
-import { consumeListStale } from '~/utils/workspace-list-stale'
 import { permissionForAction } from '~/utils/role/access'
 import { displayListText } from '~/utils/display/reference-text'
 import { useConfirm } from '~/composables/common/useConfirm'
@@ -220,12 +219,9 @@ function onCreateButton(index: number) {
 }
 
 onMounted(() => {
-  consumeListStale('meetingTopics', 'meetingHistory')
+  // Cache-aware: paints from cache instantly and only hits the API when the
+  // board is marked stale (after create/edit/delete) or the cache expired.
   void refresh()
-})
-
-onActivated(() => {
-  if (consumeListStale('meetingTopics', 'meetingHistory')) void refresh()
 })
 
 function openMeetingNotes(id: string) {
@@ -369,7 +365,6 @@ function onRowAction(payload: { key: string, row: Record<string, unknown> }) {
     rail-search-placeholder-key="docetra.meetingBoard.searchTopics"
     header-search-placeholder-key="docetra.meetingBoard.searchMeetings"
     :pending="pending"
-    :show-pending-overlay="pending && !topics.length"
     :error="error"
     @create-button="onCreateButton"
     @refresh="refresh"

@@ -14,6 +14,8 @@ from app.platform.audit.model import AuditLog
 
 log = logging.getLogger(__name__)
 
+_MEETING_TEMPLATE = "[{{record_type}}] {{record_number}}\n{{record_title}}"
+
 
 async def handle_security_email(payload: dict) -> None:
     if payload.get("kind") != "password_reset":
@@ -105,7 +107,7 @@ async def handle_meeting_message(payload: dict, routing: str) -> None:
         config = await runtime.load_app_config(db)
         bot = runtime.telegram_meeting(config)
         rendered = runtime.render_telegram_template(
-            bot["messageTemplate"],
+            _MEETING_TEMPLATE,
             title=title,
             kind=kind,
             record_type="meeting",

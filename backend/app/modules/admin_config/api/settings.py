@@ -18,25 +18,6 @@ log = logging.getLogger(__name__)
 router = APIRouter(prefix="/settings", tags=["settings"])
 
 
-@router.get("/app-info", response_model=DataEnvelope)
-async def app_info(db: AsyncSession = Depends(get_db)):
-    """Public read — branding on login; secrets are not stored in app-info."""
-    return await admin_settings.get_setting(db, "app-info", admin_settings.DEFAULT_APP_INFO)
-
-
-@router.patch("/app-info", response_model=DataEnvelope)
-@router.put("/app-info", response_model=DataEnvelope)
-async def update_app_info(body: AppSettingsBody, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
-    require_permission(user, "settings.app_info.edit")
-    return await admin_settings.update_app_info(db, body.model_dump(exclude_unset=True))
-
-
-@router.post("/app-info/reset", response_model=DataEnvelope)
-async def reset_app_info(db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
-    require_permission(user, "settings.app_info.configure")
-    return await admin_settings.reset_app_info(db)
-
-
 @router.get("/app-config", response_model=DataEnvelope)
 async def app_config(db: AsyncSession = Depends(get_db)):
     """Public read — localization/branding defaults; secrets remain masked."""
@@ -58,7 +39,7 @@ async def email_test_connection(db: AsyncSession = Depends(get_db), user: User =
     saved = await db.get(AppSetting, "app-config")
     config = reveal_mapping((saved.value if saved else {}) or {})
     email_cfg = config.get("email") or {}
-    to_addr = str(email_cfg.get("fromEmail") or settings.email_from_address or user.email)
+    to_addr = str(settings.email_from_address or user.email)
     result = await send_test_email(to_addr, smtp=email_cfg)
     return {"data": {**result, "testedAt": now_iso()}}
 
@@ -77,13 +58,6 @@ async def telegram_test_connection(db: AsyncSession = Depends(get_db), user: Use
     saved = await db.get(AppSetting, "app-config")
     config = reveal_mapping((saved.value if saved else {}) or {})
     result = await test_bot("meeting", config=config.get("telegram") or {})
-    bot = result.get("bot") or {}
-    await admin_settings.record_telegram_status(
-        db,
-        status=result["status"],
-        message=result["message"],
-        bot_username=bot.get("username"),
-    )
     return {"data": {**result, "testedAt": now_iso()}}
 
 
@@ -133,7 +107,7 @@ async def telegram_send_test(body: TelegramTestBody, db: AsyncSession = Depends(
 
     status = "connected" if sent else "failed"
     message = f"Test message sent to {len(sent)} chat(s)" if sent else f"Failed to send test message: {errors[0] if errors else 'unknown error'}"
-    await admin_settings.record_telegram_status(db, status=status, message=message, verified_chat_ids=sent)
+    await admin_settings.record_telegram_destinations(db, verified_chat_ids=sent)
     return {"data": {"status": status, "message": message, "sent": sent, "errors": errors, "testedAt": now_iso()}}
 
 

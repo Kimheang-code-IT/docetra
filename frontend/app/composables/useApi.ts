@@ -22,8 +22,27 @@ type ApiRequestOptions = {
     cancelPrevious?: boolean
 }
 
+export type ApiFieldError = {
+    field?: string
+    message?: string
+}
+
 type ApiErrorPayload = {
     message?: string
+    error?: {
+        code?: string
+        message?: string
+        fields?: ApiFieldError[] | Record<string, unknown>
+    }
+}
+
+/** True when the API returned per-field validation errors (shown inline, not as a toast). */
+export function payloadHasFieldErrors(payload: ApiErrorPayload | undefined | null): boolean {
+    const fields = payload?.error?.fields
+    if (Array.isArray(fields)) {
+        return fields.some(item => Boolean(item && typeof item === 'object' && (item as ApiFieldError).field))
+    }
+    return Boolean(fields && typeof fields === 'object' && Object.keys(fields).length > 0)
 }
 
 type ApiFetchError = Error & {
@@ -130,6 +149,9 @@ export function useApi() {
                 query: compactQuery(options.query),
                 responseType: options.responseType || 'json',
                 signal: controller.signal,
+                // ofetch defaults GET to retry:1 with no delay, which silently
+                // doubles latency on 5xx/429. Fail fast; callers handle errors.
+                retry: 0,
                 timeout: Number(config.public.apiTimeoutMs) || 30000,
                 credentials: cookieAuth ? 'include' : 'same-origin',
                 headers: {
@@ -184,7 +206,9 @@ export function useApi() {
                         return
                     }
 
-                    if (!options.suppressErrorToast) {
+                    // Field-level validation errors are rendered inline at the
+                    // field, so skip the generic toast for them.
+                    if (!options.suppressErrorToast && !payloadHasFieldErrors(response._data)) {
                         httpErrorToasted = true
                         appendAppToast(toasts, {
                             title: t('api.errorTitle', { status: response.status }),
@@ -197,7 +221,11 @@ export function useApi() {
           }
           catch (err: unknown) {
             const fetchError = err as ApiFetchError
-            if (fetchError.name === 'AbortError') {
+            // ofetch wraps an aborted fetch as a FetchError when a timeout is
+            // configured, so "name === AbortError" misses cancellations
+            // (cancelPrevious). Check the controller directly: a cancelled
+            // request must never surface as a connection-error toast.
+            if (fetchError.name === 'AbortError' || controller.signal.aborted) {
                 return Promise.reject(err)
             }
 

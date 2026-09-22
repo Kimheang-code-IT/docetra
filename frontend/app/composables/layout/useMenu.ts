@@ -96,7 +96,6 @@ export function useMenu() {
     '/user-management/users': 'users.users.view',
     '/configuration/record-types': 'configuration.record_types.view',
     '/configuration/record-attributes': 'configuration.record_attributes.view',
-    '/settings/app-info': 'settings.app_info.view',
     '/settings/app-config': 'settings.app_config.view',
   }
 
@@ -200,7 +199,6 @@ export function useMenu() {
         pageLink(t('docetra.pages.recordAttribute'), '/configuration/record-attributes'),
       ], { defaultOpen: true }),
       group(t('docetra.navigation.settings'), 'i-lucide-settings', [
-        pageLink(t('docetra.pages.appInfo'), '/settings/app-info'),
         pageLink(t('docetra.pages.appConfig'), '/settings/app-config'),
         pageLink(t('docetra.pages.role'), '/user-management/roles'),
         pageLink(t('docetra.pages.user'), '/user-management/users'),

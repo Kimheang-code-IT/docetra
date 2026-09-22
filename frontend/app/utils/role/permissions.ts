@@ -55,7 +55,6 @@ export const ROLE_DOCUMENT_TYPES: readonly RoleDocumentTypeDefinition[] = [
   { value: 'portal_log', labelKey: 'docetra.pages.portalLog', permissionPrefix: 'portal.logs', actions: AUDIT_ACTIONS },
   { value: 'system_log', labelKey: 'docetra.pages.systemLog', permissionPrefix: 'system.logs', actions: AUDIT_ACTIONS },
   { value: 'app_config', labelKey: 'docetra.pages.appConfig', permissionPrefix: 'settings.app_config', actions: ['view', 'edit', 'configure'] },
-  { value: 'app_info', labelKey: 'docetra.pages.appInfo', permissionPrefix: 'settings.app_info', actions: ['view', 'edit', 'configure'] },
   { value: 'storage', labelKey: 'docetra.pages.storage', permissionPrefix: 'settings.storage', actions: ['view', 'edit', 'configure'] },
 ] as const
 

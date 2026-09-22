@@ -19,6 +19,15 @@ from app.modules.people_access.service import officer_names_by_ids, strip_secret
 from app.modules.record.services.stamp import apply_side_effects, audit, entity_or_404, stamp
 
 
+# Attribute field/validation/visibility flags removed by product decision.
+ATTRIBUTE_REMOVED_KEYS = frozenset({
+    "required", "unique", "readOnly", "searchable", "filterable",
+    "sortable", "showInList", "validation", "visibility",
+})
+# Record-type icon removed by product decision.
+RECORD_TYPE_REMOVED_KEYS = frozenset({"icon"})
+
+
 class SupportApplicationService:
     def __init__(self, host):
         self.host = host
@@ -131,7 +140,7 @@ class SupportApplicationService:
                 nam=str(payload.get("name") or payload.get("code") or ""),
                 description=payload.get("description"),
                 is_active=0 if payload.get("status") == "inactive" else 1,
-                payload=strip_secrets({k: v for k, v in payload.items() if k not in {"code", "name", "description", "status"}}),
+                payload=strip_secrets({k: v for k, v in payload.items() if k not in {"code", "name", "description", "status", "icon"}}),
                 created_by=officer_id,
                 updated_by=officer_id,
             )
@@ -154,7 +163,7 @@ class SupportApplicationService:
                 code=str(payload.get("code") or "").strip(),
                 nam=str(payload.get("name") or payload.get("code") or ""),
                 data_type=str(payload.get("dataType") or payload.get("data_type") or "string"),
-                payload=strip_secrets(dict(payload)),
+                payload=strip_secrets({k: v for k, v in payload.items() if k not in ATTRIBUTE_REMOVED_KEYS}),
                 created_by=officer_id,
                 updated_by=officer_id,
             )
@@ -180,6 +189,10 @@ class SupportApplicationService:
             await type_access.require_owner_access(db, row, user)
         for key, value in body.items():
             if key in {"version", "id"}:
+                continue
+            if kind == "record_attribute" and key in ATTRIBUTE_REMOVED_KEYS:
+                continue
+            if kind == "record_type" and key in RECORD_TYPE_REMOVED_KEYS:
                 continue
             if kind == "record_type":
                 if key == "name":

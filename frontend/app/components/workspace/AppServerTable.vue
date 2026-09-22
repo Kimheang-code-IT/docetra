@@ -7,6 +7,7 @@ import type { RowActionItem } from '~/types/docetra/row-actions'
 import { useAppLocalization } from '~/composables/settings/useAppLocalization'
 import { DEFAULT_ROW_ACTIONS } from '~/types/docetra/row-actions'
 import { normalizeBadgeColor } from '~/utils/badge'
+import { formatBytes } from '~/utils/format/bytes'
 
 type DataRow = Record<string, unknown>
 
@@ -20,6 +21,8 @@ const props = withDefaults(defineProps<{
   error?: string | null
   cellValue: (row: DataRow, key: string) => string
   canDelete?: boolean
+  /** Whether the current selection may be deleted (e.g. all rows archived). */
+  canDeleteSelected?: boolean
   /** Row checkboxes. Off for read-only audit lists. */
   selectable?: boolean
   /** Optional per-row selection gate for mixed-permission tables. */
@@ -32,6 +35,7 @@ const props = withDefaults(defineProps<{
   rowActions?: RowActionItem[] | false
 }>(), {
   selectable: true,
+  canDeleteSelected: true,
   showMeta: true,
   rowActions: () => DEFAULT_ROW_ACTIONS,
 })
@@ -196,7 +200,7 @@ function clearSelection() {
 }
 
 function requestDelete() {
-  if (!selectedIds.value.length) return
+  if (!selectedIds.value.length || props.canDeleteSelected === false) return
   emit('deleteSelected', [...selectedIds.value])
 }
 
@@ -260,16 +264,28 @@ const tableColumns = computed<TableColumn<DataRow>[]>(() => {
     },
     cell: ({ row }) => {
       const raw = rawCellValue(row.original, col.key)
+      const mode = cellMode(col)
+      if (mode === 'bytes') {
+        return h('span', { class: 'tabular-nums' }, formatBytes(Number(raw || 0)))
+      }
       const value = typeof raw === 'number'
         ? formatNumber(raw)
         : props.cellValue(row.original, col.key)
-      const mode = cellMode(col)
       if (mode === 'badge') {
         return h(UBadge, {
           color: badgeColor(col.key, raw),
           variant: 'subtle',
           size: 'sm',
         }, () => value)
+      }
+      if (mode === 'icon-text') {
+        const iconName = col.icon ? rawCellValue(row.original, col.icon) : undefined
+        return h('div', { class: 'flex items-center gap-2' }, [
+          iconName
+            ? h(UIcon, { name: String(iconName), class: 'size-4 shrink-0 text-toned' })
+            : null,
+          h('span', { class: 'truncate' }, value || '—'),
+        ])
       }
       return value || '—'
     },
@@ -378,6 +394,7 @@ defineExpose({
           size="xs"
           icon="i-lucide-trash-2"
           :label="$t('actions.delete')"
+          :disabled="canDeleteSelected === false"
           @click="requestDelete"
         />
         <UButton

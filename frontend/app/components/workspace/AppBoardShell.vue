@@ -9,7 +9,7 @@ import type { FilterDef } from '~/types/docetra/common'
  * Boards supply rail pills/items and content via slots; domain logic stays
  * in each board's composable.
  */
-const props = withDefaults(defineProps<{
+const props = defineProps<{
   railTitleKey: string
   railIcon: string
   collapsed: boolean
@@ -27,14 +27,8 @@ const props = withDefaults(defineProps<{
   dateEnd?: string
   /** When bound, shows cards/table toggle in the header. */
   viewMode?: BoardViewMode
-  pending?: boolean
-  /** Gate for the first-load overlay (e.g. `pending && !items.length`). */
-  showPendingOverlay?: boolean
   error?: string
-}>(), {
-  pending: false,
-  showPendingOverlay: false,
-})
+}>()
 
 const emit = defineEmits<{
   'update:collapsed': [value: boolean]
@@ -93,13 +87,6 @@ function onViewModeChange(value: string | number) {
 
 <template>
   <div class="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-sm border border-default bg-default">
-    <div
-      v-if="showPendingOverlay"
-      class="absolute inset-0 z-10 flex items-center justify-center bg-default/50"
-    >
-      <UIcon name="i-lucide-loader-circle" class="size-6 animate-spin text-primary" />
-    </div>
-
     <UAlert
       v-if="error"
       class="m-3"

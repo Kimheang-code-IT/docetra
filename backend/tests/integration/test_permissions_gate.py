@@ -23,6 +23,6 @@ def test_protected_list_requires_auth(api_client, path):
 
 
 def test_settings_patch_requires_auth(api_client):
-    response = api_client.patch("/api/v2/settings/app-info", json={"shortName": "NoAuth"})
+    response = api_client.patch("/api/v2/settings/app-config", json={"general": {"defaultPageSize": 21}})
     # CSRF may fire first (403) or auth (401) — either means rejected.
     assert response.status_code in {401, 403}, response.text

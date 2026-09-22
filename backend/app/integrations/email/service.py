@@ -8,6 +8,8 @@ from app.core.config import settings
 
 log = logging.getLogger(__name__)
 
+_FROM_NAME = "Docetra"
+
 
 def _deliver_smtp(*, host: str, port: int, username: str, password: str, use_tls: bool, message: EmailMessage, timeout: int = 15) -> None:
     with smtplib.SMTP(host, port, timeout=timeout) as client:
@@ -29,8 +31,8 @@ async def send_password_reset(to_email: str, code: str, *, smtp: dict) -> dict:
         return {"status": "disabled"}
     message = EmailMessage()
     message["Subject"] = "Docetra password reset"
-    from_addr = smtp["fromEmail"] or settings.email_from_address
-    message["From"] = formataddr((smtp["fromName"], from_addr)) if from_addr else smtp["fromName"]
+    from_addr = settings.email_from_address
+    message["From"] = formataddr((_FROM_NAME, from_addr)) if from_addr else _FROM_NAME
     message["To"] = to_email
     message.set_content(body)
     try:
@@ -62,8 +64,6 @@ async def send_test_email(to_email: str, *, smtp: dict | None = None) -> dict:
             "useTls": encryption in {"starttls", "tls", "ssl"} if smtp.get("encryption") is not None else (
                 settings.smtp_use_tls if smtp.get("useTls") is None else bool(smtp.get("useTls"))
             ),
-            "fromName": str(smtp.get("fromName") or "Docetra"),
-            "fromEmail": str(smtp.get("fromEmail") or settings.email_from_address or ""),
             "timeoutSeconds": int(smtp.get("timeoutSeconds") or 10),
         }
     else:
@@ -74,8 +74,6 @@ async def send_test_email(to_email: str, *, smtp: dict | None = None) -> dict:
             "username": settings.smtp_username or "",
             "password": settings.smtp_password or "",
             "useTls": settings.smtp_use_tls,
-            "fromName": "Docetra",
-            "fromEmail": settings.email_from_address or "",
             "timeoutSeconds": 10,
         }
     host = cfg["smtpHost"]
@@ -83,8 +81,8 @@ async def send_test_email(to_email: str, *, smtp: dict | None = None) -> dict:
         return {"status": "disabled", "message": "SMTP is not configured"}
     message = EmailMessage()
     message["Subject"] = "Docetra test email"
-    from_addr = cfg["fromEmail"] or settings.email_from_address
-    message["From"] = formataddr((cfg["fromName"], from_addr)) if from_addr else cfg["fromName"]
+    from_addr = settings.email_from_address
+    message["From"] = formataddr((_FROM_NAME, from_addr)) if from_addr else _FROM_NAME
     message["To"] = to_email
     message.set_content("Docetra email connection test.")
     await asyncio.to_thread(

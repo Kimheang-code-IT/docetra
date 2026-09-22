@@ -49,9 +49,9 @@ def test_modules_together_record_org_search_settings(auth_client):
     assert mentions.status_code == 200
 
     # 5) Settings public + authenticated config (admin_config)
-    info = auth_client.get("/api/v2/settings/app-info")
-    assert info.status_code == 200
-    assert "data" in info.json() or isinstance(info.json(), dict)
+    config = auth_client.get("/api/v2/settings/app-config")
+    assert config.status_code == 200
+    assert "data" in config.json() or isinstance(config.json(), dict)
 
     # 6) Surfaces meta still available
     surfaces = auth_client.get("/api/v2/records/_meta/surfaces")

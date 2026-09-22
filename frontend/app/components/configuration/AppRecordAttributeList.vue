@@ -123,7 +123,7 @@ watch(() => list.q, v => { searchInput.value = v })
     :filter-values="list.filters"
     :row-actions="list.rowActions"
     :cell-value="list.defaultCellValue"
-    :show-meta="true"
+    :show-meta="false"
     @create="list.openCreate"
     @refresh="list.refresh"
     @update:search="(v) => { searchInput = v; list.debouncedSearch(v) }"

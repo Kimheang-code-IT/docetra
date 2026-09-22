@@ -11,7 +11,6 @@ export interface RecordSurfaceType {
   description?: string | null
   uiSurface: RecordUiSurface
   slug?: string
-  icon?: string
   menuOrder?: number
   isCreatable?: boolean
   supportsStages?: boolean

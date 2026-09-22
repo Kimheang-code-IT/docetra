@@ -35,8 +35,6 @@ STATIC_FRONTEND_PATHS = {
     "/api/v2/users/permission-catalog",
     "/api/v2/configuration/record-types",
     "/api/v2/configuration/record-attributes",
-    "/api/v2/settings/app-info",
-    "/api/v2/settings/app-info/reset",
     "/api/v2/settings/app-config",
     "/api/v2/settings/app-config/email/test-connection",
     "/api/v2/settings/app-config/email/send-test",

@@ -150,7 +150,7 @@ export function useRecordLogBoard() {
       labelKey: `docetra.entityTypes.${type.code}`,
       label: type.name,
       description: type.description || undefined,
-      icon: type.icon || 'i-lucide-file-text',
+      icon: 'i-lucide-file-text',
       filter: { entityType: type.code },
       columns: recordLogColumns,
     })),

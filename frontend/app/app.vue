@@ -1,12 +1,9 @@
 <script setup lang="ts">
 import { en, km } from '@nuxt/ui/locale'
-import { createHttpAppInfoRepository } from '~/repositories/http/settings'
-import { useAppBranding } from '~/composables/settings/useAppBranding'
 import { usePreferencesStore } from '~/stores/preferences'
 
 const colorMode = useColorMode()
 const { locale, t } = useI18n()
-const { applyFromAppInfo } = useAppBranding()
 const preferences = usePreferencesStore()
 
 const uiLocales: Record<string, typeof en> = { en, km }
@@ -34,9 +31,6 @@ function loadRemoteSettings() {
   if (remoteSettingsStarted.value) return
   remoteSettingsStarted.value = true
   void preferences.hydrateRemote()
-  void createHttpAppInfoRepository().get()
-    .then(info => applyFromAppInfo(info))
-    .catch(() => applyFromAppInfo(null))
 }
 
 function scheduleRemoteSettings(path = route.path) {

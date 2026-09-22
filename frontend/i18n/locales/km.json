@@ -38,7 +38,6 @@
       "googleDriveSync": "ធ្វើសមកាលកម្ម Google Drive",
       "portalLog": "កំណត់ហេតុផតថល",
       "systemLog": "កំណត់ហេតុប្រព័ន្ធ",
-      "appInfo": "ព័ត៌មានកម្មវិធី",
       "appConfig": "ការកំណត់កម្មវិធី",
       "storage": "ឃ្លាំងផ្ទុក",
       "archive": "ប័ណ្ណសារ"
@@ -724,6 +723,7 @@
       "archived": "ទុកក្នុងប័ណ្ណសារ",
       "deleted": "លុប",
       "disabled": "បិទ",
+      "inactive": "អសកម្ម",
       "failed": "បរាជ័យ"
     },
     "meetingBoard": {

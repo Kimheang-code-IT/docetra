@@ -6,6 +6,15 @@ import { useConfigurationRepositories } from '~/repositories'
 import { useAppLocalization } from '~/composables/settings/useAppLocalization'
 import { provideCardFieldsOverride } from '~/composables/settings/useCardFields'
 import { concurrencyVersion } from '~/utils/api/concurrency'
+import { readListCache, writeListCache } from '~/utils/list-cache'
+import { consumeListStale } from '~/utils/workspace-list-stale'
+import { useAuthStore } from '~/stores/auth'
+
+type BoardCache = {
+  items: Record<string, unknown>[]
+  total: number
+  stageCounts: Record<string, number>
+}
 
 function getByPath(obj: Record<string, unknown>, path: string): unknown {
   return path.split('.').reduce<unknown>((acc, key) => {
@@ -29,6 +38,7 @@ export function useRecordStageBoard(
   const { t, te } = useI18n()
   const { formatDate } = useAppLocalization()
   const adapter = getAdapterForConfig(config)
+  const auth = useAuthStore()
   const { recordTypes } = useConfigurationRepositories()
   /** Board cards resolve per-type card slots from the loaded type payload. */
   const typePayload = ref<RecordType['payload'] | null>(null)
@@ -126,14 +136,54 @@ export function useRecordStageBoard(
     return response.data
   }
 
-  async function refresh(options: { resetPage?: boolean } = {}) {
+  function boardCacheKey() {
+    return `${auth.user?.id || 'anon'}:${config.key}:board:${JSON.stringify({
+      stage: selectedStage.value,
+      q: recordSearch.value,
+      start: dateStart.value,
+      end: dateEnd.value,
+      page: page.value,
+      limit: limit.value,
+    })}`
+  }
+
+  /**
+   * Cache-aware board load. Fresh cache paints instantly (schema still
+   * reconfigures in the background); stale cache paints then revalidates.
+   * Filter/page changes and post-mutation refreshes pass `force: true`.
+   */
+  async function refresh(options: { resetPage?: boolean; force?: boolean } = {}) {
     if (options.resetPage) page.value = 1
     const token = ++requestToken
-    pending.value = true
+    const key = boardCacheKey()
+    const mustRefresh = options.force === true || consumeListStale(config.key)
     error.value = null
+
+    if (!mustRefresh) {
+      const cached = readListCache<BoardCache>(key)
+      if (cached) {
+        items.value = cached.data.items
+        total.value = cached.data.total
+        stageCounts.value = cached.data.stageCounts
+        pending.value = false
+        if (cached.fresh) {
+          void ensureConfiguredStages()
+          return
+        }
+      }
+      else {
+        pending.value = true
+      }
+    }
+    else {
+      pending.value = true
+    }
+
     try {
-      await ensureConfiguredStages()
-      const [listRes, counts] = await Promise.all([
+      // Fetch the type schema alongside the data: the list/count filters do not
+      // depend on the stage config, so do not serialize them behind it.
+      const [, listRes, counts] = await Promise.all([
+        ensureConfiguredStages(),
         adapter.list({
           q: recordSearch.value || undefined,
           stage: selectedStage.value || undefined,
@@ -150,6 +200,11 @@ export function useRecordStageBoard(
       total.value = listRes.meta?.total || 0
       stageCounts.value = counts.groups || {}
       if (!selectedStage.value) total.value = counts.total || total.value
+      writeListCache(key, {
+        items: items.value,
+        total: total.value,
+        stageCounts: { ...stageCounts.value },
+      } satisfies BoardCache)
     }
     catch (e: any) {
       if (token !== requestToken) return
@@ -163,13 +218,13 @@ export function useRecordStageBoard(
   function setPage(next: number) {
     if (page.value === next) return
     page.value = next
-    void refresh()
+    void refresh({ force: true })
   }
 
   function setLimit(next: number) {
     if (limit.value === next) return
     limit.value = next
-    void refresh({ resetPage: true })
+    void refresh({ resetPage: true, force: true })
   }
 
   const debouncedRecordSearch = useDebounceFn((value: string) => {
@@ -180,7 +235,7 @@ export function useRecordStageBoard(
         page: undefined,
       },
     })
-    void refresh({ resetPage: true })
+    void refresh({ resetPage: true, force: true })
   }, 300)
 
   watch(recordSearch, (value) => {
@@ -196,11 +251,11 @@ export function useRecordStageBoard(
         page: undefined,
       },
     })
-    void refresh({ resetPage: true })
+    void refresh({ resetPage: true, force: true })
   })
 
   watch(selectedStage, () => {
-    void refresh({ resetPage: true })
+    void refresh({ resetPage: true, force: true })
   })
 
   function selectStage(code: string | null) {
@@ -230,7 +285,7 @@ export function useRecordStageBoard(
     else {
       await adapter.transitionStage(id, stage, extra)
     }
-    await refresh()
+    await refresh({ force: true })
   }
 
   function subtitleOf(row: Record<string, unknown>) {
@@ -269,7 +324,7 @@ export function useRecordStageBoard(
 
   async function reloadStageConfiguration() {
     stageConfigurationLoaded = false
-    await refresh()
+    await refresh({ force: true })
   }
 
   const allCount = computed(() => total.value)

@@ -223,7 +223,6 @@ function onRowAction(payload: { key: string, row: Record<string, unknown> }) {
     rail-search-placeholder-key="docetra.recordStageBoard.searchStages"
     header-search-placeholder-key="docetra.recordStageBoard.searchRecords"
     :pending="pending"
-    :show-pending-overlay="pending && !filteredItems.length"
     :error="error"
     @create="openCreate"
     @refresh="refresh"

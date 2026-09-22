@@ -54,8 +54,6 @@ export const ApiEndpoints = {
   RECORD_TYPES: '/api/v2/configuration/record-types',
   RECORD_ATTRIBUTES: '/api/v2/configuration/record-attributes',
 
-  APP_INFO: '/api/v2/settings/app-info',
-  APP_INFO_RESET: '/api/v2/settings/app-info/reset',
   APP_CONFIG: '/api/v2/settings/app-config',
   APP_CONFIG_TEST_EMAIL: '/api/v2/settings/app-config/email/test-connection',
   APP_CONFIG_SEND_TEST_EMAIL: '/api/v2/settings/app-config/email/send-test',

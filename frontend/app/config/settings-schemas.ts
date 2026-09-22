@@ -1,43 +1,11 @@
 import type { DocumentTabSchema } from '~/types/docetra/common'
 import {
   AWS_REGION_OPTIONS,
-  CURRENCY_OPTIONS,
   DATE_FORMAT_OPTIONS,
-  FIRST_DAY_OF_WEEK_OPTIONS,
-  LOCALE_OPTIONS,
-  NUMBER_FORMAT_OPTIONS,
   SYNC_SCHEDULE_OPTIONS,
   TIME_FORMAT_OPTIONS,
   TIMEZONE_OPTIONS,
 } from '~/utils/constants/select-options'
-
-/** App Info — flat form (no tabs UI when single tab). */
-export const appInfoTabs: DocumentTabSchema[] = [
-  {
-    id: 'info',
-    labelKey: 'docetra.pages.appInfo',
-    sections: [
-      {
-        id: 'info',
-        fields: [
-          { key: 'applicationName', labelKey: 'docetra.settings.applicationName', type: 'text', required: true, colSpan: 2 },
-          { key: 'description', labelKey: 'docetra.fields.description', type: 'textarea', colSpan: 2, rows: 3 },
-          { key: 'supportEmail', labelKey: 'docetra.settings.supportEmail', type: 'text' },
-          { key: 'supportPhone', labelKey: 'docetra.settings.supportPhone', type: 'text' },
-          { key: 'website', labelKey: 'docetra.settings.website', type: 'url' },
-          { key: 'address', labelKey: 'docetra.settings.address', type: 'text' },
-          { key: 'footer.copyrightText', labelKey: 'docetra.settings.copyright', type: 'text', colSpan: 2 },
-          {
-            key: 'branding.primaryColor',
-            labelKey: 'docetra.settings.primaryColor',
-            type: 'color',
-          },
-          { key: 'branding.mainLogoUrl', labelKey: 'docetra.settings.logo', type: 'image', colSpan: 2 },
-        ],
-      },
-    ],
-  },
-]
 
 /** App Config — tabs for the runtime configuration. */
 export const appConfigTabs: DocumentTabSchema[] = [
@@ -53,15 +21,6 @@ export const appConfigTabs: DocumentTabSchema[] = [
             key: 'localization.defaultLanguage',
             labelKey: 'docetra.settings.defaultLanguage',
             type: 'select',
-            options: [
-              { label: 'English', value: 'en' },
-              { label: 'Khmer', value: 'km' },
-            ],
-          },
-          {
-            key: 'localization.availableLanguages',
-            labelKey: 'docetra.settings.availableLanguages',
-            type: 'multiselect',
             options: [
               { label: 'English', value: 'en' },
               { label: 'Khmer', value: 'km' },
@@ -84,30 +43,6 @@ export const appConfigTabs: DocumentTabSchema[] = [
             labelKey: 'docetra.settings.timeFormat',
             type: 'select',
             options: TIME_FORMAT_OPTIONS,
-          },
-          {
-            key: 'localization.firstDayOfWeek',
-            labelKey: 'docetra.settings.firstDayOfWeek',
-            type: 'select',
-            options: FIRST_DAY_OF_WEEK_OPTIONS,
-          },
-          {
-            key: 'localization.numberFormat',
-            labelKey: 'docetra.settings.numberFormat',
-            type: 'select',
-            options: NUMBER_FORMAT_OPTIONS,
-          },
-          {
-            key: 'localization.currency',
-            labelKey: 'docetra.settings.currency',
-            type: 'select',
-            options: CURRENCY_OPTIONS,
-          },
-          {
-            key: 'localization.locale',
-            labelKey: 'docetra.settings.locale',
-            type: 'select',
-            options: LOCALE_OPTIONS,
           },
         ],
       },
@@ -137,10 +72,6 @@ export const appConfigTabs: DocumentTabSchema[] = [
               { label: 'STARTTLS', value: 'starttls' },
             ],
           },
-          { key: 'email.fromName', labelKey: 'docetra.settings.fromName', type: 'text' },
-          { key: 'email.fromEmail', labelKey: 'docetra.settings.fromEmail', type: 'text' },
-          { key: 'email.replyToEmail', labelKey: 'docetra.settings.replyTo', type: 'text' },
-          { key: '__emailConnection', labelKey: 'docetra.connection.title', type: 'connection-status', colSpan: 2 },
         ],
       },
     ],
@@ -154,9 +85,7 @@ export const appConfigTabs: DocumentTabSchema[] = [
         titleKey: 'docetra.settings.tabs.telegram',
         fields: [
           { key: 'telegram.enabled', labelKey: 'docetra.settings.enableTelegram', type: 'boolean' },
-          { key: 'telegram.botDisplayName', labelKey: 'docetra.settings.botDisplayName', type: 'text' },
           { key: 'telegram.botToken', labelKey: 'docetra.settings.botToken', type: 'secret' },
-          { key: 'telegram.botUsername', labelKey: 'docetra.settings.botUsername', type: 'text' },
           {
             key: 'telegram.messageLanguage',
             labelKey: 'docetra.settings.messageLanguage',
@@ -166,55 +95,11 @@ export const appConfigTabs: DocumentTabSchema[] = [
               { label: 'Khmer', value: 'km' },
             ],
           },
-          { key: 'telegram.includeRecordLink', labelKey: 'docetra.settings.includeRecordLink', type: 'boolean' },
           { key: 'telegram.includeOrganization', labelKey: 'docetra.settings.includeOrganization', type: 'boolean' },
-          { key: 'telegram.includeAssignedOfficer', labelKey: 'docetra.settings.includeAssignedOfficer', type: 'boolean' },
-          {
-            key: 'telegram.messageTemplate',
-            labelKey: 'docetra.settings.messageTemplate',
-            type: 'textarea',
-            colSpan: 2,
-            rows: 7,
-          },
           {
             key: 'telegram.destinations',
             labelKey: 'docetra.settings.destinations',
             type: 'telegram-destinations',
-            colSpan: 2,
-          },
-          { key: '__telegramConnection', labelKey: 'docetra.connection.title', type: 'connection-status', colSpan: 2 },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'notifications',
-    labelKey: 'docetra.settings.tabs.notifications',
-    sections: [
-      {
-        id: 'notifications',
-        titleKey: 'docetra.settings.tabs.notifications',
-        fields: [
-          { key: 'notifications.inAppEnabled', labelKey: 'docetra.settings.inApp', type: 'boolean' },
-          { key: 'notifications.emailEnabled', labelKey: 'docetra.settings.emailChannel', type: 'boolean' },
-          { key: 'notifications.telegramEnabled', labelKey: 'docetra.settings.telegramChannel', type: 'boolean' },
-          { key: 'notifications.deliveryRetries', labelKey: 'docetra.settings.deliveryRetries', type: 'number' },
-          {
-            key: 'notifications.meetingReminderOffsetsMinutes',
-            labelKey: 'docetra.settings.meetingReminderOffsets',
-            type: 'csv-list',
-            helpKey: 'docetra.settings.meetingReminderOffsetsHelp',
-            colSpan: 2,
-          },
-          {
-            key: 'notifications.meetingRecurrenceHorizonDays',
-            labelKey: 'docetra.settings.meetingRecurrenceHorizon',
-            type: 'number',
-          },
-          {
-            key: 'notifications.rules',
-            labelKey: 'docetra.settings.eventRules',
-            type: 'notification-rules',
             colSpan: 2,
           },
         ],
@@ -235,33 +120,10 @@ export const appConfigTabs: DocumentTabSchema[] = [
           { key: 'security.passwordExpiryDays', labelKey: 'docetra.settings.passwordExpiryDays', type: 'number' },
           { key: 'security.auditRetentionDays', labelKey: 'docetra.settings.auditRetentionDays', type: 'number' },
           { key: 'security.requirePasswordChange', labelKey: 'docetra.settings.requirePasswordChange', type: 'boolean' },
-          {
-            key: 'security.allowedUploadExtensions',
-            labelKey: 'docetra.config.allowedExtensions',
-            type: 'csv-list',
-            colSpan: 2,
-          },
         ],
       },
     ],
   },
-]
-
-const storageCommonFields = [
-  { key: 'name', labelKey: 'docetra.fields.name', type: 'text' as const, required: true },
-  { key: 'active', labelKey: 'docetra.status.active', type: 'boolean' as const },
-  {
-    key: 'accessMode',
-    labelKey: 'docetra.settings.accessMode',
-    type: 'select' as const,
-    options: [
-      { label: 'Private', value: 'private' },
-      { label: 'Public', value: 'public' },
-    ],
-  },
-  { key: 'maxFileSizeMb', labelKey: 'docetra.config.maxFileSizeMb', type: 'number' as const },
-  { key: 'allowedFileTypes', labelKey: 'docetra.config.allowedExtensions', type: 'csv-list' as const, colSpan: 2 as const },
-  { key: 'uploadPathPattern', labelKey: 'docetra.settings.uploadPathPattern', type: 'text' as const, colSpan: 2 as const },
 ]
 
 const storageConnectionField = {
@@ -296,11 +158,6 @@ export const storageSettingsTabs: DocumentTabSchema[] = [
         ],
       },
       {
-        id: 's3-options',
-        titleKey: 'docetra.settings.tabs.general',
-        fields: [...storageCommonFields],
-      },
-      {
         id: 's3-status',
         titleKey: 'docetra.connection.title',
         fields: [storageConnectionField],
@@ -325,11 +182,6 @@ export const storageSettingsTabs: DocumentTabSchema[] = [
             options: SYNC_SCHEDULE_OPTIONS,
           },
         ],
-      },
-      {
-        id: 'drive-options',
-        titleKey: 'docetra.settings.tabs.general',
-        fields: [...storageCommonFields],
       },
       {
         id: 'drive-status',

@@ -42,13 +42,6 @@ function onDrop(stage: string) {
 
 <template>
   <div class="relative w-full min-w-0">
-    <div
-      v-if="pending"
-      class="sticky top-0 z-10 flex justify-center bg-default/40 py-16 backdrop-blur-[1px]"
-    >
-      <UIcon name="i-lucide-loader-circle" class="size-6 animate-spin text-primary" />
-    </div>
-
     <!--
       Kanban-only: columns grow with cards; the main board host scrolls on Y
       (and X for stages). Toolbar stays fixed above this scroll area.

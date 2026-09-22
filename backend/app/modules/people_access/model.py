@@ -37,7 +37,7 @@ class Officer(UUIDPrimaryKeyMixin, TimestampMixin, OfficerActorMixin, ActiveFlag
     __tablename__ = "officer"
 
     nam: Mapped[str] = mapped_column(String(200), default="")
-    organization_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("organization.id", ondelete="SET NULL"))
+    organization_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("organization.id", ondelete="SET NULL"), index=True)
     role_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("role.id", ondelete="SET NULL"))
     auth_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), unique=True)
     profile_url: Mapped[str | None] = mapped_column(String(500))

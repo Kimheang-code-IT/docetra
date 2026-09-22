@@ -31,38 +31,6 @@ export type NotificationEvent =
 
 export type AppFontSize = 'sm' | 'md' | 'lg' | 'xl'
 
-export interface AppBranding {
-  mainLogoUrl?: string
-  sidebarLogoUrl?: string
-  faviconUrl?: string
-  loginBackgroundUrl?: string
-  /** System primary color (hex, e.g. #e8472a). */
-  primaryColor: string
-  secondaryColor: string
-  /** @deprecated Per-user preference — use preferences store / user menu. */
-  fontSize?: AppFontSize
-}
-
-export interface AppFooterInfo {
-  copyrightText: string
-  privacyPolicyUrl?: string
-  termsUrl?: string
-}
-
-export interface AppInfo {
-  applicationName: string
-  shortName: string
-  organizationName: string
-  description?: string
-  supportEmail?: string
-  supportPhone?: string
-  website?: string
-  address?: string
-  branding: AppBranding
-  footer: AppFooterInfo
-  updatedAt: string
-}
-
 export interface EmailConfig {
   enabled: boolean
   smtpHost: string

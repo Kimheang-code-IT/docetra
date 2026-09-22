@@ -79,11 +79,7 @@ function openMeeting(meeting: MeetingHistory) {
     </div>
 
     <div v-else class="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-5">
-      <div v-if="pending" class="flex justify-center py-16">
-        <UIcon name="i-lucide-loader-circle" class="size-7 animate-spin text-primary" />
-      </div>
-
-      <div v-else-if="!meetings.length" class="flex flex-col items-center justify-center gap-2 py-16 text-muted">
+      <div v-if="!meetings.length" class="flex flex-col items-center justify-center gap-2 py-16 text-muted">
         <UIcon name="i-lucide-calendar-x-2" class="size-9" />
         <p class="text-sm">{{ $t('docetra.states.empty') }}</p>
       </div>

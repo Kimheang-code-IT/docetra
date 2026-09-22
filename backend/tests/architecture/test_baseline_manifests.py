@@ -21,12 +21,18 @@ from app.main import app
 #   POST /settings/app-config/telegram/discover-chats (detect chat IDs via getUpdates).
 # Grew from 356 with the approved portal storage readiness endpoint:
 #   GET /portal/storage-status (file storage + Google Drive readiness for portal pages).
-ROUTE_MANIFEST_SHA256 = "aedcf1c0e090ca24eaf7f1b80eaa41322064eebe6ab7ef5680c4124c13eb61af"
+# Shrank from 357 when the App Info settings feature was removed by product decision:
+#   GET/PATCH/PUT /settings/app-info and POST /settings/app-info/reset.
+ROUTE_MANIFEST_SHA256 = "e65c11328c93a9457aecd0a2996d79f9d6d0b25da619bf6f9ac372ccc1a84a6b"
 # Updated for the approved 0010_integration_contract_fields migration:
 # permission.scope (enum vocabulary columns later removed by 0011).
 # 0011_drop_enum_vocabulary removed the `enum` table (30 → 29).
 # 0012_drop_favorites removed the `favorites` table (29 → 28).
-METADATA_MANIFEST_SHA256 = "c69c77be11c5eb045b32896a84ab1f92ed8a6bcfe2eb1c3ef4ddac092e9f6dc9"
+# 0013_hot_path_indexes added indexes on officer.organization_id,
+# record_organization.*, record_attachment.record_id, comments/activities.entity_id,
+# record.created_by/updated_by, record_template/record_stage_template.record_type_id,
+# and record(record_type_id, updated_at).
+METADATA_MANIFEST_SHA256 = "d39dc0bd2c05e571887a82139bfae399e4ecdecf457492d48e8b621850b0f0a5"
 
 
 def _digest(value: object) -> str:
@@ -82,7 +88,7 @@ def _metadata_manifest() -> list[dict[str, object]]:
 
 
 def test_route_manifest_is_unchanged() -> None:
-    assert len(_route_manifest()) == 357
+    assert len(_route_manifest()) == 353
     assert _digest(_route_manifest()) == ROUTE_MANIFEST_SHA256
 
 

@@ -70,8 +70,6 @@ def email_smtp(config: dict | None = None) -> dict[str, Any]:
         "username": str(section.get("username") or settings.smtp_username or ""),
         "password": str(section.get("password") or settings.smtp_password or ""),
         "useTls": use_tls,
-        "fromName": str(section.get("fromName") or "Docetra"),
-        "fromEmail": str(section.get("fromEmail") or settings.email_from_address or ""),
         "timeoutSeconds": int(section.get("timeoutSeconds") or 10),
     }
 
@@ -83,25 +81,15 @@ def telegram_meeting(config: dict | None = None) -> dict[str, Any]:
     return {
         "enabled": enabled and bool(token),
         "botToken": token,
-        "botDisplayName": str(section.get("botDisplayName") or "Docetra"),
         "destinations": list(section.get("destinations") or []),
-        "messageTemplate": str(
-            section.get("messageTemplate")
-            or "[{{record_type}}] {{record_number}}\n{{record_title}}"
-        ),
-        "includeRecordLink": bool(section.get("includeRecordLink", True)),
         "includeOrganization": bool(section.get("includeOrganization", True)),
-        "includeAssignedOfficer": bool(section.get("includeAssignedOfficer", True)),
     }
 
 
 def upload_policy(config: dict | None = None) -> dict[str, Any]:
     general = dict((config or {}).get("general") or {})
-    security = dict((config or {}).get("security") or {})
     max_mb = int(general.get("maxUploadSizeMb") or settings.max_upload_size_mb or 25)
-    extensions = security.get("allowedUploadExtensions")
-    if not isinstance(extensions, list) or not extensions:
-        extensions = list(settings.allowed_upload_extensions)
+    extensions = list(settings.allowed_upload_extensions)
     return {
         "maxUploadSizeMb": max_mb,
         "allowedUploadExtensions": [str(ext).lower().lstrip(".") for ext in extensions],
@@ -116,21 +104,13 @@ def security_policy(config: dict | None = None) -> dict[str, Any]:
         ),
         "maxLoginAttempts": int(security.get("maxLoginAttempts") or settings.max_login_failures or 5),
         "accountLockMinutes": int(security.get("accountLockMinutes") or settings.account_lock_minutes or 15),
-        "allowedUploadExtensions": upload_policy(config)["allowedUploadExtensions"],
     }
 
 
 def meeting_reminders(config: dict | None = None) -> dict[str, Any]:
-    notifications = dict((config or {}).get("notifications") or {})
-    offsets = notifications.get("meetingReminderOffsetsMinutes")
-    if not isinstance(offsets, list) or not offsets:
-        offsets = list(settings.meeting_reminder_offsets_minutes)
-    horizon = notifications.get("meetingRecurrenceHorizonDays")
-    if horizon is None:
-        horizon = settings.meeting_recurrence_horizon_days
     return {
-        "meetingReminderOffsetsMinutes": [int(x) for x in offsets],
-        "meetingRecurrenceHorizonDays": int(horizon),
+        "meetingReminderOffsetsMinutes": [int(x) for x in settings.meeting_reminder_offsets_minutes],
+        "meetingRecurrenceHorizonDays": int(settings.meeting_recurrence_horizon_days),
     }
 
 

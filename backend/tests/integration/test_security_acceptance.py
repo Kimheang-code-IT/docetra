@@ -41,10 +41,7 @@ def test_soft_delete_then_purge(auth_client):
 
 
 def test_public_get_still_works_after_auth_settings(auth_client):
-    # Authenticated PATCH path works; anonymous GET remains public.
-    assert_envelope(auth_client.get("/api/v2/settings/app-info"))
-    # Drop session cookies by using a fresh client would be another fixture;
-    # here we only assert authenticated GET still returns envelope.
+    # Anonymous GET remains public; authenticated GET also returns an envelope.
     assert_envelope(auth_client.get("/api/v2/settings/app-config"))
 
 

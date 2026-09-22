@@ -15,6 +15,8 @@ const props = withDefaults(defineProps<{
   activeTab: string
   fieldValue: (key: string) => unknown
   setFieldValue: (key: string, value: unknown) => void | Promise<void>
+  /** Field-level validation errors keyed by field key. */
+  fieldErrors?: Record<string, string>
   pending?: boolean
   saving?: boolean
   error?: string | null
@@ -235,13 +237,6 @@ async function onSaveClick() {
     </LayoutAppHeaderPageActions>
 
     <div class="relative flex min-h-0 w-full min-w-0 flex-1 overflow-hidden p-0">
-      <div
-        v-if="pending"
-        class="absolute inset-0 z-10 flex items-center justify-center bg-default/50 backdrop-blur-[1px]"
-      >
-        <UIcon name="i-lucide-loader-circle" class="size-6 animate-spin text-primary" />
-      </div>
-
       <div class="relative flex min-h-0 w-full min-w-0 flex-1 overflow-hidden bg-default">
         <button
           v-if="metaRailOpen"
@@ -290,6 +285,7 @@ async function onSaveClick() {
                     :active-tab="activeTab"
                     :field-value="fieldValue"
                     :set-field-value="setFieldValue"
+                    :field-errors="fieldErrors"
                     :read-only="readOnly"
                     :is-create="isCreate"
                     :wide="contentWide"

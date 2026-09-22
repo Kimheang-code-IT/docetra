@@ -42,10 +42,10 @@ class FakeAsyncClient:
             return FakeResponse({"ok": True, "result": {}})
         return queue.pop(0)
 
-    async def get(self, url, params=None):
+    async def get(self, url, params=None, **kwargs):
         return self._next("GET", url, params)
 
-    async def post(self, url, json=None):
+    async def post(self, url, json=None, **kwargs):
         return self._next("POST", url, json)
 
 

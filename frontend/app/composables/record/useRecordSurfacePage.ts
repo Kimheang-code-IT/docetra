@@ -36,7 +36,6 @@ export async function useRecordSurfacePage(uiSurface: 'meeting' | 'document') {
       name: current.name,
       routeBase: current.routeBase,
       uiSurface,
-      icon: current.icon,
       isCreatable: current.isCreatable,
       supportsStages: current.supportsStages,
       supportsTopicContainer: uiSurface === 'meeting' ? current.supportsTopicContainer : undefined,

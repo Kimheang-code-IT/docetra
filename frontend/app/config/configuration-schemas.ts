@@ -2,11 +2,6 @@ import type { DocumentTabSchema, FieldOption } from '~/types/docetra/common'
 import type { AttributeDataType, ConfigWorkflowStage, RecordAttribute } from '~/types/docetra/configuration'
 import { ATTRIBUTE_DATA_TYPES } from '~/types/docetra/configuration'
 
-const statusOptions: FieldOption[] = [
-  { label: 'Active', value: 'active', labelKey: 'docetra.status.active' },
-  { label: 'Disabled', value: 'disabled', labelKey: 'docetra.status.disabled' },
-]
-
 export function recordTypeTabs(ctx: {
   attributeCatalog: RecordAttribute[]
   availableAttributeOptions: FieldOption[]
@@ -31,9 +26,7 @@ export function recordTypeTabs(ctx: {
           { key: 'name', labelKey: 'docetra.fields.name', type: 'text', required: true },
           { key: 'code', labelKey: 'docetra.fields.code', type: 'text', required: true },
           { key: 'description', labelKey: 'docetra.fields.description', type: 'textarea', colSpan: 2, rows: 3 },
-          { key: 'icon', labelKey: 'docetra.common.icon', type: 'icon' },
           { key: 'color', labelKey: 'docetra.common.color', type: 'color' },
-          { key: 'status', labelKey: 'docetra.fields.status', type: 'select', options: statusOptions },
         ],
       }],
     },
@@ -142,41 +135,6 @@ export function recordAttributeTabs(ctx: {
           { key: 'helpText', labelKey: 'docetra.config.helpText', type: 'text' },
           { key: 'dataType', labelKey: 'docetra.config.dataTypeLabel', type: 'select', options: dataTypeOptions },
           { key: 'placeholder', labelKey: 'docetra.config.placeholder', type: 'text' },
-          { key: 'status', labelKey: 'docetra.fields.status', type: 'select', options: statusOptions },
-        ],
-      }],
-    },
-    {
-      id: 'field',
-      labelKey: 'docetra.config.tabs.field',
-      sections: [{
-        id: 'field',
-        titleKey: 'docetra.config.tabs.field',
-        fields: [
-          { key: 'required', labelKey: 'docetra.fields.required', type: 'boolean' },
-          { key: 'unique', labelKey: 'docetra.config.unique', type: 'boolean' },
-          { key: 'readOnly', labelKey: 'docetra.config.readOnly', type: 'boolean' },
-          { key: 'searchable', labelKey: 'docetra.config.searchable', type: 'boolean' },
-          { key: 'filterable', labelKey: 'docetra.config.filterable', type: 'boolean' },
-          { key: 'sortable', labelKey: 'docetra.config.sortable', type: 'boolean' },
-          { key: 'showInList', labelKey: 'docetra.config.showInList', type: 'boolean' },
-        ],
-      }],
-    },
-    {
-      id: 'validation',
-      labelKey: 'docetra.config.tabs.validation',
-      sections: [{
-        id: 'validation',
-        titleKey: 'docetra.config.tabs.validation',
-        fields: [
-          {
-            key: 'validation',
-            labelKey: 'docetra.config.tabs.validation',
-            type: 'validation-builder',
-            colSpan: 2,
-            meta: { dataType: ctx.dataType },
-          },
         ],
       }],
     },
@@ -195,24 +153,6 @@ export function recordAttributeTabs(ctx: {
       }],
     })
   }
-
-  tabs.push({
-    id: 'visibility',
-    labelKey: 'docetra.config.tabs.visibility',
-    sections: [{
-      id: 'visibility',
-      titleKey: 'docetra.config.tabs.visibility',
-      fields: [
-        {
-          key: 'visibility',
-          labelKey: 'docetra.config.tabs.visibility',
-          type: 'visibility-builder',
-          colSpan: 2,
-          options: ctx.visibilityFieldOptions,
-        },
-      ],
-    }],
-  })
 
   return tabs
 }

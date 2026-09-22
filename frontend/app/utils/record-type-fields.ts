@@ -60,7 +60,6 @@ export function mapTypeAttributeToField(
   assigned: RecordTypeAttribute,
   catalogById?: Map<string, RecordAttribute>,
 ): DocumentFieldSchema | null {
-  if (assigned.visible === false) return null
   const catalog = catalogById?.get(assigned.attributeId)
   const dataType = assigned.dataType || catalog?.dataType || 'short_text'
   const fieldType = attributeDataTypeToFieldType(dataType)
@@ -79,8 +78,6 @@ export function mapTypeAttributeToField(
     labelKey: `docetra.fields.${assigned.attributeCode}`,
     label,
     type: fieldType,
-    required: assigned.required,
-    readOnly: assigned.readOnly,
     colSpan: fieldType === 'textarea' || fieldType === 'file' || fieldType === 'image' ? 2 : 1,
     options,
     optionsEndpoint: assignmentEndpoint,

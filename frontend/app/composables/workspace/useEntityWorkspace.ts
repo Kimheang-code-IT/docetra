@@ -11,6 +11,11 @@ import {
   serializePageLimit,
 } from '~/utils/pagination'
 import { concurrencyVersion, versionsById } from '~/utils/api/concurrency'
+import { readListCache, writeListCache } from '~/utils/list-cache'
+import { consumeListStale } from '~/utils/workspace-list-stale'
+import { useAuthStore } from '~/stores/auth'
+
+type WorkspaceListCache = { items: Record<string, unknown>[]; total: number }
 
 function getByPath(obj: Record<string, unknown>, path: string): unknown {
   return path.split('.').reduce<unknown>((acc, key) => {
@@ -27,6 +32,7 @@ export function useEntityWorkspace(config: EntityConfig) {
   const { defaultPageSize } = useAppRuntimeConfig()
   const adapter = getAdapterForConfig(config)
   const exportRunner = useExportJobRunner()
+  const auth = useAuthStore()
 
   const view = computed({
     get: () => {
@@ -159,14 +165,44 @@ export function useEntityWorkspace(config: EntityConfig) {
     ...filters.value,
   }))
 
-  async function refresh() {
+  function workspaceCacheKey() {
+    return `${auth.user?.id || 'anon'}:${config.key}:${JSON.stringify(listQuery.value)}`
+  }
+
+  /**
+   * Cache-aware load. A fresh cache entry paints instantly with no network; a
+   * stale entry paints instantly and revalidates in the background. Forced
+   * loads (toolbar refresh, after mutations, or a marked-stale list) always hit
+   * the API with the loading state.
+   */
+  async function loadWorkspace(force = false) {
     const token = ++requestToken
-    pending.value = true
+    const isKanban = view.value === 'kanban' && Boolean(config.stages?.length)
+    const key = workspaceCacheKey()
+    const mustRefresh = force || consumeListStale(config.key)
     error.value = null
+
+    if (!isKanban && !mustRefresh) {
+      const cached = readListCache<WorkspaceListCache>(key)
+      if (cached) {
+        items.value = cached.data.items
+        total.value = cached.data.total
+        pending.value = false
+        if (cached.fresh) return
+      }
+      else {
+        pending.value = true
+      }
+    }
+    else {
+      pending.value = true
+    }
+
     try {
-      if (view.value === 'kanban' && config.stages?.length) {
+      if (isKanban) {
+        const stages = config.stages || []
         const columns: typeof kanbanColumns.value = {}
-        await Promise.all(config.stages.map(async (stage) => {
+        await Promise.all(stages.map(async (stage) => {
           const res = await adapter.listByStage?.(stage.code, {
             ...listQuery.value,
             page: 1,
@@ -195,6 +231,7 @@ export function useEntityWorkspace(config: EntityConfig) {
             }))
           : rows
         total.value = res.meta?.total || 0
+        writeListCache(key, { items: items.value, total: total.value } satisfies WorkspaceListCache)
       }
     }
     catch (e: any) {
@@ -204,6 +241,11 @@ export function useEntityWorkspace(config: EntityConfig) {
     finally {
       if (token === requestToken) pending.value = false
     }
+  }
+
+  /** Force a network refresh (toolbar refresh, after mutations). */
+  async function refresh() {
+    await loadWorkspace(true)
   }
 
   async function loadMoreStage(stage: string) {
@@ -257,7 +299,7 @@ export function useEntityWorkspace(config: EntityConfig) {
   }
 
   watch(listQuery, () => {
-    refresh()
+    void loadWorkspace()
   }, { deep: true, immediate: true })
 
   const debouncedSearch = useDebounceFn((value: string) => {
@@ -364,6 +406,29 @@ export function useEntityWorkspace(config: EntityConfig) {
     await refresh()
   }
 
+  /**
+   * Deactivate / reactivate a row. Records use the dedicated archive/restore
+   * lifecycle endpoints; master data flips `isActive` or `status` via PATCH.
+   */
+  async function setRowActive(row: Record<string, unknown>, active: boolean) {
+    const id = String(row.id || '')
+    if (!id) return
+    const version = concurrencyVersion(row)
+    const extra = version != null ? { version } : {}
+    if (config.recordBacked || config.recordTypeCode) {
+      if (active) await adapter.restore?.(id, extra)
+      else await adapter.archive?.(id, extra)
+    }
+    else if (typeof row.isActive === 'boolean') {
+      await adapter.update?.(id, { isActive: active, ...extra } as any)
+    }
+    else {
+      // Master data lifecycle is `active` / `inactive` (people_access, organization, configuration).
+      await adapter.update?.(id, { status: active ? 'active' : 'inactive', ...extra } as any)
+    }
+    await refresh()
+  }
+
   async function exportData(request: ExportRequest, selectedIds: string[] = []) {
     exporting.value = true
     try {
@@ -401,6 +466,7 @@ export function useEntityWorkspace(config: EntityConfig) {
     openCreate,
     openRow,
     deleteSelected,
+    setRowActive,
     exportData,
     listQuery,
   }

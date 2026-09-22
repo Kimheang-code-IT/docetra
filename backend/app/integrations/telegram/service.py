@@ -19,6 +19,34 @@ def _url(token: str, method: str) -> str:
     return _API_BASE.format(token=token, method=method)
 
 
+_client: httpx.AsyncClient | None = None
+
+
+def _http_client() -> httpx.AsyncClient:
+    """One pooled client per process. A fresh AsyncClient per call opened (and
+    tore down) a TCP/TLS connection every request, which is pure overhead."""
+    global _client
+    current_cls = httpx.AsyncClient
+    client = _client
+    if client is None or type(client) is not current_cls or getattr(client, "is_closed", False):
+        client = current_cls(
+            limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
+            timeout=httpx.Timeout(30.0, connect=10.0),
+        )
+        _client = client
+    return client
+
+
+async def close_client() -> None:
+    global _client
+    if _client is not None:
+        try:
+            await _client.aclose()
+        except Exception:
+            pass
+        _client = None
+
+
 async def _request(
     method: str,
     token: str,
@@ -38,11 +66,11 @@ async def _request(
     last_exc: Exception | None = None
     for attempt in range(attempts):
         try:
-            async with httpx.AsyncClient(timeout=timeout) as client:
-                if http_method == "GET":
-                    response = await client.get(url, params=params)
-                else:
-                    response = await client.post(url, json=payload)
+            client = _http_client()
+            if http_method == "GET":
+                response = await client.get(url, params=params, timeout=timeout)
+            else:
+                response = await client.post(url, json=payload, timeout=timeout)
             if response.status_code >= 400:
                 detail = ""
                 try:

@@ -49,8 +49,8 @@ def test_people_access_module_users_and_catalog(auth_client):
 
 
 def test_admin_config_module_settings_and_types(auth_client):
-    info = auth_client.get("/api/v2/settings/app-info")
-    assert info.status_code == 200
+    config = auth_client.get("/api/v2/settings/app-config")
+    assert config.status_code == 200
     types = auth_client.get("/api/v2/configuration/record-types", params={"page": 1, "limit": 5})
     assert_envelope(types, require_meta=True)
 

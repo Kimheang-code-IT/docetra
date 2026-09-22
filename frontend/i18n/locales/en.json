@@ -38,7 +38,6 @@
       "googleDriveSync": "Google Drive Sync",
       "portalLog": "Logs Portal",
       "systemLog": "System Log",
-      "appInfo": "App Info",
       "appConfig": "App Config",
       "storage": "Storage",
       "archive": "Archive"
@@ -724,6 +723,7 @@
       "archived": "Archived",
       "deleted": "Delete",
       "disabled": "Disabled",
+      "inactive": "Inactive",
       "failed": "Failed"
     },
     "meetingBoard": {

@@ -203,7 +203,9 @@ export interface TableColumnDef {
   width?: string
   priority?: 'high' | 'medium' | 'low'
   /** How the cell should render. Defaults are inferred from the key when omitted. */
-  cell?: 'text' | 'badge' | 'datetime' | 'person'
+  cell?: 'text' | 'badge' | 'datetime' | 'person' | 'icon-text' | 'bytes'
+  /** Row field holding an icon name, rendered before the text for `icon-text` cells. */
+  icon?: string
 }
 
 export interface FilterDef {

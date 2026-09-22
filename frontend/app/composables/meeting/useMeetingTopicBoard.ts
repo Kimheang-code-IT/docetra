@@ -7,6 +7,17 @@ import {
 import { withConcurrencyToken } from '~/utils/api/concurrency'
 import { mergeMeetingTiming, sortMeetingsForBoard } from '~/utils/meeting/board'
 import { MEETING_COMPLETED_STAGE, MEETING_TOPICS_PATH, meetingHistoryDetailPath } from '~/utils/meeting/detail-route'
+import { readListCache, writeListCache } from '~/utils/list-cache'
+import { consumeListStale } from '~/utils/workspace-list-stale'
+import { useAuthStore } from '~/stores/auth'
+
+type MeetingBoardCache = {
+  topics: MeetingTopic[]
+  meetings: MeetingHistory[]
+  topicTotal: number
+  meetingTotal: number
+  countSummary: { total: number; unassigned: number; groups: Record<string, number> }
+}
 
 /** Sentinel for the Unassigned row on the topic rail (not a real topic id). */
 export const MEETING_BOARD_UNASSIGNED = '__unassigned__'
@@ -16,6 +27,7 @@ export function useMeetingTopicBoard() {
   const toast = useToast()
   const topicsAdapter = getEntityAdapter('meetingTopics')
   const meetingsAdapter = getEntityAdapter('meetingHistory')
+  const auth = useAuthStore()
 
   const pending = ref(false)
   const error = ref<string | null>(null)
@@ -93,11 +105,42 @@ export function useMeetingTopicBoard() {
     countSummary.value = response.data
   }
 
-  async function refresh() {
+  function boardCacheKey() {
+    return `${auth.user?.id || 'anon'}:meetingTopicBoard:${JSON.stringify({
+      topic: topicSearch.value,
+      meeting: meetingSearch.value,
+      start: meetingDateStart.value,
+      end: meetingDateEnd.value,
+    })}`
+  }
+
+  /** Cache-aware board load; pass `force: true` after mutations/filter changes. */
+  async function refresh(options: { force?: boolean } = {}) {
     const token = ++requestToken
-    pending.value = true
+    const key = boardCacheKey()
+    const mustRefresh = options.force === true || consumeListStale('meetingTopics', 'meetingHistory')
     error.value = null
     meetingPage.value = 1
+
+    if (!mustRefresh) {
+      const cached = readListCache<MeetingBoardCache>(key)
+      if (cached) {
+        topics.value = cached.data.topics
+        meetings.value = cached.data.meetings
+        topicTotal.value = cached.data.topicTotal
+        meetingTotal.value = cached.data.meetingTotal
+        countSummary.value = cached.data.countSummary
+        pending.value = false
+        if (cached.fresh) return
+      }
+      else {
+        pending.value = true
+      }
+    }
+    else {
+      pending.value = true
+    }
+
     try {
       const [topicsRes, meetingsRes] = await Promise.all([
         topicsAdapter.list({
@@ -118,6 +161,13 @@ export function useMeetingTopicBoard() {
       meetingPage.value = 1
       topicTotal.value = topicsRes.meta?.total || topics.value.length
       meetingTotal.value = meetingsRes.meta?.total || meetings.value.length
+      writeListCache(key, {
+        topics: topics.value,
+        meetings: meetings.value,
+        topicTotal: topicTotal.value,
+        meetingTotal: meetingTotal.value,
+        countSummary: { ...countSummary.value },
+      } satisfies MeetingBoardCache)
     }
     catch (e: any) {
       if (token === requestToken) error.value = e?.message || 'Failed to load meetings'
@@ -219,7 +269,7 @@ export function useMeetingTopicBoard() {
       })
       // The API owns aggregate counts and topic children; the browser only
       // refreshes its bounded page after the atomic assignment succeeds.
-      await refresh()
+      await refresh({ force: true })
       toast.add({
         title: topicId
           ? t('docetra.meetingBoard.assigned', { topic: topic?.title || '' })
@@ -252,11 +302,11 @@ export function useMeetingTopicBoard() {
         topicId,
         orderedMeetingIds: next.map(m => m.id),
       })
-      await refresh()
+      await refresh({ force: true })
     }
     catch (e: any) {
       toast.add({ title: e?.message || t('docetra.meetingBoard.reorderFailed'), color: 'error' })
-      await refresh()
+      await refresh({ force: true })
     }
   }
 
@@ -264,14 +314,14 @@ export function useMeetingTopicBoard() {
     if (!topicsAdapter.delete) throw new Error(t('docetra.actions.deleteFailed'))
     await topicsAdapter.delete(id)
     if (selectedTopicId.value === id) selectedTopicId.value = null
-    await refresh()
+    await refresh({ force: true })
     toast.add({ title: t('docetra.actions.deletedItems', { n: 1 }), color: 'success' })
   }
 
   async function deleteMeeting(id: string) {
     if (!meetingsAdapter.delete) throw new Error(t('docetra.actions.deleteFailed'))
     await meetingsAdapter.delete(id)
-    await refresh()
+    await refresh({ force: true })
     toast.add({ title: t('docetra.actions.deletedItems', { n: 1 }), color: 'success' })
   }
 
@@ -286,7 +336,7 @@ export function useMeetingTopicBoard() {
       childMeetings: [],
     } as Partial<MeetingTopic>)
     const created = res.data as MeetingTopic
-    await refresh()
+    await refresh({ force: true })
     if (created?.id) selectedTopicId.value = created.id
     toast.add({ title: t('docetra.meetingBoard.topicSaved'), color: 'success' })
     return created
@@ -328,14 +378,14 @@ export function useMeetingTopicBoard() {
       if (!topicsAdapter.archive) throw new Error(t('docetra.common.actionFailed'))
       await topicsAdapter.archive(id, token)
     }
-    await refresh()
+    await refresh({ force: true })
     toast.add({
       title: active ? t('docetra.common.activated') : t('docetra.common.deactivated'),
       color: 'success',
     })
   }
 
-  const debouncedTopicSearch = useDebounceFn(() => refresh(), 300)
+  const debouncedTopicSearch = useDebounceFn(() => refresh({ force: true }), 300)
   const debouncedMeetingFilter = useDebounceFn(() => refreshMeetings({ resetPage: true }), 300)
   watch(topicSearch, () => debouncedTopicSearch())
   watch([meetingSearch, meetingDateStart, meetingDateEnd], () => debouncedMeetingFilter())
@@ -349,7 +399,7 @@ export function useMeetingTopicBoard() {
     if (!meeting || !meetingsAdapter.transitionStage) return
     try {
       await meetingsAdapter.transitionStage(id, MEETING_COMPLETED_STAGE, { version: meeting.version })
-      await refresh()
+      await refresh({ force: true })
       toast.add({ title: t('docetra.meetingBoard.movedToHistory'), color: 'success' })
     }
     catch (e: any) {

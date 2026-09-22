@@ -12,7 +12,6 @@ const { formatDateTime } = useAppLocalization()
 const columns: TableColumnDef[] = [
   { key: 'name', labelKey: 'docetra.fields.name', sortable: true },
   { key: 'code', labelKey: 'docetra.fields.code', sortable: true },
-  { key: 'icon', labelKey: 'docetra.common.icon' },
   { key: 'attributeCount', labelKey: 'docetra.fields.attributes' },
   { key: 'workflowEnabled', labelKey: 'docetra.fields.workflow' },
   { key: 'updatedAt', labelKey: 'docetra.fields.updatedAt', cell: 'datetime' },
@@ -60,7 +59,6 @@ const list = useConfigListPage({
   setActive: (id, active) => recordTypes.setActive(id, active).then(() => undefined),
   cellValue(row, key) {
     if (key === 'workflowEnabled') return row.workflowEnabled ? t('docetra.common.yes') : t('docetra.common.no')
-    if (key === 'icon') return String(row.icon || '—')
     if (key === 'status') {
       const s = String(row.status || '')
       const i18nKey = `docetra.status.${s}`
@@ -124,6 +122,7 @@ watch(() => list.q, v => { searchInput.value = v })
     :filter-values="list.filters"
     :row-actions="rowActions"
     :cell-value="list.defaultCellValue"
+    :show-meta="false"
     @create="list.openCreate"
     @refresh="list.refresh"
     @update:search="(v) => { searchInput = v; list.debouncedSearch(v) }"

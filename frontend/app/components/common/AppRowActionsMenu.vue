@@ -34,7 +34,7 @@ const menuItems = computed<DropdownMenuItem[][]>(() => {
       label,
       icon: action.icon,
       color: action.color,
-      disabled: action.disabled,
+      disabled: typeof action.disabled === 'function' ? action.disabled(props.row) : action.disabled,
       onSelect: (e: Event) => {
         e.preventDefault()
         emit('action', { key: action.key, row: props.row })

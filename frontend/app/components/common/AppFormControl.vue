@@ -35,7 +35,16 @@ const selectValue = computed({
     return String(props.modelValue)
   },
   set: (v: string | undefined) => {
-    const next = v ?? ''
+    const current = props.modelValue == null || props.modelValue === ''
+      ? undefined
+      : String(props.modelValue)
+    const next = v == null ? '' : String(v)
+    // Selecting the option that is already chosen clears the selection.
+    if (current !== undefined && next === current) {
+      emit('update:modelValue', '')
+      emit('update:selectedLabel', '')
+      return
+    }
     emit('update:modelValue', next)
     const match = selectItems.value.find(item => String(item.value) === next)
     if (match?.label) emit('update:selectedLabel', match.label)

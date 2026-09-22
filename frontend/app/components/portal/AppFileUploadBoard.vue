@@ -46,9 +46,8 @@ const rowActions = computed<RowActionItem[]>(() => [
     : []),
 ])
 
-const { status: storageStatus, pending: storagePending, load: loadStorageStatus } = useStorageStatus()
+const { status: storageStatus, load: loadStorageStatus } = useStorageStatus()
 const fileStorageReady = computed(() => storageStatus.value ? storageStatus.value.fileStorage.ready : true)
-const storageChecking = computed(() => storagePending.value && !storageStatus.value)
 const storageLabel = computed(() => {
   const type = storageStatus.value?.fileStorage.providerType
   if (!type) return ''
@@ -192,7 +191,8 @@ function onRowAction(payload: { key: string, row: Record<string, unknown> }) {
 }
 
 onMounted(() => {
-  refresh()
+  // useEntityWorkspace loads on setup (immediate listQuery watcher); calling
+  // refresh() here too would cancel that in-flight request.
   void loadStorageStatus()
 })
 </script>
@@ -207,13 +207,6 @@ onMounted(() => {
     @refresh="refresh"
   >
     <div class="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-sm border border-default bg-default">
-      <div
-        v-if="pending && !items.length"
-        class="absolute inset-0 z-10 flex items-center justify-center bg-default/50"
-      >
-        <UIcon name="i-lucide-loader-circle" class="size-6 animate-spin text-primary" />
-      </div>
-
       <UAlert
         v-if="error"
         class="m-3"
@@ -283,14 +276,8 @@ onMounted(() => {
             >
               <UIcon name="i-lucide-loader-circle" class="size-5 animate-spin text-primary" />
             </div>
-            <div
-              v-if="canUpload && storageChecking"
-              class="flex h-full items-center justify-center"
-            >
-              <UIcon name="i-lucide-loader-circle" class="size-5 animate-spin text-muted" />
-            </div>
             <LazyCommonAppUppyUploader
-              v-else-if="canUpload && fileStorageReady"
+              v-if="canUpload && fileStorageReady"
               class="flex h-full min-h-0 flex-col [&_.uppy-host]:min-h-0 [&_.uppy-host]:flex-1"
               entity-id="portal-file-upload"
               :endpoint="ApiEndpoints.FILE_UPLOADS"
@@ -392,7 +379,7 @@ onMounted(() => {
             :cell-value="cellValue"
             :can-delete="canDelete"
             :selectable="canDelete"
-            :show-meta="true"
+            :show-meta="false"
             :row-actions="rowActions"
             @update:page="page = $event"
             @update:limit="limit = $event"

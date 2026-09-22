@@ -37,9 +37,17 @@ async def probe_redis() -> None:
         await redis.aclose()
 
 
+# Reuse a single probe connection: opening a fresh AMQP connection per
+# readiness poll churned broker connections (FDs, memory) under frequent probes.
+_rabbit_probe_connection = None
+
+
 async def probe_rabbitmq() -> None:
-    connection = await aio_pika.connect(settings.rabbitmq_url)
-    await connection.close()
+    global _rabbit_probe_connection
+    if _rabbit_probe_connection is None or _rabbit_probe_connection.is_closed:
+        _rabbit_probe_connection = await aio_pika.connect(settings.rabbitmq_url)
+    if _rabbit_probe_connection.is_closed:
+        raise RuntimeError("rabbitmq connection closed")
 
 
 async def readiness_payload(storage_probe) -> tuple[int, dict]:

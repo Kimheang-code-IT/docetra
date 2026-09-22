@@ -17,6 +17,24 @@ from app.modules.people_access.services.identity import normalize_identity_paylo
 import app.modules.people_access.services.people as people
 
 
+async def _resolve_officer_role_id(db: AsyncSession, payload: dict) -> uuid.UUID | None:
+    """Officers store a role FK. A typed role name (case-insensitive) is resolved here."""
+    name = str(payload.get("roleName") or "").strip()
+    if name:
+        role = await db.scalar(select(Role).where(func.lower(Role.nam) == name.lower()))
+        if not role:
+            message = "Role not found"
+            raise DomainError("VALIDATION_ERROR", message, 422, fields=[{"field": "roleName", "message": message}])
+        return role.id
+    raw = payload.get("roleId")
+    if not raw:
+        return None
+    try:
+        return uuid.UUID(str(raw))
+    except (TypeError, ValueError):
+        return None
+
+
 class IdentityApplicationService:
     def __init__(self, host):
         self.host = host
@@ -51,6 +69,11 @@ class IdentityApplicationService:
 
         if kind == "role":
             filters = []
+            if status and status not in {"all", "all-status"}:
+                if "inactive" in (status or ""):
+                    filters.append(Role.is_active == 0)
+                else:
+                    filters.append(Role.is_active == 1)
             if q:
                 filters.append(Role.nam.ilike(f"%{q}%"))
             filters.extend(date_filters(params, Role.updated_at))
@@ -112,7 +135,7 @@ class IdentityApplicationService:
                 nam=str(payload.get("name") or ""),
                 email=payload.get("email"),
                 organization_id=uuid.UUID(str(payload["organizationId"])) if payload.get("organizationId") or payload.get("departmentId") else None,
-                role_id=uuid.UUID(str(payload["roleId"])) if payload.get("roleId") else None,
+                role_id=await _resolve_officer_role_id(db, payload),
                 is_active=0 if payload.get("status") == "inactive" else 1,
                 profile_url=payload.get("profileUrl") or payload.get("avatar"),
                 created_by=officer_id,
@@ -176,7 +199,9 @@ class IdentityApplicationService:
             row = await db.get(Role, uid)
             if not row:
                 raise HTTPException(404, "Not found")
+            previous_perms = set(await people.permissions_for_role_id(db, row.id))
             data = await normalize_identity_payload(db, "roles", {**current, **body}, row.id, actor=user)
+            name_changed = str(data.get("name") or row.nam) != row.nam
             row.nam = str(data.get("name") or row.nam)
             row.description = data.get("description")
             if "status" in body:
@@ -184,12 +209,18 @@ class IdentityApplicationService:
             row.updated_by = officer_id
             creator_scoped = people.creator_scoped_codes_from_rows(data.get("permissionRows"))
             await people.replace_role_permissions(db, row.id, list(data.get("permissions") or []), creator_scoped)
-            users = (await db.scalars(select(User).where(User.role_id == row.id))).all()
             perms = await people.permissions_for_role_id(db, row.id)
-            for account in users:
-                account.permissions = perms
-                account.role = row.nam
-                await revoke_user_tokens(str(account.id))
+            permissions_changed = set(perms) != previous_perms
+            # Status-only (or name-only) edits must not log users out. Only a
+            # real permission change invalidates sessions so the denormalized
+            # users.permissions snapshot stays authoritative.
+            if permissions_changed or name_changed:
+                users = (await db.scalars(select(User).where(User.role_id == row.id))).all()
+                for account in users:
+                    account.permissions = perms
+                    account.role = row.nam
+                    if permissions_changed:
+                        await revoke_user_tokens(str(account.id))
             await db.flush()
             return people.role_to_payload(row, perms, await people.creator_scoped_codes_for_role(db, row.id))
 
@@ -229,9 +260,8 @@ class IdentityApplicationService:
         if "organizationId" in body or "departmentId" in body:
             raw = body.get("organizationId") or body.get("departmentId")
             row.organization_id = uuid.UUID(str(raw)) if raw else None
-        if "roleId" in body:
-            raw_role = body.get("roleId")
-            row.role_id = uuid.UUID(str(raw_role)) if raw_role else None
+        if "roleName" in body or "roleId" in body:
+            row.role_id = await _resolve_officer_role_id(db, body)
         if "status" in body or "isActive" in body:
             if "isActive" in body:
                 row.is_active = 1 if body.get("isActive") else 0

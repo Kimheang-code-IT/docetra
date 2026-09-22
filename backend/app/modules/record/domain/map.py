@@ -26,7 +26,6 @@ TYPE_UI_DEFAULTS: dict[str, dict] = {
     "meeting_history": {
         "uiSurface": "meeting",
         "slug": "history",
-        "icon": "i-lucide-calendar-clock",
         "menuOrder": 20,
         "isCreatable": True,
         "supportsStages": True,
@@ -35,7 +34,6 @@ TYPE_UI_DEFAULTS: dict[str, dict] = {
     "meeting_topic": {
         "uiSurface": "meeting",
         "slug": "topics",
-        "icon": "i-lucide-folders",
         "menuOrder": 10,
         "isCreatable": True,
         "supportsStages": True,
@@ -44,7 +42,6 @@ TYPE_UI_DEFAULTS: dict[str, dict] = {
     "document": {
         "uiSurface": "document",
         "slug": "documents",
-        "icon": "i-lucide-file-text",
         "menuOrder": 30,
         "isCreatable": True,
         "supportsStages": True,
@@ -53,7 +50,6 @@ TYPE_UI_DEFAULTS: dict[str, dict] = {
     "incoming_document": {
         "uiSurface": "document",
         "slug": "incoming-documents",
-        "icon": "i-lucide-file-input",
         "menuOrder": 10,
         "isCreatable": True,
         "supportsStages": True,
@@ -62,7 +58,6 @@ TYPE_UI_DEFAULTS: dict[str, dict] = {
     "outgoing_document": {
         "uiSurface": "document",
         "slug": "outgoing-documents",
-        "icon": "i-lucide-file-output",
         "menuOrder": 20,
         "isCreatable": True,
         "supportsStages": True,
@@ -71,7 +66,6 @@ TYPE_UI_DEFAULTS: dict[str, dict] = {
     "master_list_request": {
         "uiSurface": "document",
         "slug": "master-list-requests",
-        "icon": "i-lucide-list-checks",
         "menuOrder": 40,
         "isCreatable": True,
         "supportsStages": True,
@@ -229,7 +223,6 @@ def merge_type_ui_payload(code: str, payload: dict | None) -> dict:
     base = dict(TYPE_UI_DEFAULTS.get(code) or {
         "uiSurface": "document",
         "slug": code.replace("_", "-"),
-        "icon": "i-lucide-file",
         "menuOrder": 100,
         "isCreatable": True,
         "supportsStages": True,

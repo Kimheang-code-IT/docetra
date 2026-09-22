@@ -75,16 +75,7 @@ export interface RecordAttribute extends BaseEntity {
   dataType: AttributeDataType
   placeholder?: string
   defaultValue?: string | number | boolean | string[] | null
-  required: boolean
-  unique: boolean
-  readOnly: boolean
-  searchable: boolean
-  filterable: boolean
-  sortable: boolean
-  showInList: boolean
-  validation?: ValidationRule
   options?: AttributeOption[]
-  visibility?: VisibilityRule | null
   /** Count of record types using this attribute (denormalized for lists). */
   usedByCount: number
 }
@@ -101,12 +92,6 @@ export interface RecordTypeAttribute {
   attributeCode: string
   attributeLabel: string
   dataType: AttributeDataType
-  required: boolean
-  readOnly: boolean
-  visible: boolean
-  searchable: boolean
-  filterable: boolean
-  showInList: boolean
   /** Optional workflow stage where this field becomes applicable. Empty means all stages. */
   stageCode?: string
   section?: string
@@ -164,7 +149,6 @@ export interface RecordType extends BaseEntity {
   name: string
   code: string
   description?: string
-  icon?: string
   color?: string
   features: RecordTypeFeatures
   numbering: RecordTypeNumbering

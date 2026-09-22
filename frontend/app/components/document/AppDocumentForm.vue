@@ -7,11 +7,14 @@ const props = withDefaults(defineProps<{
   activeTab: string
   fieldValue: (key: string) => unknown
   setFieldValue: (key: string, value: unknown) => void
+  /** Field-level validation errors keyed by field key. */
+  fieldErrors?: Record<string, string>
   readOnly?: boolean
   isCreate?: boolean
   /** Force wider shell even without dense field types. */
   wide?: boolean
 }>(), {
+  fieldErrors: () => ({}),
   readOnly: false,
   isCreate: false,
   wide: false,
@@ -97,6 +100,7 @@ function onSelectedLabel(fieldKey: string, label: string) {
                   :field="field"
                   :model-value="fieldValue(field.key)"
                   :selected-label="selectedLabelFor(field.key)"
+                  :error="fieldErrors[field.key]"
                   :disabled="readOnly"
                   :is-create="isCreate"
                   @update:model-value="(v) => onFieldUpdate(field.key, v)"

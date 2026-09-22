@@ -25,12 +25,9 @@ def _walk_strings(value, found: list[str]) -> None:
 
 
 def test_public_settings_without_auth(api_client):
-    info = api_client.get("/api/v2/settings/app-info")
     config = api_client.get("/api/v2/settings/app-config")
-    info_body = assert_envelope(info)
     config_body = assert_envelope(config)
     assert "localization" in config_body["data"]
-    assert info_body["data"].get("applicationName") or info_body["data"].get("shortName")
 
 
 def test_public_app_config_masks_secrets(api_client):

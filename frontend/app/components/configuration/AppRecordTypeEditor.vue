@@ -117,7 +117,6 @@ function emptyType(): RecordType {
     name: '',
     code: '',
     description: '',
-    icon: 'i-lucide-shapes',
     color: '#2563eb',
     status: 'active',
     features: defaultRecordTypeFeatures(),
@@ -138,12 +137,6 @@ function toAssignment(attr: RecordAttribute, order: number): RecordTypeAttribute
     attributeCode: attr.code,
     attributeLabel: attr.label,
     dataType: attr.dataType,
-    required: attr.required,
-    readOnly: attr.readOnly,
-    visible: true,
-    searchable: attr.searchable,
-    filterable: attr.filterable,
-    showInList: attr.showInList,
     section: 'General',
     order,
   }
@@ -287,7 +280,6 @@ function toInput(): CreateRecordTypeInput {
     name: m.name.trim(),
     code: m.code.trim(),
     description: m.description,
-    icon: m.icon,
     color: m.color,
     features: m.features,
     numbering: m.numbering,
@@ -396,7 +388,7 @@ usePageSeo({
     :save-label="isCreate ? t('docetra.common.create') : t('docetra.common.save')"
     :show-comments="!isCreate"
     :can-comment="canCommentDocument"
-    :show-meta-rail="!isCreate"
+    :show-meta-rail="false"
     :show-list-nav="true"
     list-to="/configuration/record-types"
     :comments="comments"

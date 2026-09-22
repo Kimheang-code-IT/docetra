@@ -28,6 +28,7 @@ const {
   pending,
   saving,
   error,
+  fieldErrors,
   notFound,
   dirty,
   title,
@@ -203,7 +204,18 @@ const currentUser = computed(() => ({
   email: auth.user?.email,
 }))
 
-const showMetaRail = computed(() => props.config.document?.metaRail !== false)
+// Meta rail (assign/attachments/tags/share/last-edited/created) is removed for
+// every entity; opt in per config with `document.metaRail: true`.
+const showMetaRail = computed(() => props.config.document?.metaRail === true)
+// Comments/activity are only for the record family (records + meetings).
+const isRecordSurface = computed(() =>
+  props.config.recordBacked === true || Boolean(props.config.recordTypeCode),
+)
+const showCommentsPanel = computed(() =>
+  !isCreate.value
+  && isRecordSurface.value
+  && props.config.document?.showComments !== false,
+)
 const contentWide = computed(() => props.config.document?.wide === true)
 // Dynamic schema loading must not cover a new form with the full-page pending
 // overlay. Show the record as soon as GET returns; type fields fill in after.
@@ -249,12 +261,13 @@ async function refreshDocument() {
     v-model:active-tab="activeTab"
     :field-value="fieldValue"
     :set-field-value="setFieldValue"
+    :field-errors="fieldErrors"
     :pending="documentPending"
     :saving="saving"
     :error="error"
     :not-found="notFound"
     :read-only="config.readOnly || !canEditDocument"
-    :show-comments="!isCreate"
+    :show-comments="showCommentsPanel"
     :show-meta-rail="showMetaRail"
     :content-wide="contentWide"
     :show-list-nav="true"

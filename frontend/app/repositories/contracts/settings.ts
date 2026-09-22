@@ -1,6 +1,5 @@
 import type {
   AppConfig,
-  AppInfo,
   ConnectionStatus,
   CreateStorageProviderInput,
   StorageProvider,
@@ -8,12 +7,6 @@ import type {
   TelegramTestResult,
   UpdateStorageProviderInput,
 } from '~/types/docetra/settings'
-
-export interface AppInfoRepository {
-  get: () => Promise<AppInfo>
-  update: (input: Partial<AppInfo>) => Promise<AppInfo>
-  reset: () => Promise<AppInfo>
-}
 
 export interface AppConfigRepository {
   get: () => Promise<AppConfig>

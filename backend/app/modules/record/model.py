@@ -82,6 +82,7 @@ class Record(UUIDPrimaryKeyMixin, TimestampMixin, OfficerActorMixin, VersionMixi
     __table_args__ = (
         Index("ix_record_type_status_time", "record_type_id", "status", "record_time"),
         Index("ix_record_type_code", "record_type_code"),
+        Index("ix_record_type_updated_at", "record_type_id", "updated_at"),
     )
 
     record_type_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("record_type.id", ondelete="SET NULL"), index=True)

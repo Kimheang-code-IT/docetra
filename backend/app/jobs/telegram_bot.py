@@ -33,6 +33,7 @@ from sqlalchemy import func, select
 from app.core.config import settings
 from app.db import SessionLocal
 from app.integrations.telegram import (
+    TelegramAPIError,
     chat_from_update,
     get_updates,
     remember_chat,
@@ -564,6 +565,7 @@ async def run_telegram_bot() -> None:
             if not bot.get("enabled") or not token:
                 await asyncio.sleep(15)
                 continue
+            started = asyncio.get_running_loop().time()
             updates = await get_updates(token, offset=offset, timeout=25)
             for update in updates:
                 try:
@@ -571,8 +573,17 @@ async def run_telegram_bot() -> None:
                 except (TypeError, ValueError):
                     continue
                 await _handle_update(update, token, config)
+            # Long polling should block ~25s when idle; if it returned instantly
+            # (e.g. a proxy ignoring the timeout) yield so we do not spin hot.
+            if not updates and asyncio.get_running_loop().time() - started < 1:
+                await asyncio.sleep(1)
         except asyncio.CancelledError:
             raise
+        except TelegramAPIError as exc:
+            # Expected API rejection (revoked token, poll conflict). Log a
+            # concise line instead of a full traceback every few seconds.
+            log.warning("Telegram bot API error: %s; retrying in 30s", exc)
+            await asyncio.sleep(30)
         except Exception:  # noqa: BLE001 - keep the polling loop alive
             log.exception("Telegram bot loop error")
             await asyncio.sleep(5)

@@ -257,13 +257,6 @@ onMounted(() => void load())
     @create="showCreate = true"
   >
     <div class="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-sm border border-default bg-default">
-      <div
-        v-if="loading && !sources.length && !files.length"
-        class="absolute inset-0 z-10 flex items-center justify-center bg-default/50"
-      >
-        <UIcon name="i-lucide-loader-circle" class="size-6 animate-spin text-primary" />
-      </div>
-
       <form
         v-if="showCreate && canCreate"
         class="grid shrink-0 gap-3 border-b border-default p-4 sm:grid-cols-2"

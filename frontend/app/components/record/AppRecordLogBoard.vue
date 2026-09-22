@@ -70,7 +70,6 @@ function logActorName(row: Record<string, unknown>) {
     collapse-label-key="docetra.recordLogBoard.collapseTabs"
     header-search-placeholder-key="docetra.recordLogBoard.search"
     :pending="pending"
-    :show-pending-overlay="pending && !pageItems.length && !tabCounts.get('all')"
     :error="error"
     @refresh="refresh"
     @retry="refresh"

@@ -6,7 +6,8 @@ export interface RowActionItem {
   label?: string
   icon?: string
   color?: 'error' | 'primary' | 'neutral' | 'success' | 'warning' | 'info' | 'secondary'
-  disabled?: boolean
+  /** Static flag or per-row predicate. */
+  disabled?: boolean | ((row: Record<string, unknown>) => boolean)
   /** Hide this action for a given row when returning true. */
   hidden?: (row: Record<string, unknown>) => boolean
 }

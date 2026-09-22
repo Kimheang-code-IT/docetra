@@ -2,12 +2,10 @@
 import type { AppRolePermissionRow } from '~/types/docetra/entities'
 import {
   ROLE_DOCUMENT_TYPES,
-  ROLE_PERMISSION_ACTIONS,
   normalizePermissionRows,
   setPermissionAction,
 } from '~/utils/role/permissions'
 import { usePermissionCatalogRows } from '~/composables/config/usePermissionCatalog'
-import { FORM_CONTROL_COMPACT } from '~/utils/form-field-ui'
 
 const rows = defineModel<AppRolePermissionRow[]>({ default: () => [] })
 
@@ -27,12 +25,6 @@ const totalCount = computed(() =>
 )
 const allGranted = computed(() => grantedCount.value === totalCount.value)
 const someGranted = computed(() => grantedCount.value > 0 && !allGranted.value)
-
-const actionColumns = computed(() => {
-  const cols: string[][] = [[], [], []]
-  ROLE_PERMISSION_ACTIONS.forEach((action, index) => cols[index % 3]!.push(action))
-  return cols
-})
 
 function commit(next: AppRolePermissionRow[]) {
   rows.value = normalizePermissionRows(next)
@@ -69,10 +61,6 @@ function allowedActions(documentType: string) {
     || []
 }
 
-function actionAllowed(documentType: string, action: string) {
-  return allowedActions(documentType).includes(action as any)
-}
-
 function toggleAction(documentType: string, action: string, checked: boolean | 'indeterminate') {
   if (props.disabled) return
   commit(displayRows.value.map(row =>
@@ -102,20 +90,6 @@ function toggleAll(checked: boolean) {
   })))
 }
 
-function updateCreatorScope(documentType: string, checked: boolean | 'indeterminate') {
-  if (props.disabled) return
-  commit(displayRows.value.map(row => row.documentType === documentType
-    ? { ...row, onlyIfCreator: row.actions.length > 0 && checked === true }
-    : row))
-}
-
-function updateLevel(documentType: string, value: string | number) {
-  if (props.disabled) return
-  const level = Math.min(9, Math.max(0, Number(value || 0)))
-  commit(displayRows.value.map(row => row.documentType === documentType
-    ? { ...row, level }
-    : row))
-}
 </script>
 
 <template>
@@ -152,7 +126,7 @@ function updateLevel(documentType: string, value: string | number) {
     </div>
 
     <div class="overflow-x-auto">
-      <table class="min-w-[58rem] w-full text-sm">
+      <table class="min-w-[42rem] w-full text-sm">
         <thead>
           <tr class="bg-elevated/50 text-left text-highlighted">
             <th class="w-12 px-3 py-2.5">
@@ -167,8 +141,6 @@ function updateLevel(documentType: string, value: string | number) {
               {{ $t('docetra.rolePermissions.documentType') }}
             </th>
             <th class="px-3 py-2.5 font-semibold">{{ $t('docetra.fields.permissions') }}</th>
-            <th class="w-36 px-3 py-2.5 font-semibold">{{ $t('docetra.rolePermissions.scope') }}</th>
-            <th class="w-24 px-3 py-2.5 font-semibold">{{ $t('docetra.rolePermissions.level') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -186,44 +158,20 @@ function updateLevel(documentType: string, value: string | number) {
             </td>
             <td class="px-3 py-3">
               <div class="grid grid-cols-2 gap-x-3 gap-y-1.5 sm:grid-cols-3">
-                <div v-for="(col, colIndex) in actionColumns" :key="colIndex" class="space-y-1.5">
-                  <label
-                    v-for="action in col"
-                    :key="action"
-                    class="flex cursor-pointer items-center gap-1.5 text-xs text-highlighted sm:text-sm"
-                  >
-                    <UCheckbox
-                      :model-value="hasAction(row, action)"
-                      :disabled="disabled || !actionAllowed(row.documentType, action)"
-                      size="sm"
-                      @update:model-value="toggleAction(row.documentType, action, $event)"
-                    />
-                    <span>{{ actionLabel(action) }}</span>
-                  </label>
-                </div>
+                <label
+                  v-for="action in allowedActions(row.documentType)"
+                  :key="action"
+                  class="flex cursor-pointer items-center gap-1.5 text-xs text-highlighted sm:text-sm"
+                >
+                  <UCheckbox
+                    :model-value="hasAction(row, action)"
+                    :disabled="disabled"
+                    size="sm"
+                    @update:model-value="toggleAction(row.documentType, action, $event)"
+                  />
+                  <span>{{ actionLabel(action) }}</span>
+                </label>
               </div>
-            </td>
-            <td class="px-3 py-3">
-              <UCheckbox
-                :model-value="Boolean(row.onlyIfCreator)"
-                :disabled="disabled || row.actions.length === 0 || row.actions.includes('purge')"
-                :label="$t('docetra.rolePermissions.creatorOnly')"
-                @update:model-value="updateCreatorScope(row.documentType, $event)"
-              />
-            </td>
-            <td class="px-3 py-3">
-              <UInput
-                :model-value="row.level || 0"
-                type="number"
-                :min="0"
-                :max="9"
-                :color="FORM_CONTROL_COMPACT.color"
-                :variant="FORM_CONTROL_COMPACT.variant"
-                :size="FORM_CONTROL_COMPACT.size"
-                :placeholder="t('docetra.fields.placeholderNumber')"
-                :disabled="disabled || row.actions.length === 0"
-                @update:model-value="updateLevel(row.documentType, $event)"
-              />
             </td>
           </tr>
         </tbody>

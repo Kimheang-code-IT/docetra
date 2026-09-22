@@ -15,8 +15,6 @@ def test_email_smtp_prefers_app_config_over_env():
             "username": "mailer",
             "password": "secret",
             "encryption": "ssl",
-            "fromName": "Docetra Mail",
-            "fromEmail": "noreply@example.com",
         }
     }
     smtp = runtime.email_smtp(config)
@@ -37,7 +35,6 @@ def test_email_smtp_falls_back_to_env_when_app_config_incomplete(monkeypatch):
 
     smtp = runtime.email_smtp({"email": {"enabled": True}})
     assert smtp["smtpHost"] == "env.smtp.local"
-    assert smtp["fromEmail"] == "env@example.com"
 
 
 def test_general_defaults_merge_app_config():

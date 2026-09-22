@@ -24,7 +24,6 @@ STATIC_DOCUMENT_TYPES: list[tuple[str, str, list[str]]] = [
     ("portal_log", "portal.logs", AUDIT),
     ("system_log", "system.logs", AUDIT),
     ("app_config", "settings.app_config", SETTINGS),
-    ("app_info", "settings.app_info", SETTINGS),
     ("storage", "settings.storage", SETTINGS),
 ]
 

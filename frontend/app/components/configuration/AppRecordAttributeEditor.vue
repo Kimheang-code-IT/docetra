@@ -98,16 +98,7 @@ function emptyAttribute(): RecordAttribute {
     helpText: '',
     dataType: 'short_text',
     placeholder: '',
-    required: false,
-    unique: false,
-    readOnly: false,
-    searchable: true,
-    filterable: false,
-    sortable: false,
-    showInList: true,
-    validation: {},
     options: [],
-    visibility: null,
     usedByCount: 0,
     status: 'active',
     createdAt: now,
@@ -168,16 +159,7 @@ function toInput(): CreateRecordAttributeInput {
     dataType: m.dataType,
     placeholder: m.placeholder,
     defaultValue: m.defaultValue,
-    required: m.required,
-    unique: m.unique,
-    readOnly: m.readOnly,
-    searchable: m.searchable,
-    filterable: m.filterable,
-    sortable: m.sortable,
-    showInList: m.showInList,
-    validation: m.validation,
     options: showOptions.value ? m.options : [],
-    visibility: m.visibility,
     status: m.status,
   }
 }
@@ -288,7 +270,7 @@ usePageSeo({
     :save-label="isCreate ? t('docetra.common.create') : t('docetra.common.save')"
     :show-comments="!isCreate"
     :can-comment="canCommentDocument"
-    :show-meta-rail="!isCreate"
+    :show-meta-rail="false"
     :show-list-nav="true"
     :list-to="listPath()"
     :comments="comments"

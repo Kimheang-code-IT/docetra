@@ -27,6 +27,8 @@ const props = defineProps<{
   modelValue: unknown
   disabled?: boolean
   isCreate?: boolean
+  /** Inline validation error message shown under the field. */
+  error?: string
   /** Human label for FK selects (roleName, organizationName, …). */
   selectedLabel?: string | null
 }>()
@@ -296,12 +298,6 @@ function addAssignedAttribute() {
     attributeCode: attr.code,
     attributeLabel: attr.label,
     dataType: attr.dataType,
-    required: attr.required,
-    readOnly: attr.readOnly,
-    visible: true,
-    searchable: attr.searchable,
-    filterable: attr.filterable,
-    showInList: attr.showInList,
     section: 'General',
     order: assignedAttributes.value.length,
   }
@@ -327,12 +323,6 @@ function onReorderAssigned(items: Array<RecordTypeAttribute & { id: string }>) {
     attributeCode: a.attributeCode,
     attributeLabel: a.attributeLabel,
     dataType: a.dataType,
-    required: a.required,
-    readOnly: a.readOnly,
-    visible: a.visible,
-    searchable: a.searchable,
-    filterable: a.filterable,
-    showInList: a.showInList,
     stageCode: a.stageCode,
     section: a.section,
     order: index,
@@ -496,44 +486,6 @@ watch(() => props.field.key, () => {
               />
             </div>
           </div>
-          <div class="grid gap-2 sm:grid-cols-3">
-            <UCheckbox
-              :model-value="item.required"
-              :label="t('docetra.fields.required')"
-              :disabled="disabled || field.readOnly"
-              @update:model-value="updateAssigned(item.attributeId, { required: Boolean($event) })"
-            />
-            <UCheckbox
-              :model-value="item.readOnly"
-              :label="t('docetra.config.readOnly')"
-              :disabled="disabled || field.readOnly"
-              @update:model-value="updateAssigned(item.attributeId, { readOnly: Boolean($event) })"
-            />
-            <UCheckbox
-              :model-value="item.visible"
-              :label="t('docetra.config.visible')"
-              :disabled="disabled || field.readOnly"
-              @update:model-value="updateAssigned(item.attributeId, { visible: Boolean($event) })"
-            />
-            <UCheckbox
-              :model-value="item.searchable"
-              :label="t('docetra.config.searchable')"
-              :disabled="disabled || field.readOnly"
-              @update:model-value="updateAssigned(item.attributeId, { searchable: Boolean($event) })"
-            />
-            <UCheckbox
-              :model-value="item.filterable"
-              :label="t('docetra.config.filterable')"
-              :disabled="disabled || field.readOnly"
-              @update:model-value="updateAssigned(item.attributeId, { filterable: Boolean($event) })"
-            />
-            <UCheckbox
-              :model-value="item.showInList"
-              :label="t('docetra.config.showInList')"
-              :disabled="disabled || field.readOnly"
-              @update:model-value="updateAssigned(item.attributeId, { showInList: Boolean($event) })"
-            />
-          </div>
           <UInput
             :model-value="item.section || ''"
             :color="FORM_CONTROL_COMPACT.color"
@@ -604,6 +556,7 @@ watch(() => props.field.key, () => {
   <UFormField
     v-else-if="isBoolean"
     :help="helpText"
+    :error="error"
   >
     <div class="flex min-h-9 flex-wrap items-center gap-2 pt-1">
       <UCheckbox
@@ -653,6 +606,7 @@ watch(() => props.field.key, () => {
     v-else
     :label="labelText"
     :required="fieldRequired"
+    :error="error"
     :help="(field.type === 'textarea' && textareaHelp) ? textareaHelp : (helpText || undefined)"
   >
     <div class="flex items-start gap-1.5">

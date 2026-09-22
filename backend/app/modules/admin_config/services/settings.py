@@ -7,32 +7,12 @@ from app.core.secrets import MASK, mask_mapping, protect_mapping, reveal_mapping
 from app.modules.admin_config.model import AppSetting
 from app.shared.dicts import deep_merge
 
-DEFAULT_APP_INFO = {
-    "applicationName": "Docetra",
-    "shortName": "Docetra",
-    "organizationName": "General Department of Corporate Services",
-    "description": "Document and record management system",
-    "supportEmail": "support@example.com",
-    "branding": {"primaryColor": "#e8472a", "secondaryColor": "#3a539f"},
-    "footer": {"copyrightText": "© Docetra"},
-}
 DEFAULT_APP_CONFIG = {
     "general": {"defaultLandingPage": "/", "defaultPageSize": 20, "defaultRecordView": "table", "enableComments": True, "enableSharing": True, "enableExport": True, "maxUploadSizeMb": 25},
-    "localization": {"defaultLanguage": "en", "availableLanguages": ["en", "km"], "timezone": "Asia/Phnom_Penh", "dateFormat": "dd/MM/yyyy", "timeFormat": "HH:mm", "firstDayOfWeek": 1, "numberFormat": "en-US", "currency": "KHR", "locale": "en"},
-    "email": {"enabled": False, "smtpHost": "", "smtpPort": 587, "username": "", "password": "", "encryption": "starttls", "fromName": "Docetra", "fromEmail": "", "timeoutSeconds": 10, "connectionStatus": "not_tested"},
-    "telegram": {"enabled": False, "botDisplayName": "Docetra", "botToken": "", "connectionMode": "bot_api", "messageLanguage": "en", "includeRecordLink": True, "includeOrganization": True, "includeAssignedOfficer": True, "connectionStatus": "not_tested", "destinations": [], "messageTemplate": "[{{record_type}}] {{record_number}}\n{{record_title}}"},
-    "notifications": {
-        "inAppEnabled": True,
-        "emailEnabled": False,
-        "telegramEnabled": False,
-        "deliveryRetries": 3,
-        "quietHoursEnabled": False,
-        "language": "en",
-        "rules": [],
-        "meetingReminderOffsetsMinutes": [1440, 60, 15],
-        "meetingRecurrenceHorizonDays": 90,
-    },
-    "security": {"sessionTimeoutMinutes": 480, "maxLoginAttempts": 5, "accountLockMinutes": 15, "passwordExpiryDays": 0, "requirePasswordChange": False, "allowedUploadExtensions": ["pdf", "doc", "docx", "xls", "xlsx", "png", "jpg", "jpeg"], "auditRetentionDays": 365, "frontendOnly": False},
+    "localization": {"defaultLanguage": "en", "timezone": "Asia/Phnom_Penh", "dateFormat": "dd/MM/yyyy", "timeFormat": "HH:mm"},
+    "email": {"enabled": False, "smtpHost": "", "smtpPort": 587, "username": "", "password": "", "encryption": "starttls", "timeoutSeconds": 10},
+    "telegram": {"enabled": False, "botToken": "", "connectionMode": "bot_api", "messageLanguage": "en", "includeOrganization": True, "destinations": []},
+    "security": {"sessionTimeoutMinutes": 480, "maxLoginAttempts": 5, "accountLockMinutes": 15, "passwordExpiryDays": 0, "requirePasswordChange": False, "auditRetentionDays": 365, "frontendOnly": False},
     "system": {"maintenanceMode": False, "readOnlyMode": False, "paginationDefault": 20, "configurationVersion": "1.0.0", "environment": "development", "cacheStatus": "healthy", "backgroundJobStatus": "idle"},
     "display": {"cardFields": {}, "cardFooterAlign": {}},
 }
@@ -66,24 +46,6 @@ async def get_setting(db: AsyncSession, key: str, default: dict) -> dict:
     return {"data": value}
 
 
-async def update_app_info(db: AsyncSession, body: dict) -> dict:
-    row = await db.get(AppSetting, "app-info") or AppSetting(key="app-info", value=DEFAULT_APP_INFO)
-    row.value = merge_setting(row.value or DEFAULT_APP_INFO, body)
-    row.updated_at = datetime.now(timezone.utc)
-    db.add(row)
-    await db.flush()
-    return await get_setting(db, "app-info", DEFAULT_APP_INFO)
-
-
-async def reset_app_info(db: AsyncSession) -> dict:
-    row = await db.get(AppSetting, "app-info") or AppSetting(key="app-info", value={})
-    row.value = DEFAULT_APP_INFO
-    row.updated_at = datetime.now(timezone.utc)
-    db.add(row)
-    await db.flush()
-    return await get_setting(db, "app-info", DEFAULT_APP_INFO)
-
-
 async def update_app_config(db: AsyncSession, body: dict) -> dict:
     row = await db.get(AppSetting, "app-config") or AppSetting(key="app-config", value=protect_mapping(DEFAULT_APP_CONFIG))
     current = reveal_mapping(row.value or DEFAULT_APP_CONFIG)
@@ -97,15 +59,12 @@ async def update_app_config(db: AsyncSession, body: dict) -> dict:
     return await get_setting(db, "app-config", DEFAULT_APP_CONFIG)
 
 
-async def record_telegram_status(
+async def record_telegram_destinations(
     db: AsyncSession,
     *,
-    status: str,
-    message: str,
-    bot_username: str | None = None,
     verified_chat_ids: list[str] | None = None,
 ) -> dict:
-    """Persist a Telegram connection/test result on the live app-config row.
+    """Persist Telegram destination verification on the live app-config row.
 
     When a test message succeeds, matching destinations are marked verified so
     meeting reminders can be delivered to them.
@@ -114,11 +73,6 @@ async def record_telegram_status(
     current = reveal_mapping(row.value or DEFAULT_APP_CONFIG)
     telegram = dict(current.get("telegram") or {})
     tested_at = iso_utc(datetime.now(timezone.utc))
-    telegram["connectionStatus"] = status
-    telegram["lastTestedAt"] = tested_at
-    telegram["lastTestMessage"] = message
-    if bot_username is not None:
-        telegram["botUsername"] = bot_username
     if verified_chat_ids:
         verified = {str(chat_id) for chat_id in verified_chat_ids}
         telegram["destinations"] = [

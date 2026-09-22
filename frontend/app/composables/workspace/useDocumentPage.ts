@@ -17,7 +17,7 @@ import { hydrateMeetingHistoryModel } from '~/utils/meeting/detail-route'
 export function useDocumentPage(config: EntityConfig, idParam?: string) {
   const route = useRoute()
   const router = useRouter()
-  const { t, te } = useI18n()
+  const { t } = useI18n()
   const toast = useToast()
   const { confirm } = useConfirm()
   const adapter = getAdapterForConfig(config)
@@ -33,6 +33,7 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
   const pending = ref(false)
   const saving = ref(false)
   const error = ref<string | null>(null)
+  const fieldErrors = ref<Record<string, string>>({})
   const notFound = ref(false)
   const activeTab = ref(config.tabs[0]?.id || 'details')
   const comments = ref<EntityComment[]>([])
@@ -78,6 +79,12 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
     setByPath(next, key, value)
     model.value = next
     if (trackingChanges.value) dirty.value = true
+    // Clear a field's validation error as soon as the user edits it.
+    if (fieldErrors.value[key]) {
+      const remaining = { ...fieldErrors.value }
+      delete remaining[key]
+      fieldErrors.value = remaining
+    }
   }
 
   async function loadRecordNeighbors() {
@@ -87,6 +94,9 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
     nextRecordId.value = null
     if (isCreate.value || !currentId || !adapter.getNeighbors) return
 
+    // Neighbor navigation only exists for record-backed entities; other
+    // collections (roles, users, …) have no neighbor endpoint and would 404.
+    if (!config.recordBacked || !config.recordTypeCode) return
     loadingRecordNavigation.value = true
     try {
       const response = await adapter.getNeighbors(currentId, { sort: '-updatedAt' })
@@ -104,9 +114,11 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
   }
 
   async function loadRelatedFeeds(requestedId: string, token: number) {
+    // Comments/activity only exist for record-family surfaces (records + meetings).
+    const isRecordSurface = config.recordBacked === true || Boolean(config.recordTypeCode)
     const related = await Promise.allSettled([
-      adapter.listComments?.(requestedId, { page: 1, limit: 20 }),
-      adapter.listActivity?.(requestedId, { page: 1, limit: 20 }),
+      isRecordSurface ? adapter.listComments?.(requestedId, { page: 1, limit: 20 }) : undefined,
+      isRecordSurface ? adapter.listActivity?.(requestedId, { page: 1, limit: 20 }) : undefined,
       adapter.listAttachments?.(requestedId, { page: 1, limit: 50 }),
     ])
     if (token !== loadRequestToken || requestedId !== id.value) return
@@ -129,6 +141,7 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
     pending.value = !isCreate.value
     trackingChanges.value = false
     error.value = null
+    fieldErrors.value = {}
     notFound.value = false
     try {
       if (isCreate.value) {
@@ -332,15 +345,11 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
 
     if (!missing.length) return true
     activeTab.value = missing[0]!.tabId
-    const labels = missing.map(({ field }) => {
-      if (field.label) return field.label
-      return te(field.labelKey) ? t(field.labelKey) : field.labelKey
-    })
-    toast.add({
-      title: t('docetra.document.requiredFieldsMissing'),
-      description: labels.join(', '),
-      color: 'error',
-    })
+    const next: Record<string, string> = { ...fieldErrors.value }
+    for (const { field } of missing) {
+      next[field.key] = t('docetra.fields.required')
+    }
+    fieldErrors.value = next
     return false
   }
 
@@ -351,26 +360,27 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
       const mode = String(model.value.meetingMode || '')
       const url = String(model.value.meetingUrl || '').trim()
       if ((mode === 'online' || mode === 'hybrid') && !url) {
-        toast.add({ title: t('docetra.meetingBoard.meetingUrlRequired'), color: 'error' })
+        fieldErrors.value = { ...fieldErrors.value, meetingUrl: t('docetra.meetingBoard.meetingUrlRequired') }
         return
       }
     }
     if (config.key === 'departments' && !isCreate.value && model.value.parentId === id.value) {
-      toast.add({ title: t('docetra.department.cannotBeOwnAncestor'), color: 'error' })
+      fieldErrors.value = { ...fieldErrors.value, parentId: t('docetra.department.cannotBeOwnAncestor') }
       return
     }
     if (config.key === 'sectors' && !isCreate.value && model.value.parentId === id.value) {
-      toast.add({ title: t('docetra.sector.cannotBeOwnParent'), color: 'error' })
+      fieldErrors.value = { ...fieldErrors.value, parentId: t('docetra.sector.cannotBeOwnParent') }
       return
     }
     if (config.key === 'users') {
       const password = String(model.value.password || '')
       if (password && password.length < 8) {
-        toast.add({ title: t('pages.auth.passwordTooShort'), color: 'error' })
+        fieldErrors.value = { ...fieldErrors.value, password: t('pages.auth.passwordTooShort') }
         return
       }
     }
     saving.value = true
+    fieldErrors.value = {}
     try {
       const payload = withConcurrencyToken(prepareModelForSave(), model.value.version)
       if (config.key === 'meetingHistory' && payload.topicId && !payload.topicTitle) {
@@ -393,7 +403,7 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
         )
         const parentOption = departmentOptions.find(option => option.value === parentId)
         if (parentId && !parentOption) {
-          toast.add({ title: t('docetra.department.cannotBeDescendant'), color: 'error' })
+          fieldErrors.value = { ...fieldErrors.value, parentId: t('docetra.department.cannotBeDescendant') }
           return
         }
         payload.parentName = String(parentOption?.meta?.name || parentOption?.label || '')
@@ -412,32 +422,30 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
         payload.parentName = sectorOptions.find(option => option.value === String(payload.parentId || ''))?.label || ''
       }
       if (config.key === 'officers') {
-        const [organizationOptions, roleOptions] = await Promise.all([
-          Promise.all([
+        const organizationOptions = (
+          await Promise.all([
             loadReferenceOptions(`${ApiEndpoints.DEPARTMENTS}/options`),
             loadReferenceOptions(`${ApiEndpoints.COMPANIES}/options`),
-          ]).then(batches => batches.flat()),
-          loadReferenceOptions(`${ApiEndpoints.ROLES}/options`),
-        ])
+          ])
+        ).flat()
         payload.organizationName = organizationOptions.find(option => option.value === String(payload.organizationId || ''))?.label
           || payload.organizationName
           || ''
-        payload.roleName = roleOptions.find(option => option.value === String(payload.roleId || ''))?.label
-          || payload.roleName
-          || ''
         payload.departmentId = payload.organizationId
         payload.departmentName = payload.organizationName
+        // Role is a typed name resolved server-side; drop the stale FK so an
+        // empty name actually clears the officer's role.
+        delete payload.roleId
         if (typeof payload.authenticationEnabled !== 'boolean') {
           payload.authenticationEnabled = Boolean(payload.userId)
         }
       }
       if (config.key === 'users') {
-        const [roleOptions, officerOptions] = await Promise.all([
-          loadReferenceOptions(`${ApiEndpoints.ROLES}/options`),
-          loadReferenceOptions(`${ApiEndpoints.OFFICERS}/options?valueField=id`),
-        ])
+        const roleOptions = await loadReferenceOptions(`${ApiEndpoints.ROLES}/options`)
         payload.roleName = roleOptions.find(option => option.value === String(payload.roleId || ''))?.label || ''
-        payload.officerName = officerOptions.find(option => option.value === String(payload.officerId || ''))?.label || ''
+        // Officer link is no longer user-editable; keep the existing link server-side.
+        delete payload.officerId
+        delete payload.officerName
         if (!String(payload.password || '')) delete payload.password
         delete payload.permissions
         delete payload.permissionRows
@@ -465,6 +473,11 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
       const res = await adapter.update(id.value, payload as any)
       model.value = { ...(res.data as Record<string, unknown>) }
       dirty.value = false
+      // An update is a change: refresh the list/board next time it is opened.
+      markListStale(config.key)
+      if (config.key === 'meetingHistory' || config.key === 'meetingTopics') {
+        markListStale('meetingTopics', 'meetingHistory')
+      }
       if (adapter.replaceAttachments) {
         await adapter.replaceAttachments(id.value, attachments.value, {
           version: concurrencyVersion(res.data),
@@ -487,6 +500,19 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
       toast.add({ title: t('docetra.document.saved'), color: 'success' })
     }
     catch (e: any) {
+      // API field errors render inline at the failing field; no toast.
+      const apiFields = e?.data?.error?.fields
+      if (Array.isArray(apiFields) && apiFields.length) {
+        const next: Record<string, string> = {}
+        for (const item of apiFields) {
+          const key = String(item?.field || '')
+          if (key) next[key] = String(item?.message || '')
+        }
+        if (Object.keys(next).length) {
+          fieldErrors.value = next
+          return
+        }
+      }
       toast.add({ title: e?.message || t('docetra.document.saveFailed'), color: 'error' })
     }
     finally {
@@ -646,6 +672,7 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
     pending,
     saving,
     error,
+    fieldErrors,
     notFound,
     dirty,
     title,

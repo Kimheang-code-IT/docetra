@@ -4,6 +4,7 @@ import type { AuthUser } from '~/types/auth-user'
 import { publishAuthSessionEvent } from '~/utils/auth/session-sync'
 import { fetchErrorStatus, shouldRefreshSessionOnAuthMeFailure } from '~/utils/api/error-policy'
 import { readStoredUser, unwrapUserPayload, userCanAccessPage, writeStoredUser } from '~/utils/auth/session-user'
+import { clearListCache } from '~/utils/list-cache'
 
 export const useAuthStore = defineStore('auth', () => {
   // Capture the Nuxt instance while the store is created from setup/plugin context.
@@ -38,6 +39,7 @@ export const useAuthStore = defineStore('auth', () => {
     token.value = null
     user.value = null
     writeStoredUser(null)
+    clearListCache()
     sessionChecked.value = true
     if (notify) publishAuthSessionEvent('logout')
   }

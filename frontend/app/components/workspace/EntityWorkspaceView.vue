@@ -2,10 +2,10 @@
 import type { EntityConfig } from '~/config/entities'
 import { useConfirm } from '~/composables/common/useConfirm'
 import { useEntityWorkspace } from '~/composables/workspace/useEntityWorkspace'
-import { consumeListStale } from '~/utils/workspace-list-stale'
 import type { RowActionItem } from '~/types/docetra/row-actions'
 import type { CardDisplayEntityKey } from '~/types/docetra/settings'
 import { permissionForAction } from '~/utils/role/access'
+import { isRowActive, isRowInactive } from '~/utils/row-status'
 
 const props = defineProps<{
   config: EntityConfig
@@ -47,6 +47,7 @@ const {
   openCreate,
   openRow,
   deleteSelected,
+  setRowActive,
   exportData,
 } = useEntityWorkspace(props.config)
 
@@ -54,10 +55,6 @@ const toast = useToast()
 const { t } = useI18n()
 const { confirm } = useConfirm()
 const auth = useAuthStore()
-
-onActivated(() => {
-  if (consumeListStale(props.config.key)) void refresh()
-})
 
 const searchInput = ref(q.value)
 const selectedIds = ref<string[]>([])
@@ -76,21 +73,81 @@ const canDelete = computed(() => props.config.canDelete !== false
   && !props.config.readOnly
   && auth.canAccessPage(permissionForAction(props.config.permission, 'delete')))
 const canExport = computed(() => auth.canAccessPage(permissionForAction(props.config.permission, 'export')))
-const canViewLogs = computed(() => auth.canAccessPage('records.logs.view'))
 const canTransition = computed(() =>
   auth.canAccessPage(permissionForAction(props.config.permission, 'transition')),
+)
+const canDeactivate = computed(() =>
+  !props.config.readOnly
+  && auth.canAccessPage(permissionForAction(props.config.permission, 'archive')),
+)
+const canActivate = computed(() =>
+  !props.config.readOnly
+  && auth.canAccessPage(permissionForAction(props.config.permission, 'restore')),
 )
 const cardEntityKey = computed(() => props.config.key as CardDisplayEntityKey)
 
 const tableRowActions = computed<RowActionItem[]>(() => [
   { key: 'detail', labelKey: 'docetra.rowActions.detail', icon: 'i-lucide-eye' },
-  ...(canViewLogs.value
-    ? [{ key: 'logs', labelKey: 'docetra.rowActions.logs', icon: 'i-lucide-scroll-text' } satisfies RowActionItem]
+  ...(canDeactivate.value
+    ? [{
+        key: 'deactivate',
+        labelKey: 'docetra.rowActions.deactivate',
+        icon: 'i-lucide-archive',
+        color: 'warning',
+        // Only active rows can be deactivated.
+        hidden: (row: Record<string, unknown>) => !isRowActive(row),
+      } satisfies RowActionItem]
+    : []),
+  ...(canActivate.value
+    ? [{
+        key: 'activate',
+        labelKey: 'docetra.rowActions.activate',
+        icon: 'i-lucide-archive-restore',
+        color: 'success',
+        // Only inactive rows can be reactivated.
+        hidden: (row: Record<string, unknown>) => !isRowInactive(row),
+      } satisfies RowActionItem]
     : []),
   ...(canDelete.value
-    ? [{ key: 'delete', labelKey: 'docetra.rowActions.delete', icon: 'i-lucide-trash-2', color: 'error' } satisfies RowActionItem]
+    ? [{
+        key: 'delete',
+        labelKey: 'docetra.rowActions.delete',
+        icon: 'i-lucide-trash-2',
+        color: 'error',
+        // Delete exists only for inactive rows — deactivate first.
+        hidden: (row: Record<string, unknown>) => !isRowInactive(row),
+      } satisfies RowActionItem]
     : []),
 ])
+
+const canDeleteSelected = computed(() =>
+  selectedIds.value.length > 0
+  && selectedIds.value.every((id) => {
+    const row = items.value.find(item => String(item.id) === id)
+    return row ? isRowInactive(row) : false
+  }),
+)
+
+const mutatingRowId = ref<string | null>(null)
+
+async function onToggleRowActive(row: Record<string, unknown>, active: boolean) {
+  const id = String(row.id || '')
+  if (!id || mutatingRowId.value) return
+  mutatingRowId.value = id
+  try {
+    await setRowActive(row, active)
+    toast.add({
+      title: t(active ? 'docetra.actions.activated' : 'docetra.actions.deactivated'),
+      color: 'success',
+    })
+  }
+  catch (e: any) {
+    toast.add({ title: e?.message || t('docetra.actions.actionFailed'), color: 'error' })
+  }
+  finally {
+    mutatingRowId.value = null
+  }
+}
 
 async function onMove(id: string, stage: string) {
   try {
@@ -103,6 +160,12 @@ async function onMove(id: string, stage: string) {
 
 async function onDeleteSelected(ids = selectedIds.value) {
   if (!ids.length || !canDelete.value) return
+  // Deactivate first: refuse rows that are still active.
+  const everyInactive = ids.every((id) => {
+    const row = items.value.find(item => String(item.id) === id)
+    return !row || isRowInactive(row)
+  })
+  if (!everyInactive) return
   const ok = await confirm({ kind: 'delete', count: ids.length })
   if (!ok) return
 
@@ -132,13 +195,12 @@ function onRowAction(payload: { key: string, row: Record<string, unknown> }) {
     openRow(row)
     return
   }
-  if (key === 'logs') {
-    if (!canViewLogs.value) return
-    const id = String(row.id || '')
-    navigateTo({
-      path: '/records/logs',
-      query: id ? { q: id } : undefined,
-    })
+  if (key === 'deactivate') {
+    void onToggleRowActive(row, false)
+    return
+  }
+  if (key === 'activate') {
+    void onToggleRowActive(row, true)
     return
   }
   if (key === 'delete') {
@@ -213,10 +275,7 @@ function onRowAction(payload: { key: string, row: Record<string, unknown> }) {
       />
       <div class="min-h-0 flex-1 overflow-auto p-4">
         <p class="mb-3 text-sm text-muted">{{ $t('docetra.views.hierarchyHint') }}</p>
-        <div v-if="pending" class="flex justify-center py-10">
-          <UIcon name="i-lucide-loader-circle" class="size-6 animate-spin text-primary" />
-        </div>
-        <ul v-else class="space-y-2">
+        <ul class="space-y-2">
           <li
             v-for="row in items"
             :key="String(row.id)"
@@ -276,8 +335,9 @@ function onRowAction(payload: { key: string, row: Record<string, unknown> }) {
         :error="error"
         :cell-value="cellValue"
         :can-delete="canDelete"
+        :can-delete-selected="canDeleteSelected"
         :selectable="usesExactColumns ? false : canDelete"
-        :show-meta="true"
+        :show-meta="false"
         :row-actions="tableRowActions"
         :stage-colors="stageColorMap"
         @update:page="page = $event"
