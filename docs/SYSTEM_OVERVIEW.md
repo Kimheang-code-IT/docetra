@@ -51,7 +51,7 @@ Nuxt SPA ── /api/v2 ──► FastAPI (api + application layer)
 ### Key numbers (verified)
 
 - **355 registered API operations** under `/api/v2`
-- **28 SQLAlchemy tables**, Alembic head `0012_drop_favorites`
+- **28 SQLAlchemy tables**, Alembic head `0013_hot_path_indexes`
 - **19 frontend entity adapters** driven by one config file (`frontend/app/config/entities.ts`)
 - Backend tests: 49 test files (unit/contract/integration/architecture); frontend: 9 unit files, 79 tests
 

@@ -77,7 +77,7 @@ def test_single_migration_head(scratch_database):
     output = _alembic(scratch_database, "heads")
     heads = [line for line in output.splitlines() if line.strip()]
     assert len(heads) == 1, output
-    assert "0012_drop_favorites" in heads[0], output
+    assert "0013_hot_path_indexes" in heads[0], output
 
 
 def test_upgrade_downgrade_upgrade_cycle(scratch_database):
@@ -86,7 +86,7 @@ def test_upgrade_downgrade_upgrade_cycle(scratch_database):
     assert CORE_TABLES <= upgraded, sorted(CORE_TABLES - upgraded)
 
     current = _alembic(scratch_database, "current")
-    assert "0012_drop_favorites" in current, current
+    assert "0013_hot_path_indexes" in current, current
 
     _alembic(scratch_database, "downgrade", "base")
     downgraded = _tables(scratch_database)

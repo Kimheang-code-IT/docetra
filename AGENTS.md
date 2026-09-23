@@ -74,7 +74,7 @@ CI (`.github/workflows/ci.yml`): gitleaks → backend lint/unit/contract → fro
 ## Gotchas
 
 - `AGENTS.md` and older docs may reference `prompt/`; the real spec tree is `docs/specification/`.
-- Migrations live in `backend/alembic/versions`; current head is `0012_drop_favorites`. Never edit a shipped revision, and do not add a migration just to move Python model definitions.
+- Migrations live in `backend/alembic/versions`; current head is `0013_hot_path_indexes`. Never edit a shipped revision, and do not add a migration just to move Python model definitions.
 - Architecture tests fail on: `app.models` imports, models imported through `app.db`, cross-module imports outside public facades, hidden function-level cross-module imports, services calling `commit()`, and DAG drift.
 - `useApi()` captures Nuxt app state and must be created while setup context is active. Calling it from delayed callbacks throws `NUXT_E1001` — capture clients during setup/plugin/store creation, or use `nuxtApp.runWithContext()` for genuinely delayed work. DevTools is disabled in `nuxt.config.ts` to silence the unrelated `[nostics]` warning.
 - Never commit `infrastructure/.env`, `frontend/.env`, `backend.env`, credentials, or secrets — CI runs gitleaks.

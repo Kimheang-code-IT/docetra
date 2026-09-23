@@ -2,7 +2,7 @@
 
 PostgreSQL is the business and authorization truth. Redis is cache/session only. Object bytes live in MinIO, never in the database.
 
-**28 tables** (SQLAlchemy metadata, verified). Alembic head: `0012_drop_favorites` (migrations 0001–0012 in `backend/alembic/versions/`).
+**28 tables** (SQLAlchemy metadata, verified). Alembic head: `0013_hot_path_indexes` (migrations 0001–0013 in `backend/alembic/versions/`).
 
 ## Ownership map (canonical model locations)
 
@@ -95,7 +95,7 @@ entities.payload: topicId/sortOrder on meeting rows; drive job payloads
 - Timestamps UTC; `record_time` drives timelines; `version` for optimistic locking.
 - Codes (`record_type.code`, `record_attribute.code`, permission codes, `key_group/key`) are stable identifiers — renaming breaks contracts.
 - Column naming quirk: `nam` (not `name`) on several tables — **do not rename** without a coordinated migration.
-- Migrations: additive only in current policy; head `0012_drop_favorites` (0011 dropped enum vocabulary, 0012 dropped favorites).
+- Migrations: additive only in current policy; head `0013_hot_path_indexes` (0011 dropped enum vocabulary, 0012 dropped favorites, 0013 added hot-path indexes).
 
 ## Consistency status (verified)
 
