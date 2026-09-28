@@ -267,7 +267,6 @@ usePageSeo({
     :read-only="!canEditDocument"
     :can-save="canEditDocument"
     :is-create="isCreate"
-    :save-label="isCreate ? t('docetra.common.create') : t('docetra.common.save')"
     :show-comments="!isCreate"
     :can-comment="canCommentDocument"
     :show-meta-rail="false"

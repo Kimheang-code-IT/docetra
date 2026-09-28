@@ -73,6 +73,141 @@ TYPE_UI_DEFAULTS: dict[str, dict] = {
     },
 }
 
+MEETING_MODE_ATTRIBUTE_OPTIONS: list[dict] = [
+    {"label": "In person", "value": "in_person", "labelKey": "docetra.meetingModes.in_person"},
+    {"label": "Online", "value": "online", "labelKey": "docetra.meetingModes.online"},
+    {"label": "Hybrid", "value": "hybrid", "labelKey": "docetra.meetingModes.hybrid"},
+]
+
+
+def _builtin_attr(
+    code: str,
+    label: str,
+    data_type: str,
+    *,
+    label_key: str | None = None,
+    field_type: str | None = None,
+    required: bool = False,
+    section: str = "General",
+    order: int = 0,
+    options_source: str | None = None,
+    options: list[dict] | None = None,
+    placeholder: str | None = None,
+    help_text: str | None = None,
+    col_span: int | None = None,
+) -> dict:
+    """Field definition materialized into the attribute catalog for a built-in type."""
+    definition: dict = {
+        "code": code,
+        "label": label,
+        "dataType": data_type,
+        "required": required,
+        "section": section,
+        "order": order,
+    }
+    if label_key:
+        definition["labelKey"] = label_key
+    if field_type:
+        definition["fieldType"] = field_type
+    if options_source:
+        definition["optionsSource"] = options_source
+    if options:
+        definition["options"] = options
+    if placeholder:
+        definition["placeholder"] = placeholder
+    if help_text:
+        definition["helpText"] = help_text
+    if col_span:
+        definition["colSpan"] = col_span
+    return definition
+
+
+def _document_attributes(date_key: str, date_label_key: str) -> list[dict]:
+    return [
+        _builtin_attr("title", "Title", "short_text", label_key="docetra.fields.title", required=True, order=0),
+        _builtin_attr(
+            "documentType", "Document type", "organization", field_type="select",
+            label_key="docetra.fields.documentType", options_source="companies", required=True, order=1,
+            placeholder="Choose option ...",
+        ),
+        _builtin_attr("referenceNumber", "Letter number", "short_text", label_key="docetra.fields.letterNumber", required=True, order=2),
+        _builtin_attr("letterSubject", "Letter subject", "short_text", label_key="docetra.fields.letterSubject", required=True, order=3),
+        _builtin_attr(date_key, "Date", "date", label_key=date_label_key, required=True, order=4),
+        _builtin_attr("directorGeneralDate", "Director General date", "date", label_key="docetra.fields.directorGeneralDate", order=5),
+        _builtin_attr("directorDate", "Director date", "date", label_key="docetra.fields.directorDate", order=6),
+        _builtin_attr(
+            "officeInCharge", "Involved office", "organization", field_type="multiselect",
+            label_key="docetra.fields.involvedOffice", options_source="departments", order=7, col_span=2,
+            placeholder="Type @ or a department name ...",
+        ),
+        _builtin_attr(
+            "involvedOfficers", "Involved officers", "officer", field_type="multiselect",
+            label_key="docetra.fields.involvedOfficers", options_source="officers", order=8, col_span=2,
+            placeholder="Choose option ...",
+        ),
+        _builtin_attr(
+            "externalUnits", "External units", "organization", field_type="multiselect",
+            label_key="docetra.fields.externalUnits", options_source="companies", order=9, col_span=2,
+            placeholder="Choose option ...",
+        ),
+        _builtin_attr("tags", "Record tag", "multi_select", field_type="csv-list", label_key="docetra.fields.recordTag", order=10, col_span=2),
+    ]
+
+
+# Built-in field definitions. `ensure_builtin_attributes` materializes these into
+# `record_attribute` (catalog) and assigns them to their record type so the
+# configuration pages and the record/meeting forms stay in sync.
+BUILTIN_TYPE_ATTRIBUTES: dict[str, list[dict]] = {
+    "meeting_topic": [
+        _builtin_attr("title", "Title", "short_text", label_key="docetra.fields.title", required=True, order=0, col_span=2),
+        _builtin_attr("description", "Description", "long_text", label_key="docetra.fields.description", order=1, col_span=2),
+        _builtin_attr("recordTime", "Record time", "datetime", label_key="docetra.fields.recordTime", required=True, order=2),
+        _builtin_attr("tags", "Record tag", "multi_select", field_type="csv-list", label_key="docetra.fields.recordTag", order=3, col_span=2),
+    ],
+    "meeting_history": [
+        _builtin_attr(
+            "topicId", "Topic", "record_reference", field_type="select",
+            label_key="docetra.fields.topic", options_source="meeting_topics", order=0,
+            placeholder="Choose option ...", help_text="Link this meeting to a topic board",
+        ),
+        _builtin_attr("letterNumber", "Letter number", "short_text", label_key="docetra.fields.letterNumber", required=True, order=1),
+        _builtin_attr("title", "Letter subject", "short_text", label_key="docetra.fields.letterSubject", required=True, order=2),
+        _builtin_attr("letterDate", "Letter date", "date", label_key="docetra.fields.letterDate", required=True, order=3),
+        _builtin_attr("meetingDate", "Meeting date", "datetime", label_key="docetra.fields.meetingDateTime", required=True, order=4),
+        _builtin_attr("durationMinutes", "Duration (minutes)", "integer", label_key="docetra.fields.durationMinutes", order=5),
+        _builtin_attr(
+            "meetingMode", "Meeting mode", "select", field_type="select",
+            label_key="docetra.fields.meetingMode", options=MEETING_MODE_ATTRIBUTE_OPTIONS, order=6,
+        ),
+        _builtin_attr("meetingUrl", "Meeting URL", "url", label_key="docetra.fields.meetingUrl", order=7),
+        _builtin_attr("location", "Location", "short_text", label_key="docetra.fields.location", order=8),
+        _builtin_attr(
+            "participants", "Participants", "officer", field_type="multiselect",
+            label_key="docetra.fields.participants", options_source="officers", order=9, col_span=2,
+            placeholder="Type @ or an officer name ...",
+        ),
+        _builtin_attr(
+            "internalUnits", "Internal units", "organization", field_type="multiselect",
+            label_key="docetra.fields.internalUnits", options_source="departments", order=10, col_span=2,
+            placeholder="Type @ or a department name ...",
+        ),
+        _builtin_attr(
+            "externalUnits", "External units", "organization", field_type="multiselect",
+            label_key="docetra.fields.externalUnits", options_source="companies", order=11, col_span=2,
+            placeholder="Type @ or a company name ...",
+        ),
+        _builtin_attr("tags", "Record tag", "multi_select", field_type="csv-list", label_key="docetra.fields.recordTag", order=12, col_span=2),
+    ],
+    "incoming_document": _document_attributes("receivedDate", "docetra.fields.date"),
+    "outgoing_document": _document_attributes("sentDate", "docetra.fields.date"),
+    "document": _document_attributes("documentDate", "docetra.fields.date"),
+    "master_list_request": [
+        _builtin_attr("title", "Title", "short_text", label_key="docetra.fields.title", required=True, order=0, col_span=2),
+        _builtin_attr("recordTime", "Record time", "datetime", label_key="docetra.fields.recordTime", required=True, order=1),
+        _builtin_attr("tags", "Record tag", "multi_select", field_type="csv-list", label_key="docetra.fields.recordTag", order=2, col_span=2),
+    ],
+}
+
 TYPE_CODE_PATTERN = re.compile(r"^[a-z][a-z0-9_]{1,63}$")
 RESERVED_RECORD_SEGMENTS = frozenset({"_meta", "logs", "schema"})
 

@@ -126,6 +126,7 @@
       "officer": "Linked officer profile.",
       "officerName": "Linked officer profile.",
       "userPassword": "Login password (at least 8 characters). Leave blank when editing to keep the current password.",
+      "officerAuthentication": "Allow this officer to sign in to the system. When off, the officer can only be mentioned on records and meetings.",
       "parent": "Parent item in the hierarchy.",
       "parentName": "Parent item in the hierarchy.",
       "purpose": "Business purpose for this organization.",
@@ -342,6 +343,7 @@
       "yes": "Yes",
       "no": "No",
       "create": "Create",
+      "submit": "Submit",
       "saved": "Saved",
       "saveFailed": "Could not save",
       "loadFailed": "Could not load",
@@ -544,7 +546,8 @@
         "notifications": "Notifications",
         "security": "Security",
         "system": "System",
-        "display": "Display"
+        "display": "Display",
+        "features": "Features"
       },
       "cardFieldsSection": "Board card fields",
       "cardFieldsHelp": "Choose which fields appear on board cards. The title is always shown. Applies to all users.",
@@ -671,7 +674,14 @@
       "providerDeleted": "Provider deleted",
       "activate": "Activate",
       "deactivate": "Deactivate",
-      "createProvider": "Create provider"
+      "createProvider": "Create provider",
+      "features": {
+        "fileUpload": "File upload menu",
+        "googleDriveSync": "Google Drive sync menu",
+        "portalLogs": "Portal logs menu",
+        "recordLogs": "Record logs menu",
+        "systemLogs": "System logs menu"
+      }
     },
     "views": {
       "table": "Table",

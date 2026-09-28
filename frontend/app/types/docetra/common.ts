@@ -178,6 +178,12 @@ export interface DocumentFieldSchema {
   alertColor?: 'error' | 'warning' | 'info' | 'success' | 'neutral'
   /** Extra context for specialized field renderers (e.g. dataType, catalog). */
   meta?: Record<string, unknown>
+  /** Show this field only when another field's value matches (e.g. officer auth credentials). */
+  visibleWhen?: {
+    key: string
+    equals?: unknown
+    notEquals?: unknown
+  }
 }
 
 export interface DocumentSectionSchema {
@@ -203,9 +209,13 @@ export interface TableColumnDef {
   width?: string
   priority?: 'high' | 'medium' | 'low'
   /** How the cell should render. Defaults are inferred from the key when omitted. */
-  cell?: 'text' | 'badge' | 'datetime' | 'person' | 'icon-text' | 'bytes'
+  cell?: 'text' | 'badge' | 'datetime' | 'person' | 'icon-text' | 'bytes' | 'link'
   /** Row field holding an icon name, rendered before the text for `icon-text` cells. */
   icon?: string
+  /** Row field holding the href for `link` cells (defaults to the column key). */
+  hrefKey?: string
+  /** Query string appended to the href for `link` cells (e.g. `?preview=1`). */
+  hrefSuffix?: string
 }
 
 export interface FilterDef {

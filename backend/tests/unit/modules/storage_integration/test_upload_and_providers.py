@@ -5,6 +5,7 @@ from fastapi import HTTPException
 
 from app.modules.storage_integration.domain.schemas import StorageProviderPayload
 from app.modules.storage_integration.services import providers as storage_providers
+from app.modules.storage_integration.services.storage import _choose_file_provider
 from app.modules.storage_integration.services.upload_validation import detect_upload_type
 
 
@@ -36,3 +37,19 @@ async def test_local_provider_disabled():
 def test_storage_provider_schema():
     payload = StorageProviderPayload(name="minio", provider="minio", active=True)
     assert payload.name == "minio"
+
+
+def test_choose_file_provider_prefers_s3_over_minio_default():
+    minio_default = {"type": "minio", "isDefault": True, "active": True}
+    s3_active = {"type": "amazon_s3", "active": True}
+    assert _choose_file_provider([minio_default, s3_active]) is s3_active
+
+
+def test_choose_file_provider_falls_back_to_minio_without_s3():
+    minio = {"type": "minio", "active": True}
+    assert _choose_file_provider([minio]) is minio
+
+
+def test_choose_file_provider_ignores_inactive_and_non_s3():
+    assert _choose_file_provider([{"type": "amazon_s3", "active": False}]) is None
+    assert _choose_file_provider([{"type": "google_drive", "active": True}]) is None

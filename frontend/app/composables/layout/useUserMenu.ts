@@ -3,6 +3,7 @@ import { usePreferencesStore } from '~/stores/preferences'
 import type { AppLocale } from '~/stores/preferences'
 import type { AppFontSize } from '~/types/docetra/settings'
 import { resolveUserAvatar } from '~/utils/auth/user-avatar'
+import { useAppRuntimeConfig } from '~/composables/settings/useAppRuntimeConfig'
 
 const FONT_SIZE_OPTIONS: Array<{ value: AppFontSize, labelKey: string, icon: string }> = [
   { value: 'sm', labelKey: 'docetra.settings.fontSizeSm', icon: 'i-lucide-a-arrow-down' },
@@ -18,6 +19,7 @@ export function useUserMenu() {
   const i18n = useI18n()
   const { t } = i18n
   const router = useRouter()
+  const { features } = useAppRuntimeConfig()
 
   preferences.hydrateLocal()
 
@@ -54,7 +56,7 @@ export function useUserMenu() {
           router.push('/archive')
         },
       } satisfies DropdownMenuItem] : []),
-      ...(auth.canAccessPage('system.logs.view') ? [{
+      ...(auth.canAccessPage('system.logs.view') && features.value.systemLogs ? [{
         label: t('docetra.pages.systemLog'),
         icon: 'i-lucide-square-terminal',
         onSelect(e: Event) {

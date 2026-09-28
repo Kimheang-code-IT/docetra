@@ -124,6 +124,23 @@ export const appConfigTabs: DocumentTabSchema[] = [
       },
     ],
   },
+  {
+    id: 'features',
+    labelKey: 'docetra.settings.tabs.features',
+    sections: [
+      {
+        id: 'features',
+        titleKey: 'docetra.settings.tabs.features',
+        fields: [
+          { key: 'features.fileUpload', labelKey: 'docetra.settings.features.fileUpload', type: 'boolean' },
+          { key: 'features.googleDriveSync', labelKey: 'docetra.settings.features.googleDriveSync', type: 'boolean' },
+          { key: 'features.portalLogs', labelKey: 'docetra.settings.features.portalLogs', type: 'boolean' },
+          { key: 'features.recordLogs', labelKey: 'docetra.settings.features.recordLogs', type: 'boolean' },
+          { key: 'features.systemLogs', labelKey: 'docetra.settings.features.systemLogs', type: 'boolean' },
+        ],
+      },
+    ],
+  },
 ]
 
 const storageConnectionField = {

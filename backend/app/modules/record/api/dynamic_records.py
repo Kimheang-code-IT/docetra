@@ -419,7 +419,8 @@ async def link_drive_attachment(
     if type_code != "meeting_history":
         raise HTTPException(404, "Not found")
     require_permission(user, "records.meeting_history.edit")
-    return {"data": await meeting_board.link_drive_attachment(db, entity_id, body.model_dump(exclude_unset=True))}
+    result = await meeting_board.link_drive_attachment(db, entity_id, body.model_dump(exclude_unset=True))
+    return {"data": result["attachment"], "meta": {"version": result.get("version")}}
 
 
 router.include_router(type_router)

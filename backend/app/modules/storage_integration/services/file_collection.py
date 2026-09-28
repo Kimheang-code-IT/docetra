@@ -15,6 +15,7 @@ from app.modules.admin_config.service import runtime
 from app.modules.record.service import actor_officer_id
 from app.modules.storage_integration.model import File
 from app.modules.storage_integration.repository import StorageRepository
+from app.platform.audit.model import AuditLog
 from app.shared.pagination import parse_limit
 from app.shared.upload_validation import detect_upload_type
 
@@ -33,6 +34,25 @@ def _payload(row: File) -> dict:
         "updatedAt": iso_utc(row.updated_at),
         "version": 1,
     }
+
+
+def _portal_audit(db, *, officer_id, action: str, row: File, message: str) -> None:
+    """Record a portal action so it surfaces on /portal/portal-logs (source_log=portal)."""
+    db.add(AuditLog(
+        created_by=officer_id,
+        action_code=action,
+        table_name="file-uploads",
+        row_id=row.id,
+        message=message,
+        detail_data={
+            "entityTitle": row.nam or str(row.id),
+            "entityType": "file-uploads",
+            "occurredAt": iso_utc(utcnow()),
+            "correlationId": str(row.id),
+        },
+        source_log="portal",
+        status_code="success",
+    ))
 
 
 class StorageFileCollectionService:
@@ -77,6 +97,8 @@ class StorageFileCollectionService:
         )
         await StorageRepository(db).add(row)
         await db.refresh(row)
+        _portal_audit(db, officer_id=officer_id, action="created", row=row, message=f"{user.name} added {row.nam}")
+        await db.flush()
         return _payload(row)
 
     async def create_upload(self, db, user, request) -> dict:
@@ -118,6 +140,8 @@ class StorageFileCollectionService:
             raise
         row.status = "active"
         await db.flush()
+        _portal_audit(db, officer_id=officer_id, action="uploaded", row=row, message=f"{user.name} uploaded {row.nam}")
+        await db.flush()
         return _payload(row)
 
     async def update(self, db, user, entity_id: str, body: dict) -> dict:
@@ -139,7 +163,10 @@ class StorageFileCollectionService:
         row = await StorageRepository(db).file(uuid.UUID(entity_id))
         if not row:
             raise HTTPException(404, "Not found")
+        officer_id = await actor_officer_id(db, user)
         row.status = "trash"
+        await db.flush()
+        _portal_audit(db, officer_id=officer_id, action="deleted", row=row, message=f"{user.name} deleted {row.nam}")
         await db.flush()
         return {"id": entity_id}
 
@@ -147,8 +174,10 @@ class StorageFileCollectionService:
         row = await StorageRepository(db).file(uuid.UUID(entity_id))
         if not row:
             raise HTTPException(404, "Not found")
+        officer_id = await actor_officer_id(db, user)
         row.status = "pending_purge"
         await db.flush()
+        _portal_audit(db, officer_id=officer_id, action="purged", row=row, message=f"{user.name} purged {row.nam}")
         if row.path:
             await delete_object(row.path, db)
         await StorageRepository(db).delete(row)

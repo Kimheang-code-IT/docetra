@@ -165,6 +165,15 @@ export interface AppConfigSystem {
   backgroundJobStatus: 'idle' | 'running' | 'failed' | 'unknown'
 }
 
+/** Admin-controlled feature visibility. Portal items also require configured storage. */
+export interface AppConfigFeatures {
+  fileUpload: boolean
+  googleDriveSync: boolean
+  portalLogs: boolean
+  recordLogs: boolean
+  systemLogs: boolean
+}
+
 /** Entity keys that support admin-configurable board card fields. */
 export type CardDisplayEntityKey =
   | 'meetingTopics'
@@ -194,6 +203,7 @@ export interface AppConfig {
   telegram: TelegramConfig
   notifications: AppConfigNotifications
   security: AppConfigSecurity
+  features: AppConfigFeatures
   system: AppConfigSystem
   display: AppConfigDisplay
   updatedAt: string

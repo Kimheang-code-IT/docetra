@@ -17,7 +17,7 @@ router = APIRouter(prefix="/files", tags=["files"])
 
 
 @router.get("/{file_id}")
-async def download(file_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
+async def download(file_id: str, preview: bool = False, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)):
     try:
         uid = uuid.UUID(file_id)
     except ValueError as exc:
@@ -52,8 +52,11 @@ async def download(file_id: str, db: AsyncSession = Depends(get_db), user: User 
             raise HTTPException(403, "File access denied")
 
     data = await get_object_bytes(object_key, db)
+    # ``preview=1`` lets the browser render PDFs/images in a new tab; the default
+    # stays a download so existing links keep their behavior.
+    disposition = "inline" if preview else "attachment"
     return Response(
         content=data,
         media_type=mime_type,
-        headers={"Content-Disposition": f'attachment; filename="{file_name}"'},
+        headers={"Content-Disposition": f'{disposition}; filename="{file_name}"'},
     )

@@ -16,6 +16,32 @@ from app.modules.record.service import entity_bags
 _client: Minio | None = None
 _bucket: str | None = None
 
+_S3_KINDS = {"minio", "amazon_s3", "cloudflare_r2", "s3"}
+# User-facing uploads target a configured S3-family provider; MinIO stays the
+# system's internal/reference store and only acts as a fallback.
+_UPLOAD_PREFERRED_KINDS = {"amazon_s3", "cloudflare_r2", "s3"}
+
+
+def _choose_file_provider(payloads: list[dict]) -> dict | None:
+    """Pick the upload provider: default/active S3 first, then MinIO fallback."""
+    preferred_default = preferred_active = None
+    fallback_default = fallback_active = None
+    for payload in payloads:
+        kind = str(payload.get("type") or "minio").lower()
+        if kind not in _S3_KINDS or not payload.get("active", True):
+            continue
+        if kind in _UPLOAD_PREFERRED_KINDS:
+            if payload.get("isDefault") and preferred_default is None:
+                preferred_default = payload
+            elif preferred_active is None:
+                preferred_active = payload
+        else:
+            if payload.get("isDefault") and fallback_default is None:
+                fallback_default = payload
+            elif fallback_active is None:
+                fallback_active = payload
+    return preferred_default or preferred_active or fallback_default or fallback_active
+
 
 def _env_client() -> tuple[Minio, str]:
     client = Minio(
@@ -29,7 +55,7 @@ def _env_client() -> tuple[Minio, str]:
 
 def _client_from_payload(payload: dict) -> tuple[Minio, str] | None:
     kind = str(payload.get("type") or "minio").lower()
-    if kind not in {"minio", "amazon_s3", "cloudflare_r2", "s3"}:
+    if kind not in _S3_KINDS:
         return None
     endpoint = str(payload.get("endpoint") or settings.s3_endpoint).removeprefix("http://").removeprefix("https://")
     if not endpoint:
@@ -53,20 +79,8 @@ async def resolve_storage(db: AsyncSession | None = None) -> tuple[Minio, str]:
 
     async def _load(session: AsyncSession) -> tuple[Minio, str]:
         rows = await entity_bags.list_entities(session, "storage-providers")
-        default = None
-        active = None
-        for row in rows:
-            if row["status"] == "deleted":
-                continue
-            payload = reveal_mapping(row["payload"])
-            if not payload.get("active", True):
-                continue
-            if payload.get("isDefault"):
-                default = payload
-                break
-            if active is None:
-                active = payload
-        chosen = default or active
+        payloads = [reveal_mapping(row["payload"]) for row in rows if row["status"] != "deleted"]
+        chosen = _choose_file_provider(payloads)
         if chosen:
             built = await asyncio.to_thread(_client_from_payload, chosen)
             if built:
@@ -88,9 +102,6 @@ async def invalidate_storage_client() -> None:
     _bucket = None
 
 
-_S3_KINDS = {"minio", "amazon_s3", "cloudflare_r2", "s3"}
-
-
 async def storage_status(db: AsyncSession) -> dict:
     """Read-only storage readiness for portal users (never reveals secret material).
 
@@ -99,28 +110,16 @@ async def storage_status(db: AsyncSession) -> dict:
     env access token + folder are set.
     """
     rows = await entity_bags.list_entities(db, "storage-providers")
+    payloads = [row["payload"] or {} for row in rows if row["status"] != "deleted"]
 
-    file_provider = None
-    fallback_file = None
+    file_provider = _choose_file_provider(payloads)
     drive_provider = None
-    for row in rows:
-        if row["status"] == "deleted":
-            continue
-        payload = row["payload"] or {}
+    for payload in payloads:
         if not payload.get("active", True):
             continue
-        kind = str(payload.get("type") or "minio").lower()
-        if kind == "google_drive":
-            if drive_provider is None and payload.get("folderId"):
-                drive_provider = payload
-            continue
-        if kind in _S3_KINDS:
-            if payload.get("isDefault"):
-                file_provider = payload
-                break
-            if fallback_file is None:
-                fallback_file = payload
-    file_provider = file_provider or fallback_file
+        if str(payload.get("type") or "").lower() == "google_drive" and payload.get("folderId"):
+            drive_provider = payload
+            break
 
     env_file_ready = bool(settings.s3_endpoint and settings.s3_access_key and settings.s3_secret_key and settings.s3_bucket)
     if file_provider is not None:

@@ -31,7 +31,6 @@ import { safeInternalPath, safeExternalUrl } from '../../app/utils/security/url'
 import { splitCardSlots, resolveVisibleSlots, isTitleChromeSlot, catalogForEntity, blocksForEntity, isCardFooterSlot, defaultFooterAlign, resolveFooterAlign } from '../../app/utils/card-fields'
 import {
   attributeDataTypeToFieldType,
-  detailFieldKey,
   mapTypeAttributeToField,
   mapTypeAttributesToSections,
   pruneDetailsForType,
@@ -307,7 +306,8 @@ describe('forms and configuration helpers', () => {
       dataType: 'short_text',
       required: true,
     }))
-    expect(field?.key).toBe(detailFieldKey('letter_number'))
+    expect(field?.key).toBe('letter_number')
+    expect(field?.required).toBe(true)
     expect(attributeDataTypeToFieldType('datetime')).toBe('datetime')
     expect(mapTypeAttributesToSections([
       assigned({ attributeCode: 'letter_number', section: 'Identity' }),

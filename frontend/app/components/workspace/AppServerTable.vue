@@ -52,6 +52,7 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const { formatNumber } = useAppLocalization()
+const runtimeConfig = useRuntimeConfig()
 
 const UBadge = resolveComponent('UBadge')
 const UButton = resolveComponent('UButton')
@@ -271,6 +272,20 @@ const tableColumns = computed<TableColumn<DataRow>[]>(() => {
       const value = typeof raw === 'number'
         ? formatNumber(raw)
         : props.cellValue(row.original, col.key)
+      if (mode === 'link') {
+        const hrefRaw = col.hrefKey ? rawCellValue(row.original, col.hrefKey) : raw
+        const hrefValue = hrefRaw == null ? '' : String(hrefRaw)
+        if (!hrefValue) return value || '—'
+        const target = col.hrefSuffix ? `${hrefValue}${col.hrefSuffix}` : hrefValue
+        const href = sameOriginApiUrl(target, String(runtimeConfig.public.apiBase)) || target
+        return h('a', {
+          href,
+          target: '_blank',
+          rel: 'noopener noreferrer',
+          class: 'text-primary hover:underline',
+          onClick: (e: Event) => e.stopPropagation(),
+        }, value || '—')
+      }
       if (mode === 'badge') {
         return h(UBadge, {
           color: badgeColor(col.key, raw),

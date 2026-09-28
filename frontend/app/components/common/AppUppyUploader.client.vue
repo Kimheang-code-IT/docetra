@@ -12,7 +12,8 @@ import '~/assets/css/uppy.css'
 
 const props = withDefaults(defineProps<{
   entityId: string
-  endpoint: string
+  /** Upload path, or a getter re-evaluated per file so callers can inject a fresh version token. */
+  endpoint: string | (() => string)
   height?: number
   /** Fill parent height (ResizeObserver). Overrides fixed height when true. */
   fill?: boolean
@@ -28,7 +29,9 @@ const props = withDefaults(defineProps<{
 })
 
 const emit = defineEmits<{
-  complete: [AttachmentMeta[]]
+  complete: [files: AttachmentMeta[], version?: number]
+  /** Per successful file, carrying the record version returned by the upload response. */
+  uploaded: [version?: number]
 }>()
 
 const { t } = useI18n()
@@ -77,11 +80,20 @@ useResizeObserver(hostEl, (entries) => {
   measuredHeight.value = Math.floor(entry.contentRect.height)
 })
 
-const uploadPath = computed(() => props.endpoint)
+function resolveEndpointPath(): string {
+  return typeof props.endpoint === 'function' ? props.endpoint() : props.endpoint
+}
 
 const uploadUrl = computed(() => {
-  return sameOriginApiUrl(uploadPath.value, String(config.public.apiBase))
+  return sameOriginApiUrl(resolveEndpointPath(), String(config.public.apiBase))
 })
+
+/** Re-resolved per upload so a getter endpoint can return the latest version token. */
+function xhrEndpoint(): string {
+  const url = sameOriginApiUrl(resolveEndpointPath(), String(config.public.apiBase))
+  if (!url) throw new Error('Upload endpoint must use the configured API origin')
+  return url
+}
 
 const inputAccept = computed(() => effectiveAllowedFileTypes.value.join(','))
 
@@ -97,6 +109,13 @@ function attachmentFromResponse(body: unknown): AttachmentMeta | null {
   return candidate as AttachmentMeta
 }
 
+function versionFromResponse(body: unknown): number | undefined {
+  if (!body || typeof body !== 'object') return undefined
+  const raw = (body as { meta?: { version?: unknown } }).meta?.version
+  const parsed = typeof raw === 'number' ? raw : Number(raw)
+  return Number.isFinite(parsed) ? parsed : undefined
+}
+
 async function onFallbackPicked(event: Event) {
   const input = event.target as HTMLInputElement
   const files = Array.from(input.files || []).filter(validFile).slice(0, props.maxNumberOfFiles)
@@ -106,14 +125,20 @@ async function onFallbackPicked(event: Event) {
     return
   }
   const uploaded: AttachmentMeta[] = []
+  let latestVersion: number | undefined
   for (const file of files) {
     const form = new FormData()
     form.append('file', file)
-    const response = await api.post<AttachmentMeta | ApiResponse<AttachmentMeta>>(uploadUrl.value, form)
+    const response = await api.post<AttachmentMeta | ApiResponse<AttachmentMeta>>(xhrEndpoint(), form)
     const meta = attachmentFromResponse(response)
-    if (meta) uploaded.push(meta)
+    if (meta) {
+      uploaded.push(meta)
+      const version = versionFromResponse(response)
+      if (version != null) latestVersion = version
+      emit('uploaded', version)
+    }
   }
-  if (uploaded.length) emit('complete', uploaded)
+  if (uploaded.length) emit('complete', uploaded, latestVersion)
 }
 
 onMounted(() => {
@@ -133,7 +158,7 @@ onMounted(() => {
 
     const cookieAuth = config.public.authMode !== 'bearer'
     instance.use(XHRUpload, {
-      endpoint: uploadUrl.value!,
+      endpoint: xhrEndpoint,
       fieldName: 'file',
       formData: true,
       bundle: false,
@@ -148,11 +173,19 @@ onMounted(() => {
         ),
       },
     })
+    instance.on('upload-success', (_file, response) => {
+      emit('uploaded', versionFromResponse(response?.body))
+    })
     instance.on('complete', (result) => {
-      const metas = (result.successful || [])
+      const successful = result.successful || []
+      const metas = successful
         .map(file => attachmentFromResponse(file.response?.body))
         .filter((file): file is AttachmentMeta => Boolean(file))
-      if (metas.length) emit('complete', metas)
+      const version = [...successful]
+        .reverse()
+        .map(file => versionFromResponse(file.response?.body))
+        .find(candidate => candidate != null)
+      if (metas.length) emit('complete', metas, version)
     })
 
     uppy.value = instance

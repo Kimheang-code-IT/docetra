@@ -45,14 +45,23 @@ export function detailFieldKey(attributeCode: string): string {
   return `details.${attributeCode}`
 }
 
+/** Named option sources stored on built-in attributes → bounded option endpoints. */
+const OPTIONS_SOURCE_ENDPOINTS: Record<string, string> = {
+  departments: `${ApiEndpoints.DEPARTMENTS}/options?valueField=id`,
+  companies: `${ApiEndpoints.COMPANIES}/options?valueField=id`,
+  officers: `${ApiEndpoints.OFFICERS}/options?valueField=id`,
+  meeting_topics: `${ApiEndpoints.MEETING_TOPICS}/options?valueField=id`,
+}
+
 function optionsFromCatalog(attr: RecordAttribute | undefined): FieldOption[] | undefined {
   if (!attr?.options?.length) return undefined
   return attr.options
     .filter(o => o.active !== false)
-    .sort((a, b) => a.order - b.order)
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
     .map(o => ({
       label: o.label,
       value: o.value,
+      labelKey: o.labelKey,
     }))
 }
 
@@ -62,7 +71,7 @@ export function mapTypeAttributeToField(
 ): DocumentFieldSchema | null {
   const catalog = catalogById?.get(assigned.attributeId)
   const dataType = assigned.dataType || catalog?.dataType || 'short_text'
-  const fieldType = attributeDataTypeToFieldType(dataType)
+  const fieldType = (catalog?.fieldType as FieldType) || attributeDataTypeToFieldType(dataType)
   const label = assigned.attributeLabel || catalog?.label || assigned.attributeCode
   const options = optionsFromCatalog(catalog)
   const assignmentEndpoint = dataType === 'officer'
@@ -72,17 +81,21 @@ export function mapTypeAttributeToField(
       : dataType === 'organization'
         ? `${ApiEndpoints.COMPANIES}/options?valueField=id`
         : undefined
+  const optionsEndpoint = (catalog?.optionsSource && OPTIONS_SOURCE_ENDPOINTS[catalog.optionsSource])
+    || assignmentEndpoint
+  const fullWidth = fieldType === 'textarea' || fieldType === 'file' || fieldType === 'image'
 
   return {
-    key: detailFieldKey(assigned.attributeCode),
-    labelKey: `docetra.fields.${assigned.attributeCode}`,
+    key: assigned.attributeCode,
+    labelKey: catalog?.labelKey || `docetra.fields.${assigned.attributeCode}`,
     label,
     type: fieldType,
-    colSpan: fieldType === 'textarea' || fieldType === 'file' || fieldType === 'image' ? 2 : 1,
+    required: assigned.required === true,
+    colSpan: (catalog?.colSpan as 1 | 2 | undefined) ?? (fullWidth ? 2 : 1),
     options,
-    optionsEndpoint: assignmentEndpoint,
+    optionsEndpoint,
     help: catalog?.helpText || undefined,
-    placeholder: catalog?.placeholder || (assignmentEndpoint ? 'Type @ or a name ...' : undefined),
+    placeholder: catalog?.placeholder || (optionsEndpoint ? 'Type @ or a name ...' : undefined),
     rows: dataType === 'long_text' || dataType === 'rich_text' ? 4 : undefined,
     meta: {
       attributeId: assigned.attributeId,

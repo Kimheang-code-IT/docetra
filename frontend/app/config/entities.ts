@@ -11,7 +11,6 @@ import { createEntityApiForKey, createRecordApi } from '~/composables/api/useEnt
 import {
   ENTITY_TYPE_OPTIONS,
   LOG_ACTION_OPTIONS,
-  MEETING_MODE_OPTIONS,
   SEVERITY_OPTIONS,
 } from '~/config/select-options'
 import { ApiEndpoints } from '~/utils/constants/api-endpoints'
@@ -95,59 +94,6 @@ const occurredAtDateFilter: FilterDef = {
   type: 'daterange',
 }
 
-/** Incoming / Outgoing / Document create/edit — no record-flow / content blob; company + org selects. */
-function orgSelectDocumentTabs(options: { dateKey: 'receivedDate' | 'sentDate' | 'documentDate' }): DocumentTabSchema[] {
-  return masterDataTabs([
-    { key: 'title', labelKey: 'docetra.fields.title', type: 'text', required: true },
-    {
-      key: 'documentType',
-      labelKey: 'docetra.fields.documentType',
-      type: 'select',
-      required: true,
-      optionsEndpoint: `${ApiEndpoints.COMPANIES}/options?valueField=id`,
-      placeholder: 'Choose option ...',
-    },
-    { key: 'referenceNumber', labelKey: 'docetra.fields.letterNumber', type: 'text', required: true },
-    { key: 'letterSubject', labelKey: 'docetra.fields.letterSubject', type: 'text', required: true },
-    { key: options.dateKey, labelKey: 'docetra.fields.date', type: 'date', required: true },
-    { key: 'directorGeneralDate', labelKey: 'docetra.fields.directorGeneralDate', type: 'date' },
-    { key: 'directorDate', labelKey: 'docetra.fields.directorDate', type: 'date' },
-    {
-      key: 'officeInCharge',
-      labelKey: 'docetra.fields.involvedOffice',
-      type: 'multiselect',
-      optionsEndpoint: `${ApiEndpoints.DEPARTMENTS}/options?valueField=id`,
-      placeholder: 'Type @ or a department name ...',
-      colSpan: 2,
-    },
-    {
-      key: 'involvedOfficers',
-      labelKey: 'docetra.fields.involvedOfficers',
-      type: 'multiselect',
-      optionsEndpoint: `${ApiEndpoints.OFFICERS}/options?valueField=id`,
-      placeholder: 'Choose option ...',
-      colSpan: 2,
-    },
-    {
-      key: 'externalUnits',
-      labelKey: 'docetra.fields.externalUnits',
-      type: 'multiselect',
-      optionsEndpoint: `${ApiEndpoints.COMPANIES}/options?valueField=id`,
-      placeholder: 'Choose option ...',
-      colSpan: 2,
-    },
-    { key: 'tags', labelKey: 'docetra.fields.recordTag', type: 'csv-list', colSpan: 2 },
-  ])
-}
-
-function masterListRequestTabs(): DocumentTabSchema[] {
-  return masterDataTabs([
-    { key: 'title', labelKey: 'docetra.fields.title', type: 'text', required: true, colSpan: 2 },
-    { key: 'recordTime', labelKey: 'docetra.fields.recordTime', type: 'datetime', required: true },
-    { key: 'tags', labelKey: 'docetra.fields.recordTag', type: 'csv-list', colSpan: 2 },
-  ])
-}
-
 function masterDataTabs(fields: DocumentTabSchema['sections'][0]['fields']): DocumentTabSchema[] {
   return [{
     id: 'details',
@@ -158,6 +104,15 @@ function masterDataTabs(fields: DocumentTabSchema['sections'][0]['fields']): Doc
       fields,
     }],
   }]
+}
+
+/**
+ * Built-in record types render their fields from the type's assigned attributes
+ * (record_attribute catalog), so the base tab starts empty and
+ * `useRecordTypeDrivenTabs` appends the configured sections.
+ */
+function attributeDrivenTabs(): DocumentTabSchema[] {
+  return [{ id: 'details', labelKey: 'docetra.tabs.details', sections: [] }]
 }
 
 export const entityConfigs: Record<string, EntityConfig> = {
@@ -186,12 +141,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
       { key: 'childMeetingCount', labelKey: 'docetra.fields.childMeetings' },
     ],
     filters: [],
-    tabs: masterDataTabs([
-      { key: 'title', labelKey: 'docetra.fields.title', type: 'text', required: true, colSpan: 2 },
-      { key: 'description', labelKey: 'docetra.fields.description', type: 'textarea', colSpan: 2 },
-      { key: 'recordTime', labelKey: 'docetra.fields.recordTime', type: 'datetime', required: true },
-      { key: 'tags', labelKey: 'docetra.fields.recordTag', type: 'csv-list', colSpan: 2 },
-    ]),
+    tabs: attributeDrivenTabs(),
   },
 
   meetingHistory: {
@@ -231,47 +181,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
     filters: [
       { key: 'meetingDate', labelKey: 'docetra.fields.meetingDate', type: 'daterange' },
     ],
-    tabs: masterDataTabs([
-      { key: 'topicId', labelKey: 'docetra.fields.topic', type: 'select', placeholderKey: 'docetra.fields.selectTopic', optionsEndpoint: `${ApiEndpoints.MEETING_TOPICS}/options?valueField=id`, helpKey: 'docetra.fields.topicIdHelp' },
-      { key: 'letterNumber', labelKey: 'docetra.fields.letterNumber', type: 'text', required: true },
-      { key: 'title', labelKey: 'docetra.fields.letterSubject', type: 'text', required: true },
-      { key: 'letterDate', labelKey: 'docetra.fields.letterDate', type: 'date', required: true },
-      { key: 'meetingDate', labelKey: 'docetra.fields.meetingDateTime', type: 'datetime', required: true },
-      { key: 'durationMinutes', labelKey: 'docetra.fields.durationMinutes', type: 'number' },
-      {
-        key: 'meetingMode',
-        labelKey: 'docetra.fields.meetingMode',
-        type: 'select',
-              options: MEETING_MODE_OPTIONS,
-      },
-      { key: 'meetingUrl', labelKey: 'docetra.fields.meetingUrl', type: 'url' },
-      { key: 'location', labelKey: 'docetra.fields.location', type: 'text' },
-      {
-        key: 'participants',
-        labelKey: 'docetra.fields.participants',
-        type: 'multiselect',
-        optionsEndpoint: `${ApiEndpoints.OFFICERS}/options?valueField=id`,
-        placeholder: 'Type @ or an officer name ...',
-        colSpan: 2,
-      },
-      {
-        key: 'internalUnits',
-        labelKey: 'docetra.fields.internalUnits',
-        type: 'multiselect',
-        optionsEndpoint: `${ApiEndpoints.DEPARTMENTS}/options?valueField=id`,
-        placeholder: 'Type @ or a department name ...',
-        colSpan: 2,
-      },
-      {
-        key: 'externalUnits',
-        labelKey: 'docetra.fields.externalUnits',
-        type: 'multiselect',
-        optionsEndpoint: `${ApiEndpoints.COMPANIES}/options?valueField=id`,
-        placeholder: 'Type @ or a company name ...',
-        colSpan: 2,
-      },
-      { key: 'tags', labelKey: 'docetra.fields.recordTag', type: 'csv-list', colSpan: 2 },
-    ]),
+    tabs: attributeDrivenTabs(),
   },
 
   incomingDocuments: {
@@ -304,7 +214,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
       { key: 'receivedDate', labelKey: 'docetra.fields.receivedDate', type: 'daterange' },
       { key: 'waiting', labelKey: 'docetra.fields.waiting', type: 'boolean' },
     ],
-    tabs: orgSelectDocumentTabs({ dateKey: 'receivedDate' }),
+    tabs: attributeDrivenTabs(),
   },
 
   outgoingDocuments: {
@@ -332,7 +242,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
     filters: [
       { key: 'sentDate', labelKey: 'docetra.fields.sentDate', type: 'daterange' },
     ],
-    tabs: orgSelectDocumentTabs({ dateKey: 'sentDate' }),
+    tabs: attributeDrivenTabs(),
   },
 
   documents: {
@@ -361,7 +271,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
     filters: [
       { key: 'documentDate', labelKey: 'docetra.fields.date', type: 'daterange' },
     ],
-    tabs: orgSelectDocumentTabs({ dateKey: 'documentDate' }),
+    tabs: attributeDrivenTabs(),
   },
 
   masterListRequests: {
@@ -390,7 +300,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
     filters: [
       { key: 'letterDate', labelKey: 'docetra.fields.letterDate', type: 'daterange' },
     ],
-    tabs: masterListRequestTabs(),
+    tabs: attributeDrivenTabs(),
   },
 
   recordLogs: {
@@ -688,6 +598,27 @@ export const entityConfigs: Record<string, EntityConfig> = {
         optionsEndpoint: `${ApiEndpoints.DEPARTMENTS}/options|${ApiEndpoints.COMPANIES}/options`,
       },
       { key: 'roleName', labelKey: 'docetra.fields.role', type: 'text' },
+      {
+        key: 'authenticationEnabled',
+        labelKey: 'docetra.fields.authentication',
+        type: 'boolean',
+        hintKey: 'docetra.fieldHelp.officerAuthentication',
+      },
+      {
+        key: 'email',
+        labelKey: 'docetra.fields.email',
+        type: 'text',
+        required: true,
+        visibleWhen: { key: 'authenticationEnabled', equals: true },
+      },
+      {
+        key: 'password',
+        labelKey: 'docetra.fields.password',
+        type: 'secret',
+        requiredOnCreate: true,
+        visibleWhen: { key: 'authenticationEnabled', equals: true },
+        helpKey: 'docetra.fieldHelp.userPassword',
+      },
     ]),
   },
 
@@ -878,7 +809,7 @@ export const entityConfigs: Record<string, EntityConfig> = {
     canComment: false,
     titleField: 'fileName',
     columns: [
-      { key: 'fileName', labelKey: 'docetra.fields.fileName', sortable: true, priority: 'high' },
+      { key: 'fileName', labelKey: 'docetra.fields.fileName', sortable: true, priority: 'high', cell: 'link', hrefKey: 'url', hrefSuffix: '?preview=1' },
       { key: 'mimeType', labelKey: 'docetra.fields.mimeType' },
       { key: 'sizeBytes', labelKey: 'docetra.fields.size', cell: 'bytes' },
       { key: 'uploader.name', labelKey: 'docetra.fields.uploader' },

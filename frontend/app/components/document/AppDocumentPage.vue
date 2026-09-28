@@ -230,7 +230,7 @@ async function onSaveClick() {
         type="button"
         :loading="saving"
         icon="i-lucide-save"
-        :label="saveLabel || t('actions.save')"
+        :label="saveLabel || t(isCreate ? 'actions.submit' : 'actions.save')"
         class="rounded-md"
         @click="onSaveClick"
       />

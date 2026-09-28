@@ -3,7 +3,6 @@ import type { AppConfig, CreateStorageProviderInput, StorageProvider, StoragePro
 import type { ConnectionStatusFieldValue } from '~/types/docetra/common'
 import { appConfigTabs, storageSettingsTabs } from '~/config/settings-schemas'
 import { useSettingsRepositories } from '~/repositories'
-import { useConfirm } from '~/composables/common/useConfirm'
 import { useAppPageTitle } from '~/composables/layout/useAppPageTitle'
 import { usePathModel } from '~/composables/common/usePathModel'
 import { getByPath, setByPath } from '~/utils/object-path'
@@ -22,7 +21,6 @@ const onStorageTab = computed(() => STORAGE_TAB_TYPES.includes(activeTab.value a
 const { appConfig, storage } = useSettingsRepositories()
 const { t } = useI18n()
 const toast = useToast()
-const { confirm } = useConfirm()
 const auth = useAuthStore()
 const appLocalization = useAppLocalization()
 
@@ -95,7 +93,7 @@ async function loadStorageProviders() {
 watch(activeTab, async (tab) => {
   if (!STORAGE_TAB_TYPES.includes(tab as StorageProviderType)) return
   if (!providersLoaded.value) await loadStorageProviders()
-  else applyDraftForTab(tab)
+  await ensureProviderForTab(tab)
 })
 
 function storageConnectionValue(provider: StorageProvider): ConnectionStatusFieldValue {
@@ -105,7 +103,6 @@ function storageConnectionValue(provider: StorageProvider): ConnectionStatusFiel
     lastTestedAt: provider.lastTestedAt,
     details: [
       { label: t('docetra.settings.providerType'), value: provider.type.replaceAll('_', ' ') },
-      { label: t('docetra.settings.default'), value: provider.isDefault ? t('docetra.common.yes') : t('docetra.common.no') },
     ],
   }
 }
@@ -140,7 +137,9 @@ async function save() {
     if (!draft.value) return
     saving.value = true
     try {
-      await storage.update(draft.value.id, draft.value)
+      // Saving a storage tab means the provider is configured: persist it active
+      // so it becomes the upload target (no separate activate/default controls).
+      await storage.update(draft.value.id, { ...draft.value, active: true })
       toast.add({ title: t('docetra.common.saved'), color: 'success' })
       await loadStorageProviders()
     }
@@ -179,17 +178,23 @@ function storageTabLabelKey(type: StorageProviderType) {
   return `docetra.settings.storageTabs.${type}`
 }
 
-async function createStorageProvider() {
+/**
+ * Storage tabs expose exactly one provider each and no create/delete/default/active
+ * controls: the provider is created on demand (inactive until the admin saves).
+ */
+async function ensureProviderForTab(type: string) {
+  if (!canConfigureStorage.value || providerForTab(type)) {
+    applyDraftForTab(type)
+    return
+  }
   if (creatingStorage.value) return
-  const type = activeTab.value as StorageProviderType
   creatingStorage.value = true
   try {
     await storage.create({
-      name: t(storageTabLabelKey(type)),
+      name: t(storageTabLabelKey(type as StorageProviderType)),
       type,
       active: false,
     } as CreateStorageProviderInput)
-    toast.add({ title: t('docetra.settings.providerCreated'), color: 'success' })
     await loadStorageProviders()
   }
   catch (e: any) {
@@ -207,6 +212,8 @@ async function testStorage() {
     // Persist the draft first so the backend tests the current form values.
     await storage.update(draft.value.id, draft.value)
     const result = await storage.testConnection(draft.value.id)
+    // A passing connection is a configured provider: enable it as the upload target.
+    if (result.status === 'connected') await storage.setActive(draft.value.id, true)
     toast.add({
       title: result.message,
       color: result.status === 'connected' ? 'success' : 'error',
@@ -215,56 +222,6 @@ async function testStorage() {
   }
   finally {
     testingStorage.value = false
-  }
-}
-
-async function toggleStorageActive() {
-  if (!draft.value) return
-  saving.value = true
-  try {
-    await storage.setActive(draft.value.id, !draft.value.active)
-    toast.add({
-      title: draft.value.active ? t('docetra.settings.deactivated') : t('docetra.settings.activated'),
-      color: 'success',
-    })
-    await loadStorageProviders()
-  }
-  catch (e: any) {
-    toast.add({ title: e?.message || t('docetra.common.actionFailed'), color: 'error' })
-  }
-  finally {
-    saving.value = false
-  }
-}
-
-async function setStorageDefault() {
-  if (!draft.value) return
-  try {
-    await storage.setDefault(draft.value.id)
-    toast.add({ title: t('docetra.settings.defaultUpdated'), color: 'success' })
-    await loadStorageProviders()
-  }
-  catch (e: any) {
-    toast.add({ title: e?.message || t('docetra.common.actionFailed'), color: 'error' })
-  }
-}
-
-async function removeStorageProvider() {
-  if (!draft.value || draft.value.isDefault) return
-  const ok = await confirm({ kind: 'delete' })
-  if (!ok) return
-  saving.value = true
-  try {
-    await storage.remove(draft.value.id)
-    toast.add({ title: t('docetra.settings.providerDeleted'), color: 'success' })
-    draft.value = null
-    await loadStorageProviders()
-  }
-  catch (e: any) {
-    toast.add({ title: e?.message || t('docetra.common.actionFailed'), color: 'error' })
-  }
-  finally {
-    saving.value = false
   }
 }
 
@@ -332,56 +289,11 @@ useAppPageTitle(() => t('docetra.pages.appConfig'))
         @click="testTelegram"
       />
 
-      <UButton
-        v-if="onStorageTab && !draft && canConfigure"
-        size="sm"
-        icon="i-lucide-plus"
-        :loading="creatingStorage"
-        :disabled="creatingStorage"
-        @click="createStorageProvider"
-      >
-        {{ t('docetra.settings.createProvider') }}
-      </UButton>
       <CommonAppConnectionTestButton
-        v-if="onStorageTab && draft && canConfigure"
+        v-if="onStorageTab && canConfigure"
         :loading="testingStorage"
         @click="testStorage"
       />
-      <UButton
-        v-if="onStorageTab && draft && canConfigure"
-        color="neutral"
-        variant="soft"
-        :icon="draft.active ? 'i-lucide-toggle-right' : 'i-lucide-toggle-left'"
-        @click="toggleStorageActive"
-      >
-        {{ draft.active ? t('docetra.settings.deactivate') : t('docetra.settings.activate') }}
-      </UButton>
-      <UButton
-        v-if="onStorageTab && draft && !draft.isDefault && canConfigure"
-        color="neutral"
-        variant="soft"
-        icon="i-lucide-star"
-        @click="setStorageDefault"
-      >
-        {{ t('docetra.settings.setDefault') }}
-      </UButton>
-      <UButton
-        v-if="onStorageTab && draft && !draft.isDefault && canConfigure"
-        color="error"
-        variant="soft"
-        icon="i-lucide-trash-2"
-        @click="removeStorageProvider"
-      >
-        {{ t('actions.delete') }}
-      </UButton>
-      <UBadge
-        v-else-if="onStorageTab && draft?.isDefault"
-        color="primary"
-        variant="subtle"
-        class="self-center"
-      >
-        {{ t('docetra.settings.default') }}
-      </UBadge>
     </template>
   </DocumentAppDocumentPage>
 </template>
