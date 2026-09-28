@@ -87,6 +87,13 @@ def record_to_payload(row: Record, details: dict[str, Any] | None = None) -> dic
                 result.setdefault("metadata", meta)
         except json.JSONDecodeError:
             result["recordMetadata"] = row.record_metadata
+    # Backwards compatibility: earlier dynamic-attribute values were stored as a
+    # single `details` JSON blob. Flatten it so attribute-driven forms (which bind
+    # to top-level codes) still read the saved values.
+    nested_details = result.get("details")
+    if isinstance(nested_details, dict):
+        for key, value in nested_details.items():
+            result.setdefault(key, value)
     return normalize_assignment_refs(strip_secrets(result))
 
 
@@ -200,6 +207,12 @@ async def replace_details(
     record_type_id: uuid.UUID | None = None,
 ) -> None:
     await db.execute(delete(RecordDetail).where(RecordDetail.record_id == record_id))
+    # Backwards compatibility: accept the legacy nested `details` blob and persist
+    # each entry as its own typed detail row.
+    payload = dict(payload)
+    nested = payload.pop("details", None)
+    if isinstance(nested, dict):
+        payload = {**nested, **payload}
     for key, value in payload.items():
         if key in CORE_RECORD_KEYS or value is None:
             continue
@@ -238,7 +251,7 @@ async def ensure_record_type(
         if dict(row.payload or {}) != merged:
             row.payload = merged
             db.add(row)
-        return row
+        return await ensure_builtin_attributes(db, row, actor_officer_id)
     row = RecordType(
         code=code,
         nam=code.replace("_", " ").title(),
@@ -259,7 +272,79 @@ async def ensure_record_type(
         )
     else:
         await type_access.backfill_shared_grants_if_empty(db, row.id)
+    return await ensure_builtin_attributes(db, row, actor_officer_id)
+
+
+def _builtin_attribute_payload(definition: dict) -> dict:
+    keys = (
+        "label", "labelKey", "fieldType", "optionsSource", "options",
+        "placeholder", "helpText", "colSpan", "section", "required", "order",
+    )
+    return {key: definition[key] for key in keys if key in definition}
+
+
+async def ensure_builtin_attributes(
+    db: AsyncSession,
+    row: RecordType,
+    actor_officer_id: uuid.UUID | None = None,
+) -> RecordType:
+    """Materialize a built-in type's field definitions into the attribute catalog.
+
+    Creates missing `record_attribute` rows and assigns them to the type via
+    `payload["attributes"]`. Idempotent: once a type carries attributes, admin
+    edits are never overwritten.
+    """
+    from app.modules.record.domain.map import BUILTIN_TYPE_ATTRIBUTES
+
+    definitions = BUILTIN_TYPE_ATTRIBUTES.get(row.code)
+    if not definitions:
+        return row
+    payload = dict(row.payload or {})
+    if payload.get("attributes"):
+        return row
+    assigned = []
+    for index, definition in enumerate(definitions):
+        code = str(definition.get("code") or "")
+        if not code:
+            continue
+        attribute = await db.scalar(
+            select(RecordAttribute).where(RecordAttribute.code == code).order_by(RecordAttribute.created_at)
+        )
+        if attribute is None:
+            attribute = RecordAttribute(
+                code=code,
+                nam=str(definition.get("label") or code),
+                data_type=str(definition.get("dataType") or "short_text"),
+                payload=_builtin_attribute_payload(definition),
+                created_by=actor_officer_id,
+                updated_by=actor_officer_id,
+            )
+            db.add(attribute)
+            await db.flush()
+        assigned.append({
+            "attributeId": str(attribute.id),
+            "attributeCode": attribute.code,
+            "attributeLabel": definition.get("label") or attribute.nam or code,
+            "dataType": definition.get("dataType") or attribute.data_type or "short_text",
+            "required": bool(definition.get("required")),
+            "section": definition.get("section") or "General",
+            "order": definition.get("order", index),
+        })
+    payload["attributes"] = assigned
+    row.payload = payload
+    db.add(row)
+    await db.flush()
     return row
+
+
+async def ensure_builtin_catalog(db: AsyncSession) -> None:
+    """Seed every built-in record type and its default attribute catalog."""
+    from app.modules.record.domain.map import TYPE_UI_DEFAULTS
+
+    for code in TYPE_UI_DEFAULTS:
+        row = await ensure_record_type(db, code, None, None, unrestricted=True)
+        await ensure_builtin_attributes(db, row, None)
+    await db.flush()
 
 
 async def resolve_or_ensure_type(

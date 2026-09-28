@@ -2,6 +2,7 @@
 
 from app.modules.record.domain import constants
 from app.modules.record.domain.map import (
+    BUILTIN_TYPE_ATTRIBUTES,
     TYPE_UI_DEFAULTS,
     is_valid_type_code,
     merge_type_ui_payload,
@@ -15,6 +16,18 @@ from app.shared.pagination import parse_limit
 def test_builtin_type_codes_valid():
     for code in TYPE_UI_DEFAULTS:
         assert is_valid_type_code(code)
+
+
+def test_every_builtin_type_has_default_attributes():
+    assert set(BUILTIN_TYPE_ATTRIBUTES) == set(TYPE_UI_DEFAULTS)
+    for code, definitions in BUILTIN_TYPE_ATTRIBUTES.items():
+        assert definitions, f"{code} has no default attributes"
+        attribute_codes = [item["code"] for item in definitions]
+        assert len(attribute_codes) == len(set(attribute_codes))
+        for item in definitions:
+            assert item["code"]
+            assert item["dataType"]
+            assert isinstance(item["required"], bool)
 
 
 def test_reserved_type_segments_rejected():

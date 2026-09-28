@@ -6,6 +6,7 @@ import { linkMeetingDriveFile } from '~/composables/meeting/useMeetingBoardApi'
 import { useConfirm } from '~/composables/common/useConfirm'
 import type { DriveFileCatalogItem } from '~/types/docetra/meeting-api'
 import { ApiEndpoints } from '~/utils/constants/api-endpoints'
+import { withConcurrencyToken } from '~/utils/api/concurrency'
 
 const open = defineModel<boolean>('open', { default: false })
 
@@ -22,6 +23,7 @@ const { t } = useI18n()
 const toast = useToast()
 const { confirm } = useConfirm()
 const meetingsAdapter = getEntityAdapter('meetingHistory')
+const runtimeConfig = useRuntimeConfig()
 
 const pending = ref(false)
 const saving = ref(false)
@@ -111,16 +113,26 @@ async function onClose(value: boolean) {
 
 // Uppy posts real file bytes to the upload endpoint; the backend stores the
 // object, creates the File row, and attaches it to the meeting in one call.
-// The record's current version rides along for optimistic concurrency.
-const attachmentUploadEndpoint = computed(() => {
+// A getter is passed so every upload re-reads the meeting version, keeping the
+// optimistic-concurrency token current even across multiple files.
+function attachmentUploadEndpoint(): string {
   if (!props.meetingId) return ''
   const version = concurrencyVersion(meeting.value)
   return ApiEndpoints.RECORD_ATTACHMENT_UPLOAD('meeting_history', props.meetingId)
     + (version != null ? `?version=${version}` : '')
-})
+}
 
-function onUploadsComplete(files: AttachmentMeta[]) {
+function trackUploadedVersion(version?: number) {
+  if (version != null && meeting.value) meeting.value.version = version
+}
+
+function onUploaded(version?: number) {
+  trackUploadedVersion(version)
+}
+
+function onUploadsComplete(files: AttachmentMeta[], version?: number) {
   attachments.value = [...files, ...attachments.value]
+  trackUploadedVersion(version)
   if (meeting.value) {
     meeting.value.attachmentCount = attachments.value.length
   }
@@ -130,6 +142,16 @@ function onUploadsComplete(files: AttachmentMeta[]) {
 function removeAttachment(id: string) {
   attachments.value = attachments.value.filter(f => f.id !== id)
   if (meeting.value) meeting.value.attachmentCount = attachments.value.length
+}
+
+/** Internal files preview inline in a new tab; Drive/URL files open as-is. */
+function filePreviewUrl(file: AttachmentMeta): string {
+  const raw = file.url || (file.id ? `/api/v2/files/${file.id}` : '')
+  if (!raw) return ''
+  const target = raw.startsWith('/')
+    ? `${raw}${raw.includes('?') ? '&' : '?'}preview=1`
+    : raw
+  return sameOriginApiUrl(target, String(runtimeConfig.public.apiBase)) || target
 }
 
 async function onDriveFilePicked(file: DriveFileCatalogItem) {
@@ -143,6 +165,7 @@ async function onDriveFilePicked(file: DriveFileCatalogItem) {
     })
     if (res.data) {
       attachments.value = [res.data, ...attachments.value.filter(a => a.id !== res.data!.id)]
+      trackUploadedVersion((res.meta as { version?: number } | undefined)?.version)
       if (meeting.value) meeting.value.attachmentCount = attachments.value.length
       toast.add({ title: t('docetra.meetingNotes.driveLinked'), color: 'success' })
     }
@@ -161,15 +184,14 @@ async function save() {
   if (!ok) return
   saving.value = true
   try {
-    const res = await meetingsAdapter.update(props.meetingId, {
-      notes: notes.value,
-      attachmentCount: attachments.value.length,
-    } as any)
-    if (meetingsAdapter.replaceAttachments) {
-      await meetingsAdapter.replaceAttachments(props.meetingId, attachments.value, {
-        version: concurrencyVersion(meeting.value),
-      })
-    }
+    const res = await meetingsAdapter.update(
+      props.meetingId,
+      withConcurrencyToken({
+        notes: notes.value,
+        attachments: attachments.value,
+        attachmentCount: attachments.value.length,
+      }, meeting.value.version) as Partial<MeetingHistory> & { version?: number },
+    )
     meeting.value = res.data as MeetingHistory
     syncBaseline()
     emit('saved', meeting.value)
@@ -304,6 +326,7 @@ async function save() {
             :endpoint="attachmentUploadEndpoint"
             :height="260"
             @complete="onUploadsComplete"
+            @uploaded="onUploaded"
           />
 
           <UButton
@@ -324,7 +347,17 @@ async function save() {
             >
               <div class="flex min-w-0 items-center gap-2">
                 <UIcon name="i-lucide-paperclip" class="size-4 shrink-0 text-muted" />
-                <span class="truncate">{{ file.name }}</span>
+                <a
+                  v-if="filePreviewUrl(file)"
+                  :href="filePreviewUrl(file)"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="truncate hover:text-primary hover:underline"
+                  @click.stop
+                >
+                  {{ file.name }}
+                </a>
+                <span v-else class="truncate">{{ file.name }}</span>
               </div>
               <div class="flex shrink-0 items-center gap-1">
                 <span class="text-xs text-muted">{{ Math.round(file.sizeBytes / 1024) }} KB</span>

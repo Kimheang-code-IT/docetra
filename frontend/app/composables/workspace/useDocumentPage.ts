@@ -13,6 +13,7 @@ import {
 } from '~/utils/workspace-list-stale'
 import { concurrencyVersion, withConcurrencyToken } from '~/utils/api/concurrency'
 import { hydrateMeetingHistoryModel } from '~/utils/meeting/detail-route'
+import { isFieldVisible } from '~/utils/field-visibility'
 
 export function useDocumentPage(config: EntityConfig, idParam?: string) {
   const route = useRoute()
@@ -165,6 +166,7 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
           details: {},
           tags: [],
           ...(['departments', 'companies', 'purposes', 'sectors', 'officers'].includes(config.key) ? { status: 'active', isActive: true } : {}),
+          ...(config.key === 'officers' ? { authenticationEnabled: false } : {}),
           ...(recordKind
             ? {
                 recordKind,
@@ -235,7 +237,7 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
         model.value.isActive = model.value.status !== 'disabled'
       }
       if (config.key === 'officers' && typeof model.value.authenticationEnabled !== 'boolean') {
-        model.value.authenticationEnabled = Boolean(model.value.userId)
+        model.value.authenticationEnabled = Boolean(model.value.authId)
       }
       if (config.key === 'roles') {
         model.value.permissionRows = normalizePermissionRows(
@@ -331,6 +333,7 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
     const missing = documentTabs.flatMap(tab =>
       tab.sections.flatMap(section =>
         section.fields
+          .filter(field => isFieldVisible(field, key => getByPath(model.value, key)))
           .filter(field => !field.readOnly && (field.required || (isCreate.value && field.requiredOnCreate)))
           .filter((field) => {
             const value = getByPath(model.value, field.key)
@@ -437,7 +440,7 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
         // empty name actually clears the officer's role.
         delete payload.roleId
         if (typeof payload.authenticationEnabled !== 'boolean') {
-          payload.authenticationEnabled = Boolean(payload.userId)
+          payload.authenticationEnabled = Boolean(payload.authId)
         }
       }
       if (config.key === 'users') {
@@ -478,7 +481,7 @@ export function useDocumentPage(config: EntityConfig, idParam?: string) {
       if (config.key === 'meetingHistory' || config.key === 'meetingTopics') {
         markListStale('meetingTopics', 'meetingHistory')
       }
-      if (adapter.replaceAttachments) {
+      if (adapter.replaceAttachments && config.recordBacked) {
         await adapter.replaceAttachments(id.value, attachments.value, {
           version: concurrencyVersion(res.data),
         })

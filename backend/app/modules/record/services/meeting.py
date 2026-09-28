@@ -120,4 +120,4 @@ async def link_drive_attachment(db: AsyncSession, meeting_id: str, body: dict) -
     await replace_details(db, row.id, merged, row.updated_by, row.record_type_id)
     await db.flush()
     await db.refresh(row)
-    return file
+    return {"attachment": file, "version": row.version}

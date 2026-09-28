@@ -35,6 +35,122 @@ async def _resolve_officer_role_id(db: AsyncSession, payload: dict) -> uuid.UUID
         return None
 
 
+def _field_error(field: str, message: str) -> list[dict]:
+    return [{"field": field, "message": message}]
+
+
+async def _create_officer_login(
+    db: AsyncSession,
+    officer: Officer,
+    payload: dict,
+    role_id: uuid.UUID | None,
+    actor: User,
+    actor_officer_id: uuid.UUID | None,
+) -> None:
+    """Provision a login account for an officer (role is required for a user row)."""
+    if not role_id:
+        message = "A role is required to enable login"
+        raise DomainError("VALIDATION_ERROR", message, 422, fields=_field_error("roleName", message))
+    data = await normalize_identity_payload(
+        db,
+        "users",
+        {
+            "email": payload.get("email"),
+            "name": officer.nam,
+            "password": payload.get("password"),
+            "roleId": str(role_id),
+        },
+        actor=actor,
+    )
+    user = User(
+        email=data["email"],
+        name=data["name"],
+        password_hash=hash_password(str(data["password"])),
+        role=str(data.get("roleName") or "User"),
+        role_id=uuid.UUID(str(data["roleId"])),
+        permissions=list(data.get("_permissions") or []),
+        active=True,
+        status="active",
+        officer_id=officer.id,
+        created_by=actor_officer_id,
+        updated_by=actor_officer_id,
+    )
+    db.add(user)
+    await db.flush()
+    officer.auth_id = user.id
+    if not officer.email:
+        officer.email = user.email
+
+
+async def _update_officer_login(
+    db: AsyncSession,
+    officer: Officer,
+    payload: dict,
+    role_id: uuid.UUID | None,
+    actor: User,
+    actor_officer_id: uuid.UUID | None,
+) -> None:
+    user = await db.get(User, officer.auth_id) if officer.auth_id else None
+    if user is None:
+        await _create_officer_login(db, officer, payload, role_id, actor, actor_officer_id)
+        return
+    data = await normalize_identity_payload(
+        db,
+        "users",
+        {
+            "email": payload.get("email") or user.email,
+            "name": officer.nam,
+            "password": payload.get("password"),
+            "roleId": str(role_id or user.role_id),
+        },
+        user.id,
+        actor=actor,
+    )
+    user.name = data["name"]
+    user.email = data["email"]
+    if role_id:
+        user.role_id = uuid.UUID(str(data["roleId"]))
+        user.role = str(data.get("roleName") or user.role)
+        if data.get("_permissions") is not None:
+            user.permissions = list(data["_permissions"])
+    if data.get("password"):
+        user.password_hash = hash_password(str(data["password"]))
+    user.officer_id = officer.id
+    user.updated_by = actor_officer_id
+    user.version += 1
+    if not officer.email:
+        officer.email = user.email
+
+
+async def _disable_officer_login(db: AsyncSession, officer: Officer) -> None:
+    """Turn an officer back into a mention-only record without deleting history."""
+    if not officer.auth_id:
+        return
+    user = await db.get(User, officer.auth_id)
+    if user is not None:
+        user.active = False
+        user.status = "disabled"
+        user.version += 1
+    officer.auth_id = None
+
+
+async def _apply_officer_authentication(
+    db: AsyncSession,
+    officer: Officer,
+    payload: dict,
+    role_id: uuid.UUID | None,
+    actor: User,
+    actor_officer_id: uuid.UUID | None,
+) -> None:
+    enabled = payload.get("authenticationEnabled")
+    if enabled is None:
+        return
+    if enabled:
+        await _update_officer_login(db, officer, payload, role_id, actor, actor_officer_id)
+    else:
+        await _disable_officer_login(db, officer)
+
+
 class IdentityApplicationService:
     def __init__(self, host):
         self.host = host
@@ -131,11 +247,12 @@ class IdentityApplicationService:
         officer_id = await self.host.actor_officer_id(db, user)
         kind = self.kind()
         if kind == "officer":
+            role_id = await _resolve_officer_role_id(db, payload)
             row = Officer(
                 nam=str(payload.get("name") or ""),
                 email=payload.get("email"),
                 organization_id=uuid.UUID(str(payload["organizationId"])) if payload.get("organizationId") or payload.get("departmentId") else None,
-                role_id=await _resolve_officer_role_id(db, payload),
+                role_id=role_id,
                 is_active=0 if payload.get("status") == "inactive" else 1,
                 profile_url=payload.get("profileUrl") or payload.get("avatar"),
                 created_by=officer_id,
@@ -144,6 +261,8 @@ class IdentityApplicationService:
             if payload.get("departmentId") and not row.organization_id:
                 row.organization_id = uuid.UUID(str(payload["departmentId"]))
             db.add(row)
+            await db.flush()
+            await _apply_officer_authentication(db, row, payload, role_id, user, officer_id)
             await db.flush()
             await db.refresh(row)
             return (await people.hydrate_officer_payloads(db, [row]))[0]
@@ -213,13 +332,16 @@ class IdentityApplicationService:
             permissions_changed = set(perms) != previous_perms
             # Status-only (or name-only) edits must not log users out. Only a
             # real permission change invalidates sessions so the denormalized
-            # users.permissions snapshot stays authoritative.
+            # users.permissions snapshot stays authoritative. The acting admin is
+            # exempt: their snapshot is updated above and re-read from the DB on
+            # every request, and revoking it would only break the in-flight save
+            # (CSRF/session binding fails on the follow-up attachment request).
             if permissions_changed or name_changed:
                 users = (await db.scalars(select(User).where(User.role_id == row.id))).all()
                 for account in users:
                     account.permissions = perms
                     account.role = row.nam
-                    if permissions_changed:
+                    if permissions_changed and str(account.id) != str(user.id):
                         await revoke_user_tokens(str(account.id))
             await db.flush()
             return people.role_to_payload(row, perms, await people.creator_scoped_codes_for_role(db, row.id))
@@ -267,6 +389,8 @@ class IdentityApplicationService:
                 row.is_active = 1 if body.get("isActive") else 0
             else:
                 row.is_active = 0 if body["status"] == "inactive" else 1
+        if "authenticationEnabled" in body:
+            await _apply_officer_authentication(db, row, body, row.role_id, user, officer_id)
         row.updated_by = officer_id
         await db.flush()
         return (await people.hydrate_officer_payloads(db, [row]))[0]
@@ -311,6 +435,9 @@ class IdentityApplicationService:
             officer = await db.scalar(select(Officer).where(Officer.auth_id == uid))
             if officer:
                 await db.delete(officer)
+        if kind == "officer":
+            # Keep the account row for history, but revoke its ability to sign in.
+            await _disable_officer_login(db, row)
         await db.delete(row)
         await db.flush()
         return {"id": entity_id}

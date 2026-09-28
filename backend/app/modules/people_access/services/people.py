@@ -273,6 +273,8 @@ def officer_to_payload(
         "roleId": str(officer.role_id) if officer.role_id else None,
         "roleName": role_name,
         "authId": str(officer.auth_id) if officer.auth_id else None,
+        "userId": str(officer.auth_id) if officer.auth_id else None,
+        "authenticationEnabled": officer.auth_id is not None,
         "profileUrl": officer.profile_url,
         "status": "active" if officer.is_active else "inactive",
         "isActive": bool(officer.is_active),

@@ -137,6 +137,7 @@ function toAssignment(attr: RecordAttribute, order: number): RecordTypeAttribute
     attributeCode: attr.code,
     attributeLabel: attr.label,
     dataType: attr.dataType,
+    required: attr.required === true,
     section: 'General',
     order,
   }
@@ -385,7 +386,6 @@ usePageSeo({
     :read-only="!canEditDocument"
     :can-save="canEditDocument"
     :is-create="isCreate"
-    :save-label="isCreate ? t('docetra.common.create') : t('docetra.common.save')"
     :show-comments="!isCreate"
     :can-comment="canCommentDocument"
     :show-meta-rail="false"

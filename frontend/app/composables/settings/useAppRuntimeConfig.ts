@@ -1,4 +1,4 @@
-import type { AppConfigGeneral, AppConfigSecurity } from '~/types/docetra/settings'
+import type { AppConfigFeatures, AppConfigGeneral, AppConfigSecurity } from '~/types/docetra/settings'
 import { useSettingsRepositories } from '~/repositories'
 import { extensionsToUppyTypes } from '~/utils/security/files'
 
@@ -23,10 +23,19 @@ const DEFAULT_SECURITY: AppConfigSecurity = {
   frontendOnly: false,
 }
 
-/** App Config general + security for runtime UI (page size, uploads). */
+const DEFAULT_FEATURES: AppConfigFeatures = {
+  fileUpload: false,
+  googleDriveSync: false,
+  portalLogs: false,
+  recordLogs: false,
+  systemLogs: false,
+}
+
+/** App Config general + security + features for runtime UI (page size, uploads, menus). */
 export function useAppRuntimeConfig() {
   const general = useState<AppConfigGeneral>('app-runtime-general', () => ({ ...DEFAULT_GENERAL }))
   const security = useState<AppConfigSecurity>('app-runtime-security', () => ({ ...DEFAULT_SECURITY }))
+  const features = useState<AppConfigFeatures>('app-runtime-features', () => ({ ...DEFAULT_FEATURES }))
   const loaded = useState('app-runtime-config-loaded', () => false)
   const loading = useState('app-runtime-config-loading', () => false)
 
@@ -48,6 +57,7 @@ export function useAppRuntimeConfig() {
           ? [...config.security.allowedUploadExtensions]
           : [...DEFAULT_SECURITY.allowedUploadExtensions],
       }
+      features.value = { ...DEFAULT_FEATURES, ...(config.features || {}) }
       loaded.value = true
     }
     catch {
@@ -58,7 +68,7 @@ export function useAppRuntimeConfig() {
     }
   }
 
-  function applyFromConfig(config: { general?: Partial<AppConfigGeneral>, security?: Partial<AppConfigSecurity> }) {
+  function applyFromConfig(config: { general?: Partial<AppConfigGeneral>, security?: Partial<AppConfigSecurity>, features?: Partial<AppConfigFeatures> }) {
     if (config.general) general.value = { ...general.value, ...config.general }
     if (config.security) {
       security.value = {
@@ -70,6 +80,7 @@ export function useAppRuntimeConfig() {
           : security.value.allowedUploadExtensions,
       }
     }
+    if (config.features) features.value = { ...features.value, ...config.features }
     loaded.value = true
   }
 
@@ -90,6 +101,7 @@ export function useAppRuntimeConfig() {
   return {
     general: readonly(general),
     security: readonly(security),
+    features: readonly(features),
     loaded: readonly(loaded),
     loading: readonly(loading),
     defaultPageSize,

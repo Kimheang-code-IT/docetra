@@ -222,24 +222,70 @@ def main() -> None:
     # ------------------------------------------------------------------
     print("attribute catalog")
     attrs = {}
-    for code, name, ftype, extra in (
+    for code, name, dtype, extra in (
         ("demo_priority", "Demo Priority", "select", {"options": [
             {"value": "high", "label": "High"}, {"value": "medium", "label": "Medium"}, {"value": "low", "label": "Low"}]}),
-        ("demo_budget", "Demo Budget", "number", {}),
+        ("demo_budget", "Demo Budget", "currency", {}),
         ("demo_deadline", "Demo Deadline", "date", {}),
-        ("demo_remarks", "Demo Remarks", "textarea", {}),
+        ("demo_remarks", "Demo Remarks", "long_text", {}),
     ):
-        if not find("configuration/record-attributes", name):
-            res = client.post("/api/v2/configuration/record-attributes",
-                              json={"code": code, "name": name, "fieldType": ftype, **extra}, headers=H)
-            if res.status_code in (200, 201):
-                attrs[code] = res.json()["data"]["id"]
-                created["ok"] += 1
-            else:
-                created["fail"] += 1
-                print(f"  !! attribute {code}: {res.status_code} {res.text[:150]}")
-        else:
+        existing = find("configuration/record-attributes", name)
+        if existing:
+            attrs[code] = existing
             created["skip"] += 1
+            continue
+        res = client.post("/api/v2/configuration/record-attributes",
+                          json={"code": code, "name": name, "label": name, "dataType": dtype, **extra}, headers=H)
+        if res.status_code in (200, 201):
+            attrs[code] = res.json()["data"]["id"]
+            created["ok"] += 1
+        else:
+            created["fail"] += 1
+            print(f"  !! attribute {code}: {res.status_code} {res.text[:150]}")
+
+    # ------------------------------------------------------------------
+    # Configuration: custom record type built from the attribute catalog
+    # ------------------------------------------------------------------
+    print("custom record type")
+    if attrs and not find("configuration/record-types", "Demo Purchase Request"):
+        catalog = [
+            ("demo_priority", "Demo Priority", "select"),
+            ("demo_budget", "Demo Budget", "currency"),
+            ("demo_deadline", "Demo Deadline", "date"),
+            ("demo_remarks", "Demo Remarks", "long_text"),
+        ]
+        assigned = [
+            {"attributeId": attrs[c], "attributeCode": c, "attributeLabel": n, "dataType": d, "order": i}
+            for i, (c, n, d) in enumerate(catalog)
+            if c in attrs
+        ]
+        stages = [
+            {"id": "draft", "code": "draft", "name": "Draft", "color": "#64748b", "isInitial": True, "isFinal": False, "order": 1},
+            {"id": "review", "code": "review", "name": "Review", "color": "#f59e0b", "isInitial": False, "isFinal": False, "order": 2},
+            {"id": "approved", "code": "approved", "name": "Approved", "color": "#22c55e", "isInitial": False, "isFinal": True, "order": 3},
+        ]
+        transitions = [
+            {"id": "draft_to_review", "fromStageCode": "draft", "toStageCode": "review"},
+            {"id": "review_to_approved", "fromStageCode": "review", "toStageCode": "approved"},
+        ]
+        res = client.post("/api/v2/configuration/record-types", json={
+            "name": "Demo Purchase Request", "code": "demo_purchase_request",
+            "description": "Demo custom record type with attributes + workflow.",
+            "color": "#2563eb", "status": "active",
+            "attributes": assigned, "stages": stages, "transitions": transitions,
+        }, headers=H)
+        if res.status_code in (200, 201):
+            created["ok"] += 1
+            for i, stage in enumerate(("draft", "review", "approved")):
+                create("records/demo_purchase_request",
+                       {"title": f"Demo Purchase Request {chr(65 + i)}", "stage": stage,
+                        "recordTime": DT, "status": "active", "tags": ["demo"]},
+                       f"custom record {i}", f"Demo Purchase Request {chr(65 + i)}")
+        else:
+            created["fail"] += 1
+            print(f"  !! record type: {res.status_code} {res.text[:150]}")
+    elif attrs:
+        created["skip"] += 1
 
     # ------------------------------------------------------------------
     # Meetings: topics + meetings across stages

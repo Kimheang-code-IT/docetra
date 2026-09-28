@@ -117,8 +117,8 @@ const selectItems = computed(() => {
 })
 
 const labelText = computed(() => {
-  if (props.field.label) return props.field.label
   if (props.field.labelKey && te(props.field.labelKey)) return t(props.field.labelKey)
+  if (props.field.label) return props.field.label
   return props.field.labelKey || ''
 })
 
@@ -298,6 +298,7 @@ function addAssignedAttribute() {
     attributeCode: attr.code,
     attributeLabel: attr.label,
     dataType: attr.dataType,
+    required: attr.required === true,
     section: 'General',
     order: assignedAttributes.value.length,
   }
@@ -323,6 +324,7 @@ function onReorderAssigned(items: Array<RecordTypeAttribute & { id: string }>) {
     attributeCode: a.attributeCode,
     attributeLabel: a.attributeLabel,
     dataType: a.dataType,
+    required: a.required === true,
     stageCode: a.stageCode,
     section: a.section,
     order: index,

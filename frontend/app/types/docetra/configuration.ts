@@ -39,6 +39,7 @@ export interface AttributeOption {
   id: string
   label: string
   value: string
+  labelKey?: string
   color?: string
   icon?: string
   active: boolean
@@ -78,6 +79,16 @@ export interface RecordAttribute extends BaseEntity {
   options?: AttributeOption[]
   /** Count of record types using this attribute (denormalized for lists). */
   usedByCount: number
+  /** i18n key for the label, when the attribute ships with built-in copy. */
+  labelKey?: string
+  /** Explicit form control type override (e.g. `csv-list`, `multiselect`). */
+  fieldType?: import('./common').FieldType
+  /** Named option source resolved to an API endpoint (departments, companies, …). */
+  optionsSource?: string
+  /** Full-width field hint for the form grid. */
+  colSpan?: 1 | 2
+  /** Required on the record form when assigned to a type. */
+  required?: boolean
 }
 
 export type CreateRecordAttributeInput = Omit<
@@ -92,6 +103,8 @@ export interface RecordTypeAttribute {
   attributeCode: string
   attributeLabel: string
   dataType: AttributeDataType
+  /** Required when saving a record of this type. */
+  required?: boolean
   /** Optional workflow stage where this field becomes applicable. Empty means all stages. */
   stageCode?: string
   section?: string

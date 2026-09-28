@@ -13,6 +13,7 @@ DEFAULT_APP_CONFIG = {
     "email": {"enabled": False, "smtpHost": "", "smtpPort": 587, "username": "", "password": "", "encryption": "starttls", "timeoutSeconds": 10},
     "telegram": {"enabled": False, "botToken": "", "connectionMode": "bot_api", "messageLanguage": "en", "includeOrganization": True, "destinations": []},
     "security": {"sessionTimeoutMinutes": 480, "maxLoginAttempts": 5, "accountLockMinutes": 15, "passwordExpiryDays": 0, "requirePasswordChange": False, "auditRetentionDays": 365, "frontendOnly": False},
+    "features": {"fileUpload": False, "googleDriveSync": False, "portalLogs": False, "recordLogs": False, "systemLogs": False},
     "system": {"maintenanceMode": False, "readOnlyMode": False, "paginationDefault": 20, "configurationVersion": "1.0.0", "environment": "development", "cacheStatus": "healthy", "backgroundJobStatus": "idle"},
     "display": {"cardFields": {}, "cardFooterAlign": {}},
 }
@@ -41,7 +42,7 @@ async def get_setting(db: AsyncSession, key: str, default: dict) -> dict:
         db.add(row)
         await db.flush()
         await db.refresh(row)
-    value = mask_mapping(dict(row.value))
+    value = mask_mapping(deep_merge(default, dict(row.value)))
     value["updatedAt"] = iso_utc(row.updated_at)
     return {"data": value}
 

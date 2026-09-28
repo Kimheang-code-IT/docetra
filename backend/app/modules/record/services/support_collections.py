@@ -14,7 +14,7 @@ from app.core.errors import DomainError
 from app.platform.audit.model import AuditLog
 from typing import Any as User
 from app.modules.record.model import RecordAttribute, RecordType
-from app.modules.record.services.configuration import serialize_record_type
+from app.modules.record.services.configuration import attribute_usage_counts, serialize_record_type
 from app.modules.people_access.service import officer_names_by_ids, strip_secrets
 from app.modules.record.services.stamp import apply_side_effects, audit, entity_or_404, stamp
 
@@ -57,9 +57,12 @@ class SupportApplicationService:
 
         if kind == "record_attribute":
             rows = (await db.scalars(select(RecordAttribute).order_by(RecordAttribute.updated_at.desc()).offset((page - 1) * limit).limit(limit))).all()
+            counts = await attribute_usage_counts(db)
             data = [{
                 "id": str(row.id), "code": row.code, "name": row.nam or row.code, "dataType": row.data_type,
-                **(row.payload or {}), "createdAt": iso_utc(row.created_at), "updatedAt": iso_utc(row.updated_at), "version": 1,
+                "status": "active",
+                **(row.payload or {}), "usedByCount": counts.get(row.code, 0),
+                "createdAt": iso_utc(row.created_at), "updatedAt": iso_utc(row.updated_at), "version": 1,
             } for row in rows]
             return {"data": data, "meta": {"page": page, "limit": limit, "total": len(data), "totalPages": 1}}
 
@@ -121,9 +124,12 @@ class SupportApplicationService:
             row = await db.get(RecordAttribute, uid)
             if not row:
                 raise HTTPException(404, "Not found")
+            counts = await attribute_usage_counts(db)
             return {
                 "id": str(row.id), "code": row.code, "name": row.nam or row.code, "dataType": row.data_type,
-                **(row.payload or {}), "version": 1, "createdAt": iso_utc(row.created_at), "updatedAt": iso_utc(row.updated_at),
+                "status": "active",
+                **(row.payload or {}), "usedByCount": counts.get(row.code, 0),
+                "version": 1, "createdAt": iso_utc(row.created_at), "updatedAt": iso_utc(row.updated_at),
             }
         if kind == "entity":
             return stamp(await entity_or_404(db, self.host.resource, entity_id))

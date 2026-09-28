@@ -1,5 +1,8 @@
 import type { NavigationMenuItem } from '@nuxt/ui'
+import type { AppConfigFeatures } from '~/types/docetra/settings'
 import { useRecordSurfaces } from '~/composables/record/useRecordSurfaces'
+import { useAppRuntimeConfig } from '~/composables/settings/useAppRuntimeConfig'
+import { useStorageStatus } from '~/composables/storage/useStorageStatus'
 
 const SIDEBAR_COLLAPSED_KEY = 'docetra:sidebar:collapsed'
 const SIDEBAR_AUTO_MQ = '(max-width: 1023px)'
@@ -12,6 +15,8 @@ export function useMenu() {
   const { t } = useI18n()
   const auth = useAuthStore()
   const { meetingTypes, documentTypes, load: loadSurfaces } = useRecordSurfaces()
+  const { features } = useAppRuntimeConfig()
+  const { status: storageStatus, load: loadStorageStatus } = useStorageStatus()
 
   const isNarrow = useMediaQuery(SIDEBAR_AUTO_MQ)
   const hydrated = useState('sidebar-collapsed-hydrated', () => false)
@@ -38,6 +43,7 @@ export function useMenu() {
   }
 
   onMounted(() => {
+    void loadStorageStatus()
     if (hydrated.value) return
     hydrated.value = true
     const saved = localStorage.getItem(SIDEBAR_COLLAPSED_KEY)
@@ -121,9 +127,35 @@ export function useMenu() {
     return undefined
   }
 
+  // Portal features are only useful once a provider is configured in Settings;
+  // every gated item also needs its admin feature toggle on.
+  const routeFeatureKeys: Record<string, keyof AppConfigFeatures> = {
+    '/portal/file-upload': 'fileUpload',
+    '/portal/google-drive-sync': 'googleDriveSync',
+    '/portal/portal-logs': 'portalLogs',
+    '/records/logs': 'recordLogs',
+  }
+
+  function storageConfiguredForRoute(to: string): boolean {
+    const status = storageStatus.value
+    if (to === '/portal/file-upload') return status?.fileStorage.source === 'provider'
+    if (to === '/portal/google-drive-sync') return status?.googleDrive.source === 'provider'
+    if (to === '/portal/portal-logs') {
+      return status?.fileStorage.source === 'provider' || status?.googleDrive.source === 'provider'
+    }
+    return true
+  }
+
+  function featureVisibleForRoute(to: string): boolean {
+    const key = routeFeatureKeys[to]
+    if (key && !features.value[key]) return false
+    return storageConfiguredForRoute(to)
+  }
+
   function permittedItem(item: NavigationMenuItem): NavigationMenuItem | null {
     const candidate = item as NavigationMenuItem & { to?: string; children?: NavigationMenuItem[], keepWhenEmpty?: boolean }
     if (candidate.to) {
+      if (!featureVisibleForRoute(candidate.to)) return null
       const permission = permissionForRoute(candidate.to)
       if (permission && !auth.canAccessPage(permission)) return null
     }

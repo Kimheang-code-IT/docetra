@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { DocumentTabSchema } from '~/types/docetra/common'
 import { companionNameKey } from '~/utils/select-display'
+import { isFieldVisible } from '~/utils/field-visibility'
 
 const props = withDefaults(defineProps<{
   tabs: DocumentTabSchema[]
@@ -67,6 +68,10 @@ function onSelectedLabel(fieldKey: string, label: string) {
   const nameKey = companionNameKey(fieldKey)
   if (nameKey) props.setFieldValue(nameKey, label)
 }
+
+function visibleFields(section: DocumentTabSchema['sections'][0]) {
+  return section.fields.filter(field => isFieldVisible(field, props.fieldValue))
+}
 </script>
 
 <template>
@@ -91,7 +96,7 @@ function onSelectedLabel(fieldKey: string, label: string) {
 
             <div class="grid min-w-0 grid-cols-1 gap-x-5 gap-y-5 sm:grid-cols-2">
               <div
-                v-for="field in section.fields"
+                v-for="field in visibleFields(section)"
                 :key="field.key"
                 class="min-w-0 max-w-full"
                 :class="isFullWidthField(field) ? 'sm:col-span-2' : ''"

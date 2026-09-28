@@ -41,6 +41,7 @@ def _normalize_assigned(item: dict, order: int) -> dict:
         "attributeCode": code,
         "attributeLabel": str(item.get("attributeLabel") or item.get("label") or item.get("name") or code),
         "dataType": item.get("dataType") or "short_text",
+        "required": bool(item.get("required")),
         "stageCode": item.get("stageCode"),
         "section": item.get("section"),
         "columnWidth": item.get("columnWidth"),
@@ -56,11 +57,16 @@ def serialize_record_attribute(row: RecordAttribute) -> dict:
         "code": row.code,
         "label": payload.get("label") or name,
         "name": name,
+        "labelKey": payload.get("labelKey"),
         "description": payload.get("description"),
         "helpText": payload.get("helpText"),
         "dataType": row.data_type or payload.get("dataType") or "short_text",
+        "fieldType": payload.get("fieldType"),
+        "optionsSource": payload.get("optionsSource"),
         "placeholder": payload.get("placeholder"),
         "defaultValue": payload.get("defaultValue"),
+        "colSpan": payload.get("colSpan"),
+        "required": bool(payload.get("required")),
         "options": payload.get("options") or [],
         "usedByCount": int(payload.get("usedByCount") or 0),
         "status": payload.get("status") or "active",
@@ -186,9 +192,25 @@ async def _assigned_attributes(db: AsyncSession, row: RecordType) -> list[dict]:
             "attributeCode": attr.code if attr else str(tmpl.record_attribute_id),
             "attributeLabel": (attr.nam or attr.code) if attr else "",
             "dataType": (attr.data_type if attr else None) or "short_text",
+            "required": bool(tmpl.is_require),
             "order": tmpl.ordering if tmpl.ordering is not None else index,
         })
     return assigned
+
+
+async def attribute_usage_counts(db: AsyncSession) -> dict[str, int]:
+    """Count how many record types assign each attribute code (for catalog usage)."""
+    counts: dict[str, int] = {}
+    rows = (await db.scalars(select(RecordType))).all()
+    for row in rows:
+        payload = merge_type_ui_payload(row.code, dict(row.payload or {}))
+        for item in payload.get("attributes") or []:
+            if not isinstance(item, dict):
+                continue
+            code = str(item.get("attributeCode") or item.get("code") or "")
+            if code:
+                counts[code] = counts.get(code, 0) + 1
+    return counts
 
 
 async def _catalog_for_assigned(db: AsyncSession, assigned: list[dict]) -> list[dict]:

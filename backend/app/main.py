@@ -53,6 +53,7 @@ from app.jobs.scheduler.meeting_reminders import due_meeting_reminders
 from app.jobs.scheduler.reconcile import reconcile
 from app.jobs.topology import DEAD_LETTER_EXCHANGE, EVENT_EXCHANGE
 from app.modules.people_access.service import ensure_superadmin_role
+from app.modules.record.service import ensure_builtin_catalog
 from app.modules.storage_integration.service import probe_storage
 
 configure_logging()
@@ -76,18 +77,24 @@ DOCS_PATHS = frozenset({"/api/v2/docs", "/api/v2/openapi.json"})
 
 
 async def seed_system() -> None:
-    """Seed the SuperAdmin role only. Record types, menus, and users are never
-    auto-created — administrators build them through the UI.
+    """Seed the SuperAdmin role and the built-in record type/attribute catalog.
 
-    The first administrator is inserted through ``POST /api/v2/auth/register``
-    (registration closes once any user exists); later accounts are created
-    through the users API.
+    The built-in record types (meeting topics/history, documents, master list)
+    and their default attribute catalog are materialized so configuration and
+    the record/meeting forms are driven from the database. Users are never
+    auto-created: the first administrator is inserted through
+    ``POST /api/v2/auth/register`` (registration closes once any user exists);
+    later accounts are created through the users API.
     """
     async with SessionLocal() as db:
         try:
             await ensure_superadmin_role(db)
         except Exception:
             log.exception("SuperAdmin role seed skipped; relational migration may be pending")
+        try:
+            await ensure_builtin_catalog(db)
+        except Exception:
+            log.exception("Built-in record catalog seed skipped; database may still be migrating")
         await db.commit()
 
 
